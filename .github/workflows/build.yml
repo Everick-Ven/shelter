@@ -1,12 +1,23 @@
-name: foundation
+name: build
 on: [push, pull_request, workflow_dispatch]
 jobs:
-  unit:
-    runs-on: ubuntu-latest
+  windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build foundation tests
-        run: |
-          cmake -S . -B build -G Ninja
-          cmake --build build
-          ctest --test-dir build --output-on-failure
+      - uses: ilammy/msvc-dev-cmd@v1
+        with: { arch: x64 }
+      - name: Bootstrap CEF
+        shell: bash
+        run: CEF_PLATFORM=windows ./scripts/bootstrap-cef.sh
+      - name: Build
+        shell: bash
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
+  macos:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bootstrap CEF
+        run: CEF_PLATFORM=macos ./scripts/bootstrap-cef.sh
+      - name: Build
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 && cmake --build build

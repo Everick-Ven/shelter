@@ -10,14 +10,40 @@ jobs:
       - name: Bootstrap CEF
         shell: bash
         run: CEF_PLATFORM=windows ./scripts/bootstrap-cef.sh
-      - name: Build
+      - name: Build and test
         shell: bash
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+      - name: Package Windows portable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package\Resources | Out-Null
+          Copy-Item build\shelter.exe package\
+          Copy-Item resources\ui package\Resources\ui -Recurse
+          Copy-Item cef\Release\* package\ -Recurse -Force
+          Copy-Item cef\Resources\* package\Resources\ -Recurse -Force
+          Compress-Archive -Path package\* -DestinationPath SHELTER-windows-x64-portable.zip -Force
+      - uses: actions/upload-artifact@v4
+        with: { name: SHELTER-windows-x64, path: SHELTER-windows-x64-portable.zip }
   macos:
     runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
       - name: Bootstrap CEF
         run: CEF_PLATFORM=macos ./scripts/bootstrap-cef.sh
-      - name: Build
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 && cmake --build build
+      - name: Build and test
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+      - name: Package macOS app
+        run: |
+          mkdir -p package/SHELTER.app/Contents/MacOS package/SHELTER.app/Contents/Resources package/SHELTER.app/Contents/Frameworks
+          cp -R build/shelter.app/Contents/MacOS/shelter package/SHELTER.app/Contents/MacOS/
+          cp -R resources/ui package/SHELTER.app/Contents/Resources/ui
+          cp -R "cef/Release/Chromium Embedded Framework.framework" package/SHELTER.app/Contents/Frameworks/
+          hdiutil create -volname SHELTER -srcfolder package -ov -format UDZO SHELTER-macos-x64.dmg
+      - uses: actions/upload-artifact@v4
+        with: { name: SHELTER-macos-x64, path: SHELTER-macos-x64.dmg }

@@ -50,6 +50,8 @@ jobs:
           mkdir -p dmg-root
           cp -R package/SHELTER.app dmg-root/SHELTER.app
           ln -s /Applications dmg-root/Applications
-          hdiutil create -volname SHELTER -srcfolder dmg-root -ov -format UDZO SHELTER-macos-x64.dmg
+          rm -f SHELTER-macos-x64.dmg
+          hdiutil detach "$(hdiutil info | awk '/dmg-root/{print $1; exit}')" 2>/dev/null || true
+          hdiutil create -volname SHELTER -srcfolder "${GITHUB_WORKSPACE}/dmg-root" -ov -format UDZO "${GITHUB_WORKSPACE}/SHELTER-macos-x64.dmg"
       - uses: actions/upload-artifact@v4
         with: { name: SHELTER-macos-x64, path: SHELTER-macos-x64.dmg }

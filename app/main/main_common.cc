@@ -7,8 +7,10 @@
 #endif
 int main(int argc, char** argv) {
   shelter::InitializeLogging("shelter.log");
+#if defined(__APPLE__)
   CefScopedLibraryLoader library_loader;
   if (!library_loader.LoadInMain()) return 1;
+#endif
 #if defined(_WIN32)
   CefMainArgs args(GetModuleHandle(nullptr));
 #else

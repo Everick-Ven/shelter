@@ -1,0 +1,3 @@
+#pragma once
+#include "include/cef_client.h"
+namespace shelter { class Client final : public CefClient, public CefLifeSpanHandler, public CefDisplayHandler, public CefLoadHandler { public: CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override{return this;} CefRefPtr<CefDisplayHandler> GetDisplayHandler() override{return this;} CefRefPtr<CefLoadHandler> GetLoadHandler() override{return this;} void OnTitleChange(CefRefPtr<CefBrowser>,const CefString&) override; void OnLoadError(CefRefPtr<CefBrowser>,CefRefPtr<CefFrame>,ErrorCode,const CefString&,const CefString&) override; private: IMPLEMENT_REFCOUNTING(Client); }; }

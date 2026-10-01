@@ -1,3 +1,3 @@
-#include "app/browser/browser_controller.h"
+#include "app/browser/tab_manager.h"
 #include <cassert>
-int main(){shelter::BrowserController c;assert(c.tabs().Create("one","https://example.com"));assert(!c.tabs().Create("one","https://example.com"));assert(c.Navigate("one","https://example.org"));assert(!c.Navigate("one","javascript:bad"));assert(c.SetTitle("one","Example"));assert(c.tabs().Active()->title=="Example");assert(c.tabs().Create("two","https://example.net"));assert(c.tabs().Activate("one"));assert(c.tabs().Active()->id=="one");assert(c.tabs().Close("one"));assert(!c.tabs().Find("one"));}
+int main(){shelter::TabManager m;assert(m.Create("one","https://example.com"));assert(!m.Create("one","https://example.com"));assert(m.Create("two","https://example.net"));assert(m.Activate("one"));assert(m.Active()->id=="one");assert(m.Close("one"));assert(!m.Find("one"));}

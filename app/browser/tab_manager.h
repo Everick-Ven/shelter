@@ -2,8 +2,10 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include "include/cef_browser.h"
 namespace shelter {
-struct TabState { std::string id; std::string url; std::string title; bool loading=false; bool can_go_back=false; bool can_go_forward=false; };
+struct TabState { std::string id; std::string url; std::string title; CefRefPtr<CefBrowser> browser;
+  bool loading=false; bool can_go_back=false; bool can_go_forward=false; };
 class TabManager {
  public:
   TabState* Create(std::string id, std::string url);

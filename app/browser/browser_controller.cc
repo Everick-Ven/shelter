@@ -4,4 +4,6 @@ namespace shelter {
 bool BrowserController::Navigate(std::string_view id,std::string_view url){auto*t=tabs_.Find(id);if(!t||!IsValidNavigationUrl(url))return false;t->url=url;t->loading=true;return true;}
 bool BrowserController::SetLoading(std::string_view id,bool v){auto*t=tabs_.Find(id);if(!t)return false;t->loading=v;return true;}
 bool BrowserController::SetTitle(std::string_view id,std::string_view title){auto*t=tabs_.Find(id);if(!t)return false;t->title=title;return true;}
+bool BrowserController::SetAddress(std::string_view id,std::string_view url){auto*t=tabs_.Find(id);if(!t)return false;t->url=url;return true;}
+bool BrowserController::SetHistoryState(std::string_view id,bool back,bool forward){auto*t=tabs_.Find(id);if(!t)return false;t->can_go_back=back;t->can_go_forward=forward;return true;}
 }

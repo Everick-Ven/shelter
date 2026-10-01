@@ -9,6 +9,8 @@ class BrowserController {
   bool Navigate(std::string_view id,std::string_view url);
   bool SetLoading(std::string_view id,bool loading);
   bool SetTitle(std::string_view id,std::string_view title);
+  bool SetAddress(std::string_view id,std::string_view url);
+  bool SetHistoryState(std::string_view id,bool back,bool forward);
  private: TabManager tabs_;
 };
 }

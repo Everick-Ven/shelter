@@ -22,6 +22,7 @@ jobs:
           New-Item -ItemType Directory -Force package\Resources | Out-Null
           Copy-Item build\shelter.exe package\
           Copy-Item resources\ui package\Resources\ui -Recurse
+          Copy-Item resources\icons\icon-256.png package\SHELTER.png
           Copy-Item cef\Release\* package\ -Recurse -Force
           Copy-Item cef\Resources\* package\Resources\ -Recurse -Force
           Compress-Archive -Path package\* -DestinationPath SHELTER-windows-x64-portable.zip -Force
@@ -42,8 +43,13 @@ jobs:
         run: |
           mkdir -p package/SHELTER.app/Contents/MacOS package/SHELTER.app/Contents/Resources package/SHELTER.app/Contents/Frameworks
           cp -R build/shelter.app/Contents/MacOS/shelter package/SHELTER.app/Contents/MacOS/
+          cp mac/Info.plist package/SHELTER.app/Contents/Info.plist
           cp -R resources/ui package/SHELTER.app/Contents/Resources/ui
+          cp resources/icons/icon-1024.png package/SHELTER.app/Contents/Resources/SHELTER.png
           cp -R "cef/Release/Chromium Embedded Framework.framework" package/SHELTER.app/Contents/Frameworks/
-          hdiutil create -volname SHELTER -srcfolder package -ov -format UDZO SHELTER-macos-x64.dmg
+          mkdir -p dmg-root
+          cp -R package/SHELTER.app dmg-root/SHELTER.app
+          ln -s /Applications dmg-root/Applications
+          hdiutil create -volname SHELTER -srcfolder dmg-root -ov -format UDZO SHELTER-macos-x64.dmg
       - uses: actions/upload-artifact@v4
         with: { name: SHELTER-macos-x64, path: SHELTER-macos-x64.dmg }

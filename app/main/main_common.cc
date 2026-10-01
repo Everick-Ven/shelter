@@ -1,11 +1,14 @@
 #include "app/cef/cef_app.h"
 #include "app/common/logging.h"
 #include "include/cef_app.h"
+#include "include/wrapper/cef_library_loader.h"
 #if defined(_WIN32)
 #include <windows.h>
 #endif
 int main(int argc, char** argv) {
   shelter::InitializeLogging("shelter.log");
+  CefScopedLibraryLoader library_loader;
+  if (!library_loader.LoadInMain()) return 1;
 #if defined(_WIN32)
   CefMainArgs args(GetModuleHandle(nullptr));
 #else

@@ -1,0 +1,16 @@
+/build/
+/out/
+/cef/
+/.cache/
+*.log
+*.dmp
+*.pdb
+*.obj
+*.o
+*.a
+*.lib
+*.dll
+*.dylib
+*.app
+*.exe
+.DS_Store

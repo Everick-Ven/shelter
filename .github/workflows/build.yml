@@ -1,0 +1,12 @@
+name: foundation
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build foundation tests
+        run: |
+          cmake -S . -B build -G Ninja
+          cmake --build build
+          ctest --test-dir build --output-on-failure

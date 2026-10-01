@@ -4,8 +4,21 @@
 #if defined(_WIN32)
 #include <windows.h>
 #endif
-int main(int argc,char**argv){shelter::InitializeLogging("shelter.log");#if defined(_WIN32)
-  CefMainArgs a(GetModuleHandle(nullptr));
+int main(int argc, char** argv) {
+  shelter::InitializeLogging("shelter.log");
+#if defined(_WIN32)
+  CefMainArgs args(GetModuleHandle(nullptr));
 #else
-  CefMainArgs a(argc,argv);
-#endifCefRefPtr<shelter::App> app(new shelter::App);int r=CefExecuteProcess(a,app,nullptr);if(r>=0)return r;CefSettings s;s.no_sandbox=true;CefString(&s.log_file)="shelter-cef.log";if(!CefInitialize(a,s,app,nullptr))return 1;CefRunMessageLoop();CefShutdown();return 0;}
+  CefMainArgs args(argc, argv);
+#endif
+  CefRefPtr<shelter::App> app(new shelter::App);
+  int exit_code = CefExecuteProcess(args, app, nullptr);
+  if (exit_code >= 0) return exit_code;
+  CefSettings settings;
+  settings.no_sandbox = true;
+  CefString(&settings.log_file) = "shelter-cef.log";
+  if (!CefInitialize(args, settings, app, nullptr)) return 1;
+  CefRunMessageLoop();
+  CefShutdown();
+  return 0;
+}

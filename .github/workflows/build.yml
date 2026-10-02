@@ -95,15 +95,83 @@ jobs:
           echo "helper standalone exit=$HELPER_RC" >> /tmp/shelter-helper-try.log
           # Fresh profile for the app itself.
           rm -rf "$DATA"
+          # Launch EXACTLY like the known-good reference smoke: app installed
+          # in /Applications, started with the CDP port (parity args).
+          rm -rf /Applications/SHELTER.app
+          cp -R "$APP" /Applications/SHELTER.app
+          APP="/Applications/SHELTER.app"
+          pip3 install -q websocket-client 2>/dev/null || python3 -m pip install -q websocket-client
           # Phase A: data: URL — tests renderer/navigation machinery in
           # isolation from the shelter:// custom scheme. Netlog captures the
           # full URLLoader lifecycle (cancellation source) for diagnosis.
           SHELTER_SMOKE_URL='data:text/html,<h1>smoke</h1>' \
             "$APP/Contents/MacOS/shelter" \
+            --remote-debugging-port=9222 --remote-allow-origins=* \
             --log-net-log=/tmp/shelter-netlog.json \
             --net-log-capture-mode=IncludeSensitive \
             > /tmp/shelter-smoke-stdout.log 2>&1 &
           PID=$!
+          # CDP listener: record target/page/network events (renderer spawns,
+          # load failures) for 12s in the background.
+          ( python3 - > /tmp/shelter-cdp.log 2>&1 <<'CDPEOF'
+          import json, time, urllib.request, sys
+          try:
+              import websocket
+          except Exception as exc:
+              print("no websocket module:", exc)
+              sys.exit(0)
+          targets = None
+          for _ in range(40):
+              time.sleep(0.5)
+              try:
+                  targets = json.load(urllib.request.urlopen("http://127.0.0.1:9222/json"))
+                  break
+              except Exception:
+                  pass
+          if not targets:
+              print("no devtools endpoint")
+              sys.exit(0)
+          print("targets initial:", json.dumps(targets)[:1200])
+          try:
+              ws = websocket.create_connection(targets[0]["webSocketDebuggerUrl"], timeout=5)
+          except Exception as exc:
+              print("ws connect failed:", exc)
+              sys.exit(0)
+          state = {"mid": 0}
+          def send(method, params=None):
+              state["mid"] += 1
+              ws.send(json.dumps({"id": state["mid"], "method": method, "params": params or {}}))
+          for m in ("Target.setDiscoverTargets", "Page.enable", "Network.enable", "Runtime.enable"):
+              send(m)
+          watch = {"Target.targetCreated", "Target.targetDestroyed", "Target.attachedToTarget",
+                   "Target.detachedFromTarget", "Network.loadingFailed",
+                   "Network.requestWillBeSent", "Page.loadEventFired", "Page.frameNavigated",
+                   "Runtime.consoleAPICalled", "Inspector.targetCrashed",
+                   "Target.targetInfoChanged"}
+          end = time.time() + 12
+          ws.settimeout(1)
+          count = 0
+          while time.time() < end:
+              try:
+                  msg = ws.recv()
+              except Exception:
+                  continue
+              if not isinstance(msg, str):
+                  continue
+              count += 1
+              data = json.loads(msg)
+              method = data.get("method", "")
+              if method in watch:
+                  print(json.dumps(data)[:700])
+          print("events total:", count)
+          send("Target.getTargets")
+          try:
+              print("final targets:", json.dumps(json.loads(ws.recv()))[:1500])
+          except Exception as exc:
+              print("final targets err:", exc)
+          CDPEOF
+          ) &
+          CDP_PID=$!
           # Markers are written by the app logger to shelter.log; Chromium's
           # own output (CHECK text included) lands in shelter-cef.log /
           # shelter-stderr.log and is only used for diagnostics.
@@ -160,7 +228,8 @@ jobs:
             # key files into annotations so failures stay diagnosable.
             for f in /tmp/shelter-smoke-stdout.log "$DATA/shelter-stderr.log" \
                      "$DATA/shelter-cef.log" "$MARKER_LOG" /tmp/shelter-procs.txt \
-                     /tmp/shelter-helper-try.log /tmp/shelter-netlog-extract.txt; do
+                     /tmp/shelter-helper-try.log /tmp/shelter-netlog-extract.txt \
+                     /tmp/shelter-cdp.log; do
               [ -f "$f" ] || continue
               esc=$(tail -c 40000 "$f" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/$/%0A/' | tr -d '\n')
               printf '::error title=%s::%s\n' "$f" "$esc"

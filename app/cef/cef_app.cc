@@ -236,7 +236,7 @@ void App::OnContextInitialized() {
 void App::OnWindowCreated(CefRefPtr<CefWindow> window) {
   Log(LogLevel::Info, "shell: window created");
   window_ = window;
-  window->SetTitle("SHELTER");
+  ApplyWindowTitle();
   window->CenterWindow(CefSize(kInitialWidth, kInitialHeight));
   // Fill the window with the host panel; browser views live inside it so
   // their manual bounds survive layout passes (window FillLayout only
@@ -312,6 +312,31 @@ bool App::StartUiClose() {
   ui_close_started_ = true;
   if (ui_browser_) return ui_browser_->GetHost()->TryCloseBrowser();
   return true;
+}
+
+void App::OnUiReady(const std::string& version) {
+  ui_version_ = version;
+  ApplyWindowTitle();
+}
+
+void App::ApplyWindowTitle() {
+  if (!window_) return;
+  window_->SetTitle(ui_version_.empty() ? "SHELTER"
+                                        : "SHELTER · " + ui_version_);
+}
+
+void App::LogContentBounds(const char* why) {
+  std::string s = std::string("shell: content bounds ") + why +
+                  " x=" + std::to_string(viewport_rect_.x) +
+                  " y=" + std::to_string(viewport_rect_.y) +
+                  " w=" + std::to_string(viewport_rect_.width) +
+                  " h=" + std::to_string(viewport_rect_.height);
+  if (window_) {
+    const CefRect c = window_->GetClientAreaBoundsInScreen();
+    s += " client_w=" + std::to_string(c.width) +
+         " client_h=" + std::to_string(c.height);
+  }
+  Log(LogLevel::Info, s);
 }
 
 void App::OnWindowDestroyed() {
@@ -460,6 +485,7 @@ bool App::NavigateContent(const std::string& tab_id, const std::string& url,
       view->RequestFocus();
       shown_tab_ = tab_id;
     }
+    LogContentBounds("created");
     return true;
   }
 
@@ -490,6 +516,7 @@ void App::ShowContentTab(const std::string& tab_id) {
   view->SetVisible(true);
   view->RequestFocus();
   shown_tab_ = tab_id;
+  LogContentBounds("shown");
 }
 
 void App::HideAllContent() {

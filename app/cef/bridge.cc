@@ -83,6 +83,13 @@ bool BridgeHandler::OnQuery(CefRefPtr<CefBrowser> browser,
     callback->Success(ok ? "{\"ok\":true}" : "{\"ok\":false}");
     return true;
   }
+  if (cmd == "ui:ready") {
+    // UI reports its version; shown in the window title so installed
+    // builds are distinguishable in screenshots.
+    app_->OnUiReady(msg->GetString("version").ToString());
+    callback->Success("{\"ok\":true}");
+    return true;
+  }
   if (cmd == "tab:navigate") {
     const std::string tab_id = msg->GetString("tabId").ToString();
     const std::string url = msg->GetString("url").ToString();

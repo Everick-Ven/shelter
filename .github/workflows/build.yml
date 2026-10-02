@@ -305,7 +305,10 @@ jobs:
           sleep 2
           kill -9 "$PID" 2>/dev/null || true
           # Phase B: the real shelter:// UI end-to-end (acceptance check).
+          # ?smoke=site makes the UI open https://example.com after boot so
+          # the native side logs the geometry of the content view.
           rm -rf "$DATA"
+          SHELTER_SMOKE_URL='shelter://ui/index.html?smoke=site' \
           "$APP/Contents/MacOS/shelter" \
             --remote-debugging-port=9222 --remote-allow-origins=* \
             --log-net-log=/tmp/shelter-netlog.json \
@@ -320,6 +323,30 @@ jobs:
             dump_logs
             exit 1
           fi
+          # Geometry acceptance: content must stay inside the hero area
+          # (sidebar left, toolbar top) — x/y > 0 and w/h strictly smaller
+          # than the window client area. Catches the "page covers the whole
+          # browser UI" regression.
+          wait_marker "shell: content bounds" 45
+          CB_LINE=$(grep "shell: content bounds" "$MARKER_LOG" | tail -1 || true)
+          echo "geometry: ${CB_LINE:-<missing>}"
+          bx=$(sed -nE 's/.* x=(-?[0-9]+) y=.*/\1/p' <<<"$CB_LINE")
+          by=$(sed -nE 's/.* y=(-?[0-9]+) w=.*/\1/p' <<<"$CB_LINE")
+          bw=$(sed -nE 's/.* w=([0-9]+) h=.*/\1/p' <<<"$CB_LINE")
+          bh=$(sed -nE 's/.* h=([0-9]+) client_w=.*/\1/p' <<<"$CB_LINE")
+          bcw=$(sed -nE 's/.* client_w=([0-9]+) client_h=.*/\1/p' <<<"$CB_LINE")
+          bch=$(sed -nE 's/.* client_h=([0-9]+)$/\1/p' <<<"$CB_LINE")
+          if [ -z "$bx" ] || [ -z "$by" ] || [ -z "$bw" ] || [ -z "$bh" ] || [ -z "$bcw" ] || [ -z "$bch" ]; then
+            echo "::error::could not parse content bounds: ${CB_LINE:-<missing>}"
+            dump_logs
+            exit 1
+          fi
+          if [ "$bx" -le 0 ] || [ "$by" -le 0 ] || [ "$bw" -ge "$bcw" ] || [ "$bh" -ge "$bch" ]; then
+            echo "::error::content view covers browser chrome (x=$bx y=$by w=$bw h=$bh client=${bcw}x${bch})"
+            dump_logs
+            exit 1
+          fi
+          echo "content geometry OK: ($bx,$by ${bw}x${bh}) within client ${bcw}x${bch}"
           if grep -q "load end" "$MARKER_LOG" 2>/dev/null; then
             echo "phase B page load completed"
           else

@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://www.google.com https://*.gstatic.com https://favicon.yandex.net; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
-<meta name="description" content="SHELTER 1.0.160 — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
+<meta name="description" content="SHELTER 1.0.161 — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
 <meta name="color-scheme" content="dark light">
 <script>
 /* ранний выбор темы — без вспышки */
@@ -3431,6 +3431,24 @@ html[data-theme="graphite"] .badge.hot{
     window.addEventListener('resize', () => syncViewport(false), { passive: true });
     setTimeout(() => syncViewport(true), 60);
   });
+
+  /* ui:ready — native запоминает версию UI и показывает её в заголовке
+     окна (помогает отличить установленную сборку). smoke=site — CI-смоук
+     открывает реальный сайт, чтобы натив залогировал геометрию контента. */
+  window.addEventListener('load', () => {
+    try {
+      // VERSION живёт в скоупе основного скрипта; window.shelter.version
+      // пробрасывает её сюда (на 'load' объект уже создан).
+      const v = (window.shelter && window.shelter.version) || '';
+      if (isCefEnv) cefSend('ui:ready', { version: v });
+    } catch (_) {}
+    try {
+      // 7s: навигация в первые секунды после загрузки гасится boot-гейтом.
+      if (/[?&#]smoke=site\b/.test(location.href) && window.shelter && typeof window.shelter.navigate === 'function') {
+        setTimeout(() => { try { window.shelter.navigate('https://example.com/'); } catch (_) {} }, 7000);
+      }
+    } catch (_) {}
+  });
 })();
 </script>
 <script>
@@ -3536,7 +3554,7 @@ const greeting = () => { const h = new Date().getHours(); return h >= 5 && h < 1
    Константы
    ========================================================= */
 const DEMO = false;             // пустой первый запуск — без демо-пространств и задач
-const VERSION = '1.0.160';
+const VERSION = '1.0.161';
 /* платформа и локализация (1.0.113): Mac и Windows — как русский и английский */
 const IS_MAC = ((window.shelterNative && window.shelterNative.platform) || navigator.platform || '').indexOf('darwin') >= 0 || /^Mac/.test(navigator.platform || '');
 const PLAT_NAME = IS_MAC ? 'macOS (Intel)' : 'Windows 11 x64';

@@ -72,6 +72,8 @@ class App final : public CefApp,
   bool OpenDevTools(const std::string& tab_id, const CefRect& bounds,
                     bool has_bounds);
   void CloseDevTools(const std::string& tab_id);
+  // UI boot handshake: remember the UI version for the window title.
+  void OnUiReady(const std::string& version);
 
   // Main window delegate hooks.
   void OnWindowCreated(CefRefPtr<CefWindow> window);
@@ -88,6 +90,11 @@ class App final : public CefApp,
   void HideAllContent();
   bool StartUiClose();
   void MaybeQuit();
+  void ApplyWindowTitle();
+  // Logs the rect applied to the active content view plus the window
+  // client size (smoke test asserts the content stays inside the hero
+  // area instead of covering the whole UI).
+  void LogContentBounds(const char* why);
 
   BrowserController controller_;
 
@@ -108,6 +115,7 @@ class App final : public CefApp,
   CefRect viewport_rect_;
   std::string active_tab_;
   std::string shown_tab_;
+  std::string ui_version_;  // reported by the UI via ui:ready
   bool content_visible_ = false;
   double zoom_level_ = 0.0;
   bool closing_ = false;

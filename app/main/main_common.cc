@@ -102,14 +102,21 @@ int main(int argc, char** argv) {
       break;
     }
   }
+  shelter::Log(shelter::LogLevel::Info,
+               std::string("main: start argv0=") +
+                   (argc > 0 ? argv[0] : "<none>") +
+                   " is_helper=" + (is_helper ? "1" : "0"));
   CefScopedLibraryLoader library_loader;
-  if (is_helper ? !library_loader.LoadInHelper()
-                : !library_loader.LoadInMain()) {
+  const bool load_failed =
+      is_helper ? !library_loader.LoadInHelper()
+                : !library_loader.LoadInMain();
+  if (load_failed) {
     shelter::Log(shelter::LogLevel::Error,
                  is_helper ? "CEF framework load failed (helper)"
                            : "CEF framework load failed (main)");
     return 1;
   }
+  shelter::Log(shelter::LogLevel::Info, "main: framework loaded");
 #endif
 
 #if defined(_WIN32)
@@ -119,7 +126,12 @@ int main(int argc, char** argv) {
 #endif
   CefRefPtr<shelter::App> app(new shelter::App);
   const int exit_code = CefExecuteProcess(args, app, nullptr);
-  if (exit_code >= 0) return exit_code;
+  if (exit_code >= 0) {
+    shelter::Log(shelter::LogLevel::Info,
+                 "main: CefExecuteProcess rc=" + std::to_string(exit_code));
+    return exit_code;
+  }
+  shelter::Log(shelter::LogLevel::Info, "main: CefInitialize entering");
 
   CefSettings settings;
   settings.no_sandbox = true;
@@ -140,7 +152,11 @@ int main(int argc, char** argv) {
   CefString(&settings.cache_path) = data_dir.string();
   CefString(&settings.log_file) = (data_dir / "shelter-cef.log").string();
 
-  if (!CefInitialize(args, settings, app, nullptr)) return 1;
+  if (!CefInitialize(args, settings, app, nullptr)) {
+    shelter::Log(shelter::LogLevel::Error, "main: CefInitialize failed");
+    return 1;
+  }
+  shelter::Log(shelter::LogLevel::Info, "main: CefInitialize returned");
   CefRunMessageLoop();
   CefShutdown();
   return 0;

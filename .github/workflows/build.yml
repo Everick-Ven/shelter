@@ -96,15 +96,57 @@ jobs:
           # Fresh profile for the app itself.
           rm -rf "$DATA"
           # Phase A: data: URL — tests renderer/navigation machinery in
-          # isolation from the shelter:// custom scheme.
+          # isolation from the shelter:// custom scheme. Netlog captures the
+          # full URLLoader lifecycle (cancellation source) for diagnosis.
           SHELTER_SMOKE_URL='data:text/html,<h1>smoke</h1>' \
-            "$APP/Contents/MacOS/shelter" > /tmp/shelter-smoke-stdout.log 2>&1 &
+            "$APP/Contents/MacOS/shelter" \
+            --log-net-log=/tmp/shelter-netlog.json \
+            --net-log-capture-mode=IncludeSensitive \
+            > /tmp/shelter-smoke-stdout.log 2>&1 &
           PID=$!
           # Markers are written by the app logger to shelter.log; Chromium's
           # own output (CHECK text included) lands in shelter-cef.log /
           # shelter-stderr.log and is only used for diagnostics.
           MARKER_LOG="$DATA/shelter.log"
+          extract_netlog() {
+            if [ ! -f /tmp/shelter-netlog.json ]; then
+              echo "netlog file missing" > /tmp/shelter-netlog-extract.txt
+              return
+            fi
+            python3 - > /tmp/shelter-netlog-extract.txt 2>&1 <<'PYEOF'
+          import json, sys
+          try:
+              with open('/tmp/shelter-netlog.json', errors='replace') as fh:
+                  raw = fh.read()
+              data = json.loads(raw[:raw.rfind('}') + 1] if raw.rstrip()[-1:] != '}' else raw)
+          except Exception as exc:
+              print('netlog parse failed:', exc)
+              sys.exit(0)
+          consts = data.get('constants', {})
+          types = {v: k for k, v in consts.get('logEventTypes', {}).items()}
+          srcs = {v: k for k, v in consts.get('logSourceType', {}).items()}
+          events = data.get('events', [])
+          out, hits = [], 0
+          for ev in events:
+              t = types.get(ev.get('type'), ev.get('type'))
+              src = ev.get('source', {}) or {}
+              s = srcs.get(src.get('type'), src.get('type'))
+              p = ev.get('params') or {}
+              blob = json.dumps(p, ensure_ascii=False)
+              low = blob.lower()
+              if ('data:text' in blob or 'shelter:' in blob or 'err_aborted' in low
+                      or 'abort' in low or 'cancel' in low):
+                  out.append('[%s] %s src=%s id=%s %s' % (
+                      ev.get('time'), t, s, src.get('id'), blob[:420]))
+                  hits += 1
+                  if hits >= 220:
+                      break
+          print('total events=%d matched=%d' % (len(events), hits))
+          print('\n'.join(out))
+          PYEOF
+          }
           dump_logs() {
+            extract_netlog
             { echo "== processes =="; ps aux | grep -E "[Ss]helter|[Ss]HELTER" || true; } > /tmp/shelter-procs.txt 2>&1
             echo "---- processes ----"; cat /tmp/shelter-procs.txt || true
             if kill -0 "$PID" 2>/dev/null; then
@@ -118,7 +160,7 @@ jobs:
             # key files into annotations so failures stay diagnosable.
             for f in /tmp/shelter-smoke-stdout.log "$DATA/shelter-stderr.log" \
                      "$DATA/shelter-cef.log" "$MARKER_LOG" /tmp/shelter-procs.txt \
-                     /tmp/shelter-helper-try.log; do
+                     /tmp/shelter-helper-try.log /tmp/shelter-netlog-extract.txt; do
               [ -f "$f" ] || continue
               esc=$(tail -c 40000 "$f" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/$/%0A/' | tr -d '\n')
               printf '::error title=%s::%s\n' "$f" "$esc"
@@ -143,8 +185,14 @@ jobs:
               fi
             done
             echo "::error::marker '$marker' not reached in ${budget}s"
-            dump_logs
+            # Graceful stop first so Chromium flushes the netlog to disk.
+            kill -TERM "$PID" 2>/dev/null || true
+            for j in $(seq 1 6); do
+              sleep 1
+              kill -0 "$PID" 2>/dev/null || break
+            done
             kill -9 "$PID" 2>/dev/null || true
+            dump_logs
             exit 1
           }
           # 1) browser process initializes CEF

@@ -137,9 +137,12 @@ void App::OnBeforeCommandLineProcessing(const CefString& t,
     c->AppendSwitch("enable-logging");
     c->AppendSwitchWithValue("v", "1");
     c->AppendSwitchWithValue(
-        "vmodule", "navigation_request=1,render_process_host_impl=1,"
-                   "child_process_launcher*=1,render_frame_host_manager=1,"
-                   "intercept_navigation_throttle=1,throttle_handler=1,"
+        "vmodule", "navigation_request=2,render_process_host_impl=2,"
+                   "child_process_launcher*=2,render_frame_host_manager=2,"
+                   "site_instance_impl=2,navigation_url_loader_impl=2,"
+                   "proxy_url_loader_factory=2,web_contents_impl=2,"
+                   "resource_request_handler_wrapper=2,"
+                   "throttle_handler=1,intercept_navigation_throttle=1,"
                    "browser_info_manager=1");
   }
 }

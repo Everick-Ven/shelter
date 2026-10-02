@@ -100,7 +100,9 @@ jobs:
           rm -rf /Applications/SHELTER.app
           cp -R "$APP" /Applications/SHELTER.app
           APP="/Applications/SHELTER.app"
-          pip3 install -q websocket-client 2>/dev/null || python3 -m pip install -q websocket-client
+          pip3 install -q websocket-client 2>/dev/null \
+            || python3 -m pip install -q websocket-client 2>/dev/null \
+            || echo "websocket-client unavailable (CDP listener will skip)"
           # Phase A: data: URL — tests renderer/navigation machinery in
           # isolation from the shelter:// custom scheme. Netlog captures the
           # full URLLoader lifecycle (cancellation source) for diagnosis.

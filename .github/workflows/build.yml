@@ -76,14 +76,19 @@ jobs:
           # shelter-stderr.log and is only used for diagnostics.
           MARKER_LOG="$DATA/shelter.log"
           dump_logs() {
+            echo "---- processes ----"; pgrep -fl "SHELTER|shelter" || true
+            if kill -0 "$PID" 2>/dev/null; then
+              sample "$PID" 3 -file /tmp/shelter-sample.txt >/dev/null 2>&1 || true
+            fi
             echo "---- stdout ----"; cat /tmp/shelter-smoke-stdout.log || true
             echo "---- stderr ----"; cat "$DATA/shelter-stderr.log" || true
             echo "---- cef log ----"; tail -n 200 "$DATA/shelter-cef.log" || true
             echo "---- app log ----"; tail -n 200 "$MARKER_LOG" || true
+            echo "---- main thread sample ----"; head -c 20000 /tmp/shelter-sample.txt || true
             # Job logs/artifacts are unreachable from some networks; copy the
             # key files into annotations so failures stay diagnosable.
             for f in /tmp/shelter-smoke-stdout.log "$DATA/shelter-stderr.log" \
-                     "$DATA/shelter-cef.log" "$MARKER_LOG"; do
+                     "$DATA/shelter-cef.log" "$MARKER_LOG" /tmp/shelter-sample.txt; do
               [ -f "$f" ] || continue
               esc=$(tail -c 40000 "$f" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/$/%0A/' | tr -d '\n')
               printf '::error title=%s::%s\n' "$f" "$esc"

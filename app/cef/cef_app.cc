@@ -176,18 +176,23 @@ void App::OnContextInitialized() {
   view_delegate_ = new ShellBrowserViewDelegate(this);
   CefBrowserSettings settings;
   CefRefPtr<Client> ui_client(new Client(this, Client::Role::kUi, std::string()));
+  Log(LogLevel::Info, "shell: creating ui browser view");
   ui_view_ = CefBrowserView::CreateBrowserView(
       ui_client, "shelter://ui/index.html", settings, nullptr, nullptr,
       view_delegate_);
+  Log(LogLevel::Info, "shell: ui browser view created");
   CefWindow::CreateTopLevelWindow(new ShellWindowDelegate(this));
+  Log(LogLevel::Info, "shell: top level window create returned");
 }
 
 void App::OnWindowCreated(CefRefPtr<CefWindow> window) {
+  Log(LogLevel::Info, "shell: window created");
   window_ = window;
   window->SetTitle("SHELTER");
   window->CenterWindow(CefSize(kInitialWidth, kInitialHeight));
   if (ui_view_) window->AddChildView(ui_view_);
   window->Show();
+  Log(LogLevel::Info, "shell: window shown");
   Relayout();
   if (ui_view_) ui_view_->RequestFocus();
 }
@@ -255,6 +260,7 @@ void App::OnWindowDestroyed() {
 }
 
 void App::OnUiBrowserCreated(CefRefPtr<CefBrowser> browser) {
+  Log(LogLevel::Info, "shell: ui browser OnAfterCreated");
   ui_browser_ = browser;
   if (!ui_view_) ui_view_ = CefBrowserView::GetForBrowser(browser);
 }

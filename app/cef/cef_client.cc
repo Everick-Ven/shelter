@@ -136,6 +136,15 @@ void Client::OnLoadStart(CefRefPtr<CefBrowser> browser,
   app_->OnContentLoadStart(tab_id_, transition_type);
 }
 
+void Client::OnLoadEnd(CefRefPtr<CefBrowser> browser,
+                       CefRefPtr<CefFrame> frame,
+                       int httpStatusCode) {
+  // Renderer-side proof of life: only a live renderer process reports load
+  // completion. Used as the CI smoke-test marker.
+  if (!frame || !frame->IsMain()) return;
+  Log(LogLevel::Info, "load end " + frame->GetURL().ToString());
+}
+
 void Client::OnLoadError(CefRefPtr<CefBrowser> browser,
                          CefRefPtr<CefFrame> frame,
                          ErrorCode errorCode,

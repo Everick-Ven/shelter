@@ -1,6 +1,7 @@
 #include "app/cef/cef_app.h"
 
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <string>
 
@@ -17,7 +18,9 @@
 #endif
 #endif
 #if defined(__APPLE__)
+#include <fcntl.h>
 #include <mach-o/dyld.h>
+#include <unistd.h>
 #endif
 
 namespace {
@@ -33,6 +36,12 @@ std::filesystem::path ExecutablePath() {
   char buffer[4096];
   uint32_t size = sizeof(buffer);
   if (_NSGetExecutablePath(buffer, &size) == 0) {
+    // Resolve to an absolute path: _NSGetExecutablePath may return argv0-style
+    // relative paths, and every bundle-relative path below assumes absolute.
+    char resolved[4096];
+    if (realpath(buffer, resolved) != nullptr) {
+      return std::filesystem::path(resolved);
+    }
     return std::filesystem::path(buffer);
   }
   return {};
@@ -66,8 +75,41 @@ int main(int argc, char** argv) {
   shelter::InitializeLogging((data_dir / "shelter.log").string().c_str());
 
 #if defined(__APPLE__)
+  // Chromium CHECK/FATAL diagnostics go to stderr, which is discarded when
+  // the app is launched from Finder. Mirror stderr into a log file so that
+  // crashes report their message. Helper sub-processes inherit this
+  // descriptor from the main process.
+  const int err_fd =
+      open((data_dir / "shelter-stderr.log").c_str(),
+           O_WRONLY | O_CREAT | O_APPEND, 0644);
+  if (err_fd >= 0) {
+    dup2(err_fd, STDERR_FILENO);
+    if (err_fd != STDERR_FILENO) close(err_fd);
+  }
+
+  // Sub-processes (renderer/GPU/utility) are launched with --type=<...> and
+  // must load the framework relative to the OUTER app bundle
+  // (Contents/Frameworks/<helper>.app/Contents/MacOS -> ../../../Frameworks),
+  // while the main process loads it relative to its own bundle
+  // (Contents/MacOS -> ../Frameworks). Calling LoadInMain() from a helper
+  // resolves to <helper>.app/Contents/Frameworks, the load fails, every
+  // sub-process exits immediately, and the browser process later CHECK-fails
+  // on the UI thread waiting for a renderer.
+  bool is_helper = false;
+  for (int i = 1; i < argc; ++i) {
+    if (std::strncmp(argv[i], "--type=", 7) == 0) {
+      is_helper = true;
+      break;
+    }
+  }
   CefScopedLibraryLoader library_loader;
-  if (!library_loader.LoadInMain()) return 1;
+  if (is_helper ? !library_loader.LoadInHelper()
+                : !library_loader.LoadInMain()) {
+    shelter::Log(shelter::LogLevel::Error,
+                 is_helper ? "CEF framework load failed (helper)"
+                           : "CEF framework load failed (main)");
+    return 1;
+  }
 #endif
 
 #if defined(_WIN32)
@@ -86,8 +128,10 @@ int main(int argc, char** argv) {
   // utility subprocesses when running as an app bundle.
   std::filesystem::path executable_path = ExecutablePath();
   if (executable_path.empty() && argc > 0) executable_path = argv[0];
-  const auto helper_path = executable_path.parent_path().parent_path().parent_path() /
-                           "Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper";
+  // <exe> = <App>.app/Contents/MacOS/<binary>; parent² = <App>.app/Contents.
+  const auto helper_path =
+      executable_path.parent_path().parent_path() /
+      "Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper";
   CefString(&settings.browser_subprocess_path) = helper_path.string();
 #endif
   // Required by CEF >= 120: absolute installation/profile root. Also enables

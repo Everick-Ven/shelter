@@ -58,6 +58,9 @@ class Client final : public CefClient,
                    ErrorCode,
                    const CefString&,
                    const CefString&) override;
+  void OnLoadEnd(CefRefPtr<CefBrowser>,
+                 CefRefPtr<CefFrame>,
+                 int httpStatusCode) override;
   bool OnBeforeDownload(CefRefPtr<CefBrowser>,
                         CefRefPtr<CefDownloadItem>,
                         const CefString& suggested_name,

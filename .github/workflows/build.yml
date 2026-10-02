@@ -64,5 +64,52 @@ jobs:
           rm -f SHELTER-macos-x64.dmg
           hdiutil detach "$(hdiutil info | awk '/dmg-root/{print $1; exit}')" 2>/dev/null || true
           hdiutil create -volname SHELTER -srcfolder "${GITHUB_WORKSPACE}/dmg-root" -ov -format UDZO "${GITHUB_WORKSPACE}/SHELTER-macos-x64.dmg"
+      - name: Smoke test packaged app
+        run: |
+          APP="${GITHUB_WORKSPACE}/package/SHELTER.app"
+          DATA="$HOME/Library/Application Support/SHELTER"
+          rm -rf "$DATA"
+          "$APP/Contents/MacOS/shelter" > /tmp/shelter-smoke-stdout.log 2>&1 &
+          PID=$!
+          dump_logs() {
+            echo "---- stdout ----"; cat /tmp/shelter-smoke-stdout.log || true
+            echo "---- stderr ----"; cat "$DATA/shelter-stderr.log" || true
+            echo "---- cef log ----"; tail -n 200 "$DATA/shelter-cef.log" || true
+            echo "---- app log ----"; tail -n 200 "$DATA/shelter.log" || true
+          }
+          wait_marker() {
+            local marker="$1" budget="$2"
+            for i in $(seq 1 "$budget"); do
+              sleep 1
+              if ! kill -0 "$PID" 2>/dev/null; then
+                echo "::error::SHELTER died before marker '$marker' (at ${i}s)"
+                dump_logs
+                exit 1
+              fi
+              if [ -f "$DATA/shelter-cef.log" ] && grep -q "$marker" "$DATA/shelter-cef.log"; then
+                echo "marker reached: '$marker' (at ${i}s)"
+                return 0
+              fi
+            done
+            echo "::error::marker '$marker' not reached in ${budget}s"
+            dump_logs
+            kill -9 "$PID" 2>/dev/null || true
+            exit 1
+          }
+          # 1) browser process initializes CEF
+          wait_marker "CEF context initialized" 30
+          # 2) renderer reports a completed page load (proves helper spawn works)
+          wait_marker "load end" 30
+          # 3) still alive well past the post-init CHECK window seen in the field
+          sleep 10
+          if ! kill -0 "$PID" 2>/dev/null; then
+            echo "::error::SHELTER crashed shortly after page load"
+            dump_logs
+            exit 1
+          fi
+          kill "$PID" 2>/dev/null || true
+          sleep 2
+          kill -9 "$PID" 2>/dev/null || true
+          echo "smoke test passed"
       - uses: actions/upload-artifact@v4
         with: { name: SHELTER-macos-x64, path: SHELTER-macos-x64.dmg }

@@ -1,6 +1,7 @@
 #include "app/cef/cef_app.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <string>
 
 #include "app/cef/bridge.h"
@@ -183,9 +184,14 @@ void App::OnContextInitialized() {
   view_delegate_ = new ShellBrowserViewDelegate(this);
   CefBrowserSettings settings;
   CefRefPtr<Client> ui_client(new Client(this, Client::Role::kUi, std::string()));
-  Log(LogLevel::Info, "shell: creating ui browser view");
+  // CI diagnostic: SHELTER_SMOKE_URL overrides the UI URL to isolate
+  // renderer/navigation machinery from the shelter:// scheme path.
+  const char* smoke_url = std::getenv("SHELTER_SMOKE_URL");
+  const std::string ui_url =
+      (smoke_url && *smoke_url) ? smoke_url : "shelter://ui/index.html";
+  Log(LogLevel::Info, "shell: creating ui browser view url=" + ui_url);
   ui_view_ = CefBrowserView::CreateBrowserView(
-      ui_client, "shelter://ui/index.html", settings, nullptr, nullptr,
+      ui_client, ui_url, settings, nullptr, nullptr,
       view_delegate_);
   Log(LogLevel::Info, "shell: ui browser view created");
   CefWindow::CreateTopLevelWindow(new ShellWindowDelegate(this));

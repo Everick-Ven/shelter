@@ -69,7 +69,26 @@ jobs:
           APP="${GITHUB_WORKSPACE}/package/SHELTER.app"
           DATA="$HOME/Library/Application Support/SHELTER"
           rm -rf "$DATA"
-          "$APP/Contents/MacOS/shelter" > /tmp/shelter-smoke-stdout.log 2>&1 &
+          # Diagnostic: run the helper standalone in renderer mode to see if
+          # LoadInHelper + CefExecuteProcess work at all (captured, non-fatal).
+          HLP="$APP/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper"
+          ( "$HLP" --type=renderer --no-sandbox --user-data-dir="$DATA" --lang=en-US \
+              > /tmp/shelter-helper-try.log 2>&1 ) &
+          HPID=$!
+          sleep 5
+          if kill -0 "$HPID" 2>/dev/null; then
+            echo "helper still alive after 5s (waiting for IPC, expected?)"
+            kill -9 "$HPID" 2>/dev/null || true
+          fi
+          HELPER_RC=0
+          wait "$HPID" 2>/dev/null || HELPER_RC=$?
+          echo "helper standalone exit=$HELPER_RC" >> /tmp/shelter-helper-try.log
+          # Fresh profile for the app itself.
+          rm -rf "$DATA"
+          # Phase A: data: URL — tests renderer/navigation machinery in
+          # isolation from the shelter:// custom scheme.
+          SHELTER_SMOKE_URL='data:text/html,<h1>smoke</h1>' \
+            "$APP/Contents/MacOS/shelter" > /tmp/shelter-smoke-stdout.log 2>&1 &
           PID=$!
           # Markers are written by the app logger to shelter.log; Chromium's
           # own output (CHECK text included) lands in shelter-cef.log /
@@ -88,7 +107,8 @@ jobs:
             # Job logs/artifacts are unreachable from some networks; copy the
             # key files into annotations so failures stay diagnosable.
             for f in /tmp/shelter-smoke-stdout.log "$DATA/shelter-stderr.log" \
-                     "$DATA/shelter-cef.log" "$MARKER_LOG" /tmp/shelter-procs.txt; do
+                     "$DATA/shelter-cef.log" "$MARKER_LOG" /tmp/shelter-procs.txt \
+                     /tmp/shelter-helper-try.log; do
               [ -f "$f" ] || continue
               esc=$(tail -c 40000 "$f" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/$/%0A/' | tr -d '\n')
               printf '::error title=%s::%s\n' "$f" "$esc"

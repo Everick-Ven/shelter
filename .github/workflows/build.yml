@@ -58,6 +58,23 @@ jobs:
           mkdir -p "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS"
           cp build/shelter.app/Contents/MacOS/shelter "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper"
           cp mac/Helper-Info.plist "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/Info.plist"
+          # Chrome-runtime CEF launches per-type helper bundles by name:
+          #   "SHELTER Helper (Renderer).app" for renderers, "(Alerts)" for
+          #   alert utilities, etc. A missing bundle => posix_spawn ENOENT =>
+          #   TS_LAUNCH_FAILED => every navigation dies with ERR_ABORTED
+          #   (confirmed via OnBeforeChildProcessLaunch diagnostics).
+          # Ship all suffix variants, same binary (it dispatches on --type=).
+          for SFX in " (Renderer):.renderer" " (Alerts):.alerts" " (GPU):.gpu" " (Plugin):.plugin"; do
+            NAME="SHELTER Helper${SFX%%:*}"
+            BIDSUF="${SFX##*:}"
+            DEST="package/SHELTER.app/Contents/Frameworks/$NAME.app"
+            mkdir -p "$DEST/Contents/MacOS"
+            cp build/shelter.app/Contents/MacOS/shelter "$DEST/Contents/MacOS/$NAME"
+            sed -e "s/SHELTER Helper/$NAME/g" \
+                -e "s|com\.everick\.shelter\.helper|com.everick.shelter.helper${BIDSUF}|g" \
+                mac/Helper-Info.plist > "$DEST/Contents/Info.plist"
+          done
+          ls -la "package/SHELTER.app/Contents/Frameworks/"
           # Ad-hoc sign inside-out (as in CEF_SHEL tools/make_dmg.sh) and clear
           # quarantine attrs — mirrors the known-working reference packaging.
           xattr -cr package/SHELTER.app || true

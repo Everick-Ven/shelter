@@ -80,6 +80,14 @@ jobs:
             echo "---- stderr ----"; cat "$DATA/shelter-stderr.log" || true
             echo "---- cef log ----"; tail -n 200 "$DATA/shelter-cef.log" || true
             echo "---- app log ----"; tail -n 200 "$MARKER_LOG" || true
+            # Job logs/artifacts are unreachable from some networks; copy the
+            # key files into annotations so failures stay diagnosable.
+            for f in /tmp/shelter-smoke-stdout.log "$DATA/shelter-stderr.log" \
+                     "$DATA/shelter-cef.log" "$MARKER_LOG"; do
+              [ -f "$f" ] || continue
+              esc=$(tail -c 40000 "$f" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/$/%0A/' | tr -d '\n')
+              printf '::error title=%s::%s\n' "$f" "$esc"
+            done
           }
           wait_marker() {
             local marker="$1" budget="$2"

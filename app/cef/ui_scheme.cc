@@ -114,11 +114,14 @@ class Handler final : public CefResourceHandler {
   Handler(std::string data, std::string mime)
       : data_(std::move(data)), mime_(std::move(mime)) {}
   bool ProcessRequest(CefRefPtr<CefRequest> r, CefRefPtr<CefCallback> cb) override {
+    Log(LogLevel::Info, "ui scheme: ProcessRequest");
     cb->Continue();
     return true;
   }
   void GetResponseHeaders(CefRefPtr<CefResponse> r, int64_t& size,
                           CefString& redirect) override {
+    Log(LogLevel::Info,
+        "ui scheme: headers size=" + std::to_string(data_.size()));
     r->SetStatus(200);
     r->SetMimeType(mime_);
     r->SetHeaderMap({{"Cache-Control", "no-store"}});
@@ -191,9 +194,15 @@ class Factory final : public CefSchemeHandlerFactory {
     }
 
     std::ifstream stream(file, std::ios::binary);
-    if (!stream) return nullptr;
+    if (!stream) {
+      Log(LogLevel::Warning, "ui scheme: open failed " + file.string());
+      return nullptr;
+    }
     std::string data((std::istreambuf_iterator<char>(stream)),
                      std::istreambuf_iterator<char>());
+    Log(LogLevel::Info,
+        "ui scheme: serving " + file.string() + " bytes=" +
+            std::to_string(data.size()));
 
     std::string ext;
     const size_t dot = path.find_last_of('.');

@@ -122,17 +122,24 @@ App::App() = default;
 void App::OnBeforeCommandLineProcessing(const CefString& t,
                                         CefRefPtr<CefCommandLine> c) {
   if (t.empty()) {
+#if defined(__APPLE__) || defined(OS_MAC)
+    // Avoid real Keychain access (blocks or prompts on unsigned/CI runs;
+    // this also matches cefclient and the reference shell).
+    c->AppendSwitch("use-mock-keychain");
+#endif
     c->AppendSwitch("disable-background-networking");
     c->AppendSwitch("no-default-browser-check");
     c->AppendSwitch("disable-sync");
     c->AppendSwitch("no-first-run");
+    c->AppendSwitchWithValue("disable-features", "Translate");
   }
 }
 
 void App::OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> r) {
   r->AddCustomScheme("shelter",
                      CEF_SCHEME_OPTION_STANDARD | CEF_SCHEME_OPTION_SECURE |
-                         CEF_SCHEME_OPTION_CORS_ENABLED);
+                         CEF_SCHEME_OPTION_CORS_ENABLED |
+                         CEF_SCHEME_OPTION_FETCH_ENABLED);
 }
 
 // ---------------------------------------------------------------------------

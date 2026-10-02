@@ -71,11 +71,15 @@ jobs:
           rm -rf "$DATA"
           "$APP/Contents/MacOS/shelter" > /tmp/shelter-smoke-stdout.log 2>&1 &
           PID=$!
+          # Markers are written by the app logger to shelter.log; Chromium's
+          # own output (CHECK text included) lands in shelter-cef.log /
+          # shelter-stderr.log and is only used for diagnostics.
+          MARKER_LOG="$DATA/shelter.log"
           dump_logs() {
             echo "---- stdout ----"; cat /tmp/shelter-smoke-stdout.log || true
             echo "---- stderr ----"; cat "$DATA/shelter-stderr.log" || true
             echo "---- cef log ----"; tail -n 200 "$DATA/shelter-cef.log" || true
-            echo "---- app log ----"; tail -n 200 "$DATA/shelter.log" || true
+            echo "---- app log ----"; tail -n 200 "$MARKER_LOG" || true
           }
           wait_marker() {
             local marker="$1" budget="$2"
@@ -86,7 +90,7 @@ jobs:
                 dump_logs
                 exit 1
               fi
-              if [ -f "$DATA/shelter-cef.log" ] && grep -q "$marker" "$DATA/shelter-cef.log"; then
+              if [ -f "$MARKER_LOG" ] && grep -q "$marker" "$MARKER_LOG"; then
                 echo "marker reached: '$marker' (at ${i}s)"
                 return 0
               fi
@@ -111,5 +115,14 @@ jobs:
           sleep 2
           kill -9 "$PID" 2>/dev/null || true
           echo "smoke test passed"
+      - name: Upload smoke logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-logs
+          path: |
+            /tmp/shelter-smoke-stdout.log
+            ~/Library/Application Support/SHELTER/*.log
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with: { name: SHELTER-macos-x64, path: SHELTER-macos-x64.dmg }

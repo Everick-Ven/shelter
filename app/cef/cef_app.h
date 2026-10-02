@@ -26,6 +26,7 @@ class App final : public CefApp,
   void OnBeforeCommandLineProcessing(const CefString&,
                                      CefRefPtr<CefCommandLine>) override;
   void OnContextInitialized() override;
+  void OnBeforeChildProcessLaunch(CefRefPtr<CefCommandLine>) override;
   void OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar>) override;
   // Renderer side of the message router (provides window.cefQuery).
   void OnContextCreated(CefRefPtr<CefBrowser>,

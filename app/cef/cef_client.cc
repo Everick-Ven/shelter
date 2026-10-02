@@ -135,6 +135,19 @@ bool Client::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
   return false;  // навигацию не блокируем
 }
 
+void Client::OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+                                       CefRequestHandler::TerminationStatus
+                                           status,
+                                       int error_code,
+                                       const CefString& error_string) {
+  CEF_REQUIRE_UI_THREAD();
+  Log(LogLevel::Info,
+      std::string("shell: render process TERMINATED status=") +
+          std::to_string(static_cast<int>(status)) +
+          " code=" + std::to_string(error_code) +
+          " err=" + error_string.ToString());
+}
+
 void Client::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
                                   bool isLoading,
                                   bool canGoBack,

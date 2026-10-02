@@ -187,6 +187,16 @@ bool App::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
 // ---------------------------------------------------------------------------
 // Browser process: shell setup.
 // ---------------------------------------------------------------------------
+void App::OnBeforeChildProcessLaunch(CefRefPtr<CefCommandLine> command_line) {
+  if (!command_line) return;
+  const std::string type = command_line->HasSwitch("type")
+                               ? command_line->GetSwitchValue("type").ToString()
+                               : std::string();
+  const std::string program = command_line->GetProgram().ToString();
+  Log(LogLevel::Info, "shell: child launch type=" + type +
+                          " program=" + program);
+}
+
 void App::OnContextInitialized() {
   CEF_REQUIRE_UI_THREAD();
   Log(LogLevel::Info, "CEF context initialized");

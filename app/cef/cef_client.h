@@ -77,6 +77,10 @@ class Client final : public CefClient,
                       CefRefPtr<CefRequest> request,
                       bool user_gesture,
                       bool is_redirect) override;
+  void OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+                                 CefRequestHandler::TerminationStatus status,
+                                 int error_code,
+                                 const CefString& error_string) override;
  private:
   App* app_;
   Role role_;

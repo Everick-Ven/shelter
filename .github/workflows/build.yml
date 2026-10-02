@@ -55,6 +55,9 @@ jobs:
           sips -z 256 256 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_128x128@2x.png >/dev/null
           iconutil -c icns /tmp/SHELTER.iconset -o package/SHELTER.app/Contents/Resources/SHELTER.icns
           cp -R "cef/Release/Chromium Embedded Framework.framework" package/SHELTER.app/Contents/Frameworks/
+          mkdir -p "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS"
+          cp build/shelter.app/Contents/MacOS/shelter "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper"
+          cp mac/Helper-Info.plist "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/Info.plist"
           mkdir -p dmg-root
           cp -R package/SHELTER.app dmg-root/SHELTER.app
           ln -s /Applications dmg-root/Applications

@@ -5,6 +5,9 @@
 #if defined(_WIN32)
 #include <windows.h>
 #endif
+#if defined(__APPLE__)
+#include <filesystem>
+#endif
 int main(int argc, char** argv) {
   shelter::InitializeLogging("shelter.log");
 #if defined(__APPLE__)
@@ -21,6 +24,14 @@ int main(int argc, char** argv) {
   if (exit_code >= 0) return exit_code;
   CefSettings settings;
   settings.no_sandbox = true;
+#if defined(__APPLE__)
+  // CEF on macOS requires a separate helper application for renderer,
+  // GPU and utility subprocesses when running as an app bundle.
+  std::filesystem::path executable_path(argv[0]);
+  auto helper_path = executable_path.parent_path().parent_path().parent_path() /
+                     "Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper";
+  CefString(&settings.browser_subprocess_path) = helper_path.string();
+#endif
   CefString(&settings.log_file) = "shelter-cef.log";
   if (!CefInitialize(args, settings, app, nullptr)) return 1;
   CefRunMessageLoop();

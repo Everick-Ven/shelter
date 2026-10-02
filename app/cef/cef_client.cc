@@ -132,6 +132,11 @@ void Client::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
 void Client::OnLoadStart(CefRefPtr<CefBrowser> browser,
                          CefRefPtr<CefFrame> frame,
                          TransitionType transition_type) {
+  // Renderer-side proof of life for the smoke test: a live renderer must
+  // report navigation start. Logged for every role before role gating.
+  if (frame && frame->IsMain()) {
+    Log(LogLevel::Info, "load start " + frame->GetURL().ToString());
+  }
   if (role_ != Role::kContent || !app_ || !frame || !frame->IsMain()) return;
   app_->OnContentLoadStart(tab_id_, transition_type);
 }

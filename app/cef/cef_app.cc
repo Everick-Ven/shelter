@@ -195,6 +195,20 @@ void App::OnWindowCreated(CefRefPtr<CefWindow> window) {
   Log(LogLevel::Info, "shell: window shown");
   Relayout();
   if (ui_view_) ui_view_->RequestFocus();
+  // The initial URL passed to CreateBrowserView does not always start a
+  // navigation for views-hosted Alloy browsers; if the main frame is still
+  // empty after the window is shown, issue the UI navigation explicitly.
+  if (ui_browser_) {
+    CefRefPtr<CefFrame> main = ui_browser_->GetMainFrame();
+    const std::string url = main ? main->GetURL().ToString() : "<no-frame>";
+    Log(LogLevel::Info, "shell: ui main frame url=" + url);
+    if (main && main->GetURL().empty()) {
+      main->LoadURL("shelter://ui/index.html");
+      Log(LogLevel::Info, "shell: explicit ui LoadURL issued");
+    }
+  } else {
+    Log(LogLevel::Info, "shell: ui browser not ready at window shown");
+  }
 }
 
 void App::Relayout() {

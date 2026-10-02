@@ -123,6 +123,10 @@ void Client::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
                                   bool canGoBack,
                                   bool canGoForward) {
   CEF_REQUIRE_UI_THREAD();
+  if (role_ == Role::kUi) {
+    Log(LogLevel::Info,
+        std::string("shell: ui loading=") + (isLoading ? "1" : "0"));
+  }
   if (role_ != Role::kContent || !app_) return;
   app_->controller().SetLoading(tab_id_, isLoading);
   app_->controller().SetHistoryState(tab_id_, canGoBack, canGoForward);

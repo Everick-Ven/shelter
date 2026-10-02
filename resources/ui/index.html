@@ -4660,22 +4660,43 @@ function renderTabs() {
 function applyTabPos() {
   const pos = ['left', 'top', 'right', 'bottom'].includes(S.ui.tabPos) ? S.ui.tabPos : 'left';
   S.ui.tabPos = pos;
-  const app = $('#app'); if (app) app.dataset.tabpos = pos;
-  const mounts = { left: $('#dockLeft'), top: $('#tabTop'), right: $('#tabRight'), bottom: $('#tabBottom') };
-  Object.entries(mounts).forEach(([k, el]) => { if (el) el.hidden = k !== pos; });
-  if (mounts.right) { mounts.right.classList.toggle('is-collapsed', !!S.ui.railCollapsed); syncRailToggle(); }
-  const target = mounts[pos] || mounts.left;
-  const sr = $('#spaceRow'), tl = $('#tabList');
-  if (target && sr && tl && tl.parentElement !== target) { target.appendChild(sr); target.appendChild(tl); }
-  /* кнопки окна Windows — всегда в правом верхнем углу ПЕРВОГО ряда (1.0.114):
-     вкладки сверху → ряд вкладок; иначе → тулбар (он первый ряд) */
-  const ctl = document.getElementById('winCtl');
-  if (ctl) {
-    if (pos === 'top') { const tm = document.getElementById('tabTop'); if (tm && ctl.parentElement !== tm) tm.appendChild(ctl); }
-    else { const cg = document.getElementById('ctlGrid'); const home = cg && cg.parentElement; if (home && ctl.parentElement !== home) home.appendChild(ctl); }
-  }
-  renderSpaceRow(); renderTabs();
+  try {
+    const app = $('#app'); if (app) app.dataset.tabpos = pos;
+    const mounts = { left: $('#dockLeft'), top: $('#tabTop'), right: $('#tabRight'), bottom: $('#tabBottom') };
+    const target = mounts[pos] || mounts.left;
+    const sr = $('#spaceRow'), tl = $('#tabList');
+    /* Перенос — ПЕРЕД скрытием старых маунтов: даже если что-то ниже
+       не выполнится, полоса вкладок уже находится в видимом контейнере
+       и не может «зависнуть» внутри скрытого #tabTop (баг «вкладки
+       пропадают»). */
+    if (target && sr && tl && tl.parentElement !== target) { target.appendChild(sr); target.appendChild(tl); }
+    Object.entries(mounts).forEach(([k, el]) => { if (el) el.hidden = k !== pos; });
+    if (mounts.right) { mounts.right.classList.toggle('is-collapsed', !!S.ui.railCollapsed); syncRailToggle(); }
+    /* кнопки окна Windows — всегда в правом верхнем углу ПЕРВОГО ряда (1.0.114):
+       вкладки сверху → ряд вкладок; иначе → тулбар (он первый ряд) */
+    const ctl = document.getElementById('winCtl');
+    if (ctl) {
+      if (pos === 'top') { const tm = document.getElementById('tabTop'); if (tm && ctl.parentElement !== tm) tm.appendChild(ctl); }
+      else { const cg = document.getElementById('ctlGrid'); const home = cg && cg.parentElement; if (home && ctl.parentElement !== home) home.appendChild(ctl); }
+    }
+    renderSpaceRow(); renderTabs();
+  } catch (e) { try { console.warn('applyTabPos failed:', e); } catch (_) {} }
 }
+/* Страховка: раз в 2.5 с сверяем инвариант раскладки «вкладок» и чиним
+   его, если что-то (рендер, гонка, сбой) оставило полосу в скрытом
+   маунте или скрыло нужный маунт. applyTabPos идемпотентен. */
+function ensureTabPos() {
+  try {
+    const mounts = { left: $('#dockLeft'), top: $('#tabTop'), right: $('#tabRight'), bottom: $('#tabBottom') };
+    const pos = ['left', 'top', 'right', 'bottom'].includes(S.ui.tabPos) ? S.ui.tabPos : 'left';
+    const target = mounts[pos] || mounts.left;
+    const tl = $('#tabList');
+    const bad = !target || !tl || tl.parentElement !== target ||
+      Object.entries(mounts).some(([k, el]) => el && el.hidden !== (k !== pos));
+    if (bad) applyTabPos();
+  } catch (e) {}
+}
+setInterval(ensureTabPos, 2500);
 function applyBmPos() {
   const pos = ['top', 'center', 'bottom'].includes(S.ui.bmPos) ? S.ui.bmPos : 'center';
   S.ui.bmPos = pos;
@@ -9215,7 +9236,7 @@ SEG.glowMode = v => {
 };
 function applyGlassOp() { document.documentElement.style.setProperty('--glass-op', clamp(+S.prefs.glassOp || 82, 40, 100)); }
 SEG.tabView = v => { S.ui.tabView = v === 'tiles' ? 'tiles' : 'list'; persist(); syncQuickPanel(true); refreshPage('tabs'); };
-SEG.tabPos = v => { S.ui.tabPos = ['left', 'top', 'right', 'bottom'].includes(v) ? v : 'left'; persist(); applyTabPos(); toast('Вкладки: ' + ({ left: 'слева', top: 'сверху', right: 'справа', bottom: 'снизу' })[S.ui.tabPos], { icon: 'grid' }); };
+SEG.tabPos = v => { S.ui.tabPos = ['left', 'top', 'right', 'bottom'].includes(v) ? v : 'left'; applyTabPos(); persist(); toast('Вкладки: ' + ({ left: 'слева', top: 'сверху', right: 'справа', bottom: 'снизу' })[S.ui.tabPos], { icon: 'grid' }); };
 SEG.bmPos = v => { S.ui.bmPos = ['top', 'center', 'bottom'].includes(v) ? v : 'center'; persist(); applyBmPos(); toast('Закладки: ' + ({ top: 'сверху', center: 'по центру', bottom: 'снизу' })[S.ui.bmPos], { icon: 'star' }); };
 SEG.engineSet = v => { S.engine = v; persist(); renderHeroBits(); toast('Поиск: ' + ENGINES[v].name, { icon: 'search' }); };
 SEG.lang = v => { S.prefs.lang = v; persist(); if (v === 'en') toast('English UI arrives in 1.1 — пока интерфейс на русском', { icon: 'lang' }); };
@@ -9773,7 +9794,7 @@ document.addEventListener('click', e => {
   if (app.classList.contains('sb-open') && !e.target.closest('.sb') && !e.target.closest('[data-act="toggleSidebar"]')) { app.classList.remove('sb-open'); }
   const sw = e.target.closest('[data-sw]'); if (sw) { e.preventDefault(); toggleSetting(sw.dataset.sw, sw); return; }
   const sb = e.target.closest('.seg button[data-v]');
-  if (sb) { const seg = sb.closest('.seg'); if (!sb.classList.contains('on')) { $$('button[data-v]', seg).forEach(x => x.classList.toggle('on', x === sb)); segSync(seg); const h = SEG[seg.dataset.seg]; if (h) h(sb.dataset.v, sb, seg); } return; }
+  if (sb) { const seg = sb.closest('.seg'); if (!sb.classList.contains('on')) { $$('button[data-v]', seg).forEach(x => x.classList.toggle('on', x === sb)); segSync(seg); const h = SEG[seg.dataset.seg]; if (h) { try { h(sb.dataset.v, sb, seg); } catch (err) { try { console.warn('SEG handler failed:', seg.dataset.seg, err); } catch (_) {} } } } return; }
   const a = e.target.closest('[data-act]');
   if (a && !a.disabled) { const f = ACT[a.dataset.act]; if (f) { const inMenu = a.closest('.menu'); f(a, e); if (inMenu && OV.menu && OV.menu.el === inMenu && !a.hasAttribute('data-q-keep')) closeMenu(); } }
 });

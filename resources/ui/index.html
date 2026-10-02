@@ -3227,6 +3227,15 @@ html[data-theme="graphite"] .badge.hot{
       },
       clipRead: () => {
         if (rawCef && typeof rawCef.clipRead === 'function') return Promise.resolve(rawCef.clipRead());
+        if (isCefEnv) {
+          // В CEF navigator.clipboard.readText() обычно отклоняется без
+          // разрешения — сначала пробуем нативный буфер через мост.
+          return Promise.resolve(cefSend('clipboard:read')).then(r => (r && typeof r.text === 'string') ? r.text : '').then(t => {
+            if (t) return t;
+            if (navigator.clipboard && navigator.clipboard.readText) return navigator.clipboard.readText().catch(() => '');
+            return '';
+          });
+        }
         if (navigator.clipboard && navigator.clipboard.readText) return navigator.clipboard.readText().catch(() => '');
         return Promise.resolve(cefSend('clipboard:read')).then(r => (r && typeof r.text === 'string') ? r.text : (typeof r === 'string' ? r : ''));
       },
@@ -3342,6 +3351,13 @@ html[data-theme="graphite"] .badge.hot{
     }
     if (typeof window.shelterCaptureVisibleTabs !== 'function') {
       window.shelterCaptureVisibleTabs = () => cefSend('tab:captureThumbs', {});
+    }
+    if (typeof window.shelterReload !== 'function') {
+      window.shelterReload = tabId => {
+        const id = tabId || (typeof window.getActiveTabId === 'function' ? window.getActiveTabId() : null);
+        cefSend('tab:reload', { tabId: id });
+        return true;
+      };
     }
   }
 
@@ -9623,7 +9639,7 @@ const ACT = {
   spaceMenu: el => spaceMenu(el), theme: el => setTheme(el.dataset.theme, el), themeMenu: el => themeMenu(el), settings: el => openSettings(el.dataset.sec), account: () => openPage('profile'), toggleSidebar: () => toggleSidebar(), toggleRail: () => toggleRail(), toggleBm: () => toggleBm(),
   back: () => { if (!navArmed()) return; (window.navBack || goStackBack)(); },
   fwd: () => { if (!navArmed()) return; (window.navForward || goStackFwd)(); },
-  reload: () => { progress(); const i = $('#btnRef .i'); if (i && !REDUCED()) i.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: 700, easing: 'cubic-bezier(.22,1,.36,1)' }); renderView(false); },
+  reload: () => { progress(); const i = $('#btnRef .i'); if (i && !REDUCED()) i.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: 700, easing: 'cubic-bezier(.22,1,.36,1)' }); const tR = curTab(); const mR = urlMeta(tR ? tR.url : ''); if (tR && (mR.kind === 'site' || mR.kind === 'search') && window.shelterReload && window.shelterReload(tR.id)) return; renderView(false); },
   stop: () => { try { if (window.shelterStopLoad) window.shelterStopLoad(); } catch (_) {} setStopUI(false); },
   cert: el => certPop(el), star: () => toggleBookmarkCurrent(), shield: el => shieldPop(el), more: el => moreMenu(el), quick: el => quickPanel(el), ghost: () => toggleGhost(), fire: () => fire(),
   heroMode: el => heroModeMenu(el), heroEngine: el => engineMenu(el), heroSend: () => heroSubmit(),

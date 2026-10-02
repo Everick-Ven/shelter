@@ -22,8 +22,22 @@ constexpr int kInitialHeight = 900;
 constexpr int kDevToolsWidth = 1100;
 constexpr int kDevToolsHeight = 760;
 
-// Main SHELTER window: hosts the UI browser (full client area) plus content
-// browser views positioned by viewport:sync.
+// Stateless delegate for the host panel (see App::host_).
+class HostPanelDelegate final : public CefPanelDelegate {
+ public:
+  HostPanelDelegate() = default;
+  HostPanelDelegate(const HostPanelDelegate&) = delete;
+  HostPanelDelegate& operator=(const HostPanelDelegate&) = delete;
+
+ private:
+  IMPLEMENT_REFCOUNTING(HostPanelDelegate);
+};
+
+// Main SHELTER window: hosts a full-client-area panel that contains the UI
+// browser (browser chrome) plus content browser views positioned by
+// viewport:sync over the UI's #viewport rect. The panel is required because
+// the window's default FillLayout would otherwise stretch every child to
+// fullscreen and content pages would hide the browser controls.
 class ShellWindowDelegate final : public CefWindowDelegate {
  public:
   explicit ShellWindowDelegate(App* app) : app_(app) {}
@@ -224,7 +238,16 @@ void App::OnWindowCreated(CefRefPtr<CefWindow> window) {
   window_ = window;
   window->SetTitle("SHELTER");
   window->CenterWindow(CefSize(kInitialWidth, kInitialHeight));
-  if (ui_view_) window->AddChildView(ui_view_);
+  // Fill the window with the host panel; browser views live inside it so
+  // their manual bounds survive layout passes (window FillLayout only
+  // stretches the panel itself).
+  host_ = CefPanel::CreatePanel(new HostPanelDelegate);
+  if (host_) window->AddChildView(host_);
+  if (ui_view_ && host_) {
+    host_->AddChildView(ui_view_);
+  } else if (ui_view_) {
+    window->AddChildView(ui_view_);
+  }
   window->Show();
   Log(LogLevel::Info, "shell: window shown");
   Relayout();
@@ -293,6 +316,7 @@ bool App::StartUiClose() {
 
 void App::OnWindowDestroyed() {
   window_ = nullptr;
+  host_ = nullptr;
   ui_view_ = nullptr;
   // Safety net for close paths that bypass RequestWindowClose.
   for (auto& entry : content_) {
@@ -420,8 +444,14 @@ bool App::NavigateContent(const std::string& tab_id, const std::string& url,
     CefRefPtr<CefBrowserView> view = CefBrowserView::CreateBrowserView(
         client, url, settings, nullptr, nullptr, view_delegate_);
     content_[tab_id] = view;
-    // Added last so content views paint above the UI browser.
-    window_->AddChildView(view);
+    // Added last so content views paint above the UI browser. Insert into the
+    // host panel — a direct window child would be stretched fullscreen by the
+    // window's FillLayout and would cover the browser chrome.
+    if (host_) {
+      host_->AddChildView(view);
+    } else {
+      window_->AddChildView(view);
+    }
     view->SetBounds(viewport_rect_);
     const bool show = content_visible_ && active_tab_ == tab_id &&
                       viewport_rect_.width > 0 && viewport_rect_.height > 0;

@@ -92,6 +92,12 @@ class App final : public CefApp,
   BrowserController controller_;
 
   CefRefPtr<CefWindow> window_;
+  // Container between the window and the browser views. The window's default
+  // FillLayout stretches every direct child to the full client area (ignoring
+  // manual SetBounds), which made content views cover the whole browser UI.
+  // The host panel has no layout manager, so children keep their own bounds:
+  // ui_view_ fills the host, content views get the #viewport rect.
+  CefRefPtr<CefPanel> host_;
   CefRefPtr<CefBrowserView> ui_view_;
   CefRefPtr<CefBrowser> ui_browser_;
   CefRefPtr<CefBrowserViewDelegate> view_delegate_;

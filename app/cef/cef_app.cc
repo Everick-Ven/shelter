@@ -133,6 +133,14 @@ void App::OnBeforeCommandLineProcessing(const CefString& t,
     c->AppendSwitch("disable-sync");
     c->AppendSwitch("no-first-run");
     c->AppendSwitchWithValue("disable-features", "Translate");
+    // CI diagnostics: surface Chromium's own navigation/renderer-launch logs.
+    c->AppendSwitch("enable-logging");
+    c->AppendSwitchWithValue("v", "1");
+    c->AppendSwitchWithValue(
+        "vmodule", "navigation_request=1,render_process_host_impl=1,"
+                   "child_process_launcher*=1,render_frame_host_manager=1,"
+                   "intercept_navigation_throttle=1,throttle_handler=1,"
+                   "browser_info_manager=1");
   }
 }
 

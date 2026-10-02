@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <string>
 
@@ -71,6 +72,7 @@ int main(int argc, char** argv) {
   const std::filesystem::path data_dir = UserDataDir();
   std::error_code ec;
   std::filesystem::create_directories(data_dir, ec);
+  std::string proc_type;  // --type=<...> for sub-processes (macOS logging)
 
   shelter::InitializeLogging((data_dir / "shelter.log").string().c_str());
 
@@ -99,13 +101,20 @@ int main(int argc, char** argv) {
   for (int i = 1; i < argc; ++i) {
     if (std::strncmp(argv[i], "--type=", 7) == 0) {
       is_helper = true;
+      proc_type = argv[i] + 7;
       break;
     }
   }
-  shelter::Log(shelter::LogLevel::Info,
-               std::string("main: start argv0=") +
-                   (argc > 0 ? argv[0] : "<none>") +
-                   " is_helper=" + (is_helper ? "1" : "0"));
+  {
+    const std::time_t now = std::time(nullptr);
+    char stamp[32];
+    std::strftime(stamp, sizeof(stamp), "%H:%M:%S", std::localtime(&now));
+    shelter::Log(shelter::LogLevel::Info,
+                 std::string("main[") + stamp + "] start argv0=" +
+                     (argc > 0 ? argv[0] : "<none>") +
+                     " is_helper=" + (is_helper ? "1" : "0") +
+                     " type=" + proc_type);
+  }
   CefScopedLibraryLoader library_loader;
   const bool load_failed =
       is_helper ? !library_loader.LoadInHelper()
@@ -127,8 +136,12 @@ int main(int argc, char** argv) {
   CefRefPtr<shelter::App> app(new shelter::App);
   const int exit_code = CefExecuteProcess(args, app, nullptr);
   if (exit_code >= 0) {
+    const std::time_t now = std::time(nullptr);
+    char stamp[32];
+    std::strftime(stamp, sizeof(stamp), "%H:%M:%S", std::localtime(&now));
     shelter::Log(shelter::LogLevel::Info,
-                 "main: CefExecuteProcess rc=" + std::to_string(exit_code));
+                 std::string("main[") + stamp + "] CefExecuteProcess rc=" +
+                     std::to_string(exit_code) + " type=" + proc_type);
     return exit_code;
   }
   shelter::Log(shelter::LogLevel::Info, "main: CefInitialize entering");

@@ -203,8 +203,7 @@ void App::OnWindowCreated(CefRefPtr<CefWindow> window) {
     const std::string url = main ? main->GetURL().ToString() : "<no-frame>";
     Log(LogLevel::Info, "shell: ui main frame url=" + url);
     if (main && main->GetURL().empty()) {
-      main->LoadURL("shelter://ui/index.html");
-      Log(LogLevel::Info, "shell: explicit ui LoadURL issued");
+      Log(LogLevel::Info, "shell: ui main frame empty (provisional load)");
     }
   } else {
     Log(LogLevel::Info, "shell: ui browser not ready at window shown");

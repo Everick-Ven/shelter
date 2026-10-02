@@ -159,10 +159,11 @@ void Client::OnLoadError(CefRefPtr<CefBrowser> browser,
                          ErrorCode errorCode,
                          const CefString& errorText,
                          const CefString& failedUrl) {
-  if (errorCode == ERR_ABORTED) return;  // canceled navigation, not an error
+  // Includes ERR_ABORTED: aborts are exactly the failure mode we need to see
+  // in CI (a nullptr scheme-handler result aborts the navigation silently).
   Log(LogLevel::Warning,
       std::string("navigation error: ") + std::to_string(errorCode) + " " +
-          failedUrl.ToString());
+          errorText.ToString() + " " + failedUrl.ToString());
 }
 
 bool Client::OnBeforeDownload(CefRefPtr<CefBrowser> browser,

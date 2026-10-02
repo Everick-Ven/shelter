@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "app/common/logging.h"
 #include "include/cef_parser.h"
 #include "include/cef_resource_handler.h"
 #include "include/cef_stream.h"
@@ -163,6 +164,8 @@ class Factory final : public CefSchemeHandlerFactory {
                                        CefRefPtr<CefFrame> frame,
                                        const CefString& scheme,
                                        CefRefPtr<CefRequest> request) override {
+    Log(LogLevel::Info,
+        "ui scheme: create " + request->GetURL().ToString());
     std::string path = request->GetURL().ToString();
     const size_t query = path.find_first_of("?#");
     if (query != std::string::npos) path = path.substr(0, query);
@@ -173,11 +176,19 @@ class Factory final : public CefSchemeHandlerFactory {
     }
     if (!path.empty() && path[0] == '/') path = path.substr(1);
     if (path.empty() || path.back() == '/') path += "index.html";
-    if (!IsSafePath(path)) return nullptr;
+    if (!IsSafePath(path)) {
+      Log(LogLevel::Warning, "ui scheme: unsafe path " + path);
+      return nullptr;
+    }
 
     const std::filesystem::path file = UiDir() / path;
     std::error_code ec;
-    if (!std::filesystem::is_regular_file(file, ec)) return nullptr;
+    if (!std::filesystem::is_regular_file(file, ec)) {
+      Log(LogLevel::Warning,
+          "ui scheme: missing file " + file.string() + " (dir=" +
+              UiDir().string() + ")");
+      return nullptr;
+    }
 
     std::ifstream stream(file, std::ios::binary);
     if (!stream) return nullptr;
@@ -207,5 +218,6 @@ class Factory final : public CefSchemeHandlerFactory {
 
 void RegisterUiScheme() {
   CefRegisterSchemeHandlerFactory("shelter", "ui", new Factory);
+  Log(LogLevel::Info, "ui scheme: registered, dir=" + UiDir().string());
 }
 }  // namespace shelter

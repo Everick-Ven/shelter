@@ -58,6 +58,16 @@ jobs:
           mkdir -p "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS"
           cp build/shelter.app/Contents/MacOS/shelter "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper"
           cp mac/Helper-Info.plist "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/Info.plist"
+          # Ad-hoc sign inside-out (as in CEF_SHEL tools/make_dmg.sh) and clear
+          # quarantine attrs — mirrors the known-working reference packaging.
+          xattr -cr package/SHELTER.app || true
+          FW="package/SHELTER.app/Contents/Frameworks"
+          find "$FW/Chromium Embedded Framework.framework" -type f \( -name "*.dylib" -o -name "*.so" \) -print0 |
+            while IFS= read -r -d '' f; do codesign --force --sign - "$f"; done
+          codesign --force --sign - "$FW/Chromium Embedded Framework.framework"
+          for h in "$FW"/*.app; do codesign --force --sign - "$h"; done
+          codesign --force --sign - package/SHELTER.app
+          codesign --verify --deep --strict package/SHELTER.app
           mkdir -p dmg-root
           cp -R package/SHELTER.app dmg-root/SHELTER.app
           ln -s /Applications dmg-root/Applications

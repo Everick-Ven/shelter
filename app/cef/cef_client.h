@@ -14,7 +14,8 @@ class Client final : public CefClient,
                      public CefLifeSpanHandler,
                      public CefDisplayHandler,
                      public CefLoadHandler,
-                     public CefDownloadHandler {
+                     public CefDownloadHandler,
+                     public CefRequestHandler {
  public:
   enum class Role { kUi, kContent };
   Client(App* app, Role role, std::string tab_id);
@@ -22,6 +23,7 @@ class Client final : public CefClient,
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
   CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
+  CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
   bool OnProcessMessageReceived(CefRefPtr<CefBrowser>,
                                 CefRefPtr<CefFrame>,
                                 CefProcessId,
@@ -34,7 +36,8 @@ class Client final : public CefClient,
                      int popup_id,
                      const CefString& target_url,
                      const CefString& target_frame_name,
-                     WindowOpenDisposition target_disposition,
+                     CefLifeSpanHandler::WindowOpenDisposition
+                         target_disposition,
                      bool user_gesture,
                      const CefPopupFeatures& popupFeatures,
                      CefWindowInfo& windowInfo,
@@ -68,6 +71,12 @@ class Client final : public CefClient,
   void OnDownloadUpdated(CefRefPtr<CefBrowser>,
                          CefRefPtr<CefDownloadItem>,
                          CefRefPtr<CefDownloadItemCallback>) override;
+  // CefRequestHandler — логирует каждую навигацию (см. реализацию).
+  bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
+                      CefRefPtr<CefFrame> frame,
+                      CefRefPtr<CefRequest> request,
+                      bool user_gesture,
+                      bool is_redirect) override;
  private:
   App* app_;
   Role role_;

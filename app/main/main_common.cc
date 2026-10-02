@@ -7,6 +7,7 @@
 #include <string>
 
 #include "app/common/logging.h"
+#include "app/platform/platform.h"
 #include "include/cef_app.h"
 #include "include/wrapper/cef_library_loader.h"
 
@@ -115,6 +116,11 @@ int main(int argc, char** argv) {
                      " is_helper=" + (is_helper ? "1" : "0") +
                      " type=" + proc_type);
   }
+#if defined(__APPLE__)
+  if (!is_helper) {
+    shelter::MacInstallApplication();  // NSApplication<CefAppProtocol>
+  }
+#endif
   CefScopedLibraryLoader library_loader;
   const bool load_failed =
       is_helper ? !library_loader.LoadInHelper()

@@ -80,7 +80,8 @@ bool Client::OnBeforePopup(CefRefPtr<CefBrowser> browser,
                            int popup_id,
                            const CefString& target_url,
                            const CefString& target_frame_name,
-                           WindowOpenDisposition target_disposition,
+                           CefLifeSpanHandler::WindowOpenDisposition
+                               target_disposition,
                            bool user_gesture,
                            const CefPopupFeatures& popupFeatures,
                            CefWindowInfo& windowInfo,
@@ -116,6 +117,22 @@ void Client::OnAddressChange(CefRefPtr<CefBrowser> browser,
   const std::string value = url.ToString();
   app_->controller().SetAddress(tab_id_, value);
   app_->OnContentAddress(tab_id_, value);
+}
+
+bool Client::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
+                            CefRefPtr<CefFrame> frame,
+                            CefRefPtr<CefRequest> request,
+                            bool user_gesture,
+                            bool is_redirect) {
+  CEF_REQUIRE_UI_THREAD();
+  Log(LogLevel::Info,
+      std::string("shell: OnBeforeBrowse role=") +
+          (role_ == Role::kUi ? "ui" : "content") +
+          " url=" + (request ? request->GetURL().ToString() : "?") +
+          " gesture=" + (user_gesture ? "1" : "0") +
+          " redirect=" + (is_redirect ? "1" : "0") +
+          " main=" + (frame && frame->IsMain() ? "1" : "0"));
+  return false;  // навигацию не блокируем
 }
 
 void Client::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,

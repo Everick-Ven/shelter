@@ -1,7 +1,47 @@
+#ifndef OS_MAC
+#define OS_MAC 1  // cef_application_mac.h гейтит протокол на этом макросе.
+#endif
+#include "include/cef_application_mac.h"
+
 #import <Cocoa/Cocoa.h>
 #include "app/platform/platform.h"
 #include <string>
+
+// CEF требует от клиентских приложений на macOS подкласс NSApplication,
+// реализующий CefAppProtocol (cef_application_mac.h: «All CEF client
+// applications must subclass NSApplication and implement this protocol»).
+// Реализация — как в tests/cefsimple/cefsimple_mac.mm и CEF_SHEL.
+@interface ShelterApplication : NSApplication <CefAppProtocol> {
+ @private
+  BOOL handlingSendEvent_;
+}
+@end
+
+@implementation ShelterApplication
+
+- (BOOL)isHandlingSendEvent {
+  return handlingSendEvent_;
+}
+
+- (void)setHandlingSendEvent:(BOOL)handlingSendEvent {
+  handlingSendEvent_ = handlingSendEvent;
+}
+
+- (void)sendEvent:(NSEvent*)event {
+  CefScopedSendingEvent sendingEventScoper;
+  [super sendEvent:event];
+}
+
+@end
+
 namespace shelter {
+
+void MacInstallApplication() {
+  @autoreleasepool {
+    [ShelterApplication sharedApplication];
+  }
+}
+
 std::optional<std::string> PlatformClipboardRead() {
   @autoreleasepool {
     NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];

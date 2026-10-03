@@ -3509,6 +3509,29 @@ function aiToStore(cfg) {
   S.__aiBlob = '';
   return b ? b : cfg;
 }
+/* Шифрование на диске для истории и переписки (тот же мастер-ключ, что у
+   паролей). Паттерн как у pwToStore: если расшифровка не удалась (ключ
+   сменился/утерян) — сырой блоб сохраняется и не перезаписывается, чтобы
+   данные не уничтожались. Memo не даёт шифровать неизменённые данные заново. */
+function blobToStore(key, val) {
+  if (S[key]) return S[key];
+  const s = JSON.stringify(val);
+  const memo = S.__encMemo || (S.__encMemo = {});
+  if (memo[key + ':s'] === s) return memo[key + ':b'];
+  const b = secretEnc(s);
+  if (!b) return val; // мост недоступен — как раньше, открыто
+  memo[key + ':s'] = s; memo[key + ':b'] = b;
+  return b;
+}
+function blobFromStore(key, v, def) {
+  if (v == null) return def;
+  if (typeof v === 'string' && /^(ss1:|p1:)/.test(v)) {
+    const d = secretDec(v);
+    if (d) { try { const o = JSON.parse(d); if (o != null) return o; } catch (_) {} }
+    S[key] = v; return def; // ключ не подошёл — блоб сохраняем, значения нет
+  }
+  return v; // легаси-plaintext (миграция: зашифруется при следующей записи)
+}
 async function copySecret(txt) {
   let prev = '';
   try { prev = (window.shelterNative && window.shelterNative.clipRead) ? await window.shelterNative.clipRead() : ''; } catch (_) {}
@@ -3986,7 +4009,8 @@ function load() {
   S.currentSpace = store.get('shelter:currentSpace') || 'main';
   S.activeTabId = store.get('shelter:activeTabId') || null;
   S.bookmarks = store.json('shelter:bookmarks', null);
-  S.visits = (store.json('shelter:visits', []) || []).filter(v => v && v.url && v.at);
+  const rawVisits = blobFromStore('__visitsBlob', store.json('shelter:visits', null), []);
+  S.visits = (Array.isArray(rawVisits) ? rawVisits : []).filter(v => v && v.url && v.at);
   S.board = store.json('shelter:board', null);
   const breg = store.json('shelter:boards', null);
   S.boards = (breg && Array.isArray(breg.boards)) ? breg.boards : null;
@@ -4002,7 +4026,10 @@ function load() {
   if (S.ui.dlSeen == null) S.ui.dlSeen = Date.now();
   S.deep = !!lux.deep; S.account = lux.account || null;
   S.ai = aiFromStore(store.json('shelter:ai', null));
-  S.chats = lux.chats || []; S.messages = lux.messages || {};
+  const rawChats = blobFromStore('__chatsBlob', lux.chats, []);
+  const rawMessages = blobFromStore('__messagesBlob', lux.messages, {});
+  S.chats = Array.isArray(rawChats) ? rawChats : [];
+  S.messages = (rawMessages && typeof rawMessages === 'object' && !Array.isArray(rawMessages)) ? rawMessages : {};
   S.downloads = lux.downloads || []; S.passwords = pwFromStore(lux.passwords); S.blocks = lux.blocks || {};
   if (Array.isArray(ext)) S.ext = ext.filter(e => e && EXT_CATALOG[e.id]);
   if (!Array.isArray(S.bookmarks)) S.bookmarks = DEFAULT_BOOKMARKS.slice();
@@ -4029,7 +4056,7 @@ function flushVisits() {
   if (_visitsTail) { clearTimeout(_visitsTail); _visitsTail = 0; }
   if (S.ghost) { _visitsDirty = false; return; }
   if (!_visitsDirty && Date.now() - _visitsAt < 4000) return;
-  try { store.put('shelter:visits', S.visits.slice(-4000)); } catch (_) {}
+  try { store.put('shelter:visits', blobToStore('__visitsBlob', S.visits.slice(-4000))); } catch (_) {}
   _visitsAt = Date.now(); _visitsDirty = false;
 }
 /* Сохранение: в режиме «Призрак» ghost-вкладки (url/stack/title) НЕ должны
@@ -4068,7 +4095,7 @@ function saveNow() {
   store.put('shelter:board', S.board);
   store.put('shelter:boards', { boards: S.boards || [], id: S.boardId || '' });
   store.put('shelter:ext', S.ext);
-  store.put('shelter:lux', { seeded: true, prefs: S.prefs, ui: S.ui, deep: S.deep, account: S.account, chats: S.chats, messages: S.messages, downloads: S.downloads, passwords: pwToStore(S.passwords), blocks: S.blocks });
+  store.put('shelter:lux', { seeded: true, prefs: S.prefs, ui: S.ui, deep: S.deep, account: S.account, chats: blobToStore('__chatsBlob', S.chats), messages: blobToStore('__messagesBlob', S.messages), downloads: S.downloads, passwords: pwToStore(S.passwords), blocks: S.blocks });
   if (!S.ghost) {
     const now = Date.now();
     if (now - _visitsAt >= 4000) { flushVisits(); }

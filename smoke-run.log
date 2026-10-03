@@ -1,0 +1,621 @@
+expected   CRC32 $6143E0AC
+/dev/disk4          	GUID_partition_scheme          	
+/dev/disk4s1        	Apple_HFS                      	/Volumes/SHELTER
+total 8
+drwx------  4 runner  staff  204 Oct  3 13:18 .
+drwxr-xr-x  4 root    wheel  128 Oct  3 13:18 ..
+lrwxr-xr-x  1 runner  staff   13 Oct  3 13:18 Applications -> /Applications
+drwxr-xr-x  3 runner  staff  102 Oct  3 13:18 SHELTER.app
+"disk4" ejected.
+/Applications/SHELTER.app/Contents:
+total 8
+drwxr-xr-x  3 runner  admin    96 Oct  3 13:19 _CodeSignature
+drwxr-xr-x  7 runner  admin   224 Oct  3 13:19 .
+drwxr-xr-x  3 runner  admin    96 Oct  3 13:19 ..
+drwxr-xr-x  8 runner  admin   256 Oct  3 13:19 Frameworks
+-rw-r--r--  1 runner  admin  1660 Oct  3 13:19 Info.plist
+drwxr-xr-x  3 runner  admin    96 Oct  3 13:19 MacOS
+drwxr-xr-x  4 runner  admin   128 Oct  3 13:19 Resources
+
+/Applications/SHELTER.app/Contents/Resources:
+total 144
+drwxr-xr-x  4 runner  admin    128 Oct  3 13:19 .
+drwxr-xr-x  7 runner  admin    224 Oct  3 13:19 ..
+-rw-r--r--  1 runner  admin  72470 Oct  3 13:19 Shelter.icns
+drwxr-xr-x  5 runner  admin    160 Oct  3 13:19 ui
+[34m==>[0m [1mPouring cliclick--5.1.sonoma.bottle.tar.gz[0m
+🍺  /usr/local/Cellar/cliclick/5.1: 5 files, 153.3KB
+Collecting websocket-client
+  Downloading websocket_client-1.9.2-py3-none-any.whl.metadata (8.3 kB)
+Collecting pyobjc-framework-Quartz
+  Downloading pyobjc_framework_quartz-12.2.2-cp314-cp314-macosx_10_15_universal2.whl.metadata (3.6 kB)
+Collecting pyobjc-core>=12.2.2 (from pyobjc-framework-Quartz)
+  Downloading pyobjc_core-12.2.2-cp314-cp314-macosx_10_15_universal2.whl.metadata (2.8 kB)
+Collecting pyobjc-framework-Cocoa>=12.2.2 (from pyobjc-framework-Quartz)
+  Downloading pyobjc_framework_cocoa-12.2.2-cp314-cp314-macosx_10_15_universal2.whl.metadata (2.6 kB)
+Downloading websocket_client-1.9.2-py3-none-any.whl (95 kB)
+Downloading pyobjc_framework_quartz-12.2.2-cp314-cp314-macosx_10_15_universal2.whl (219 kB)
+Downloading pyobjc_core-12.2.2-cp314-cp314-macosx_10_15_universal2.whl (6.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.4/6.4 MB 27.1 MB/s  0:00:00
+Downloading pyobjc_framework_cocoa-12.2.2-cp314-cp314-macosx_10_15_universal2.whl (388 kB)
+Installing collected packages: websocket-client, pyobjc-core, pyobjc-framework-Cocoa, pyobjc-framework-Quartz
+
+Successfully installed pyobjc-core-12.2.2 pyobjc-framework-Cocoa-12.2.2 pyobjc-framework-Quartz-12.2.2 websocket-client-1.9.2
+launch: ['/Applications/SHELTER.app/Contents/MacOS/Shelter', '--remote-debugging-port=9222', '--remote-allow-origins=*']
+targets: [["page", "shelter://app/index.html", ""]]
+title: SHELTER — Приватный браузер
+shelterNative: {"n":true,"p":"darwin","open":"function","tabHook":"function","cq":"function"}
+viewport: {"x":272,"y":55,"width":1157,"height":824,"top":55,"right":1429,"bottom":879,"left":272}
+secret roundtrip: ss1:|true|true
+clip roundtrip: shelter-test
+--- control: real click on bare UI (no native view) ---
+hit-test control sidebar (130,332):
+forcedKey=0 redirected=0
+WINDOW CefNSWindow frame(0,165 1440x890) key=1 main=1 level=0 parent=no children=0 hit=RenderWidgetHostViewCocoa hitFrame={{0, 0}, {1440, 890}}
+  BridgedContentView (0,0 1440x890)
+    ViewsCompositorSuperview (0,0 1440x890)
+    WebContentsViewCocoa (0,0 1440x890)
+      RenderWidgetHostViewCocoa (0,0 1440x890)
+
+real click sidebar bookmarks (control) at 136,351 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: shelter.dev/bookmarks
+real click sidebar start (control) at 136,243 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: shelter.dev/start
+newTab: t_musf5bhszpta2
+targets after newTab: [["page", "https://example.org/", "Example Domain"], ["page", "shelter://app/index.html", "SHELTER — Приватный браузер"]]
+active tab url in UI: shelter.dev/bookmarks | Закладки ;; shelter.dev/start | Экспресс-панель ;; https://example.org/ | Example Domain
+tab title: Example Domain | shelterNative in tab: undefined | cefQuery in tab: undefined
+open menu: clicked
+snap img present: True | menu: True
+after close: snap img = False
+navigate CC: None
+[search+4s] ui (0.03s): {"url":"shelter.dev/bookmarks | Закладки ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc","snap":false,"vp":[272,55,1157,824]}
+[search+8s] ui (0.00s): {"url":"shelter.dev/bookmarks | Закладки ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc","snap":false,"vp":[272,55,1157,824]}
+[search+12s] ui (0.04s): {"url":"shelter.dev/bookmarks | Закладки ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc","snap":false,"vp":[272,55,1157,824]}
+[search+16s] ui (0.00s): {"url":"shelter.dev/bookmarks | Закладки ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc","snap":false,"vp":[272,55,1157,824]}
+targets after search: [["page", "https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc", "CC - Поиск в Google"], ["iframe", "https://www.youtube.com/embed/?enablejsapi=1&rel=0&autoplay=0&playsinline=1&fs=1&hl=ru-US&authuser=0&embed_con", "https://www.youtube.com/embed/?enablejsapi=1&amp;rel=0&amp;autoplay=0&amp;playsinline=1&amp;fs=1&amp;hl=ru-US&amp;authuser=0&amp;embed_config=%7B%22enc%22%3A%22AXH1ezlE0aX5RyGeXbEuGSSmhZADPu2skyqn37i_w9vzzBu1MSetFX3WpgqWrPkB-AWsDQ75s-3bdgT9_eO5ksW5tQ9JyJV5MSw0klc2ebglhDgWd8kAnjKvBsFpAtLaCCBqJLFxTMdaOtPysmK609TVDdENWkIpJgA_CQUK483pn4YySlXtRZfgQg-3qCExv2mORUCW095SGswvBPQry6fcaqXxsFwwphNap7ot6kz-NNZCY1czukTjs8U7PB-u_9gycd9loS0OsIeYgPJkHJ7zZ1-6tFfCB2rdZx6YHlbkWgYnCmPfJ_nm99um_zt4RFNk752slw%3D%3D%22%7D"], ["page", "shelter://app/index.html", "SHELTER — Приватный браузер"]]
+--- find in page ---
+find cnt: 1 / 26 | snap: False
+find cnt after next: 2 / 26
+find closed, hidden: True
+--- real mouse test ---
+active before: https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc
+real click sidebar bookmarks at 136,351 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: shelter.dev/bookmarks
+real click sidebar google tab at 146,508 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc
+real click page area at 850,492 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc
+real click sidebar history after page click at 130,725 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: https://www.google.com/search?q=CC&sei=9QDBapCCOpux0PEPzL-uqAc
+real click back button at 330,52 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: https://www.google.com/search?q=CC
+--- hit-test diagnostics ---
+inject ui: ok
+inject page: ok
+app-regions: ["sbTop:drag:12,14,248,20","winLights:no-drag:18,18,52,12","I:no-drag:18,18,12,12","I:no-drag:38,18,12,12","I:no-drag:58,18,12,12","brand:drag:12,50,248,39","logo:no-drag:18,51,38,38","[object SVGAnimatedString]:no-drag:26,59,22,22","[object SVGAnimatedString]:no-drag:32,64,10,12","brand-t hc:no-drag:68,50,121,39","B:no-drag:68,50,121,15","SUP:no-drag:157,48,7,8","SPAN:no-drag:68,71,121,18","sb-search:no-drag:12,118,248,40","[object SVGAnimatedString]:no-drag:29,130,17,17","[object SVGAnimatedString]:no-drag:31,132,12,12","hc:no-drag:56,128,149,20","kbd hc:no-drag:215,126,37,24","ni:no-drag:12,200,248,36","[object SVGAnimatedString]:no-drag:28,209,18,18","[object SVGAnimatedString]:no-drag:30,211,14,14","lbl hc:no-drag:58,208,192,20","ni:no-drag:12,236,248,36","[object SVGAnimatedString]:no-drag:28,245,18,18","[object SVGAnimatedString]:no-drag:30,249,14,11","lbl hc:no-drag:58,244,192,20","bdgTasks:no-drag:0,0,0,0","ni:no-drag:12,272,248,36","[object SVGAnimatedString]:no-drag:28,281,18,18","[object SVGAnimatedString]:no-drag:30,283,14,14","lbl hc:no-drag:58,280,151,20","badge new hc:no-drag:221,279,29,22","ni:no-drag:12,308,248,36","[object SVGAnimatedString]:no-drag:28,317,18,18","[object SVGAnimatedString]:no-drag:32,319,11,14","lbl hc:no-drag:58,316,158,20","bdgBm:no-drag:228,315,22,22","space-btn:no-drag:18,365,201,30","space-ico:no-drag:28,371,18,18","[object SVGAnimatedString]:no-drag:32,375,11,11","[object SVGAnimatedString]:no-drag:32,376,9,9","nm hc:no-drag:55,371,84,17","[object SVGAnimatedString]:no-drag:148,374,12,12","[object SVGAnimatedString]:no-drag:151,379,6,3","icon-btn hc:no-drag:221,366,28,28","[object SVGAnimatedString]:no-drag:227,372,16,16","[object SVGAnimatedString]:no-drag:230,375,9,9","tab:no-drag:43,398,206,34","fav int :no-drag:54,406,18,18","[object SVGAnimatedString]:no-drag:58,410,11,11","[object SVGAnimatedString]:no-drag:60,411,6,8","t hc:no-drag:82,406,128,19","x hc:no-drag:220,403,24,24","[object SVGAnimatedString]:no-drag:225,408,14,14","[object SVGAnimatedString]:no-drag:229,412,7,7","tab:no-drag:43,432,206,34","fav int :no-drag:54,440,18,18","[object SVGAnimatedString]:no-drag:58,444,11,11","[object SVGAnimatedString]:no-drag:59,445,8,8","t hc:no-drag:82,440,128,19"]
+hit-test sidebar (130,332):
+forcedKey=2 redirected=0
+WINDOW CefNSWindow frame(0,165 1440x890) key=0 main=1 level=0 parent=no children=1 hit=RenderWidgetHostViewCocoa hitFrame={{0, 0}, {1440, 890}}
+  BridgedContentView (0,0 1440x890)
+    ViewsCompositorSuperview (0,0 1440x890)
+    WebContentsViewCocoa (0,0 1440x890)
+      RenderWidgetHostViewCocoa (0,0 1440x890)
+forcedKey=2 redirected=0
+WINDOW NativeWidgetMacNSWindow frame(272,176 1157x824) key=1 main=0 level=0 parent=yes children=0 hit=RenderWidgetHostViewCocoa hitFrame={{0, 0}, {1157, 824}}
+  BridgedContentView (0,0 1157x824)
+    ViewsCompositorSuperview (0,0 1157x824)
+    WebContentsViewCocoa (0,0 1157x824)
+      RenderWidgetHostViewCocoa (0,0 1157x824)
+      RenderWidgetHostViewCocoa (0,0 1157x824) HIDDEN
+      RenderWidgetHostViewCocoa (0,0 1157x824) HIDDEN
+
+hit-test viewport (850,467):
+forcedKey=2 redirected=0
+WINDOW CefNSWindow frame(0,165 1440x890) key=0 main=1 level=0 parent=no children=1 hit=RenderWidgetHostViewCocoa hitFrame={{0, 0}, {1440, 890}}
+  BridgedContentView (0,0 1440x890)
+    ViewsCompositorSuperview (0,0 1440x890)
+    WebContentsViewCocoa (0,0 1440x890)
+      RenderWidgetHostViewCocoa (0,0 1440x890)
+forcedKey=2 redirected=0
+WINDOW NativeWidgetMacNSWindow frame(272,176 1157x824) key=1 main=0 level=0 parent=yes children=0 hit=RenderWidgetHostViewCocoa hitFrame={{0, 0}, {1157, 824}}
+  BridgedContentView (0,0 1157x824)
+    ViewsCompositorSuperview (0,0 1157x824)
+    WebContentsViewCocoa (0,0 1157x824)
+      RenderWidgetHostViewCocoa (0,0 1157x824)
+      RenderWidgetHostViewCocoa (0,0 1157x824) HIDDEN
+      RenderWidgetHostViewCocoa (0,0 1157x824) HIDDEN
+
+probe sidebar bookmarks @136,351: ui=["mousemove@136,326","pointerdown@136,326","mousedown@136,326","click@136,326"] page=[] uiFocus=True
+probe toolbar back @330,52: ui=["mousemove@330,27","pointerdown@330,27","mousedown@330,27","click@330,27"] page=[] uiFocus=True
+probe omnibox @810,52: ui=["mousemove@810,27","pointerdown@810,27","mousedown@810,27","click@810,27"] page=[] uiFocus=True
+probe viewport center @850,492: ui=["mousemove@850,467","pointerdown@850,467","mousedown@850,467","click@850,467"] page=[] uiFocus=True
+probe sidebar settings @136,810: ui=["mousemove@136,785","pointerdown@136,785","mousedown@136,785","click@136,785"] page=[] uiFocus=True
+probe sidebar bookmarks again @136,351: ui=["mousemove@136,326","pointerdown@136,326","mousedown@136,326","click@136,326"] page=[] uiFocus=True
+window: 45 layer 0 alpha 1.0 onscreen None name '' bounds 272 80 1157 824
+window: 41 layer 0 alpha 1.0 onscreen None name '' bounds 0 580 500 500
+window: 40 layer 0 alpha 1.0 onscreen None name '' bounds 0 0 1920 24
+window: 39 layer 0 alpha 1.0 onscreen None name '' bounds 0 0 1920 24
+window: 38 layer 0 alpha 1.0 onscreen None name '' bounds 0 0 1920 24
+window: 37 layer 0 alpha 1.0 onscreen None name '' bounds 0 0 1920 24
+window: 36 layer 0 alpha 1.0 onscreen True name 'SHELTER · 1.0.164' bounds 0 25 1440 890
+window list total: 28 pid: 14529
+click sidebar history: clicked
+[after history click] ui (0.00s): {"url":"shelter.dev/history | История ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"shelter://history","snap":false,"vp":[272,55,1157,824]}
+click back: clicked
+[after back] ui (0.00s): {"url":"shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google","ref":"reload","back":"tb-btn off","omni":"","snap":false,"vp":[272,55,1157,824]}
+--- functional scenario (local server) ---
+newTab p1: t_musf6rljv7s5k
+after p1: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; *http://127.0.0.1:8765/p1 | Page /p1
+navigate p2: None
+after p2: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; *http://127.0.0.1:8765/p2 | Page /p2
+after back: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; *http://127.0.0.1:8765/p1 | Page /p1
+after forward: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; *http://127.0.0.1:8765/p2 | Page /p2
+local find cnt (expect 1 / 3): 1 / 3
+zoom: set
+page devicePixel/zoom check, innerWidth: 771
+navigate download: None
+download prompt shown: True
+download file exists: True 200000 dir: /Users/runner/Downloads
+tabs after download: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; *http://127.0.0.1:8765/p2 | Page /p2
+--- zoom across origins ---
+zoom: base innerWidth p2: 1157
+zoom 1.5 same host p2: 771
+zoom 1.5 other host p3 (expect ~base/1.5): 771
+zoom 1.5 back to first host p4 (expect ~base/1.5): 771
+zoom reset p4: 1157
+--- overlays over live page (holes) ---
+perf before: {"freezes":2,"thaws":2,"snapMs":[65,51],"snapKB":[59,12],"freezeMs":[152,419],"thawMs":[91,146],"holes":1,"clips":25,"longTasks":15,"longMax":568}
+toast: snap = False | clip = 25,25,25,25|3,673,302,100;3,776,310,45
+after toast: clip = 25,25,25,25|3,722,302,99
+tip shown: True | snap = False | clip = 25,25,25,25|3,722,302,99;25,0,66,33
+suggest shown: True | snap = False | clip = 25,25,25,25|149,0,746,176;3,722,302,99;25,0,66,33
+real click suggest item (click through hole) at 794,147 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: shelter.dev/deepthink?q=goo
+suggest click changed url: True | http://127.0.0.1:8765/p4 -> shelter.dev/deepthink?q=goo
+perf after: {"freezes":2,"thaws":2,"snapMs":[65,51],"snapKB":[59,12],"freezeMs":[152,419],"thawMs":[91,146],"holes":3,"clips":33,"longTasks":16,"longMax":568}
+--- download via page link click ---
+file link: prompt = True
+real click file link: real click on Save at 887,550 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: http://127.0.0.1:8765/dl
+file link: prompt still open = False | file.bin exists = True | tabs: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; *http://127.0.0.1:8765/dl | DL
+blob link: prompt = True
+real click blob link: real click on Save at 887,550 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: http://127.0.0.1:8765/dl
+blob link: prompt still open = False | file.bin exists = False | tabs: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; *http://127.0.0.1:8765/dl | DL
+--- shelter.log ---
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+download before id=dl1 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl1 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl1 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl2 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl2 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl2 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl3 name=blob.txt url=http://127.0.0.1:8765/dl# size=322
+download decision id=dl3 action=save path=/Users/runner/Downloads/blob.txt
+download update id=dl3 state=completed bytes=322 reason=0 path=/Users/runner/Downloads/blob.txt
+
+tabs before/after close: 4 3 | active: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; *https://www.google.com/search?q=CC | CC - Поиск в Google
+--- ghost: disk leak check ---
+ghost on: 1
+ghost tab: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; *http://127.0.0.1:8765/mark?m=GHOSTMARK03274fdfdd73 | Mark
+page marker (ghost tab): GHOSTMARK03274fdfdd73
+ghost page cookies (must NOT contain PERSISTMARK): c_GHOSTMARK03274fdfdd73=1
+ghost page localStorage keys: k_GHOSTMARK03274fdfdd73
+persist page cookies: c_PERSISTMARK203b77bae618=1
+files scanned: 294 in /Users/runner/Library/Application Support/SHELTER
+  dir Profiles/space-main []
+  dir Default ['.dev.shelter.browser.TransportSecurity.DIDl8f', 'Account Web Data', 'Account Web Data-journal', 'Affiliation Database', 'Affiliation Database-journal', 'AutofillAiModelCache', 'AutofillStrikeDatabase', 'BookmarkMergedSurfaceOrdering', 'BudgetDatabase', 'ClientCertificates', 'Cookies', 'Cookies-journal', 'DIPS', 'DIPS-wal', 'DawnGraphiteCache', 'DawnWebGPUCache', 'Extension Rules', 'Extension Scripts', 'Extension State', 'Favicons', 'Favicons-journal', 'Feature Engagement Tracker', 'GPUCache', 'History', 'History-journal', 'LOCK', 'LOG', 'LOG.old', 'Local Storage', 'Login Data']
+  dir Profiles ['space-main']
+CONTROL (persistent space) marker found in: ['Default/Local Storage/leveldb/000003.log']
+GHOST marker found on disk in: nothing (OK)
+ui console problems: 91
+   Failed to load resource: the server responded with a status of 404 (Not Found) shelter://app/native.js
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=gosuslugi.ru' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=gosuslugi.ru
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=sberbank.ru' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the  shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=sberbank.ru
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=nalog.gov.ru' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=nalog.gov.ru
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=github.com' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the r shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=github.com
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=youtube.com' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the  shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=youtube.com
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=ru.wikipedia.org' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=ru.wikipedia.org
+   Failed to load resource: the server responded with a status of 404 (Not found) https://favicon.yandex.net/favicon.v2/gosuslugi.ru
+   Failed to load resource: the server responded with a status of 404 (Not found) https://favicon.yandex.net/favicon.v2/sberbank.ru
+--- layout.log ---
+layout.log unavailable: [Errno 2] No such file or directory: '/Users/runner/Library/Application Support/SHELTER/layout.log'
+--- helper CPU snapshot (live, %; command shows --type=) ---
+1.8 14527 /usr/local/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python tools/smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter smoke
+0.0 14529 /Applications/SHELTER.app/Contents/MacOS/Shelter --remote-debugging-port=9222 --remote-allow-origins=*
+0.0 14536 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper.app/Contents/MacOS/Shelter Helper --type=utility --utility-sub-type=network.mojom.NetworkService --lang=ru --service-sandbox-type=network --no-sandbox --start-stack-profiler --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --shared-files --metrics-shmem-handle=1752395122,r,16965699880920165069,977065271713538371,524288 --field-trial-handle=1718379636,r,6975416873060495935,11715807714776882282,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,4770364683811698023,7547250169018780399,4 --trace-process-track-uuid=3190708989122997041 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 14539 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper.app/Contents/MacOS/Shelter Helper --type=utility --utility-sub-type=storage.mojom.StorageService --lang=ru --service-sandbox-type=service --no-sandbox --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --shared-files --metrics-shmem-handle=1752395122,r,2113665426403752050,5191019654935982004,524288 --field-trial-handle=1718379636,r,6975416873060495935,11715807714776882282,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,4770364683811698023,7547250169018780399,4 --trace-process-track-uuid=3190708990060038890 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+2.8 14546 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer) --type=renderer --start-stack-profiler --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --no-sandbox --remote-debugging-port=9222 --lang=ru --num-raster-threads=2 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=6 --launch-time-ticks=989534163 --shared-files --metrics-shmem-handle=1752395122,r,9048184867016600208,472215703288664833,1572864 --field-trial-handle=1718379636,r,6975416873060495935,11715807714776882282,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,4770364683811698023,7547250169018780399,4 --trace-process-track-uuid=3190708991934122588 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+2.1 14551 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper.app/Contents/MacOS/Shelter Helper --type=gpu-process --gpu-recent-crash-count=0 --no-sandbox --start-stack-profiler --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --gpu-preferences=WAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAQAAAAAAAAAAAAAAAAAAAADgAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAAgAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAA --use-gl=disabled --shared-files --metrics-shmem-handle=1752395122,r,11943537030802142316,15390077663862862362,262144 --field-trial-handle=1718379636,r,6975416873060495935,11715807714776882282,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,4770364683811698023,7547250169018780399,4 --trace-process-track-uuid=3190708995682289984 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 14797 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer) --type=renderer --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --no-sandbox --remote-debugging-port=9222 --disable-gpu-compositing --lang=ru --num-raster-threads=2 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=12 --launch-time-ticks=999316192 --shared-files --metrics-shmem-handle=1752395122,r,10018444369142055754,10221398399211929808,1572864 --field-trial-handle=1718379636,r,6975416873060495935,11715807714776882282,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,4770364683811698023,7547250169018780399,4 --trace-process-track-uuid=3190708997556373682 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 14798 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer) --type=renderer --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --no-sandbox --remote-debugging-port=9222 --disable-gpu-compositing --lang=ru --num-raster-threads=2 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=11 --launch-time-ticks=999318494 --shared-files --metrics-shmem-handle=1752395122,r,14421577772457296501,11588615849736849053,1572864 --field-trial-handle=1718379636,r,6975416873060495935,11715807714776882282,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,4770364683811698023,7547250169018780399,4 --trace-process-track-uuid=3190708996619331833 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 15309 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer) --type=renderer --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --no-sandbox --remote-debugging-port=9222 --disable-gpu-compositing --lang=ru --num-raster-threads=2 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=14 --launch-time-ticks=1015506681 --shared-files --metrics-shmem-handle=1752395122,r,3939847652453464335,12679729658815075387,1572864 --field-trial-handle=1718379636,r,6975416873060495935,11715807714776882282,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,4770364683811698023,7547250169018780399,4 --trace-process-track-uuid=3190708999430457380 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 15328 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper.app/Contents/MacOS/Shelter Helper --type=utility --utility-sub-type=audio.mojom.AudioService --lang=ru --service-sandbox-type=audio --no-sandbox --message-loop-type-ui --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --shared-files --metrics-shmem-handle=1752395122,r,16804833812589243697,3043495975933413647,524288 --field-trial-handle=1718379636,r,6975416873060495935,11715807714776882282,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,4770364683811698023,7547250169018780399,4 --trace-process-track-uuid=3190709001304541078 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 15329 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper.app/Contents/MacOS/Shelter Helper --type=utility --utility-sub-type=video_capture.mojom.VideoCaptureService --lang=ru --service-sandbox-type=none --no-sandbox --message-loop-type-ui --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --shared-files --metrics-shmem-handle=1752395122,r,6369231591260977617,17438249166602752628,524288 --field-trial-handle=1718379636,r,6975416873060495935,11715807714776882282,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,4770364683811698023,7547250169018780399,4 --trace-process-track-uuid=3190709002241582927 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 17372 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer) --type=renderer --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --no-sandbox --remote-debugging-port=9222 --disable-gpu-compositing --lang=ru --num-raster-threads=2 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=41 --launch-time-ticks=1100494421 --shared-files --metrics-shmem-handle=1752395122,r,6161545056389593608,922633550642946388,1572864 --field-trial-handle=1718379636,r,6975416873060495935,11715807714776882282,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,4770364683811698023,7547250169018780399,4 --trace-process-track-uuid=3190709024730587303 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+--- debug.log: 47 lines, last 60 ---
+[14535:41804:1003/131925.066342:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[14535:41804:1003/131925.067865:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[14535:41804:1003/131925.067998:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[14535:41804:1003/131925.068017:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[14529:41738:1003/131925.120154:WARNING:chrome/browser/signin/account_consistency_mode_manager.cc:74] Desktop Identity Consistency cannot be enabled as no OAuth client ID and client secret have been configured.
+[14535:41804:1003/131925.376882:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+[14548:41989:1003/131926.230896:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[14548:41989:1003/131926.231403:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[14548:41989:1003/131926.231447:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[14548:41989:1003/131926.231463:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[14548:41989:1003/131926.260728:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+[14549:42008:1003/131926.361683:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[14549:42008:1003/131926.362118:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[14549:42008:1003/131926.362160:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[14549:42008:1003/131926.362175:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[14549:42008:1003/131926.380162:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+[14529:41787:1003/131929.409231:ERROR:base/mac/process_requirement.cc:159] Unable to derive validation category for current process. Signature validation of current process failed: Error Domain=NSOSStatusErrorDomain Code=-67030 "(null)" (-67030)
+[14529:41738:1003/131935.543988:ERROR:cef/libcef/browser/chrome/chrome_browser_context.cc:116] Cannot create profile at path /Users/runner/Library/Application Support/SHELTER/Profiles/space-main
+[14529:41738:1003/131935.575894:ERROR:base/observer_list.h:371] NOTREACHED hit. Observers can only be added once!
+[14529:41789:1003/131951.789413:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [13,10]
+[14529:41738:1003/131951.817800:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [13,10]
+[14529:41738:1003/131951.818292:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [13,10]
+[14529:41738:1003/131951.818428:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [13,10]
+[14529:41738:1003/131951.818544:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [13,10]
+[14529:41789:1003/131951.934165:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,6]
+[14529:41738:1003/131951.957831:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,6]
+[14529:41738:1003/131951.958584:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,6]
+[14529:41738:1003/131951.958765:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,6]
+[14529:41738:1003/131951.958887:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,6]
+[15328:44199:1003/131953.720955:ERROR:sandbox/mac/system_services.cc:31] SetApplicationIsDaemon: Error Domain=NSOSStatusErrorDomain Code=-50 "paramErr: error in user parameter list" (-50)
+[14529:41738:1003/131954.647223:WARNING:chrome/browser/media/prefs/capture_device_ranking.h:256] Can't initialize the value of media.audio_input.user_preference_ranking because media.default_audio_capture_device isn't registered or is empty
+[14529:41738:1003/131954.647531:WARNING:chrome/browser/media/prefs/capture_device_ranking.h:256] Can't initialize the value of media.video_input.user_preference_ranking because media.default_video_capture_Device isn't registered or is empty
+[14529:41789:1003/132026.723745:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,10]
+[14529:41738:1003/132026.730088:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,10]
+[14529:41738:1003/132026.731285:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,10]
+[14529:41738:1003/132026.731620:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,10]
+[14529:41738:1003/132026.731968:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,10]
+[14529:41789:1003/132027.194917:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,20]
+[14529:41738:1003/132027.295148:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,20]
+[14529:41738:1003/132027.295788:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,20]
+[14529:41738:1003/132027.295924:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,20]
+[14529:41738:1003/132027.296063:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,20]
+[14529:41738:1003/132028.552304:WARNING:chrome/browser/media/prefs/capture_device_ranking.h:256] Can't initialize the value of media.audio_input.user_preference_ranking because media.default_audio_capture_device isn't registered or is empty
+[14529:41738:1003/132028.552366:WARNING:chrome/browser/media/prefs/capture_device_ranking.h:256] Can't initialize the value of media.video_input.user_preference_ranking because media.default_video_capture_Device isn't registered or is empty
+[14529:41738:1003/132207.050698:ERROR:base/observer_list.h:371] NOTREACHED hit. Observers can only be added once!
+[19096:53764:1003/132225.096113:ERROR:services/on_device_model/ml/gpu_blocklist.cc:120] Unable to get gpu adapter
+[14529:41738:1003/132225.096657:ERROR:services/on_device_model/public/cpp/service_client.cc:37] Unexpected on_device_model service disconnect; reason: 1, description: Error loading backend.
+--- shelter.log: 17 lines, last 60 ---
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+download before id=dl1 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl1 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl1 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl2 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl2 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl2 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl3 name=blob.txt url=http://127.0.0.1:8765/dl# size=322
+download decision id=dl3 action=save path=/Users/runner/Downloads/blob.txt
+download update id=dl3 state=completed bytes=322 reason=0 path=/Users/runner/Downloads/blob.txt
+media probes: {"mp4_h264":"","mp4_aac":"","mp3":"probably","webm_vp9":"probably","webm_av1":"probably","ogg":"","mse":true,"eme":true}
+SMOKE DONE
+launch: ['/Applications/SHELTER.app/Contents/MacOS/Shelter', '--remote-debugging-port=9222', '--remote-allow-origins=*', '--tab-no-activate']
+targets: [["page", "shelter://app/index.html", ""]]
+title: SHELTER — Приватный браузер
+shelterNative: {"n":true,"p":"darwin","open":"function","tabHook":"function","cq":"function"}
+viewport: {"x":272,"y":55,"width":1157,"height":824,"top":55,"right":1429,"bottom":879,"left":272}
+secret roundtrip: ss1:|true|true
+clip roundtrip: shelter-test
+--- control: real click on bare UI (no native view) ---
+hit-test control sidebar (130,332):
+forcedKey=0 redirected=0
+WINDOW CefNSWindow frame(0,165 1440x890) key=1 main=1 level=0 parent=no children=0 hit=RenderWidgetHostViewCocoa hitFrame={{0, 0}, {1440, 890}}
+  BridgedContentView (0,0 1440x890)
+    ViewsCompositorSuperview (0,0 1440x890)
+    WebContentsViewCocoa (0,0 1440x890)
+      RenderWidgetHostViewCocoa (0,0 1440x890)
+
+real click sidebar bookmarks (control) at 136,351 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: shelter.dev/bookmarks
+real click sidebar start (control) at 136,243 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: shelter.dev/start
+newTab: t_musf9nsegzbk2
+targets after newTab: [["page", "https://example.org/", "Example Domain"], ["page", "shelter://app/index.html", "SHELTER — Приватный браузер"]]
+active tab url in UI: shelter.dev/bookmarks | Закладки ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://example.org/ | Example Domain
+tab title: Example Domain | shelterNative in tab: undefined | cefQuery in tab: undefined
+open menu: clicked
+snap img present: True | menu: True
+after close: snap img = False
+navigate CC: None
+[search+4s] ui (0.00s): {"url":"shelter.dev/bookmarks | Закладки ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU","snap":false,"vp":[272,55,1157,824]}
+[search+8s] ui (0.00s): {"url":"shelter.dev/bookmarks | Закладки ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU","snap":false,"vp":[272,55,1157,824]}
+[search+12s] ui (0.00s): {"url":"shelter.dev/bookmarks | Закладки ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU","snap":false,"vp":[272,55,1157,824]}
+[search+16s] ui (0.00s): {"url":"shelter.dev/bookmarks | Закладки ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU","snap":false,"vp":[272,55,1157,824]}
+targets after search: [["page", "https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU", "CC - Поиск в Google"], ["iframe", "https://ep2.adtrafficquality.google/sodar/sodar2/255/runner.html", "https://ep2.adtrafficquality.google/sodar/sodar2/255/runner.html"], ["iframe", "https://www.youtube.com/embed/?enablejsapi=1&rel=0&autoplay=0&playsinline=1&fs=1&hl=ru-US&authuser=0&embed_con", "https://www.youtube.com/embed/?enablejsapi=1&amp;rel=0&amp;autoplay=0&amp;playsinline=1&amp;fs=1&amp;hl=ru-US&amp;authuser=0&amp;embed_config=%7B%22enc%22%3A%22AXH1ezmIjxdZKG1tbFId7GfdnzU4fmOiyZ9gzTqgzB5wR2NedSfAUCHbGhp2ZThNRA7p1BZc_j5DxqURowsGRGqXysnpHIEh9Y3r9KDunUZU4--cXxEv9MjInXZ8px2vvRh23qG94Of7fnP6V-FcJakH5dxMz3yh-upNsVUIel0RZw0aiRqw-nfzUHbJsATLAcCROJYFnj1zYVeV-93V5oOy59xcENLR_hOo6jG9Od79QDB3DY5Yi6N_fc1m8z1h_-0qP-rsx2MicyQv0hd-MxhvsWafCLldqSiqXCPUBVEnwL1KQLBGpGknU88-IcdkgC6KDyxohg%3D%3D%22%7D"], ["page", "shelter://app/index.html", "SHELTER — Приватный браузер"]]
+--- find in page ---
+find cnt: 1 / 24 | snap: False
+find cnt after next: 2 / 24
+find closed, hidden: True
+--- real mouse test ---
+active before: https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU
+real click sidebar bookmarks at 136,351 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: shelter.dev/bookmarks
+real click sidebar google tab at 146,508 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: https://www.google.com/search?q=CC
+real click page area at 850,492 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: https://www.google.com/search?q=CC
+real click sidebar history after page click at 130,793 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: https://www.google.com/search?q=CC
+real click back button at 330,52 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: https://www.google.com/search?q=CC
+--- hit-test diagnostics ---
+inject ui: ok
+inject page: ok
+app-regions: ["sbTop:drag:12,14,248,20","winLights:no-drag:18,18,52,12","I:no-drag:18,18,12,12","I:no-drag:38,18,12,12","I:no-drag:58,18,12,12","brand:drag:12,50,248,39","logo:no-drag:18,51,38,38","[object SVGAnimatedString]:no-drag:26,59,22,22","[object SVGAnimatedString]:no-drag:32,64,10,12","brand-t hc:no-drag:68,50,121,39","B:no-drag:68,50,121,15","SUP:no-drag:157,48,7,8","SPAN:no-drag:68,71,121,18","sb-search:no-drag:12,118,248,40","[object SVGAnimatedString]:no-drag:29,130,17,17","[object SVGAnimatedString]:no-drag:31,132,12,12","hc:no-drag:56,128,149,20","kbd hc:no-drag:215,126,37,24","ni:no-drag:12,200,248,36","[object SVGAnimatedString]:no-drag:28,209,18,18","[object SVGAnimatedString]:no-drag:30,211,14,14","lbl hc:no-drag:58,208,192,20","ni:no-drag:12,236,248,36","[object SVGAnimatedString]:no-drag:28,245,18,18","[object SVGAnimatedString]:no-drag:30,249,14,11","lbl hc:no-drag:58,244,192,20","bdgTasks:no-drag:0,0,0,0","ni:no-drag:12,272,248,36","[object SVGAnimatedString]:no-drag:28,281,18,18","[object SVGAnimatedString]:no-drag:30,283,14,14","lbl hc:no-drag:58,280,151,20","badge new hc:no-drag:221,279,29,22","ni:no-drag:12,308,248,36","[object SVGAnimatedString]:no-drag:28,317,18,18","[object SVGAnimatedString]:no-drag:32,319,11,14","lbl hc:no-drag:58,316,158,20","bdgBm:no-drag:228,315,22,22","space-btn:no-drag:18,365,201,30","space-ico:no-drag:28,371,18,18","[object SVGAnimatedString]:no-drag:32,375,11,11","[object SVGAnimatedString]:no-drag:32,376,9,9","nm hc:no-drag:55,371,84,17","[object SVGAnimatedString]:no-drag:148,374,12,12","[object SVGAnimatedString]:no-drag:151,379,6,3","icon-btn hc:no-drag:221,366,28,28","[object SVGAnimatedString]:no-drag:227,372,16,16","[object SVGAnimatedString]:no-drag:230,375,9,9","tab:no-drag:43,398,206,34","fav int :no-drag:54,406,18,18","[object SVGAnimatedString]:no-drag:58,410,11,11","[object SVGAnimatedString]:no-drag:60,411,6,8","t hc:no-drag:82,406,105,19","tg hc:no-drag:197,409,13,13","[object SVGAnimatedString]:no-drag:197,409,13,13","[object SVGAnimatedString]:no-drag:199,410,9,11","x hc:no-drag:220,403,24,24","[object SVGAnimatedString]:no-drag:225,408,14,14","[object SVGAnimatedString]:no-drag:229,412,7,7","tab:no-drag:43,432,206,34","fav int :no-drag:54,440,18,18"]
+hit-test sidebar (130,332):
+forcedKey=0 redirected=0
+WINDOW CefNSWindow frame(0,165 1440x890) key=1 main=1 level=0 parent=no children=1 hit=RenderWidgetHostViewCocoa hitFrame={{0, 0}, {1440, 890}}
+  BridgedContentView (0,0 1440x890)
+    ViewsCompositorSuperview (0,0 1440x890)
+    WebContentsViewCocoa (0,0 1440x890)
+      RenderWidgetHostViewCocoa (0,0 1440x890)
+forcedKey=0 redirected=0
+WINDOW NativeWidgetMacNSWindow frame(272,176 1157x824) key=0 main=0 level=0 parent=yes children=0 hit=RenderWidgetHostViewCocoa hitFrame={{0, 0}, {1157, 824}}
+  BridgedContentView (0,0 1157x824)
+    ViewsCompositorSuperview (0,0 1157x824)
+    WebContentsViewCocoa (0,0 1157x824)
+      RenderWidgetHostViewCocoa (0,0 1157x824)
+
+hit-test viewport (850,467):
+forcedKey=0 redirected=0
+WINDOW CefNSWindow frame(0,165 1440x890) key=1 main=1 level=0 parent=no children=1 hit=RenderWidgetHostViewCocoa hitFrame={{0, 0}, {1440, 890}}
+  BridgedContentView (0,0 1440x890)
+    ViewsCompositorSuperview (0,0 1440x890)
+    WebContentsViewCocoa (0,0 1440x890)
+      RenderWidgetHostViewCocoa (0,0 1440x890)
+forcedKey=0 redirected=0
+WINDOW NativeWidgetMacNSWindow frame(272,176 1157x824) key=0 main=0 level=0 parent=yes children=0 hit=RenderWidgetHostViewCocoa hitFrame={{0, 0}, {1157, 824}}
+  BridgedContentView (0,0 1157x824)
+    ViewsCompositorSuperview (0,0 1157x824)
+    WebContentsViewCocoa (0,0 1157x824)
+      RenderWidgetHostViewCocoa (0,0 1157x824)
+
+probe sidebar bookmarks @136,351: ui=["mousemove@136,326","pointerdown@136,326","mousedown@136,326","click@136,326"] page=[] uiFocus=True
+probe toolbar back @330,52: ui=["mousemove@330,27","pointerdown@330,27","mousedown@330,27","click@330,27"] page=[] uiFocus=True
+probe omnibox @810,52: ui=["mousemove@810,27","pointerdown@810,27","mousedown@810,27","click@810,27"] page=[] uiFocus=True
+probe viewport center @850,492: ui=["mousemove@850,467","pointerdown@850,467","mousedown@850,467","click@850,467"] page=[] uiFocus=True
+probe sidebar settings @136,810: ui=["mousemove@136,785","pointerdown@136,785","mousedown@136,785","click@136,785"] page=[] uiFocus=True
+probe sidebar bookmarks again @136,351: ui=["mousemove@136,326","pointerdown@136,326","mousedown@136,326","click@136,326"] page=[] uiFocus=True
+window: 62 layer 0 alpha 1.0 onscreen None name '' bounds 0 0 1920 24
+window: 61 layer 0 alpha 1.0 onscreen None name '' bounds 0 0 1920 24
+window: 71 layer 0 alpha 1.0 onscreen None name '' bounds 272 80 1157 824
+window: 67 layer 0 alpha 1.0 onscreen None name '' bounds 272 80 1157 824
+window: 63 layer 0 alpha 1.0 onscreen None name '' bounds 0 580 500 500
+window: 60 layer 0 alpha 1.0 onscreen None name '' bounds 0 0 1920 24
+window: 59 layer 0 alpha 1.0 onscreen None name '' bounds 0 0 1920 24
+window: 58 layer 0 alpha 1.0 onscreen True name 'SHELTER · 1.0.164' bounds 0 25 1440 890
+window list total: 29 pid: 19692
+click sidebar history: clicked
+[after history click] ui (0.00s): {"url":"shelter.dev/history | История ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"shelter://history","snap":false,"vp":[272,55,1157,824]}
+click back: clicked
+[after back] ui (0.00s): {"url":"shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google","ref":"reload","back":"tb-btn off","omni":"","snap":false,"vp":[272,55,1157,824]}
+--- functional scenario (local server) ---
+newTab p1: t_musfb1yy6kyle
+after p1: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google ;; *http://127.0.0.1:8765/p1 | Page /p1
+navigate p2: None
+after p2: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google ;; *http://127.0.0.1:8765/p2 | Page /p2
+after back: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google ;; *http://127.0.0.1:8765/p1 | Page /p1
+after forward: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google ;; *http://127.0.0.1:8765/p2 | Page /p2
+local find cnt (expect 1 / 3): 1 / 3
+zoom: set
+page devicePixel/zoom check, innerWidth: 771
+navigate download: None
+download prompt shown: True
+download file exists: True 200000 dir: /Users/runner/Downloads
+tabs after download: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google ;; *http://127.0.0.1:8765/p2 | Page /p2
+--- zoom across origins ---
+zoom: base innerWidth p2: 1157
+zoom 1.5 same host p2: 771
+zoom 1.5 other host p3 (expect ~base/1.5): 771
+zoom 1.5 back to first host p4 (expect ~base/1.5): 771
+zoom reset p4: 1157
+--- overlays over live page (holes) ---
+perf before: {"freezes":3,"thaws":3,"snapMs":[32,52,46],"snapKB":[60,70,12],"freezeMs":[90,245,226],"thawMs":[92,139,86],"holes":1,"clips":21,"longTasks":9,"longMax":210}
+toast: snap = False | clip = 25,25,25,25|3,673,302,100;3,776,310,45
+after toast: clip = 25,25,25,25|3,722,302,99
+tip shown: True | snap = False | clip = 25,25,25,25|3,722,302,99;25,0,66,33
+suggest shown: True | snap = False | clip = 25,25,25,25|149,0,746,176;3,722,302,99;25,0,66,33
+real click suggest item (click through hole) at 794,147 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: shelter.dev/deepthink?q=goo
+suggest click changed url: True | http://127.0.0.1:8765/p4 -> shelter.dev/deepthink?q=goo
+perf after: {"freezes":3,"thaws":3,"snapMs":[32,52,46],"snapKB":[60,70,12],"freezeMs":[90,245,226],"thawMs":[92,139,86],"holes":3,"clips":29,"longTasks":9,"longMax":210}
+--- download via page link click ---
+file link: prompt = True
+real click file link: real click on Save at 887,550 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: http://127.0.0.1:8765/dl
+file link: prompt still open = False | file.bin exists = True | tabs: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google ;; *http://127.0.0.1:8765/dl | DL
+blob link: prompt = True
+real click blob link: real click on Save at 887,550 win=(0,25) iw=1440 ow=1440 rc=0 
+   -> active tab url: http://127.0.0.1:8765/dl
+blob link: prompt still open = False | file.bin exists = False | tabs: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google ;; *http://127.0.0.1:8765/dl | DL
+--- shelter.log ---
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+download before id=dl1 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl1 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl1 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl2 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl2 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl2 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl3 name=blob.txt url=http://127.0.0.1:8765/dl# size=322
+download decision id=dl3 action=save path=/Users/runner/Downloads/blob.txt
+download update id=dl3 state=completed bytes=322 reason=0 path=/Users/runner/Downloads/blob.txt
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+download before id=dl1 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl1 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl1 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl2 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl2 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl2 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl3 name=blob.txt url=http://127.0.0.1:8765/dl# size=322
+download decision id=dl3 action=save path=/Users/runner/Downloads/blob (1).txt
+download update id=dl3 state=completed bytes=322 reason=0 path=/Users/runner/Downloads/blob (1).txt
+
+tabs before/after close: 6 5 | active: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; *https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google
+--- ghost: disk leak check ---
+ghost on: 1
+ghost tab: shelter.dev/start | Экспресс-панель ;; shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK203b77bae618 | Mark ;; https://www.google.com/search?q=CC&sei=wAHBasn8BbWd0PEPgbm9sAU | CC - Поиск в Google ;; http://127.0.0.1:8765/mark?m=PERSISTMARK0ec94c399c91 | Mark ;; *http://127.0.0.1:8765/mark?m=GHOSTMARKdf60c74b29c1 | Mark
+page marker (ghost tab): GHOSTMARKdf60c74b29c1
+ghost page cookies (must NOT contain PERSISTMARK): c_PERSISTMARK0ec94c399c91=1; c_GHOSTMARKdf60c74b29c1=1
+ghost page localStorage keys: k_GHOSTMARKdf60c74b29c1,k_PERSISTMARK0ec94c399c91
+persist page cookies: c_PERSISTMARK0ec94c399c91=1; c_GHOSTMARKdf60c74b29c1=1
+files scanned: 296 in /Users/runner/Library/Application Support/SHELTER
+  dir Profiles/space-main []
+  dir Default ['.dev.shelter.browser.TransportSecurity.DIDl8f', 'Account Web Data', 'Account Web Data-journal', 'Affiliation Database', 'Affiliation Database-journal', 'AutofillAiModelCache', 'AutofillStrikeDatabase', 'BookmarkMergedSurfaceOrdering', 'BudgetDatabase', 'ClientCertificates', 'Cookies', 'Cookies-journal', 'DIPS', 'DIPS-wal', 'DawnGraphiteCache', 'DawnWebGPUCache', 'Extension Rules', 'Extension Scripts', 'Extension State', 'Favicons', 'Favicons-journal', 'Feature Engagement Tracker', 'GPUCache', 'History', 'History-journal', 'LOCK', 'LOG', 'LOG.old', 'Local Storage', 'Login Data']
+  dir Profiles ['space-main']
+CONTROL (persistent space) marker found in: NOT FOUND
+GHOST marker found on disk in: nothing (OK)
+ui console problems: 73
+   Failed to load resource: the server responded with a status of 404 (Not Found) shelter://app/native.js
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=gosuslugi.ru' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=gosuslugi.ru
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=sberbank.ru' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the  shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=sberbank.ru
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=nalog.gov.ru' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=nalog.gov.ru
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=github.com' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the r shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=github.com
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=youtube.com' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the  shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=youtube.com
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=ru.wikipedia.org' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=ru.wikipedia.org
+   Failed to load resource: the server responded with a status of 404 (Not found) https://favicon.yandex.net/favicon.v2/gosuslugi.ru
+   Failed to load resource: the server responded with a status of 404 (Not found) https://favicon.yandex.net/favicon.v2/sberbank.ru
+--- layout.log ---
+layout.log unavailable: [Errno 2] No such file or directory: '/Users/runner/Library/Application Support/SHELTER/layout.log'
+--- helper CPU snapshot (live, %; command shows --type=) ---
+1.6 19687 /usr/local/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python tools/smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter smoke2 --tab-no-activate
+0.0 19692 /Applications/SHELTER.app/Contents/MacOS/Shelter --remote-debugging-port=9222 --remote-allow-origins=* --tab-no-activate
+0.0 19696 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper.app/Contents/MacOS/Shelter Helper --type=utility --utility-sub-type=network.mojom.NetworkService --lang=ru --service-sandbox-type=network --no-sandbox --start-stack-profiler --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --shared-files --metrics-shmem-handle=1752395122,r,11522744416124453776,4511531777764182465,524288 --field-trial-handle=1718379636,r,12977337122013109330,5307331132158499671,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,14829584800529952367,2229674305943169157,4 --trace-process-track-uuid=3190708989122997041 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 19699 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper.app/Contents/MacOS/Shelter Helper --type=utility --utility-sub-type=storage.mojom.StorageService --lang=ru --service-sandbox-type=service --no-sandbox --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --shared-files --metrics-shmem-handle=1752395122,r,6385449803474213794,12055142379894326495,524288 --field-trial-handle=1718379636,r,12977337122013109330,5307331132158499671,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,14829584800529952367,2229674305943169157,4 --trace-process-track-uuid=3190708990060038890 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 19703 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer) --type=renderer --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --no-sandbox --remote-debugging-port=9222 --lang=ru --num-raster-threads=2 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=6 --launch-time-ticks=1192199434 --shared-files --metrics-shmem-handle=1752395122,r,13110787825528570752,4306552147686109171,1572864 --field-trial-handle=1718379636,r,12977337122013109330,5307331132158499671,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,14829584800529952367,2229674305943169157,4 --trace-process-track-uuid=3190708991934122588 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 19712 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper.app/Contents/MacOS/Shelter Helper --type=gpu-process --gpu-recent-crash-count=0 --no-sandbox --start-stack-profiler --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --gpu-preferences=WAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAQAAAAAAAAAAAAAAAAAAAADgAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAAgAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAA --use-gl=disabled --shared-files --metrics-shmem-handle=1752395122,r,5010462157900367900,2338565483773670876,262144 --field-trial-handle=1718379636,r,12977337122013109330,5307331132158499671,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,14829584800529952367,2229674305943169157,4 --trace-process-track-uuid=3190708996619331833 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 19983 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer) --type=renderer --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --no-sandbox --remote-debugging-port=9222 --disable-gpu-compositing --lang=ru --num-raster-threads=2 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=13 --launch-time-ticks=1201849967 --shared-files --metrics-shmem-handle=1752395122,r,16904678347667514216,194607185635314980,1572864 --field-trial-handle=1718379636,r,12977337122013109330,5307331132158499671,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,14829584800529952367,2229674305943169157,4 --trace-process-track-uuid=3190708998493415531 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 19984 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer) --type=renderer --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --no-sandbox --remote-debugging-port=9222 --disable-gpu-compositing --lang=ru --num-raster-threads=2 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=12 --launch-time-ticks=1201851880 --shared-files --metrics-shmem-handle=1752395122,r,11819847826978564176,7508403615631772113,1572864 --field-trial-handle=1718379636,r,12977337122013109330,5307331132158499671,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,14829584800529952367,2229674305943169157,4 --trace-process-track-uuid=3190708997556373682 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 20278 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer) --type=renderer --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --no-sandbox --remote-debugging-port=9222 --disable-gpu-compositing --lang=ru --num-raster-threads=2 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=15 --launch-time-ticks=1217687841 --shared-files --metrics-shmem-handle=1752395122,r,2508368253657684662,10470741470869838779,1572864 --field-trial-handle=1718379636,r,12977337122013109330,5307331132158499671,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,14829584800529952367,2229674305943169157,4 --trace-process-track-uuid=3190709000367499229 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 20284 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper.app/Contents/MacOS/Shelter Helper --type=utility --utility-sub-type=audio.mojom.AudioService --lang=ru --service-sandbox-type=audio --no-sandbox --message-loop-type-ui --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --shared-files --metrics-shmem-handle=1752395122,r,16337796224700297964,7737061674883435784,524288 --field-trial-handle=1718379636,r,12977337122013109330,5307331132158499671,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,14829584800529952367,2229674305943169157,4 --trace-process-track-uuid=3190709002241582927 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 20285 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper.app/Contents/MacOS/Shelter Helper --type=utility --utility-sub-type=video_capture.mojom.VideoCaptureService --lang=ru --service-sandbox-type=none --no-sandbox --message-loop-type-ui --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --shared-files --metrics-shmem-handle=1752395122,r,15589593222085383746,3040664391040189398,524288 --field-trial-handle=1718379636,r,12977337122013109330,5307331132158499671,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,14829584800529952367,2229674305943169157,4 --trace-process-track-uuid=3190709003178624776 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+0.0 20822 /Applications/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer) --type=renderer --user-data-dir=/Users/runner/Library/Application Support/SHELTER --log-severity=warning --no-sandbox --remote-debugging-port=9222 --disable-gpu-compositing --lang=ru --num-raster-threads=2 --enable-zero-copy --enable-gpu-memory-buffer-compositor-resources --enable-main-frame-before-activation --renderer-client-id=20 --launch-time-ticks=1240269092 --shared-files --metrics-shmem-handle=1752395122,r,7781479602960731053,10917741824772635306,1572864 --field-trial-handle=1718379636,r,12977337122013109330,5307331132158499671,262144 --enable-features=SingleAxisScrollContainers --disable-features=Translate --variations-seed-version --pseudonymization-salt-handle=1935764596,r,14829584800529952367,2229674305943169157,4 --trace-process-track-uuid=3190709005052708474 --log-file=/Users/runner/Library/Application Support/SHELTER/debug.log
+--- debug.log: 48 lines, last 60 ---
+[19695:55321:1003/132247.953432:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[19695:55321:1003/132247.954831:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[19695:55321:1003/132247.955158:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[19695:55321:1003/132247.955257:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[19695:55321:1003/132247.988008:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+[19692:55288:1003/132248.027871:WARNING:chrome/browser/signin/account_consistency_mode_manager.cc:74] Desktop Identity Consistency cannot be enabled as no OAuth client ID and client secret have been configured.
+[19708:55479:1003/132248.949023:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[19708:55479:1003/132248.949781:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[19708:55479:1003/132248.949846:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[19708:55479:1003/132248.949875:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[19708:55479:1003/132248.987717:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+[19710:55505:1003/132249.127477:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[19710:55505:1003/132249.128329:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[19710:55505:1003/132249.128401:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[19710:55505:1003/132249.128445:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[19710:55505:1003/132249.156530:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+[19711:55524:1003/132249.253818:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[19711:55524:1003/132249.254503:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[19711:55524:1003/132249.254569:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[19711:55524:1003/132249.254594:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[19711:55524:1003/132249.280260:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+[19692:55594:1003/132251.700840:ERROR:base/mac/process_requirement.cc:159] Unable to derive validation category for current process. Signature validation of current process failed: Error Domain=NSOSStatusErrorDomain Code=-67030 "(null)" (-67030)
+[19692:55288:1003/132258.137963:ERROR:base/observer_list.h:371] NOTREACHED hit. Observers can only be added once!
+[19692:55303:1003/132313.978714:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,9]
+[19692:55288:1003/132314.002819:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,9]
+[19692:55288:1003/132314.003323:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,9]
+[19692:55288:1003/132314.003441:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,9]
+[19692:55288:1003/132314.003574:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,9]
+[19692:55303:1003/132314.134719:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,6]
+[19692:55288:1003/132314.213778:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,6]
+[19692:55288:1003/132314.214292:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,6]
+[19692:55288:1003/132314.214417:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,6]
+[19692:55288:1003/132314.214606:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,6]
+[20284:57021:1003/132315.510231:ERROR:sandbox/mac/system_services.cc:31] SetApplicationIsDaemon: Error Domain=NSOSStatusErrorDomain Code=-50 "paramErr: error in user parameter list" (-50)
+[19692:55288:1003/132315.720109:WARNING:chrome/browser/media/prefs/capture_device_ranking.h:256] Can't initialize the value of media.audio_input.user_preference_ranking because media.default_audio_capture_device isn't registered or is empty
+[19692:55288:1003/132315.720170:WARNING:chrome/browser/media/prefs/capture_device_ranking.h:256] Can't initialize the value of media.video_input.user_preference_ranking because media.default_video_capture_Device isn't registered or is empty
+[19692:55303:1003/132337.757337:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,18]
+[19692:55288:1003/132337.764178:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,18]
+[19692:55288:1003/132337.764536:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,18]
+[19692:55288:1003/132337.764625:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,18]
+[19692:55288:1003/132337.764696:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [14,18]
+[19692:55303:1003/132337.828561:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,18]
+[19692:55288:1003/132337.905614:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,18]
+[19692:55288:1003/132337.906004:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,18]
+[19692:55288:1003/132337.906105:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,18]
+[19692:55288:1003/132337.906172:WARNING:cef/libcef/browser/browser_info.cc:370] Returning a speculative frame for [15,18]
+[19692:55288:1003/132338.998321:WARNING:chrome/browser/media/prefs/capture_device_ranking.h:256] Can't initialize the value of media.audio_input.user_preference_ranking because media.default_audio_capture_device isn't registered or is empty
+[19692:55288:1003/132338.998425:WARNING:chrome/browser/media/prefs/capture_device_ranking.h:256] Can't initialize the value of media.video_input.user_preference_ranking because media.default_video_capture_Device isn't registered or is empty
+--- shelter.log: 33 lines, last 60 ---
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+download before id=dl1 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl1 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl1 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl2 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl2 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl2 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl3 name=blob.txt url=http://127.0.0.1:8765/dl# size=322
+download decision id=dl3 action=save path=/Users/runner/Downloads/blob.txt
+download update id=dl3 state=completed bytes=322 reason=0 path=/Users/runner/Downloads/blob.txt
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=110 w=1157 h=769 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=115 w=1157 h=764 client_w=1440 client_h=890
+shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+download before id=dl1 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl1 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl1 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl2 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl2 action=save path=/Users/runner/Downloads/shelter-test.bin
+download update id=dl2 state=completed bytes=200000 reason=0 path=/Users/runner/Downloads/shelter-test.bin
+download before id=dl3 name=blob.txt url=http://127.0.0.1:8765/dl# size=322
+download decision id=dl3 action=save path=/Users/runner/Downloads/blob (1).txt
+download update id=dl3 state=completed bytes=322 reason=0 path=/Users/runner/Downloads/blob (1).txt
+media probes: {"mp4_h264":"","mp4_aac":"","mp3":"probably","webm_vp9":"probably","webm_av1":"probably","ogg":"","mse":true,"eme":true}
+SMOKE DONE

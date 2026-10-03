@@ -1,0 +1,55 @@
+run: 37125462459  sha: 5a3d74b734542f32e48037e57b6101a68a63125f  job: macos
+---- ошибки ----
+32:-- C++ compile flags:            -fno-strict-aliasing;-fstack-protector;-funwind-tables;-fvisibility=hidden;-Wall;-Wextra;-Wendif-labels;-Wnewline-eof;-Wno-missing-field-initializers;-Wno-unused-parameter;-mmacosx-version-min=12.0 -fno-exceptions;-fno-rtti;-fno-threadsafe-statics;-fobjc-call-cxx-cdtors;-fvisibility-inlines-hidden;-std=c++20;-Wno-narrowing;-Wsign-compare;-Wno-undefined-var-template
+67:tab title: Example Domain | shelterNative in tab: undefined | cefQuery in tab: undefined
+222:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=gosuslugi.ru
+224:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=sberbank.ru
+226:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=nalog.gov.ru
+228:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=github.com
+230:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=youtube.com
+232:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=ru.wikipedia.org
+256:[14535:41804:1003/131925.376882:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+261:[14548:41989:1003/131926.260728:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+266:[14549:42008:1003/131926.380162:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+267:[14529:41787:1003/131929.409231:ERROR:base/mac/process_requirement.cc:159] Unable to derive validation category for current process. Signature validation of current process failed: Error Domain=NSOSStatusErrorDomain Code=-67030 "(null)" (-67030)
+280:[15328:44199:1003/131953.720955:ERROR:sandbox/mac/system_services.cc:31] SetApplicationIsDaemon: Error Domain=NSOSStatusErrorDomain Code=-50 "paramErr: error in user parameter list" (-50)
+297:[14529:41738:1003/132225.096657:ERROR:services/on_device_model/public/cpp/service_client.cc:37] Unexpected on_device_model service disconnect; reason: 1, description: Error loading backend.
+341:tab title: Example Domain | shelterNative in tab: undefined | cefQuery in tab: undefined
+509:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=gosuslugi.ru
+511:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=sberbank.ru
+513:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=nalog.gov.ru
+515:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=github.com
+517:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=youtube.com
+519:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=ru.wikipedia.org
+542:[19695:55321:1003/132247.988008:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+548:[19708:55479:1003/132248.987717:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+553:[19710:55505:1003/132249.156530:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+558:[19711:55524:1003/132249.280260:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+559:[19692:55594:1003/132251.700840:ERROR:base/mac/process_requirement.cc:159] Unable to derive validation category for current process. Signature validation of current process failed: Error Domain=NSOSStatusErrorDomain Code=-67030 "(null)" (-67030)
+571:[20284:57021:1003/132315.510231:ERROR:sandbox/mac/system_services.cc:31] SetApplicationIsDaemon: Error Domain=NSOSStatusErrorDomain Code=-50 "paramErr: error in user parameter list" (-50)
+24:tab title: Example Domain | shelterNative in tab: undefined | cefQuery in tab: undefined
+179:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=gosuslugi.ru
+181:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=sberbank.ru
+183:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=nalog.gov.ru
+185:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=github.com
+187:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=youtube.com
+189:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=ru.wikipedia.org
+213:[14535:41804:1003/131925.376882:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+218:[14548:41989:1003/131926.260728:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+223:[14549:42008:1003/131926.380162:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+224:[14529:41787:1003/131929.409231:ERROR:base/mac/process_requirement.cc:159] Unable to derive validation category for current process. Signature validation of current process failed: Error Domain=NSOSStatusErrorDomain Code=-67030 "(null)" (-67030)
+237:[15328:44199:1003/131953.720955:ERROR:sandbox/mac/system_services.cc:31] SetApplicationIsDaemon: Error Domain=NSOSStatusErrorDomain Code=-50 "paramErr: error in user parameter list" (-50)
+254:[14529:41738:1003/132225.096657:ERROR:services/on_device_model/public/cpp/service_client.cc:37] Unexpected on_device_model service disconnect; reason: 1, description: Error loading backend.
+24:tab title: Example Domain | shelterNative in tab: undefined | cefQuery in tab: undefined
+192:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=gosuslugi.ru
+194:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=sberbank.ru
+196:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=nalog.gov.ru
+198:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=github.com
+200:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=youtube.com
+202:   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=ru.wikipedia.org
+225:[19695:55321:1003/132247.988008:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+231:[19708:55479:1003/132248.987717:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+236:[19710:55505:1003/132249.156530:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+241:[19711:55524:1003/132249.280260:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+242:[19692:55594:1003/132251.700840:ERROR:base/mac/process_requirement.cc:159] Unable to derive validation category for current process. Signature validation of current process failed: Error Domain=NSOSStatusErrorDomain Code=-67030 "(null)" (-67030)
+254:[20284:57021:1003/132315.510231:ERROR:sandbox/mac/system_services.cc:31] SetApplicationIsDaemon: Error Domain=NSOSStatusErrorDomain Code=-50 "paramErr: error in user parameter list" (-50)

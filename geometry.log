@@ -1,0 +1,4 @@
+launch: build/Release/Shelter.app/Contents/MacOS/Shelter
+log: /Users/runner/Library/Application Support/SHELTER/shelter.log
+geometry: shell: content bounds shown x=272 y=55 w=1157 h=824 client_w=1440 client_h=890
+OK: content (272,55 1157x824) inside client 1440x890

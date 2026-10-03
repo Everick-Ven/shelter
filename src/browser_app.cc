@@ -1,10 +1,6 @@
 #include "src/browser_app.h"
 
-#include <atomic>
-#include <chrono>
 #include <filesystem>
-#include <memory>
-#include <thread>
 
 #include "include/cef_command_line.h"
 #include "include/wrapper/cef_helpers.h"
@@ -18,23 +14,14 @@ void BrowserApp::OnBeforeCommandLineProcessing(
   if (!process_type.empty()) return;
 #if defined(OS_MAC)
   // Куки: если удалось подготовить запись Keychain с открытой ACL — Chromium
-  // зашифрует их настоящим случайным ключом без единого запроса. Если что-то
-  // пошло не так (чужая запись, нет доступа, keychain недоступен) — оставляем
-  // use-mock-keychain: как раньше, без шифрования, но гарантированно без
-  // запросов доступа (важно и для CI, и для первого запуска).
-  //
-  // Вызов ОГРАНИЧЕН ПО ВРЕМЕНИ: любые обращения к Security.framework (в том
-  // числе системные диалоги, если ACL вдруг потребует авторизацию) не должны
-  // блокировать старт приложения — по таймауту оставляем статус-кво.
-  {
-    auto kc = std::make_shared<std::atomic<int>>(-1);  // -1 pending, 0/1
-    std::thread([kc] { kc->store(platform::EnsureCookieKeychain() ? 1 : 0); })
-        .detach();
-    for (int i = 0; i < 30 && kc->load() < 0; ++i)
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    if (kc->load() != 1)
-      command_line->AppendSwitch("use-mock-keychain");
-  }
+  // зашифрует их настоящим случайным ключом без единого запроса. Любая ошибка
+  // или превышение лимита времени → use-mock-keychain (статус-кво: без
+  // шифрования, но гарантированно без запросов — важно и для CI, и для первого
+  // запуска). Лимит времени обязателен: обращение к Security.framework при
+  // ad-hoc подписи (cdhash меняется каждую сборку) может превратиться в
+  // модальный диалог ОС.
+  if (!platform::RunTimed([] { return platform::EnsureCookieKeychain(); }, 3000))
+    command_line->AppendSwitch("use-mock-keychain");
 #endif
   // Приватный браузер: без фоновых служб Google.
   command_line->AppendSwitch("disable-background-networking");

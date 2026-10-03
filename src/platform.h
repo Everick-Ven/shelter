@@ -3,6 +3,7 @@
 #define SHELTER_PLATFORM_H_
 
 #include <array>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -71,6 +72,14 @@ bool KeychainPutOpen(const char* service, const char* account,
 // показывает запросов. false → вызывающая сторона оставляет use-mock-keychain
 // (статус-кво: без шифрования, но и без запросов).
 bool EnsureCookieKeychain();
+
+// Выполнить операцию с жёстким лимитом времени. true — операция вернула true
+// раньше timeout_ms; false — вернула false либо не уложилась (поток дорабатывает
+// в фоне, результат игнорируется). Обязательно для любых обращений к
+// Security.framework: ad-hoc подпись меняет cdhash каждую сборку, и чтение
+// чужой записи может превратиться в модальный диалог ОС, который в headless-CI
+// блокирует старт и отдачу ресурсов (script src) навсегда.
+bool RunTimed(const std::function<bool()>& op, int timeout_ms);
 
 // Диагностика (macOS): результат hitTest окон приложения в точке (x, y) окна, DIP от верхнего левого угла.
 std::string DebugHitTest(double x, double y);

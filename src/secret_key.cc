@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <iterator>
 #include <fstream>
+#include <memory>
 #include <random>
 #include <string>
 
@@ -115,24 +116,32 @@ std::string SecretKeyHex() {
     }
     return true;
   };
-  std::string kc;
-  if (KeychainGet(kKcService, kKcAccount, &kc) && valid_hex(kc)) {
-    // Ключ уже в Keychain — legacy-файл больше не нужен (best effort).
+  // Ключ уже в Keychain? Лимит времени обязателен: чтение чужой записи (ad-hoc
+  // подпись меняет cdhash) может превратиться в модальный диалог ОС и заблокировать
+  // отдачу host-bridge.js (script src) — ровно это зависание поймал CI-смоук.
+  auto kcOut = std::make_shared<std::string>();
+  const bool kcFound = RunTimed([kcOut, kKcService, kKcAccount]() {
+    std::string v;
+    if (!KeychainGet(kKcService, kKcAccount, &v)) return false;
+    *kcOut = v;
+    return true;
+  }, 2000);
+  if (kcFound && valid_hex(*kcOut)) {
+    // Ключ подтверждён — legacy-файл больше не нужен (best effort).
     std::filesystem::remove(path, ec);
-    cached = kc;
+    cached = *kcOut;
     return cached;
   }
   // Файл со старой версии: читаем и мигрируем в Keychain.
   if (ReadAll(path, &raw) && !raw.empty() && Unprotect(raw, &key) &&
       key.size() == kKeyLen) {
     const std::string hex = ToHex(key);
-    if (KeychainPutOpen(kKcService, kKcAccount, hex)) {
-      std::string verify;
-      if (KeychainGet(kKcService, kKcAccount, &verify) &&
-          verify == hex) {
-        std::filesystem::remove(path, ec);  // миграция подтверждена чтением
-      }
-    }
+    const bool migrated = RunTimed([hex, kKcService, kKcAccount]() {
+      if (!KeychainPutOpen(kKcService, kKcAccount, hex)) return false;
+      std::string v;
+      return KeychainGet(kKcService, kKcAccount, &v) && v == hex;
+    }, 2500);
+    if (migrated) std::filesystem::remove(path, ec);  // миграция подтверждена
     cached = hex;
     return cached;
   }
@@ -141,7 +150,12 @@ std::string SecretKeyHex() {
   key.clear();
   for (size_t i = 0; i < kKeyLen; ++i) key.push_back((char)(rd() & 0xff));
   const std::string hex = ToHex(key);
-  if (KeychainPutOpen(kKcService, kKcAccount, hex)) {
+  const bool stored = RunTimed([hex, kKcService, kKcAccount]() {
+    if (!KeychainPutOpen(kKcService, kKcAccount, hex)) return false;
+    std::string v;
+    return KeychainGet(kKcService, kKcAccount, &v) && v == hex;
+  }, 2500);
+  if (stored) {
     cached = hex;
     return cached;
   }

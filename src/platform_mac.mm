@@ -2,9 +2,13 @@
 #import <QuartzCore/QuartzCore.h>
 #import <Security/Security.h>
 
+#include <atomic>
+#include <chrono>
 #include <cstdarg>
 #include <cstdio>
+#include <memory>
 #include <string>
+#include <thread>
 
 #include "src/platform.h"
 
@@ -159,6 +163,14 @@ bool KeychainPutOpen(const char* service, const char* account,
   if (acct) CFRelease(acct);
   if (desc) CFRelease(desc);
   return ok;
+}
+
+bool RunTimed(const std::function<bool()>& op, int timeout_ms) {
+  auto state = std::make_shared<std::atomic<int>>(-1);  // -1 pending, 0/1
+  std::thread([state, op] { state->store(op() ? 1 : 0); }).detach();
+  for (int waited = 0; waited < timeout_ms && state->load() < 0; waited += 50)
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  return state->load() == 1;
 }
 
 bool EnsureCookieKeychain() {

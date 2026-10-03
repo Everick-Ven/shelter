@@ -1,0 +1,176 @@
+installer exit code: 0
+install dir: C:\Users\runneradmin\AppData\Local\Programs\SHELTER
+
+Name                   Length
+----                   ------
+locales                
+ui                     
+chrome_100_percent.pak 582267
+chrome_200_percent.pak 944887
+chrome_elf.dll         2843136
+d3dcompiler_47.dll     4753864
+dxcompiler.dll         25849344
+dxil.dll               1502784
+icudtl.dat             10819840
+libcef.dll             289582080
+resources.pak          23450048
+Shelter.exe            1233920
+
+
+
+    Directory: C:\Users\runneradmin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---           10/3/2026  1:19 PM           1277 SHELTER.lnk
+
+
+launch: ['C:\\Users\\runneradmin\\AppData\\Local\\Programs\\SHELTER\\Shelter.exe', '--remote-debugging-port=9222', '--remote-allow-origins=*']
+targets: [["page", "shelter://app/index.html", "SHELTER — Приватный браузер"]]
+title: SHELTER — Приватный браузер
+shelterNative: {"n":true,"p":"win32","open":"function","tabHook":"function","cq":"function"}
+viewport: {"x":76,"y":55,"width":873,"height":574,"top":55,"right":949,"bottom":629,"left":76}
+secret roundtrip: ss1:|true|true
+clip roundtrip: shelter-test
+newTab: t_musf5d50q808m
+targets after newTab: [["page", "https://example.org/", "Example Domain"], ["page", "shelter://app/index.html", "SHELTER — Приватный браузер"]]
+active tab url in UI: shelter.dev/start | Экспресс-панель ;; https://example.org/ | Example Domain
+tab title: Example Domain | shelterNative in tab: undefined | cefQuery in tab: undefined
+open menu: clicked
+snap img present: True | menu: True
+after close: snap img = False
+navigate CC: None
+[search+4s] ui (0.00s): {"url":"shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4","snap":false,"vp":[76,55,873,574]}
+[search+8s] ui (0.00s): {"url":"shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4","snap":false,"vp":[76,55,873,574]}
+[search+12s] ui (0.00s): {"url":"shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4","snap":false,"vp":[76,55,873,574]}
+[search+16s] ui (0.00s): {"url":"shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google","ref":"reload","back":"tb-btn","omni":"https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4","snap":false,"vp":[76,55,873,574]}
+targets after search: [["page", "https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4", "CC - Поиск в Google"], ["iframe", "https://www.youtube.com/embed/?enablejsapi=1&rel=0&autoplay=0&playsinline=1&fs=1&hl=ru-US&authuser=0&embed_con", "https://www.youtube.com/embed/?enablejsapi=1&amp;rel=0&amp;autoplay=0&amp;playsinline=1&amp;fs=1&amp;hl=ru-US&amp;authuser=0&amp;embed_config=%7B%22enc%22%3A%22AXH1ezlkh-tBbIlb5Gda1zSTXYtfmX6TuzFnOtQtpQChfs8kBkfIVSdDIKRBaVVfSvJSQoXlZXknYBXwVeVL001g9MVjkJNZREgGlw1cHfLO44L5Q7iOVOnC9hIdPHWy1kVltVZimOc6g0C6uoVZ3k1N3_bzpdPVNFFAC0En1Ig-ItkcIpRV2nF2F7wbILLlnQqM8WlACtFmZhizktF60_HN8N3grXmEh0GQH-Hde_AyyJpfJXF4N7nDPDGNqFU6G7Zx5vgoALqCu0K4MNM7tM5vAOdEF7h8uwp1Ai68Db2cThuAcwpMm77JuR_v2SZLqrGAVYdz%22%7D"], ["page", "shelter://app/index.html", "SHELTER — Приватный браузер"]]
+--- find in page ---
+find cnt: 1 / 24 | snap: False
+find cnt after next: 2 / 24
+find closed, hidden: True
+cliclick not available, real mouse test skipped
+click sidebar history: clicked
+[after history click] ui (0.00s): {"url":"shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; shelter.dev/history | История","ref":"reload","back":"tb-btn off","omni":"shelter://history","snap":false,"vp":[76,55,873,574]}
+click back: clicked
+[after back] ui (0.00s): {"url":"shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; shelter.dev/history | История","ref":"reload","back":"tb-btn off","omni":"shelter://history","snap":false,"vp":[76,55,873,574]}
+--- functional scenario (local server) ---
+newTab p1: t_musf697ezb5la
+after p1: shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; shelter.dev/history | История ;; *http://127.0.0.1:8765/p1 | Page /p1
+navigate p2: None
+after p2: shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; shelter.dev/history | История ;; *http://127.0.0.1:8765/p2 | Page /p2
+after back: shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; shelter.dev/history | История ;; *http://127.0.0.1:8765/p1 | Page /p1
+after forward: shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; shelter.dev/history | История ;; *http://127.0.0.1:8765/p2 | Page /p2
+local find cnt (expect 1 / 3): 1 / 3
+zoom: set
+page devicePixel/zoom check, innerWidth: 582
+navigate download: None
+download prompt shown: True
+download file exists: True 200000 dir: C:\Users\runneradmin\Downloads
+tabs after download: shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; shelter.dev/history | История ;; *http://127.0.0.1:8765/p2 | Page /p2
+--- zoom across origins ---
+zoom: base innerWidth p2: 873
+zoom 1.5 same host p2: 582
+zoom 1.5 other host p3 (expect ~base/1.5): 582
+zoom 1.5 back to first host p4 (expect ~base/1.5): 582
+zoom reset p4: 873
+--- overlays over live page (holes) ---
+perf before: {"freezes":2,"thaws":1,"snapMs":[53,25],"snapKB":[46,8],"freezeMs":[91,49],"thawMs":[41],"holes":0,"clips":0,"longTasks":4,"longMax":130}
+toast: snap = True | clip = 
+after toast: clip = 
+tip shown: True | snap = True | clip = 
+suggest shown: True | snap = True | clip = 
+perf after: {"freezes":2,"thaws":1,"snapMs":[53,25],"snapKB":[46,8],"freezeMs":[91,49],"thawMs":[41],"holes":0,"clips":0,"longTasks":4,"longMax":130}
+hwnd chain:
+  hwnd=0000000000070156 cls=Chrome_WidgetWin_1 rect=0,0,960,640 style=16c70000 ex=00200100 rgn=0
+ root children:
+  child hwnd=000000000003014E cls=Chrome_RenderWidgetHostHWND rect=76,55,873,574 vis=0
+  child hwnd=00000000000D01DE cls=Chrome_RenderWidgetHostHWND rect=76,55,873,574 vis=0
+  child hwnd=00000000000401CC cls=Chrome_RenderWidgetHostHWND rect=0,0,960,640 vis=1
+  child hwnd=00000000000301E0 cls=Intermediate D3D Window rect=0,0,960,640 vis=1
+
+--- download via page link click ---
+file link: prompt = False
+file link: prompt still open = False | file.bin exists = False | tabs: shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; shelter.dev/history | История ;; *http://127.0.0.1:8765/dl | DL
+blob link: prompt = False
+blob link: prompt still open = False | file.bin exists = False | tabs: shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; shelter.dev/history | История ;; *http://127.0.0.1:8765/dl | DL
+--- shelter.log ---
+shell: content bounds shown x=76 y=55 w=873 h=574 client_w=960 client_h=640
+shell: content bounds shown x=76 y=55 w=873 h=574 client_w=960 client_h=640
+shell: content bounds shown x=76 y=110 w=873 h=519 client_w=960 client_h=640
+shell: content bounds shown x=76 y=115 w=873 h=514 client_w=960 client_h=640
+shell: content bounds shown x=76 y=55 w=873 h=574 client_w=960 client_h=640
+shell: content bounds shown x=76 y=110 w=873 h=519 client_w=960 client_h=640
+shell: content bounds shown x=76 y=115 w=873 h=514 client_w=960 client_h=640
+shell: content bounds shown x=76 y=55 w=873 h=574 client_w=960 client_h=640
+download before id=dl1 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl1 action=save path=C:\Users\runneradmin\Downloads\shelter-test.bin
+download update id=dl1 state=completed bytes=200000 reason=0 path=C:\Users\runneradmin\Downloads\shelter-test.bin
+
+tabs before/after close: 4 3 | active: shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; *shelter.dev/history | История
+--- ghost: disk leak check ---
+ghost on: 1
+ghost tab: shelter.dev/start | Экспресс-панель ;; https://www.google.com/search?q=CC&sei=9wDBatmtG_vl5NoP-b3siA4 | CC - Поиск в Google ;; shelter.dev/history | История ;; http://127.0.0.1:8765/mark?m=PERSISTMARK4f50ee366283 | Mark ;; *http://127.0.0.1:8765/mark?m=GHOSTMARKe65c2fca21a6 | Mark
+page marker (ghost tab): GHOSTMARKe65c2fca21a6
+ghost page cookies (must NOT contain PERSISTMARK): c_GHOSTMARKe65c2fca21a6=1
+ghost page localStorage keys: k_GHOSTMARKe65c2fca21a6
+persist page cookies: c_PERSISTMARK4f50ee366283=1
+files scanned: 216 in C:\Users\runneradmin\AppData\Local\SHELTER
+  dir Profiles\space-main []
+  dir Default ['Account Web Data', 'Account Web Data-journal', 'Affiliation Database', 'Affiliation Database-journal', 'AutofillAiModelCache', 'AutofillStrikeDatabase', 'BookmarkMergedSurfaceOrdering', 'BudgetDatabase', 'Cache', 'ClientCertificates', 'Code Cache', 'DIPS', 'DIPS-wal', 'DawnGraphiteCache', 'DawnWebGPUCache', 'Extension Rules', 'Extension Scripts', 'Extension State', 'Favicons', 'Favicons-journal', 'Feature Engagement Tracker', 'GPUCache', 'History', 'History-journal', 'LOCK', 'LOG', 'LOG.old', 'Local Storage', 'Login Data', 'Login Data For Account']
+  dir Profiles ['space-main']
+CONTROL (persistent space) marker found in: NOT FOUND
+GHOST marker found on disk in: nothing (OK)
+ui console problems: 37
+   Failed to load resource: the server responded with a status of 404 (Not Found) shelter://app/native.js
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=gosuslugi.ru' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=gosuslugi.ru
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=sberbank.ru' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the  shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=sberbank.ru
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=nalog.gov.ru' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=nalog.gov.ru
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=github.com' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the r shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=github.com
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=youtube.com' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the  shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=youtube.com
+   Access to image at 'https://www.google.com/s2/favicons?sz=64&domain=ru.wikipedia.org' from origin 'shelter://app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on shelter://app/index.html
+   Failed to load resource: net::ERR_FAILED https://www.google.com/s2/favicons?sz=64&domain=ru.wikipedia.org
+   Failed to load resource: the server responded with a status of 404 (Not found) https://favicon.yandex.net/favicon.v2/gosuslugi.ru
+   Failed to load resource: the server responded with a status of 404 (Not found) https://favicon.yandex.net/favicon.v2/sberbank.ru
+--- layout.log ---
+layout.log unavailable: [Errno 2] No such file or directory: 'C:\\Users\\runneradmin\\AppData\\Local\\SHELTER\\layout.log'
+--- debug.log: 18 lines, last 60 ---
+[6596:7964:1003/131932.490:WARNING:chrome\browser\signin\account_consistency_mode_manager.cc:74] Desktop Identity Consistency cannot be enabled as no OAuth client ID and client secret have been configured.
+[2612:6176:1003/131932.530:ERROR:ui\gl\direct_composition_support.cc:255] GetGpuDriverOverlayInfo: Failed to retrieve video device
+[6596:7964:1003/131937.678:ERROR:cef\libcef\browser\chrome\chrome_browser_context.cc:116] Cannot create profile at path C:\Users\runneradmin\AppData\Local\SHELTER/Profiles/space-main
+[6596:7964:1003/131937.696:ERROR:base\observer_list.h:371] NOTREACHED hit. Observers can only be added once!
+[6596:1484:1003/131953.209:WARNING:cef\libcef\browser\browser_info.cc:370] Returning a speculative frame for [10,9]
+[6596:7964:1003/131953.232:WARNING:cef\libcef\browser\browser_info.cc:370] Returning a speculative frame for [10,9]
+[6596:7964:1003/131953.232:WARNING:cef\libcef\browser\browser_info.cc:370] Returning a speculative frame for [10,9]
+[6596:7964:1003/131953.233:WARNING:cef\libcef\browser\browser_info.cc:370] Returning a speculative frame for [10,9]
+[6596:7964:1003/131953.233:WARNING:cef\libcef\browser\browser_info.cc:370] Returning a speculative frame for [10,9]
+[6596:1484:1003/131953.283:WARNING:cef\libcef\browser\browser_info.cc:370] Returning a speculative frame for [11,6]
+[6596:7964:1003/131953.346:WARNING:cef\libcef\browser\browser_info.cc:370] Returning a speculative frame for [11,6]
+[6596:7964:1003/131953.346:WARNING:cef\libcef\browser\browser_info.cc:370] Returning a speculative frame for [11,6]
+[6596:7964:1003/131953.346:WARNING:cef\libcef\browser\browser_info.cc:370] Returning a speculative frame for [11,6]
+[6596:7964:1003/131953.346:WARNING:cef\libcef\browser\browser_info.cc:370] Returning a speculative frame for [11,6]
+[6596:7964:1003/131954.177:WARNING:chrome\browser\media\prefs\capture_device_ranking.h:256] Can't initialize the value of media.audio_input.user_preference_ranking because media.default_audio_capture_device isn't registered or is empty
+[6596:7964:1003/131954.177:WARNING:chrome\browser\media\prefs\capture_device_ranking.h:256] Can't initialize the value of media.video_input.user_preference_ranking because media.default_video_capture_Device isn't registered or is empty
+[9852:6672:1003/132132.511:ERROR:ui\gl\direct_composition_support.cc:255] GetGpuDriverOverlayInfo: Failed to retrieve video device
+[6596:7964:1003/132144.549:ERROR:base\observer_list.h:371] NOTREACHED hit. Observers can only be added once!
+--- shelter.log: 11 lines, last 60 ---
+shell: content bounds shown x=76 y=55 w=873 h=574 client_w=960 client_h=640
+shell: content bounds shown x=76 y=55 w=873 h=574 client_w=960 client_h=640
+shell: content bounds shown x=76 y=110 w=873 h=519 client_w=960 client_h=640
+shell: content bounds shown x=76 y=115 w=873 h=514 client_w=960 client_h=640
+shell: content bounds shown x=76 y=55 w=873 h=574 client_w=960 client_h=640
+shell: content bounds shown x=76 y=110 w=873 h=519 client_w=960 client_h=640
+shell: content bounds shown x=76 y=115 w=873 h=514 client_w=960 client_h=640
+shell: content bounds shown x=76 y=55 w=873 h=574 client_w=960 client_h=640
+download before id=dl1 name=shelter-test.bin url=http://127.0.0.1:8765/file.bin size=200000
+download decision id=dl1 action=save path=C:\Users\runneradmin\Downloads\shelter-test.bin
+download update id=dl1 state=completed bytes=200000 reason=0 path=C:\Users\runneradmin\Downloads\shelter-test.bin
+media probes: {"mp4_h264":"","mp4_aac":"","mp3":"probably","webm_vp9":"probably","webm_av1":"probably","ogg":"","mse":true,"eme":true}
+SMOKE DONE
+uninstaller exit code: 0
+install dir exists after uninstall: False

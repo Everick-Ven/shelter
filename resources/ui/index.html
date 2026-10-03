@@ -10124,7 +10124,11 @@ function init() {
   setInterval(() => { if (!document.hidden && !$('#hero').hidden) { const g = $('#greet'); const t = greeting(); if (g && g.textContent !== t) g.textContent = t; } }, 60000);
   /* baseline достижений сеанса: что получено ДО старта — не уведомляем */
   try { T.profileAchievementSnapshot = profileAchievementStatuses(profileActivity(), storedProfileUnlocks()); } catch (_) {}
-  syncWebScheme(); saveNow();
+  syncWebScheme();
+  /* Первая запись (миграция/синхронизация) — вне критического пути загрузки:
+     saveNow шифрует историю/чаты (~80-100мс на переполненном профиле),
+     выносим до idle, чтобы первый кадр и DOM не ждали. */
+  (window.requestIdleCallback || (f => setTimeout(f, 0)))(saveNow);
 }
 init();
 })();

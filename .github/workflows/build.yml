@@ -1,369 +1,193 @@
-name: build
-on: [push, pull_request, workflow_dispatch]
+name: Build
+
+on:
+  push:
+    branches: [main, 'arena/**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CEF_VERSION_KEY: cef-154.0.32
+
 jobs:
   windows:
+    name: Windows x64
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1
-        with: { arch: x64 }
-      - name: Bootstrap CEF
-        shell: bash
-        run: CEF_PLATFORM=windows ./scripts/bootstrap-cef.sh
-      - name: Build and test
+
+      - name: Cache CEF
+        uses: actions/cache@v4
+        with:
+          path: third_party/cef
+          key: ${{ env.CEF_VERSION_KEY }}-windows64-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: MSVC environment (x64)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure
         shell: bash
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build
-          ctest --test-dir build --output-on-failure
-      - name: Package Windows portable
+          set -o pipefail
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_SANDBOX=OFF -DUSE_ATL=OFF 2>&1 | tee configure.log
+
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build build --target Shelter --parallel 2>&1 | tee build.log
+
+      - name: Geometry acceptance (strict)
+        shell: bash
+        run: |
+          set -o pipefail
+          python tools/check_geometry.py build/Release/Shelter.exe 2>&1 | tee geometry.log
+
+      - name: Build installer (Inno Setup)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force package\Resources | Out-Null
-          Copy-Item build\shelter.exe package\
-          Copy-Item resources\ui package\Resources\ui -Recurse
-          Copy-Item resources\icons\icon-256.png package\SHELTER.png
-          Copy-Item cef\Release\* package\ -Recurse -Force
-          Copy-Item cef\Resources\* package\Resources\ -Recurse -Force
-          Compress-Archive -Path package\* -DestinationPath SHELTER-windows-x64-portable.zip -Force
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe не найден" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          & $iscc "/DSourceDir=$PWD\build\Release" "/DAppVersion=1.0.164" installer\shelter.iss 2>&1 | Tee-Object -FilePath package.log
+          if ($LASTEXITCODE -ne 0) { throw "ISCC завершился с кодом $LASTEXITCODE" }
+          Get-ChildItem dist | Out-String | Tee-Object -FilePath package.log -Append
+
+      - name: Install, smoke test, uninstall
+        continue-on-error: true
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          $setup = "$PWD\dist\SHELTER-Setup-x64.exe"
+          $p = Start-Process -FilePath $setup -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/LOG=$PWD\install.log" -Wait -PassThru
+          "installer exit code: $($p.ExitCode)" | Tee-Object -FilePath smoke-run.log
+          $dir = Join-Path $env:LOCALAPPDATA "Programs\SHELTER"
+          "install dir: $dir" | Tee-Object -FilePath smoke-run.log -Append
+          Get-ChildItem $dir | Select-Object -First 12 Name,Length | Out-String | Tee-Object -FilePath smoke-run.log -Append
+          Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Filter "SHELTER*" -ErrorAction SilentlyContinue | Out-String | Tee-Object -FilePath smoke-run.log -Append
+          pip install websocket-client 2>&1 | Out-Null
+          $env:PYTHONIOENCODING = "utf-8"
+          python tools/smoke.py "$dir\Shelter.exe" smoke 2>&1 | Tee-Object -FilePath smoke-run.log -Append
+          Get-Process Shelter -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 2
+          $u = Start-Process -FilePath "$dir\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          "uninstaller exit code: $($u.ExitCode)" | Tee-Object -FilePath smoke-run.log -Append
+          Start-Sleep -Seconds 3
+          "install dir exists after uninstall: $(Test-Path "$dir\Shelter.exe")" | Tee-Object -FilePath smoke-run.log -Append
+
+      - name: Portable zip
+        shell: pwsh
+        run: |
+          Copy-Item -Recurse build/Release dist/SHELTER
+          Remove-Item -Force -ErrorAction SilentlyContinue dist/SHELTER/*.pdb, dist/SHELTER/*.lib, dist/SHELTER/*.exp
+          Compress-Archive -Path dist/SHELTER -DestinationPath dist/SHELTER-windows-x64-portable.zip
+          Remove-Item -Recurse -Force dist/SHELTER
+
       - uses: actions/upload-artifact@v4
-        with: { name: SHELTER-windows-x64, path: SHELTER-windows-x64-portable.zip }
+        with:
+          name: SHELTER-windows-x64
+          path: |
+            dist/SHELTER-Setup-x64.exe
+            dist/SHELTER-windows-x64-portable.zip
+          if-no-files-found: error
+
+      - name: Publish logs
+        if: always()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: tools/push_log.sh windows configure.log build.log smoke-run.log package.log install.log geometry.log smoke/*
+
   macos:
+    name: macOS Intel (x86_64)
     runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
-      - name: Bootstrap CEF
-        run: CEF_PLATFORM=macos ./scripts/bootstrap-cef.sh
-      - name: Build and test
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64
-          cmake --build build
-          ctest --test-dir build --output-on-failure
-      - name: Package macOS app
-        run: |
-          mkdir -p package/SHELTER.app/Contents/MacOS package/SHELTER.app/Contents/Resources package/SHELTER.app/Contents/Frameworks
-          cp -R build/shelter.app/Contents/MacOS/shelter package/SHELTER.app/Contents/MacOS/
-          cp mac/Info.plist package/SHELTER.app/Contents/Info.plist
-          cp -R resources/ui package/SHELTER.app/Contents/Resources/ui
-          cp resources/icons/icon-1024.png package/SHELTER.app/Contents/Resources/SHELTER.png
-          mkdir -p /tmp/SHELTER.iconset
-          sips -z 16 16 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_16x16.png >/dev/null
-          sips -z 32 32 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_16x16@2x.png >/dev/null
-          sips -z 32 32 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_32x32.png >/dev/null
-          sips -z 64 64 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_32x32@2x.png >/dev/null
-          sips -z 128 128 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_128x128.png >/dev/null
-          sips -z 256 256 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_128x128@2x.png >/dev/null
-          iconutil -c icns /tmp/SHELTER.iconset -o package/SHELTER.app/Contents/Resources/SHELTER.icns
-          cp -R "cef/Release/Chromium Embedded Framework.framework" package/SHELTER.app/Contents/Frameworks/
-          mkdir -p "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS"
-          cp build/shelter.app/Contents/MacOS/shelter "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper"
-          cp mac/Helper-Info.plist "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/Info.plist"
-          # Chrome-runtime CEF launches per-type helper bundles by name:
-          #   "SHELTER Helper (Renderer).app" for renderers, "(Alerts)" for
-          #   alert utilities, etc. A missing bundle => posix_spawn ENOENT =>
-          #   TS_LAUNCH_FAILED => every navigation dies with ERR_ABORTED
-          #   (confirmed via OnBeforeChildProcessLaunch diagnostics).
-          # Ship all suffix variants, same binary (it dispatches on --type=).
-          for SFX in " (Renderer):.renderer" " (Alerts):.alerts" " (GPU):.gpu" " (Plugin):.plugin"; do
-            NAME="SHELTER Helper${SFX%%:*}"
-            BIDSUF="${SFX##*:}"
-            DEST="package/SHELTER.app/Contents/Frameworks/$NAME.app"
-            mkdir -p "$DEST/Contents/MacOS"
-            cp build/shelter.app/Contents/MacOS/shelter "$DEST/Contents/MacOS/$NAME"
-            sed -e "s/SHELTER Helper/$NAME/g" \
-                -e "s|com\.everick\.shelter\.helper|com.everick.shelter.helper${BIDSUF}|g" \
-                mac/Helper-Info.plist > "$DEST/Contents/Info.plist"
-          done
-          ls -la "package/SHELTER.app/Contents/Frameworks/"
-          # Ad-hoc sign inside-out (as in CEF_SHEL tools/make_dmg.sh) and clear
-          # quarantine attrs — mirrors the known-working reference packaging.
-          xattr -cr package/SHELTER.app || true
-          FW="package/SHELTER.app/Contents/Frameworks"
-          find "$FW/Chromium Embedded Framework.framework" -type f \( -name "*.dylib" -o -name "*.so" \) -print0 |
-            while IFS= read -r -d '' f; do codesign --force --sign - "$f"; done
-          codesign --force --sign - "$FW/Chromium Embedded Framework.framework"
-          for h in "$FW"/*.app; do codesign --force --sign - "$h"; done
-          codesign --force --sign - package/SHELTER.app
-          codesign --verify --deep --strict package/SHELTER.app
-          mkdir -p dmg-root
-          cp -R package/SHELTER.app dmg-root/SHELTER.app
-          ln -s /Applications dmg-root/Applications
-          rm -f SHELTER-macos-x64.dmg
-          hdiutil detach "$(hdiutil info | awk '/dmg-root/{print $1; exit}')" 2>/dev/null || true
-          hdiutil create -volname SHELTER -srcfolder "${GITHUB_WORKSPACE}/dmg-root" -ov -format UDZO "${GITHUB_WORKSPACE}/SHELTER-macos-x64.dmg"
-      - name: Smoke test packaged app
-        run: |
-          APP="${GITHUB_WORKSPACE}/package/SHELTER.app"
-          DATA="$HOME/Library/Application Support/SHELTER"
-          rm -rf "$DATA"
-          # Diagnostic: run the helper standalone in renderer mode to see if
-          # LoadInHelper + CefExecuteProcess work at all (captured, non-fatal).
-          HLP="$APP/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper"
-          ( "$HLP" --type=renderer --no-sandbox --user-data-dir="$DATA" --lang=en-US \
-              > /tmp/shelter-helper-try.log 2>&1 ) &
-          HPID=$!
-          sleep 5
-          if kill -0 "$HPID" 2>/dev/null; then
-            echo "helper still alive after 5s (waiting for IPC, expected?)"
-            kill -9 "$HPID" 2>/dev/null || true
-          fi
-          HELPER_RC=0
-          wait "$HPID" 2>/dev/null || HELPER_RC=$?
-          echo "helper standalone exit=$HELPER_RC" >> /tmp/shelter-helper-try.log
-          # Fresh profile for the app itself.
-          rm -rf "$DATA"
-          # Launch EXACTLY like the known-good reference smoke: app installed
-          # in /Applications, started with the CDP port (parity args).
-          rm -rf /Applications/SHELTER.app
-          cp -R "$APP" /Applications/SHELTER.app
-          APP="/Applications/SHELTER.app"
-          pip3 install -q websocket-client 2>/dev/null \
-            || python3 -m pip install -q websocket-client 2>/dev/null \
-            || echo "websocket-client unavailable (CDP listener will skip)"
-          # Phase A: data: URL — tests renderer/navigation machinery in
-          # isolation from the shelter:// custom scheme. Netlog captures the
-          # full URLLoader lifecycle (cancellation source) for diagnosis.
-          SHELTER_SMOKE_URL='data:text/html,<h1>smoke</h1>' \
-            "$APP/Contents/MacOS/shelter" \
-            --remote-debugging-port=9222 --remote-allow-origins=* \
-            --log-net-log=/tmp/shelter-netlog.json \
-            --net-log-capture-mode=IncludeSensitive \
-            > /tmp/shelter-smoke-stdout.log 2>&1 &
-          PID=$!
-          # CDP listener: record target/page/network events (renderer spawns,
-          # load failures) for 12s in the background.
-          ( python3 - > /tmp/shelter-cdp.log 2>&1 <<'CDPEOF'
-          import json, time, urllib.request, sys
-          try:
-              import websocket
-          except Exception as exc:
-              print("no websocket module:", exc)
-              sys.exit(0)
-          targets = None
-          for _ in range(40):
-              time.sleep(0.5)
-              try:
-                  targets = json.load(urllib.request.urlopen("http://127.0.0.1:9222/json"))
-                  break
-              except Exception:
-                  pass
-          if not targets:
-              print("no devtools endpoint")
-              sys.exit(0)
-          print("targets initial:", json.dumps(targets)[:1200])
-          try:
-              ws = websocket.create_connection(targets[0]["webSocketDebuggerUrl"], timeout=5)
-          except Exception as exc:
-              print("ws connect failed:", exc)
-              sys.exit(0)
-          state = {"mid": 0}
-          def send(method, params=None):
-              state["mid"] += 1
-              ws.send(json.dumps({"id": state["mid"], "method": method, "params": params or {}}))
-          for m in ("Target.setDiscoverTargets", "Page.enable", "Network.enable", "Runtime.enable"):
-              send(m)
-          watch = {"Target.targetCreated", "Target.targetDestroyed", "Target.attachedToTarget",
-                   "Target.detachedFromTarget", "Network.loadingFailed",
-                   "Network.requestWillBeSent", "Page.loadEventFired", "Page.frameNavigated",
-                   "Runtime.consoleAPICalled", "Inspector.targetCrashed",
-                   "Target.targetInfoChanged"}
-          end = time.time() + 12
-          ws.settimeout(1)
-          count = 0
-          while time.time() < end:
-              try:
-                  msg = ws.recv()
-              except Exception:
-                  continue
-              if not isinstance(msg, str):
-                  continue
-              count += 1
-              data = json.loads(msg)
-              method = data.get("method", "")
-              if method in watch:
-                  print(json.dumps(data)[:700])
-          print("events total:", count)
-          send("Target.getTargets")
-          try:
-              print("final targets:", json.dumps(json.loads(ws.recv()))[:1500])
-          except Exception as exc:
-              print("final targets err:", exc)
-          CDPEOF
-          ) &
-          CDP_PID=$!
-          # Markers are written by the app logger to shelter.log; Chromium's
-          # own output (CHECK text included) lands in shelter-cef.log /
-          # shelter-stderr.log and is only used for diagnostics.
-          MARKER_LOG="$DATA/shelter.log"
-          extract_netlog() {
-            if [ ! -f /tmp/shelter-netlog.json ]; then
-              echo "netlog file missing" > /tmp/shelter-netlog-extract.txt
-              return
-            fi
-            python3 - > /tmp/shelter-netlog-extract.txt 2>&1 <<'PYEOF'
-          import json, sys
-          try:
-              with open('/tmp/shelter-netlog.json', errors='replace') as fh:
-                  raw = fh.read()
-              data = json.loads(raw[:raw.rfind('}') + 1] if raw.rstrip()[-1:] != '}' else raw)
-          except Exception as exc:
-              print('netlog parse failed:', exc)
-              sys.exit(0)
-          consts = data.get('constants', {})
-          types = {v: k for k, v in consts.get('logEventTypes', {}).items()}
-          srcs = {v: k for k, v in consts.get('logSourceType', {}).items()}
-          events = data.get('events', [])
-          out, hits = [], 0
-          for ev in events:
-              t = types.get(ev.get('type'), ev.get('type'))
-              src = ev.get('source', {}) or {}
-              s = srcs.get(src.get('type'), src.get('type'))
-              p = ev.get('params') or {}
-              blob = json.dumps(p, ensure_ascii=False)
-              low = blob.lower()
-              if ('data:text' in blob or 'shelter:' in blob or 'err_aborted' in low
-                      or 'abort' in low or 'cancel' in low):
-                  out.append('[%s] %s src=%s id=%s %s' % (
-                      ev.get('time'), t, s, src.get('id'), blob[:420]))
-                  hits += 1
-                  if hits >= 220:
-                      break
-          print('total events=%d matched=%d' % (len(events), hits))
-          print('\n'.join(out))
-          PYEOF
-          }
-          dump_logs() {
-            extract_netlog
-            { echo "== processes =="; ps aux | grep -E "[Ss]helter|[Ss]HELTER" || true; } > /tmp/shelter-procs.txt 2>&1
-            echo "---- processes ----"; cat /tmp/shelter-procs.txt || true
-            if kill -0 "$PID" 2>/dev/null; then
-              sample "$PID" 3 -file /tmp/shelter-sample.txt >/dev/null 2>&1 || true
-            fi
-            echo "---- stdout ----"; cat /tmp/shelter-smoke-stdout.log || true
-            echo "---- stderr ----"; cat "$DATA/shelter-stderr.log" || true
-            echo "---- cef log ----"; tail -n 200 "$DATA/shelter-cef.log" || true
-            echo "---- app log ----"; tail -n 200 "$MARKER_LOG" || true
-            # Job logs/artifacts are unreachable from some networks; copy the
-            # key files into annotations so failures stay diagnosable.
-            for f in /tmp/shelter-smoke-stdout.log "$DATA/shelter-stderr.log" \
-                     "$DATA/shelter-cef.log" "$MARKER_LOG" /tmp/shelter-procs.txt \
-                     /tmp/shelter-helper-try.log /tmp/shelter-netlog-extract.txt \
-                     /tmp/shelter-cdp.log; do
-              [ -f "$f" ] || continue
-              esc=$(tail -c 40000 "$f" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/$/%0A/' | tr -d '\n')
-              printf '::error title=%s::%s\n' "$f" "$esc"
-            done
-            if [ -f /tmp/shelter-sample.txt ]; then
-              esc=$(head -c 40000 /tmp/shelter-sample.txt | sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/$/%0A/' | tr -d '\n')
-              printf '::error title=main-thread-sample::%s\n' "$esc"
-            fi
-          }
-          wait_marker() {
-            local marker="$1" budget="$2"
-            for i in $(seq 1 "$budget"); do
-              sleep 1
-              if ! kill -0 "$PID" 2>/dev/null; then
-                echo "::error::SHELTER died before marker '$marker' (at ${i}s)"
-                dump_logs
-                exit 1
-              fi
-              if [ -f "$MARKER_LOG" ] && grep -q "$marker" "$MARKER_LOG"; then
-                echo "marker reached: '$marker' (at ${i}s)"
-                return 0
-              fi
-            done
-            echo "::error::marker '$marker' not reached in ${budget}s"
-            # Graceful stop first so Chromium flushes the netlog to disk.
-            kill -TERM "$PID" 2>/dev/null || true
-            for j in $(seq 1 6); do
-              sleep 1
-              kill -0 "$PID" 2>/dev/null || break
-            done
-            kill -9 "$PID" 2>/dev/null || true
-            dump_logs
-            exit 1
-          }
-          # 1) browser process initializes CEF
-          wait_marker "CEF context initialized" 30
-          # 2) renderer reports navigation start (proves helper spawn works)
-          wait_marker "load start" 30
-          # 3) still alive well past the post-init CHECK window seen in the
-          #    field; full page load completion is informational only (the UI
-          #    references external resources that may be slow on runners).
-          sleep 15
-          if ! kill -0 "$PID" 2>/dev/null; then
-            echo "::error::SHELTER crashed shortly after load start"
-            dump_logs
-            exit 1
-          fi
-          if grep -q "load end" "$MARKER_LOG" 2>/dev/null; then
-            echo "page load completed"
-          else
-            echo "::warning::load end not observed within the smoke budget (informational)"
-          fi
-          kill "$PID" 2>/dev/null || true
-          sleep 2
-          kill -9 "$PID" 2>/dev/null || true
-          # Phase B: the real shelter:// UI end-to-end (acceptance check).
-          # ?smoke=site makes the UI open https://example.com after boot so
-          # the native side logs the geometry of the content view.
-          rm -rf "$DATA"
-          SHELTER_SMOKE_URL='shelter://ui/index.html?smoke=site' \
-          "$APP/Contents/MacOS/shelter" \
-            --remote-debugging-port=9222 --remote-allow-origins=* \
-            --log-net-log=/tmp/shelter-netlog.json \
-            --net-log-capture-mode=IncludeSensitive \
-            >> /tmp/shelter-smoke-stdout.log 2>&1 &
-          PID=$!
-          wait_marker "CEF context initialized" 30
-          wait_marker "load start" 30
-          sleep 10
-          if ! kill -0 "$PID" 2>/dev/null; then
-            echo "::error::SHELTER died during phase B (shelter:// UI)"
-            dump_logs
-            exit 1
-          fi
-          # Geometry acceptance: content must stay inside the hero area
-          # (sidebar left, toolbar top) — x/y > 0 and w/h strictly smaller
-          # than the window client area. Catches the "page covers the whole
-          # browser UI" regression.
-          wait_marker "shell: content bounds" 45
-          CB_LINE=$(grep "shell: content bounds" "$MARKER_LOG" | tail -1 || true)
-          echo "geometry: ${CB_LINE:-<missing>}"
-          bx=$(sed -nE 's/.* x=(-?[0-9]+) y=.*/\1/p' <<<"$CB_LINE")
-          by=$(sed -nE 's/.* y=(-?[0-9]+) w=.*/\1/p' <<<"$CB_LINE")
-          bw=$(sed -nE 's/.* w=([0-9]+) h=.*/\1/p' <<<"$CB_LINE")
-          bh=$(sed -nE 's/.* h=([0-9]+) client_w=.*/\1/p' <<<"$CB_LINE")
-          bcw=$(sed -nE 's/.* client_w=([0-9]+) client_h=.*/\1/p' <<<"$CB_LINE")
-          bch=$(sed -nE 's/.* client_h=([0-9]+)$/\1/p' <<<"$CB_LINE")
-          if [ -z "$bx" ] || [ -z "$by" ] || [ -z "$bw" ] || [ -z "$bh" ] || [ -z "$bcw" ] || [ -z "$bch" ]; then
-            echo "::error::could not parse content bounds: ${CB_LINE:-<missing>}"
-            dump_logs
-            exit 1
-          fi
-          if [ "$bx" -le 0 ] || [ "$by" -le 0 ] || [ "$bw" -ge "$bcw" ] || [ "$bh" -ge "$bch" ]; then
-            echo "::error::content view covers browser chrome (x=$bx y=$by w=$bw h=$bh client=${bcw}x${bch})"
-            dump_logs
-            exit 1
-          fi
-          echo "content geometry OK: ($bx,$by ${bw}x${bh}) within client ${bcw}x${bch}"
-          if grep -q "load end" "$MARKER_LOG" 2>/dev/null; then
-            echo "phase B page load completed"
-          else
-            echo "::warning::phase B load end not observed (informational)"
-          fi
-          kill "$PID" 2>/dev/null || true
-          sleep 2
-          kill -9 "$PID" 2>/dev/null || true
-          echo "smoke test passed"
-      - name: Upload smoke logs
-        if: failure()
-        uses: actions/upload-artifact@v4
+
+      - name: Cache CEF
+        uses: actions/cache@v4
         with:
-          name: smoke-logs
-          path: |
-            /tmp/shelter-smoke-stdout.log
-            ~/Library/Application Support/SHELTER/*.log
-          if-no-files-found: ignore
+          path: third_party/cef
+          key: ${{ env.CEF_VERSION_KEY }}-macosx64-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Configure
+        run: |
+          set -o pipefail
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPROJECT_ARCH=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DUSE_SANDBOX=OFF 2>&1 | tee configure.log
+
+      - name: Build
+        run: |
+          set -o pipefail
+          cmake --build build --target Shelter --parallel 2>&1 | tee build.log
+
+      - name: Geometry acceptance (strict)
+        run: |
+          set -o pipefail
+          python3 tools/check_geometry.py build/Release/Shelter.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
+
+      - name: Package DMG
+        run: |
+          set -o pipefail
+          mkdir -p dist
+          tools/make_dmg.sh build/Release/Shelter.app dist/SHELTER-macos-x64.dmg 2>&1 | tee package.log
+
+      - name: Install from DMG and smoke test
+        continue-on-error: true
+        timeout-minutes: 8
+        run: |
+          set -o pipefail
+          {
+            hdiutil attach dist/SHELTER-macos-x64.dmg -nobrowse -mountpoint /Volumes/SHELTER
+            ls -la /Volumes/SHELTER
+            cp -R /Volumes/SHELTER/SHELTER.app /Applications/
+            hdiutil detach /Volumes/SHELTER
+            ls -la /Applications/SHELTER.app/Contents /Applications/SHELTER.app/Contents/Resources
+            (brew install cliclick 2>&1 | tail -2) || true
+            python3 -m venv .venv && . .venv/bin/activate && pip install websocket-client pyobjc-framework-Quartz
+            python tools/smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter smoke
+            pkill -f Shelter || true; sleep 3
+            python tools/smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter smoke2 --tab-no-activate
+            for f in smoke2/*; do mv "$f" "smoke/v2-$(basename "$f")"; done
+          } 2>&1 | tee smoke-run.log
+
       - uses: actions/upload-artifact@v4
-        with: { name: SHELTER-macos-x64, path: SHELTER-macos-x64.dmg }
+        with:
+          name: SHELTER-macos-x64
+          path: dist/SHELTER-macos-x64.dmg
+          if-no-files-found: error
+
+      - name: Publish logs
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: tools/push_log.sh macos configure.log build.log smoke-run.log package.log geometry.log smoke/*
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          find assets -type f | sort
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "SHELTER ${GITHUB_REF_NAME#v}" \
+            --notes "Установщики: SHELTER-Setup-x64.exe (Windows x64), SHELTER-macos-x64.dmg (macOS Intel). Также portable zip для Windows. macOS: сборка без подписи Developer ID — при первом запуске ПКМ → Открыть." \
+            assets/SHELTER-windows-x64/SHELTER-Setup-x64.exe \
+            assets/SHELTER-windows-x64/SHELTER-windows-x64-portable.zip \
+            assets/SHELTER-macos-x64/SHELTER-macos-x64.dmg

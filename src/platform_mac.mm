@@ -77,10 +77,9 @@ bool KeychainPutOpen(const char* service, const char* account,
   OSStatus st = SecAccessCreate(CFSTR("SHELTER"), emptyList, &access);
   if (emptyList) CFRelease(emptyList);
   if (st == errSecSuccess && access) {
-    CFArrayRef aclList = nullptr;
-    st = SecAccessCopyMatchingACLList(access, kSecACLAuthorizationDecrypt,
-                                      &aclList);
-    if (st == errSecSuccess && aclList && CFArrayGetCount(aclList) > 0) {
+    CFArrayRef aclList =
+        SecAccessCopyMatchingACLList(access, kSecACLAuthorizationDecrypt);
+    if (aclList && CFArrayGetCount(aclList) > 0) {
       SecACLRef oldAcl = (SecACLRef)CFArrayGetValueAtIndex(aclList, 0);
       CFArrayRef auths = SecACLCopyAuthorizations(oldAcl);
       SecACLRemove(oldAcl);

@@ -387,7 +387,9 @@
     if (need && !st.frozen) freeze();
     else if (!need && st.frozen && st.visible) thaw();
     else if (!st.visible && st.frozen) { st.frozen = false; dropSnap(); }
-    kickClip();
+    /* Клип-петля нужна только пока нативный вид реально показан и не заморожен
+       снимком — иначе rAF-тик продолжается без дела после каждой мутации. */
+    if (st.visible && !st.frozen) kickClip();
   }
   var evalQueued = false;
   function scheduleEval() {
@@ -399,12 +401,12 @@
   /* ---------- раскладка ---------- */
   function relayout() {
     if (!st.visible || st.frozen || st.busy) return;
-    kickClip();
     var r = vpRect();
     var k = rectKey(r);
     if (!r || k === st.lastRect || r.w < 2) return;
     st.lastRect = k;
     st.clipKey = '';
+    kickClip();
     q('view.layout', { rect: r, visible: true });
   }
 

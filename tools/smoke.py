@@ -499,6 +499,27 @@ try:
         log(open(lp, encoding="utf-8", errors="replace").read()[-6000:])
     except Exception as e:
         log("layout.log unavailable:", e)
+
+    # --- диагностика CPU/логов (задача «Helper 50% CPU») ---
+    if platform.system() == "Darwin":
+        try:
+            import subprocess as _sp
+            _ps = _sp.run(["ps", "-Ao", "pcpu,pid,comm"], capture_output=True, text=True, timeout=10)
+            _rows = [x.strip() for x in _ps.stdout.splitlines() if "Shelter" in x]
+            log("--- helper CPU snapshot (live, %) ---")
+            log("\n".join(_rows[:12]) or "no Shelter processes found")
+        except Exception as e:
+            log("cpu snapshot failed:", e)
+    udir = os.path.expanduser("~/Library/Application Support/SHELTER") if platform.system() == "Darwin" else os.path.join(os.environ.get("LOCALAPPDATA", ""), "SHELTER")
+    for name in ("debug.log", "shelter.log"):
+        try:
+            txt = open(os.path.join(udir, name), encoding="utf-8", errors="replace").read()
+            lines = txt.splitlines()
+            log(f"--- {name}: {len(lines)} lines, last 60 ---")
+            log("\n".join(lines[-60:]))
+        except Exception as e:
+            log(f"{name} unavailable:", e)
+
     log("SMOKE DONE")
 finally:
     try:

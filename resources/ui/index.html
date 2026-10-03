@@ -3417,6 +3417,11 @@ html[data-theme="graphite"] .badge.hot{
   };
 
   window.addEventListener('DOMContentLoaded', () => {
+    /* При активном нативном мосте (host-bridge.js) геометрией владеет он:
+       свои RO/MO + view.layout. Наш инлайн-стек в этом случае только дублирует
+       мутационные колбэки и шлёт лишние viewport:sync (CPU-нагрузка на рендер).
+       В file://-режиме (без моста) наблюдатели остаются как были. */
+    if (window.shelterNative && window.shelterNative.isNative) return;
     const vp = document.getElementById('viewport');
     const st = document.getElementById('stage');
     if (typeof ResizeObserver !== 'undefined') {

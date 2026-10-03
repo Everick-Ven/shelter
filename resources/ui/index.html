@@ -4026,13 +4026,38 @@ function flushVisits() {
   try { store.put('shelter:visits', S.visits.slice(-4000)); } catch (_) {}
   _visitsAt = Date.now(); _visitsDirty = false;
 }
+/* Сохранение: в режиме «Призрак» ghost-вкладки (url/stack/title) НЕ должны
+   попадать на диск — вычищаем копию перед записью (тост обещает «ничего не
+   сохраняется», проверка аудита). Сам флаг и настройки пишутся как обычно. */
+function spacesForStore() {
+  if (!S.ghost) return S.spaces;
+  const out = {};
+  Object.keys(S.spaces).forEach(k => {
+    const sp = S.spaces[k];
+    if (!sp || typeof sp !== 'object') { out[k] = sp; return; }
+    const cp = Object.assign({}, sp);
+    cp.tabs = (Array.isArray(sp.tabs) ? sp.tabs : []).filter(t => t && !t.ghost);
+    if (!cp.tabs.length) cp.tabs = [newTabObj('shelter.dev/start')];
+    out[k] = cp;
+  });
+  return out;
+}
+function activeTabIdForStore() {
+  const act = S.activeTabId || '';
+  if (!S.ghost || !act) return act;
+  let ghost = false;
+  Object.keys(S.spaces).forEach(k => (S.spaces[k].tabs || []).forEach(x => {
+    if (x && x.id === act && x.ghost) ghost = true;
+  }));
+  return ghost ? '' : act;
+}
 function saveNow() {
   store.set('shelter:theme', S.theme);
   store.set('shelter:ghost', S.ghost ? '1' : '0');
   store.set('shelter:searchEngine', S.engine);
-  store.put('shelter:spaces', S.spaces);
+  store.put('shelter:spaces', spacesForStore());
   store.set('shelter:currentSpace', S.currentSpace);
-  store.set('shelter:activeTabId', S.activeTabId || '');
+  store.set('shelter:activeTabId', activeTabIdForStore());
   store.put('shelter:bookmarks', S.bookmarks);
   store.put('shelter:board', S.board);
   store.put('shelter:boards', { boards: S.boards || [], id: S.boardId || '' });

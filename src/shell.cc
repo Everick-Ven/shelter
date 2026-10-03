@@ -7,6 +7,11 @@
 #include <fstream>
 #include <sstream>
 
+#if !defined(OS_WIN)
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
+
 #include "include/base/cef_callback.h"
 #include "include/cef_app.h"
 #include "include/cef_command_line.h"
@@ -437,8 +442,15 @@ void Shell::ApplyClip(Tab* tab) {
 }
 
 void Shell::Log(const std::string& line) {
-  std::ofstream f(fs::path(platform::UserDataDir()) / "shelter.log", std::ios::app);
-  if (f) f << line << "\n";
+  const fs::path p = fs::path(platform::UserDataDir()) / "shelter.log";
+  std::ofstream f(p, std::ios::app);
+  if (!f) return;
+  f << line << "\n";
+  f.close();
+#if !defined(OS_WIN)
+  // Лог содержит URL загрузок и адреса — держим0600 (не шире владельца).
+  ::chmod(p.string().c_str(), 0600);
+#endif
 }
 
 void Shell::ReapplyZoom(CefRefPtr<CefBrowser> browser) {

@@ -1,10 +1,157 @@
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
+#import <Security/Security.h>
+
+#include <string>
 
 #include "src/platform.h"
 
 namespace shelter {
 namespace platform {
+namespace {
+
+// Куки Chromium в небрендированной (CEF) сборке: «Chromium Safe Storage».
+// См. components/os_crypt/keychain_password_mac.mm (chromium source).
+constexpr const char kCookieSvc[] = "Chromium Safe Storage";
+constexpr const char kCookieAcct[] = "Chromium";
+
+CFStringRef MakeCF(const char* s) {
+  return CFStringCreateWithCString(kCFAllocatorDefault, s, kCFStringEncodingUTF8);
+}
+
+// Чтение generic-пароли БЕЗ возможности показать запрос (kSecUseAuthenticationUIFail).
+// errSecSuccess — данные получены; errSecItemNotFound — записи нет; прочее —
+// есть, но недоступна молча (чужой ACL / заблокирована).
+OSStatus KeychainReadNoPrompt(const char* service, const char* account,
+                              std::string* out) {
+  CFStringRef svc = MakeCF(service);
+  CFStringRef acct = MakeCF(account);
+  const void* keys[] = {kSecClass, kSecAttrService, kSecAttrAccount,
+                        kSecReturnData, kSecMatchLimit, kSecUseAuthenticationUI};
+  const void* vals[] = {kSecClassGenericPassword, svc, acct, kCFBooleanTrue,
+                        kSecMatchLimitOne, kSecUseAuthenticationUIFail};
+  CFDictionaryRef query = CFDictionaryCreate(
+      kCFAllocatorDefault, keys, vals, 6, &kCFTypeDictionaryKeyCallBacks,
+      &kCFTypeDictionaryValueCallBacks);
+  CFTypeRef res = nullptr;
+  OSStatus st = SecItemCopyMatching(query, &res);
+  if (query) CFRelease(query);
+  if (svc) CFRelease(svc);
+  if (acct) CFRelease(acct);
+  if (st != errSecSuccess || !res) {
+    if (res) CFRelease(res);
+    return st;
+  }
+  OSStatus result = errSecParam;
+  if (CFGetTypeID(res) == CFDataGetTypeID()) {
+    CFDataRef d = (CFDataRef)res;
+    out->assign(reinterpret_cast<const char*>(CFDataGetBytePtr(d)),
+                static_cast<size_t>(CFDataGetLength(d)));
+    result = errSecSuccess;
+  }
+  CFRelease(res);
+  return result;
+}
+
+}  // namespace
+
+bool KeychainGet(const char* service, const char* account, std::string* out) {
+  if (!out) return false;
+  return KeychainReadNoPrompt(service, account, out) == errSecSuccess;
+}
+
+bool KeychainPutOpen(const char* service, const char* account,
+                     const std::string& value) {
+  // ACL «любое приложение, без запросов» — та же модель, что DPAPI на Windows:
+  // процессы текущего пользователя читают молча, на диске запись защищена
+  // ключом логина. Нужна ещё и потому, что ad-hoc подпись меняет cdhash каждую
+  // сборку — иначе после обновления пришлось бы отвечать на запрос доступа.
+  CFStringRef svc = MakeCF(service);
+  CFStringRef acct = MakeCF(account);
+  CFStringRef desc = MakeCF(service);
+  bool ok = false;
+
+  CFArrayRef emptyList =
+      CFArrayCreate(kCFAllocatorDefault, nullptr, 0, &kCFTypeArrayCallBacks);
+  SecAccessRef access = nullptr;
+  OSStatus st = SecAccessCreate(CFSTR("SHELTER"), emptyList, &access);
+  if (emptyList) CFRelease(emptyList);
+  if (st == errSecSuccess && access) {
+    CFArrayRef aclList = nullptr;
+    st = SecAccessCopyMatchingACLList(access, kSecACLAuthorizationDecrypt,
+                                      &aclList);
+    if (st == errSecSuccess && aclList && CFArrayGetCount(aclList) > 0) {
+      SecACLRef oldAcl = (SecACLRef)CFArrayGetValueAtIndex(aclList, 0);
+      CFArrayRef auths = SecACLCopyAuthorizations(oldAcl);
+      SecACLRemove(oldAcl);
+      SecACLRef newAcl = nullptr;
+      // trustedApplications = nullptr → «любое приложение»; prompt = 0 → без
+      // запросов (см. SecACLCreateWithSimpleContents).
+      if (SecACLCreateWithSimpleContents(access, nullptr, desc, 0, &newAcl) ==
+              errSecSuccess &&
+          newAcl) {
+        if (auths) SecACLUpdateAuthorizations(newAcl, auths);
+        CFRelease(newAcl);
+        ok = true;
+      }
+      if (auths) CFRelease(auths);
+    }
+    if (aclList) CFRelease(aclList);
+  }
+
+  if (ok) {
+    const void* keys[] = {kSecClass, kSecAttrService, kSecAttrAccount,
+                          kSecValueData, kSecAttrAccess};
+    CFDataRef data = CFDataCreate(
+        kCFAllocatorDefault, reinterpret_cast<const UInt8*>(value.data()),
+        static_cast<CFIndex>(value.size()));
+    const void* vals[] = {kSecClassGenericPassword, svc, acct, data, access};
+    CFDictionaryRef add = CFDictionaryCreate(
+        kCFAllocatorDefault, keys, vals, 5, &kCFTypeDictionaryKeyCallBacks,
+        &kCFTypeDictionaryValueCallBacks);
+    OSStatus addSt = SecItemAdd(add, nullptr);
+    // duplicate = уже записано (гонка/повтор) — цель достигнута.
+    ok = (addSt == errSecSuccess || addSt == errSecDuplicateItem);
+    if (add) CFRelease(add);
+    if (data) CFRelease(data);
+  }
+  if (access) CFRelease(access);
+  if (svc) CFRelease(svc);
+  if (acct) CFRelease(acct);
+  if (desc) CFRelease(desc);
+  return ok;
+}
+
+bool EnsureCookieKeychain() {
+  std::string existing;
+  OSStatus st = KeychainReadNoPrompt(kCookieSvc, kCookieAcct, &existing);
+  if (st == errSecSuccess) return true;  // читается молча — Chromium тоже прочитает
+  if (st != errSecItemNotFound) return false;  // чужая запись/нет доступа → mock-keychain
+  // Записи нет — создаём со случайным ключом и открытой ACL: Chromium найдёт
+  // её и будет шифровать куки настоящим случайным ключом без запросов
+  // (запись создаётся до старта CefInitialize, см. OnBeforeCommandLineProcessing).
+  // Любая ошибка → false → use-mock-keychain остаётся (статус-кво, без запросов).
+  bool ok = false;
+  @autoreleasepool {
+    unsigned char rnd[16] = {0};
+    if (SecRandomCopyBytes(kSecRandomDefault, sizeof(rnd), rnd) ==
+        errSecSuccess) {
+      NSData* pwd = [NSData dataWithBytes:rnd length:sizeof(rnd)];
+      NSString* b64 = [pwd base64EncodedStringWithOptions:0];
+      if (b64) {
+        ok = KeychainPutOpen(kCookieSvc, kCookieAcct,
+                             std::string([b64 UTF8String]));
+      }
+    }
+  }
+  if (!ok) return false;
+  // Верификация: перечитываем без UI — если прочиталось, Chromium тоже
+  // прочитает молча (ACL уже проверен при записи).
+  std::string verify;
+  return KeychainReadNoPrompt(kCookieSvc, kCookieAcct, &verify) ==
+         errSecSuccess;
+}
+
 
 std::string UiResourceDir() {
   NSString* res = [[NSBundle mainBundle] resourcePath];

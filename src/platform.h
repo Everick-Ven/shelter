@@ -57,6 +57,21 @@ void UnwatchMainWindow(void* nswindow);
 // Мастер-ключ секретов UI: 32 байта в hex (создаётся при первом запуске).
 std::string SecretKeyHex();
 
+// macOS Keychain: чтение/запись generic-пароли БЕЗ запросов доступа
+// (ACL «любое приложение» — тот же модельный уровень, что DPAPI на Windows:
+//  процессы текущего пользователя читают молча, на диске зашифровано ключом
+//  логина). Любая ошибка → false, у вызывающей стороны обязан быть
+//  файловый fallback (secret.key, 0600).
+bool KeychainGet(const char* service, const char* account, std::string* out);
+bool KeychainPutOpen(const char* service, const char* account,
+                     const std::string& value);
+
+// macOS: подготовить запись Keychain для куки Chromium («Chromium Safe Storage»)
+// c открытой ACL — тогда Chromium шифрует куки настоящим случайным ключом и не
+// показывает запросов. false → вызывающая сторона оставляет use-mock-keychain
+// (статус-кво: без шифрования, но и без запросов).
+bool EnsureCookieKeychain();
+
 // Диагностика (macOS): результат hitTest окон приложения в точке (x, y) окна, DIP от верхнего левого угла.
 std::string DebugHitTest(double x, double y);
 

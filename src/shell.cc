@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 #if !defined(OS_WIN)
 #include <sys/stat.h>
@@ -336,17 +338,56 @@ void Shell::QueueWipe(const std::string& partition) {
 }
 
 // Профили, помеченные «сжечь», удаляются при следующем старте (пока они не открыты).
+// Перед unlink — однопроходное затирание содержимого (best effort):
+//  - реально помогает на HDD/внешних флешках и против простого file-carving;
+//  - на SSD/APFS физическую гарантию даёт TRIM + FileVault (CoW-журнал и
+//    wear-leveling переживают перезапись) — поэтому бюджет затирания ограничен,
+//    чтобы не накручивать износ и не тормозить старт: файлы >32 МБ (кэши
+//    страниц) только удаляются, чувствительные БД/хранилища (Cookies, History,
+//    Local Storage, Logins) всегда мельше порога.
 void Shell::ApplyPendingWipes() {
   const std::string list = platform::UserDataDir() + "/pending-wipe.txt";
   std::ifstream f(list);
   if (!f) return;
   std::string line;
   std::error_code ec;
+  constexpr std::uintmax_t kMaxOverwriteBytes = 32ull * 1024 * 1024;
+  auto overwrite_file = [&](const fs::path& p) {
+    std::error_code tec;
+    const std::uintmax_t sz = fs::file_size(p, tec);
+    if (tec || sz == 0 || sz > kMaxOverwriteBytes) return;
+    std::fstream out(p, std::ios::in | std::ios::out | std::ios::binary);
+    if (!out) return;
+    const std::size_t kChunk = 64 * 1024;
+    std::vector<char> zeros(kChunk, 0);
+    std::uintmax_t left = sz;
+    out.seekp(0);
+    while (left > 0 && out) {
+      const std::size_t n = static_cast<std::size_t>(left < kChunk ? left : kChunk);
+      out.write(zeros.data(), static_cast<std::streamsize>(n));
+      left -= n;
+    }
+    out.flush();
+  };
+  auto secure_remove = [&](const fs::path& root) {
+    std::error_code ec2;
+    if (!fs::exists(root, ec2)) return;
+    fs::recursive_directory_iterator it(root, fs::directory_options::skip_permission_denied, ec2);
+    const fs::recursive_directory_iterator end;
+    while (!ec2 && it != end) {
+      std::error_code tec;
+      if (it->is_regular_file(tec) && !it->is_symlink(tec)) overwrite_file(it->path());
+      it.increment(ec2);
+    }
+    fs::remove_all(root, ec2);
+  };
   while (std::getline(f, line)) {
     if (line.empty()) continue;
-    fs::remove_all(platform::UserDataDir() + "/Profiles/" + line, ec);
+    secure_remove(fs::path(platform::UserDataDir()) / "Profiles" / line);
   }
   f.close();
+  // сам список тоже не оставляем с открытыми именами
+  overwrite_file(fs::path(list));
   fs::remove(list, ec);
 }
 

@@ -13,8 +13,13 @@ void BrowserApp::OnBeforeCommandLineProcessing(
     const CefString& process_type, CefRefPtr<CefCommandLine> command_line) {
   if (!process_type.empty()) return;
 #if defined(OS_MAC)
-  // Без запроса доступа к Keychain при первом запуске.
-  command_line->AppendSwitch("use-mock-keychain");
+  // Куки: если удалось подготовить запись Keychain с открытой ACL — Chromium
+  // зашифрует их настоящим случайным ключом без единого запроса. Если что-то
+  // пошло не так (чужая запись, нет доступа, keychain недоступен) — оставляем
+  // use-mock-keychain: как раньше, без шифрования, но гарантированно без
+  // запросов доступа (важно и для CI, и для первого запуска).
+  if (!platform::EnsureCookieKeychain())
+    command_line->AppendSwitch("use-mock-keychain");
 #endif
   // Приватный браузер: без фоновых служб Google.
   command_line->AppendSwitch("disable-background-networking");

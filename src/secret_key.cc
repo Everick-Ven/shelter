@@ -98,6 +98,58 @@ std::string SecretKeyHex() {
   const std::filesystem::path path = dir / "secret.key";
 
   std::string key, raw;
+
+#if defined(__APPLE__)
+  // macOS: мастер-ключ живёт в login Keychain (запись «любое приложение, без
+  // запросов» — тот же модельный уровень, что DPAPI на Windows: процессы
+  // юзера читают молча, на диске зашифровано паролем логина). Файл secret.key
+  // — только fallback и путь миграции со старых версий.
+  const char* kKcService = "SHELTER";
+  const char* kKcAccount = "master-key";
+  auto valid_hex = [](const std::string& s) {
+    if (s.size() != kKeyLen * 2) return false;
+    for (char c : s) {
+      const bool ok = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+                      (c >= 'A' && c <= 'F');
+      if (!ok) return false;
+    }
+    return true;
+  };
+  std::string kc;
+  if (KeychainGet(kKcService, kKcAccount, &kc) && valid_hex(kc)) {
+    // Ключ уже в Keychain — legacy-файл больше не нужен (best effort).
+    std::filesystem::remove(path, ec);
+    cached = kc;
+    return cached;
+  }
+  // Файл со старой версии: читаем и мигрируем в Keychain.
+  if (ReadAll(path, &raw) && !raw.empty() && Unprotect(raw, &key) &&
+      key.size() == kKeyLen) {
+    const std::string hex = ToHex(key);
+    if (KeychainPutOpen(kKcService, kKcAccount, hex)) {
+      std::string verify;
+      if (KeychainGet(kKcService, kKcAccount, &verify) &&
+          verify == hex) {
+        std::filesystem::remove(path, ec);  // миграция подтверждена чтением
+      }
+    }
+    cached = hex;
+    return cached;
+  }
+  // Первый запуск: генерация — сначала Keychain, при неудаче файл (как раньше).
+  std::random_device rd;
+  key.clear();
+  for (size_t i = 0; i < kKeyLen; ++i) key.push_back((char)(rd() & 0xff));
+  const std::string hex = ToHex(key);
+  if (KeychainPutOpen(kKcService, kKcAccount, hex)) {
+    cached = hex;
+    return cached;
+  }
+  std::string blob;
+  if (Protect(key, &blob)) WriteAll(path, blob);
+  cached = hex;
+  return cached;
+#else
   if (ReadAll(path, &raw) && !raw.empty() && Unprotect(raw, &key) && key.size() == kKeyLen) {
     cached = ToHex(key);
     return cached;
@@ -109,6 +161,7 @@ std::string SecretKeyHex() {
   if (Protect(key, &blob)) WriteAll(path, blob);
   cached = ToHex(key);
   return cached;
+#endif
 }
 
 }  // namespace platform

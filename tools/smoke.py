@@ -504,9 +504,9 @@ try:
     if platform.system() == "Darwin":
         try:
             import subprocess as _sp
-            _ps = _sp.run(["ps", "-Ao", "pcpu,pid,comm"], capture_output=True, text=True, timeout=10)
-            _rows = [x.strip() for x in _ps.stdout.splitlines() if "Shelter" in x]
-            log("--- helper CPU snapshot (live, %) ---")
+            _ps = _sp.run(["ps", "-Ao", "pcpu,pid,command"], capture_output=True, text=True, timeout=10)
+            _rows = [x.strip() for x in _ps.stdout.splitlines() if "Shelter" in x and "grep" not in x]
+            log("--- helper CPU snapshot (live, %; command shows --type=) ---")
             log("\n".join(_rows[:12]) or "no Shelter processes found")
         except Exception as e:
             log("cpu snapshot failed:", e)

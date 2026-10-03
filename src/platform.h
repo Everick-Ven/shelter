@@ -45,6 +45,15 @@ std::string DumpWindowChain(void* handle);
 // macOS: первый клик по неактивному окну приложения не должен «съедаться».
 void InstallInputFixes();
 
+// Миниатюра главного окна: CEF Views сам не реагирует на сворачивание
+// (NSWindowDidMiniaturize/Deminiaturize) — без Hide()/Show() рендереры и GPU
+// продолжают производить кадры для свёрнутого окна (фоновая загрузка CPU).
+// nswindow = CefWindow::GetWindowHandle(); колбэки вызываются на UI-потоке.
+// На Windows сворачивание нативно пробрасывается в views — там заглушки.
+void WatchMainWindow(void* nswindow, void (*on_mini)(void*),
+                     void (*on_demini)(void*), void* ctx);
+void UnwatchMainWindow(void* nswindow);
+
 // Мастер-ключ секретов UI: 32 байта в hex (создаётся при первом запуске).
 std::string SecretKeyHex();
 

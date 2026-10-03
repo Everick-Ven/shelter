@@ -170,9 +170,30 @@ CefRefPtr<CefBrowserView> Shell::CreateUiView() {
                                            new ShellBrowserViewDelegate());
 }
 
+void Shell::WindowMiniaturized(void* ctx) {
+  Shell* s = static_cast<Shell*>(ctx);
+  if (s->window_) {
+    s->window_->Hide();
+    s->Log("shell: window miniaturized -> hide widget (frames paused)");
+  }
+}
+
+void Shell::WindowDeminiaturized(void* ctx) {
+  Shell* s = static_cast<Shell*>(ctx);
+  if (s->window_) {
+    s->window_->Show();
+    s->Log("shell: window deminiaturized -> show widget");
+  }
+}
+
 void Shell::OnWindowCreated(CefRefPtr<CefWindow> window) {
   window_ = window;
   window_->SetTitle(std::string(kAppName) + " · " + kAppVersion);
+  // Миниатюра: CEF Views не пробрасывает сворачивание в виджет — без Hide/Show
+  // рендереры и GPU продолжают кадры для свёрнутого окна (фоновое горение CPU).
+  platform::WatchMainWindow(reinterpret_cast<void*>(window_->GetWindowHandle()),
+                            &Shell::WindowMiniaturized,
+                            &Shell::WindowDeminiaturized, this);
   if (auto icon = LoadWindowIcon()) {
     window_->SetWindowIcon(icon);
     window_->SetWindowAppIcon(icon);
@@ -212,6 +233,9 @@ bool Shell::CanCloseWindow() {
 
 void Shell::OnWindowDestroyed() {
   CEF_REQUIRE_UI_THREAD();
+  if (window_) {
+    platform::UnwatchMainWindow(reinterpret_cast<void*>(window_->GetWindowHandle()));
+  }
   window_ = nullptr;
   ui_view_ = nullptr;
   closing_ = true;

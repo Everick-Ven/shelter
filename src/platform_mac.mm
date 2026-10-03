@@ -209,6 +209,39 @@ static void DumpView(NSView* v, int depth, NSMutableString* out) {
   for (NSView* c in v.subviews) DumpView(c, depth + 1, out);
 }
 
+// ---- миниатюра главного окна: CEF Views о сворачивании не знает ----
+// (паттерн cefclient root_window_mac.mm: windowDidMiniaturize -> Hide,
+// windowDidDeminiaturize -> Show) — пока окно свёрнуто, рендереры и GPU
+// не производят кадры.
+static id g_mini_obs = nil;
+static id g_demini_obs = nil;
+
+void UnwatchMainWindow(void* nswindow) {
+  NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
+  if (g_mini_obs) { [nc removeObserver:g_mini_obs]; [g_mini_obs release]; g_mini_obs = nil; }
+  if (g_demini_obs) { [nc removeObserver:g_demini_obs]; [g_demini_obs release]; g_demini_obs = nil; }
+}
+
+void WatchMainWindow(void* nswindow, void (*on_mini)(void*),
+                     void (*on_demini)(void*), void* ctx) {
+  NSWindow* w = (NSWindow*)nswindow;
+  if (!w) return;
+  UnwatchMainWindow(nswindow);
+  NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
+  g_mini_obs = [[nc addObserverForName:NSWindowDidMiniaturizeNotification
+                                object:w
+                                 queue:[NSOperationQueue mainQueue]
+                            usingBlock:^(NSNotification*) {
+                              if (on_mini) on_mini(ctx);
+                            }] retain];
+  g_demini_obs = [[nc addObserverForName:NSWindowDidDeminiaturizeNotification
+                                  object:w
+                                   queue:[NSOperationQueue mainQueue]
+                              usingBlock:^(NSNotification*) {
+                                if (on_demini) on_demini(ctx);
+                              }] retain];
+}
+
 std::string DebugHitTest(double x, double y) {
   NSMutableString* out = [NSMutableString string];
   for (NSWindow* w in [NSApp windows]) {

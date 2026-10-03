@@ -146,6 +146,9 @@ class Shell {
   void ReapplyZoom(CefRefPtr<CefBrowser> browser);
   void ApplyClip(Tab* tab);
   void Log(const std::string& line);
+  // Колбэки platform::WatchMainWindow — миниатюра/восстановление окна.
+  static void WindowMiniaturized(void* ctx);
+  static void WindowDeminiaturized(void* ctx);
   void ClearPrivacy(CefRefPtr<CefListValue> parts,
                     CefRefPtr<CefDictionaryValue> opts,
                     CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);

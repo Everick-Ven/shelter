@@ -29,5 +29,7 @@ void SetClipLevel(int) {}
 std::string DumpWindowChain(void*) { return std::string(); }
 
 void InstallInputFixes() {}
+void WatchMainWindow(void*, void (*)(void*), void (*)(void*), void*) {}
+void UnwatchMainWindow(void*) {}
 }  // namespace platform
 }  // namespace shelter

@@ -160,6 +160,9 @@ std::string DumpWindowChain(void* handle) {
 
 void InstallInputFixes() {}
 
+void WatchMainWindow(void*, void (*)(void*), void (*)(void*), void*) {}
+void UnwatchMainWindow(void*) {}
+
 void ApplyViewClip(void*, const double[4], const std::vector<std::array<int, 4>>&, int, int) {
   // Windows: содержимое вкладки рисует общая поверхность DirectComposition, область HWND на
   // пиксели не влияет. Скругление/«дыры» не используются (см. USE_HOLES в host-bridge.js).

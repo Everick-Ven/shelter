@@ -5278,7 +5278,7 @@ const Hero = (() => {
   const PERIOD = 12000, PAD = 168, RADIUS = 22;
   const SIG_BLOOM = 0.072, SIG_RIM = 0.15, SIG_CORE = 0.034;
   const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.*@#+-=/&%π'.split('');
-  let canvas, ctx, dpr = 1, path = null, pathKey = '', chars = [], charKey = '', off = null, rimLayer = null, t0 = performance.now();
+  let canvas, ctx, dpr = 1, path = null, pathKey = '', chars = [], charKey = '', off = null, rimLayer = null, balanceLayer = null, balanceKey = '', t0 = performance.now();
   let COL_A = [255, 107, 61], COL_A_SOFT = [235, 99, 56], COL_A_HOT = [255, 236, 222];
   let COL_B = [77, 124, 255], COL_B_SOFT = [71, 114, 235], COL_B_HOT = [214, 232, 255];
   let palKey = '', palLight = false, palAmp = 1, palGlyph = 1;
@@ -5301,6 +5301,7 @@ const Hero = (() => {
     const key = ga.concat(gb).map(v => v | 0).join(',') + (light ? 'L' : 'D') + (isFinite(g) ? g : 1);
     if (key === palKey) return;
     palKey = key;
+    balanceKey = '';
     COL_A = ga; COL_B = gb;
     COL_A_SOFT = [ga[0] * 0.92, ga[1] * 0.92, ga[2] * 0.92];
     COL_B_SOFT = [gb[0] * 0.92, gb[1] * 0.92, gb[2] * 0.92];
@@ -5491,7 +5492,7 @@ const Hero = (() => {
       canvas.style.width = bw + 'px';
       canvas.style.height = bh + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      pathKey = ''; charKey = '';
+      pathKey = ''; charKey = ''; balanceKey = '';
     }
     const cl = Math.round(ox - PAD), ct = Math.round(oy - PAD);
     if (cl !== canvasLeft || ct !== canvasTop) {
@@ -5683,6 +5684,29 @@ const Hero = (() => {
   }
   function glowOff() { return !!(S && S.prefs && (S.prefs.motion === 'off' || S.prefs.glow === false)); }
   function gfxLvl() { return (S && S.prefs && S.prefs.gfx) || 'balance'; }
+  function renderBalanceLayer() {
+    if (!canvas || !path) return false;
+    const key = [pathKey, palKey, dpr, canvas.width, canvas.height].join('|');
+    if (balanceLayer && balanceKey === key) return true;
+    balanceLayer = document.createElement('canvas');
+    balanceLayer.width = canvas.width;
+    balanceLayer.height = canvas.height;
+    const mainCtx = ctx;
+    const layerCtx = balanceLayer.getContext('2d', { alpha: true });
+    ctx = layerCtx;
+    layerCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    layerCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    layerCtx.globalCompositeOperation = 'source-over';
+    layerCtx.globalAlpha = 1;
+    layerCtx.filter = 'none';
+    // Один полный кадр: тот же glow, glyphs и rim, но больше никогда не пересчитываем его по времени.
+    drawGlow(0);
+    drawChars(0);
+    drawRim(0);
+    ctx = mainCtx;
+    balanceKey = key;
+    return true;
+  }
   function paint(now) {
     const heroEl0 = document.getElementById('hero');
     if (!heroEl0 || heroEl0.hidden) return;
@@ -5696,11 +5720,21 @@ const Hero = (() => {
     }
     canvas.style.visibility = '';
     if (!ensurePath()) return;
-    const still = (typeof REDUCED === 'function' && REDUCED()) || location.hash === '#still';
-    const offset = still ? 0 : ((now - t0) / PERIOD) % 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
+
+    if (gfxLvl() === 'balance') {
+      // Баланс: свечение полностью статично, но сохраняет полноценный вид.
+      if (renderBalanceLayer()) {
+        ctx.drawImage(balanceLayer, 0, 0, balanceLayer.width, balanceLayer.height,
+          0, 0, canvas.width / dpr, canvas.height / dpr);
+      }
+      return;
+    }
+
+    const still = (typeof REDUCED === 'function' && REDUCED()) || location.hash === '#still';
+    const offset = still ? 0 : ((now - t0) / PERIOD) % 1;
     drawGlow(offset); drawChars(offset); drawRim(offset);
   }
   function loop(now) {
@@ -5715,7 +5749,9 @@ const Hero = (() => {
       const dt = performance.now() - t1;
       H.pEMA = dt > H.pEMA ? dt : H.pEMA * 0.9 + dt * 0.1;
       const glv = gfxLvl();
-      const target = glv === 'beauty' ? 32 : glv === 'perf' ? (H.pEMA > 40 ? 96 : 64) : (H.pEMA > 22 ? 64 : H.pEMA > 13 ? 48 : 32);
+      // В Балансе после создания статического кадра RAF больше не нужен.
+      if (glv === 'balance') return;
+      const target = glv === 'beauty' ? 32 : (H.pEMA > 40 ? 96 : 64);
       H.gap = target > H.gap ? target : Math.max(target, H.gap - 8);
     }
     if (glowOff()) return;
@@ -5731,7 +5767,7 @@ const Hero = (() => {
 
   window.addEventListener('resize', () => {
     if (!H.visible) return;
-    pathKey = ''; resize();
+    pathKey = ''; balanceKey = ''; resize();
     if (H.paused || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
     else if (!H.raf) start();
   });
@@ -5740,7 +5776,7 @@ const Hero = (() => {
     if (ro || typeof ResizeObserver === 'undefined') return;
     ro = new ResizeObserver(() => {
       if (!H.visible) return;
-      pathKey = ''; resize();
+      pathKey = ''; balanceKey = ''; resize();
       if (H.paused || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
       else if (!H.raf) start();
     });
@@ -5753,7 +5789,7 @@ const Hero = (() => {
 
   return {
     show() { H.visible = true; if (!document.hidden && !OV.stack.length) H.paused = false; observe(); start(); },
-    hide() { H.visible = false; stop(); if (ctx && canvas) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); } },
+    hide() { H.visible = false; stop(); balanceLayer = null; balanceKey = ''; if (ctx && canvas) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); } },
     pause() { H.paused = true; stop(); },
     resume() { H.paused = false; if (!H.visible) return; start(); },
     focus() { H.focus = 1; }, // курсор в поле не влияет на цвет/интенсивность свечения (1.0.84)
@@ -5761,7 +5797,7 @@ const Hero = (() => {
     setBoost(b) { H.boost = b || 1; },
     burst() { H.kick = 3.2; clearTimeout(H.kt); H.kt = setTimeout(() => { H.kick = 1; }, 520); },
     nudge() { this.kick(); },
-    relayout() { palKey = ''; pathKey = ''; if (!H.visible) return; resize(); if (H.paused) { paint(performance.now()); return; } stop(); start(); },
+    relayout() { palKey = ''; pathKey = ''; balanceKey = ''; if (!H.visible) return; resize(); if (H.paused) { paint(performance.now()); return; } stop(); start(); },
     remask() { pathKey = ''; }
   };
 })();

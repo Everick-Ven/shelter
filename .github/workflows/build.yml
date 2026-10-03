@@ -1,68 +1,193 @@
-name: build
-on: [push, pull_request, workflow_dispatch]
+name: Build
+
+on:
+  push:
+    branches: [main, 'arena/**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CEF_VERSION_KEY: cef-154.0.32
+
 jobs:
   windows:
+    name: Windows x64
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1
-        with: { arch: x64 }
-      - name: Bootstrap CEF
-        shell: bash
-        run: CEF_PLATFORM=windows ./scripts/bootstrap-cef.sh
-      - name: Build and test
+
+      - name: Cache CEF
+        uses: actions/cache@v4
+        with:
+          path: third_party/cef
+          key: ${{ env.CEF_VERSION_KEY }}-windows64-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: MSVC environment (x64)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure
         shell: bash
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build
-          ctest --test-dir build --output-on-failure
-      - name: Package Windows portable
+          set -o pipefail
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_SANDBOX=OFF -DUSE_ATL=OFF 2>&1 | tee configure.log
+
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build build --target Shelter --parallel 2>&1 | tee build.log
+
+      - name: Geometry acceptance (strict)
+        shell: bash
+        run: |
+          set -o pipefail
+          python tools/check_geometry.py build/Release/Shelter.exe 2>&1 | tee geometry.log
+
+      - name: Build installer (Inno Setup)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force package\Resources | Out-Null
-          Copy-Item build\shelter.exe package\
-          Copy-Item resources\ui package\Resources\ui -Recurse
-          Copy-Item resources\icons\icon-256.png package\SHELTER.png
-          Copy-Item cef\Release\* package\ -Recurse -Force
-          Copy-Item cef\Resources\* package\Resources\ -Recurse -Force
-          Compress-Archive -Path package\* -DestinationPath SHELTER-windows-x64-portable.zip -Force
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe не найден" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          & $iscc "/DSourceDir=$PWD\build\Release" "/DAppVersion=1.0.164" installer\shelter.iss 2>&1 | Tee-Object -FilePath package.log
+          if ($LASTEXITCODE -ne 0) { throw "ISCC завершился с кодом $LASTEXITCODE" }
+          Get-ChildItem dist | Out-String | Tee-Object -FilePath package.log -Append
+
+      - name: Install, smoke test, uninstall
+        continue-on-error: true
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          $setup = "$PWD\dist\SHELTER-Setup-x64.exe"
+          $p = Start-Process -FilePath $setup -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/LOG=$PWD\install.log" -Wait -PassThru
+          "installer exit code: $($p.ExitCode)" | Tee-Object -FilePath smoke-run.log
+          $dir = Join-Path $env:LOCALAPPDATA "Programs\SHELTER"
+          "install dir: $dir" | Tee-Object -FilePath smoke-run.log -Append
+          Get-ChildItem $dir | Select-Object -First 12 Name,Length | Out-String | Tee-Object -FilePath smoke-run.log -Append
+          Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Filter "SHELTER*" -ErrorAction SilentlyContinue | Out-String | Tee-Object -FilePath smoke-run.log -Append
+          pip install websocket-client 2>&1 | Out-Null
+          $env:PYTHONIOENCODING = "utf-8"
+          python tools/smoke.py "$dir\Shelter.exe" smoke 2>&1 | Tee-Object -FilePath smoke-run.log -Append
+          Get-Process Shelter -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 2
+          $u = Start-Process -FilePath "$dir\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          "uninstaller exit code: $($u.ExitCode)" | Tee-Object -FilePath smoke-run.log -Append
+          Start-Sleep -Seconds 3
+          "install dir exists after uninstall: $(Test-Path "$dir\Shelter.exe")" | Tee-Object -FilePath smoke-run.log -Append
+
+      - name: Portable zip
+        shell: pwsh
+        run: |
+          Copy-Item -Recurse build/Release dist/SHELTER
+          Remove-Item -Force -ErrorAction SilentlyContinue dist/SHELTER/*.pdb, dist/SHELTER/*.lib, dist/SHELTER/*.exp
+          Compress-Archive -Path dist/SHELTER -DestinationPath dist/SHELTER-windows-x64-portable.zip
+          Remove-Item -Recurse -Force dist/SHELTER
+
       - uses: actions/upload-artifact@v4
-        with: { name: SHELTER-windows-x64, path: SHELTER-windows-x64-portable.zip }
+        with:
+          name: SHELTER-windows-x64
+          path: |
+            dist/SHELTER-Setup-x64.exe
+            dist/SHELTER-windows-x64-portable.zip
+          if-no-files-found: error
+
+      - name: Publish logs
+        if: always()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: tools/push_log.sh windows configure.log build.log smoke-run.log package.log install.log geometry.log smoke/*
+
   macos:
+    name: macOS Intel (x86_64)
     runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
-      - name: Bootstrap CEF
-        run: CEF_PLATFORM=macos ./scripts/bootstrap-cef.sh
-      - name: Build and test
+
+      - name: Cache CEF
+        uses: actions/cache@v4
+        with:
+          path: third_party/cef
+          key: ${{ env.CEF_VERSION_KEY }}-macosx64-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Configure
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64
-          cmake --build build
-          ctest --test-dir build --output-on-failure
-      - name: Package macOS app
+          set -o pipefail
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPROJECT_ARCH=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DUSE_SANDBOX=OFF 2>&1 | tee configure.log
+
+      - name: Build
         run: |
-          mkdir -p package/SHELTER.app/Contents/MacOS package/SHELTER.app/Contents/Resources package/SHELTER.app/Contents/Frameworks
-          cp -R build/shelter.app/Contents/MacOS/shelter package/SHELTER.app/Contents/MacOS/
-          cp mac/Info.plist package/SHELTER.app/Contents/Info.plist
-          cp -R resources/ui package/SHELTER.app/Contents/Resources/ui
-          cp resources/icons/icon-1024.png package/SHELTER.app/Contents/Resources/SHELTER.png
-          mkdir -p /tmp/SHELTER.iconset
-          sips -z 16 16 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_16x16.png >/dev/null
-          sips -z 32 32 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_16x16@2x.png >/dev/null
-          sips -z 32 32 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_32x32.png >/dev/null
-          sips -z 64 64 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_32x32@2x.png >/dev/null
-          sips -z 128 128 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_128x128.png >/dev/null
-          sips -z 256 256 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_128x128@2x.png >/dev/null
-          iconutil -c icns /tmp/SHELTER.iconset -o package/SHELTER.app/Contents/Resources/SHELTER.icns
-          cp -R "cef/Release/Chromium Embedded Framework.framework" package/SHELTER.app/Contents/Frameworks/
-          mkdir -p "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS"
-          cp build/shelter.app/Contents/MacOS/shelter "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper"
-          cp mac/Helper-Info.plist "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/Info.plist"
-          mkdir -p dmg-root
-          cp -R package/SHELTER.app dmg-root/SHELTER.app
-          ln -s /Applications dmg-root/Applications
-          rm -f SHELTER-macos-x64.dmg
-          hdiutil detach "$(hdiutil info | awk '/dmg-root/{print $1; exit}')" 2>/dev/null || true
-          hdiutil create -volname SHELTER -srcfolder "${GITHUB_WORKSPACE}/dmg-root" -ov -format UDZO "${GITHUB_WORKSPACE}/SHELTER-macos-x64.dmg"
+          set -o pipefail
+          cmake --build build --target Shelter --parallel 2>&1 | tee build.log
+
+      - name: Geometry acceptance (strict)
+        run: |
+          set -o pipefail
+          python3 tools/check_geometry.py build/Release/Shelter.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
+
+      - name: Package DMG
+        run: |
+          set -o pipefail
+          mkdir -p dist
+          tools/make_dmg.sh build/Release/Shelter.app dist/SHELTER-macos-x64.dmg 2>&1 | tee package.log
+
+      - name: Install from DMG and smoke test
+        continue-on-error: true
+        timeout-minutes: 8
+        run: |
+          set -o pipefail
+          {
+            hdiutil attach dist/SHELTER-macos-x64.dmg -nobrowse -mountpoint /Volumes/SHELTER
+            ls -la /Volumes/SHELTER
+            cp -R /Volumes/SHELTER/SHELTER.app /Applications/
+            hdiutil detach /Volumes/SHELTER
+            ls -la /Applications/SHELTER.app/Contents /Applications/SHELTER.app/Contents/Resources
+            (brew install cliclick 2>&1 | tail -2) || true
+            python3 -m venv .venv && . .venv/bin/activate && pip install websocket-client pyobjc-framework-Quartz
+            python tools/smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter smoke
+            pkill -f Shelter || true; sleep 3
+            python tools/smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter smoke2 --tab-no-activate
+            for f in smoke2/*; do mv "$f" "smoke/v2-$(basename "$f")"; done
+          } 2>&1 | tee smoke-run.log
+
       - uses: actions/upload-artifact@v4
-        with: { name: SHELTER-macos-x64, path: SHELTER-macos-x64.dmg }
+        with:
+          name: SHELTER-macos-x64
+          path: dist/SHELTER-macos-x64.dmg
+          if-no-files-found: error
+
+      - name: Publish logs
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: tools/push_log.sh macos configure.log build.log smoke-run.log package.log geometry.log smoke/*
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          find assets -type f | sort
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "SHELTER ${GITHUB_REF_NAME#v}" \
+            --notes "Установщики: SHELTER-Setup-x64.exe (Windows x64), SHELTER-macos-x64.dmg (macOS Intel). Также portable zip для Windows. macOS: сборка без подписи Developer ID — при первом запуске ПКМ → Открыть." \
+            assets/SHELTER-windows-x64/SHELTER-Setup-x64.exe \
+            assets/SHELTER-windows-x64/SHELTER-windows-x64-portable.zip \
+            assets/SHELTER-macos-x64/SHELTER-macos-x64.dmg

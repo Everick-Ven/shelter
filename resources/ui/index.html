@@ -5870,6 +5870,7 @@ function renderView(animate = true, dir = 1) {
   page.scrollTop = 0;
   if (animate && !REDUCED()) { page.style.setProperty('--dy', dy); page.classList.remove('enter'); void page.offsetWidth; page.classList.add('enter'); }
   initSegs(page);
+  histPanelLazy(page);
   if (AFTER[m.page]) AFTER[m.page](m, t);
 }
 function refreshPage(page) { const m = urlMeta(curTab().url); if (m.page === page) { const sc = $('#page').scrollTop; renderView(false); $('#page').scrollTop = sc; } }
@@ -6313,9 +6314,45 @@ function visItem(v, i) {
 }
 function visPanelHtml(by) {
   const H = H0(), list = (by[H.sel] || []).slice().reverse(), d = parseKey(H.sel), rd = relDay(d);
+  T.histPanel = list;
   const tot = list.reduce((s, v) => s + visitDur(v), 0);
+  const shown = Math.min(list.length, 300);
+  const tail = list.length > shown ? ` data-total="${list.length}" data-shown="${shown}"` : '';
   return `<div class="vis-head"><div class="t"><b>${rd === 'Сегодня' || rd === 'Вчера' ? rd + ', ' + dateLong(d) : dateFull(d)}</b><span>${list.length} ${plural(list.length, ['визит', 'визита', 'визитов'])}${list.length ? ' · ' + fmtDur(tot) : ''}</span></div>${list.length ? `<button class="icon-btn" data-act="histDayMenu" aria-label="Действия">${ico('dots')}</button>` : ''}</div>
-    <div class="vis-list">${list.length ? list.map(visItem).join('') : emptyState('history', 'Нет посещений', S.ghost ? 'В режиме «Призрак» история не записывается' : 'В этот день история пуста')}</div>`;
+    <div class="vis-list"${tail}>${list.length ? list.slice(0, shown).map((v, i) => visItem(v, i)).join('') : emptyState('history', 'Нет посещений', S.ghost ? 'В режиме «Призрак» история не записывается' : 'В этот день история пуста')}</div>`;
+}
+/* Ленивая догрузка длинного списка дня: первый экран — порции по 300 записей,
+   остальное — при приближении к концу. Работают оба режима прокрутки:
+   собственный скролл .vis-list и скролл всей страницы #page (контейнер
+   shelter < 1180px — типично для окон до ~1460px). HTML идентичен полному
+   рендеру — визуал не меняется, а день с тысячами визитов открывается
+   без фриза. */
+function histPanelLazy(box) {
+  const listEl = (box && box.querySelector && box.querySelector('.vis-list[data-total]')) || document.querySelector('#histBody .vis-list[data-total]');
+  if (!listEl) return;
+  const more = () => {
+    const el = document.querySelector('#histBody .vis-list[data-total]');
+    if (!el) return;
+    const data = T.histPanel || [];
+    const total = +el.dataset.total || 0;
+    let shown = +el.dataset.shown || 0;
+    if (shown >= total) return;
+    let near;
+    if (el.scrollHeight - el.clientHeight > 4) {
+      near = el.scrollHeight - el.scrollTop - el.clientHeight <= 320;
+    } else {
+      near = el.getBoundingClientRect().bottom <= window.innerHeight + 400;
+    }
+    if (!near) return;
+    const next = Math.min(total, shown + 300);
+    el.insertAdjacentHTML('beforeend', data.slice(shown, next).map((v, i) => visItem(v, shown + i)).join(''));
+    shown = next;
+    el.dataset.shown = shown;
+  };
+  listEl.addEventListener('scroll', more, { passive: true });
+  const page = document.querySelector('#page');
+  if (page && !page.__visLazy) { page.__visLazy = 1; page.addEventListener('scroll', more, { passive: true }); }
+  more();
 }
 function weekHtml(by) {
   const H = H0(), sel = parseKey(H.sel), mon = new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() - (sel.getDay() + 6) % 7);
@@ -6351,7 +6388,7 @@ function histBodyHtml(anim) {
     <div class="card vis-panel" id="visPanel">${visPanelHtml(by)}</div>
   </div>`;
 }
-function histRerender(anim) { const b = $('#histBody'); if (!b) return; b.innerHTML = histBodyHtml(anim); initSegs(b); const s = $('#histSub'); if (s) s.innerHTML = histSub(); }
+function histRerender(anim) { const b = $('#histBody'); if (!b) return; b.innerHTML = histBodyHtml(anim); initSegs(b); histPanelLazy(b); const s = $('#histSub'); if (s) s.innerHTML = histSub(); }
 function histClosedHtml() {
   const list = S.closed || [];
   const rows = list.map((c, i) => `<div class="hrow" data-act="histClosedOpen" data-i="${i}"><span class="tm">${c.at ? hm(c.at) : ''}</span>${favHtml(c.tab, 'md')}<div class="tt"><b>${esc(c.tab.title || c.tab.url)}</b><small>${esc((S.spaces[c.space] || {}).name || '')}</small></div></div>`).join('');

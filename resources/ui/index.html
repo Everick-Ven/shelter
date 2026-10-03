@@ -4007,6 +4007,8 @@ function load() {
   S.downloads = lux.downloads || []; S.passwords = pwFromStore(lux.passwords); S.blocks = lux.blocks || {};
   if (Array.isArray(ext)) S.ext = ext.filter(e => e && EXT_CATALOG[e.id]);
   if (!Array.isArray(S.bookmarks)) S.bookmarks = DEFAULT_BOOKMARKS.slice();
+  /* Миграция модели «Отобразить в баре»: раньше бралось !hide + лимит bmShow */
+  S.bookmarks.forEach(b => { if (typeof b.inBar === 'undefined') b.inBar = !b.hide; delete b.hide; });
   if (!S.spaces || typeof S.spaces !== 'object' || !Object.keys(S.spaces).length) S.spaces = seedSpaces();
   if (!S.board || !Array.isArray(S.board.tasks)) S.board = Object.assign(defaultBoard(), S.board && typeof S.board === 'object' ? S.board : {}, { tasks: (S.board && S.board.tasks) || [] });
   ensureBoard();
@@ -5831,19 +5833,74 @@ function renderHeroBits() {
   $('#heroInput').placeholder = S.deep ? 'Спросите AI-ассистента о чём угодно…' : 'Спросите что угодно или введите адрес…';
   renderHeroLinks(); renderHeroFoot();
 }
+/* Фавиконки закладок: грузим ОДИН раз, сохраняем dataURL в localStorage
+   (shelter:favcache) и дальше рисуем сразу из кэша — без повторных сетевых
+   запросов и без мигания «буква → картинка» при каждой перерисовке бара. */
+const FAV_CACHE_KEY = 'shelter:favcache';
+const FAV_MEM = (() => { try { return store.json(FAV_CACHE_KEY, {}) || {}; } catch (_) { return {}; } })();
+const FAV_BUSY = {};
+function favCacheSave() {
+  try {
+    const keys = Object.keys(FAV_MEM);
+    if (keys.length > 120) keys.slice(0, keys.length - 120).forEach(k => delete FAV_MEM[k]);
+    const raw = JSON.stringify(FAV_MEM);
+    if (raw.length < 900000) store.put(FAV_CACHE_KEY, FAV_MEM);
+  } catch (_) {}
+}
+function favCacheApply(host) {
+  const url = FAV_MEM[host]; if (!url) return;
+  $$('img[data-favhost="' + host.replace(/"/g, '') + '"]').forEach(im => { im.src = url; });
+}
+function favCacheGrab(img, host) {
+  try {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0, 64, 64);
+    const url = c.toDataURL('image/png');
+    if (url && url.length < 8000) { FAV_MEM[host] = url; favCacheSave(); favCacheApply(host); }
+  } catch (_) { /* CORS не дал прочитать пиксели — остаёмся на удалённом URL */ }
+}
+function favCacheFetch(host) {
+  if (!host || FAV_MEM[host] || FAV_BUSY[host]) return;
+  FAV_BUSY[host] = 1;
+  const done = () => { delete FAV_BUSY[host]; };
+  const yandex = () => {
+    const y = new Image();
+    y.crossOrigin = 'anonymous'; y.referrerPolicy = 'no-referrer';
+    y.onload = () => { favCacheGrab(y, host); done(); };
+    y.onerror = done;
+    y.src = 'https://favicon.yandex.net/favicon.v2/' + encodeURIComponent(host);
+  };
+  const im = new Image();
+  im.crossOrigin = 'anonymous'; im.referrerPolicy = 'no-referrer';
+  im.onload = () => { favCacheGrab(im, host); done(); };
+  im.onerror = () => { yandex(); };
+  im.src = 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(host);
+}
 function bmFavHtml(b, cls = '') {
   const m = urlMeta(b.url);
   if (m.kind === 'internal') return favFor(b.url, cls);
   const host = hostOf(b.url);
   const letter = m.fav || (host || '?').slice(0, 1).toUpperCase();
+  const cached = FAV_MEM[host];
+  if (cached) return `<span class="fav fimg ${cls}" style="background:${m.color || 'var(--card-3)'}" title="${esc(host)}">${esc(letter)}<img src="${cached}" alt=""></span>`;
+  favCacheFetch(host);
   const src = 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(host);
   const yx = 'https://favicon.yandex.net/favicon.v2/' + encodeURIComponent(host);
-  return `<span class="fav fimg ${cls}" style="background:${m.color || 'var(--card-3)'}" title="${esc(host)}">${esc(letter)}<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="if(!this.dataset.f){this.dataset.f='1';this.src='${yx}';}else{this.remove();}"></span>`;
+  return `<span class="fav fimg ${cls}" style="background:${m.color || 'var(--card-3)'}" title="${esc(host)}">${esc(letter)}<img data-favhost="${esc(host)}" src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="if(!this.dataset.f){this.dataset.f='1';this.src='${yx}';}else{this.remove();}"></span>`;
+}
+function toggleBmBar(id) {
+  const b = S.bookmarks.find(x => x.id === id); if (!b) return;
+  b.inBar = !b.inBar; persist();
+  renderHeroLinks(); refreshPage('bookmarks');
+  toast(b.inBar ? '«' + b.title + '» — в баре' : '«' + b.title + '» убрана из бара', { icon: b.inBar ? 'eye' : 'eye-off' });
 }
 function renderHeroLinks() {
   setTimeout(() => Hero.remask(), 60);
-  $('#heroLinks').innerHTML = S.bookmarks.filter(b => !b.hide).slice(0, S.ui.bmShow || 6).map(b => `<button class="qlink" draggable="true" data-act="open" data-bm="${b.id}" data-url="${esc(b.url)}">${bmFavHtml(b)}<span>${esc(b.title)}</span></button>`).join('')
-    + `<button class="qlink add" data-act="addBookmarkDlg"><span class="fav">${ico('plus')}</span><span>Добавить</span></button>`;
+  /* В баре — только закладки с флагом «Отобразить в баре» (inBar).
+     Кнопки «+ Добавить» здесь больше нет: добавление — в разделе «Закладки». */
+  $('#heroLinks').innerHTML = S.bookmarks.filter(b => b.inBar).map(b => `<button class="qlink" draggable="true" data-act="open" data-bm="${b.id}" data-url="${esc(b.url)}">${bmFavHtml(b)}<span>${esc(b.title)}</span></button>`).join('');
 }
 function renderHeroFoot() {
   const el = $('#heroFoot');
@@ -5970,7 +6027,7 @@ async function fire() {
 }
 function addBookmark(url, title) {
   if (S.bookmarks.some(b => sameUrl(b.url, url))) { toast('Уже в закладках', { icon: 'star' }); return; }
-  S.bookmarks.push({ id: uid('b'), title: title || urlMeta(url).title, url }); persist();
+  S.bookmarks.push({ id: uid('b'), title: title || urlMeta(url).title, url, inBar: true }); persist();
   renderBadges(); updateToolbar(); renderHeroLinks(); refreshPage('bookmarks');
   toast('Добавлено в закладки', { icon: 'star' });
 }
@@ -5978,7 +6035,7 @@ function toggleBookmarkCurrent() {
   const t = curTab(), m = urlMeta(t.url); if (m.kind === 'internal') return;
   const i = S.bookmarks.findIndex(b => sameUrl(b.url, t.url));
   if (i >= 0) { S.bookmarks.splice(i, 1); toast('Удалено из закладок', { icon: 'star' }); }
-  else { S.bookmarks.push({ id: uid('b'), title: t.title, url: t.url }); toast('Добавлено в закладки', { icon: 'star' }); }
+  else { S.bookmarks.push({ id: uid('b'), title: t.title, url: t.url, inBar: true }); toast('Добавлено в закладки', { icon: 'star' }); }
   persist(); renderBadges(); updateToolbar(); renderHeroLinks();
   if (!REDUCED()) $('#starBtn').animate([{ transform: 'scale(1)' }, { transform: 'scale(1.35) rotate(-12deg)' }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.34,1.45,.64,1)' });
 }
@@ -6455,7 +6512,7 @@ function visMenu(anchor) {
    ========================================================= */
 function bmCards(q = '') {
   const ql = q.toLowerCase(), list = S.bookmarks.filter(b => !ql || b.title.toLowerCase().includes(ql) || b.url.toLowerCase().includes(ql));
-  return list.map((b, i) => `<div class="bm rise" style="--i:${Math.min(i, 16)}" data-act="open" data-url="${esc(b.url)}" data-id="${b.id}" draggable="${ql ? 'false' : 'true'}" role="button" tabindex="0">${favFor(b.url, 'lg')}<div><b>${esc(b.title)}</b><small>${esc(hostOf(b.url))}</small></div><button class="icon-btn" data-act="bmMenu" data-id="${b.id}" aria-label="Действия">${ico('dots')}</button></div>`).join('')
+  return list.map((b, i) => `<div class="bm rise" style="--i:${Math.min(i, 16)}" data-act="open" data-url="${esc(b.url)}" data-id="${b.id}" draggable="${ql ? 'false' : 'true'}" role="button" tabindex="0">${favFor(b.url, 'lg')}<div><b>${esc(b.title)}</b><small>${esc(hostOf(b.url))}</small></div><button class="icon-btn" data-act="bmBarToggle" data-id="${b.id}" data-tip="${b.inBar ? 'Убрать из бара' : 'Показывать в баре'}" aria-label="Отобразить в баре"${b.inBar ? ' style="color:rgb(var(--accent))"' : ''}>${ico(b.inBar ? 'eye' : 'eye-off')}</button><button class="icon-btn" data-act="bmMenu" data-id="${b.id}" aria-label="Действия">${ico('dots')}</button></div>`).join('')
     + (ql ? '' : `<button class="bm add rise" style="--i:${Math.min(list.length, 16)}" data-act="addBookmarkDlg">${ico('plus')}<span>Добавить закладку</span></button>`)
     + (!list.length && ql ? emptyState('search', 'Ничего не найдено', 'Попробуйте другой запрос') : '');
 }
@@ -6464,7 +6521,7 @@ function bmFolderList() {
   return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
 }
 function bmItemRow(b, i, ql) {
-  return `<div class="bmt-item rise" style="--i:${Math.min(i, 16)}" data-act="open" data-url="${esc(b.url)}" data-id="${b.id}" draggable="${ql ? 'false' : 'true'}" role="button" tabindex="0">${favFor(b.url, 'md')}<div class="tt"><b>${esc(b.title)}</b><small>${esc(hostOf(b.url))}</small></div><button class="icon-btn" data-act="bmMenu" data-id="${b.id}" aria-label="Действия">${ico('dots')}</button></div>`;
+  return `<div class="bmt-item rise" style="--i:${Math.min(i, 16)}" data-act="open" data-url="${esc(b.url)}" data-id="${b.id}" draggable="${ql ? 'false' : 'true'}" role="button" tabindex="0">${favFor(b.url, 'md')}<div class="tt"><b>${esc(b.title)}</b><small>${esc(hostOf(b.url))}</small></div><button class="icon-btn" data-act="bmBarToggle" data-id="${b.id}" data-tip="${b.inBar ? 'Убрать из бара' : 'Показывать в баре'}" aria-label="Отобразить в баре"${b.inBar ? ' style="color:rgb(var(--accent))"' : ''}>${ico(b.inBar ? 'eye' : 'eye-off')}</button><button class="icon-btn" data-act="bmMenu" data-id="${b.id}" aria-label="Действия">${ico('dots')}</button></div>`;
 }
 function bmTreeHtml(q = '') {
   const ql = q.toLowerCase();
@@ -6524,7 +6581,14 @@ function bmMoveMenu(anchor, id) {
 function bmFolderMenu(anchor, name) {
   openMenu(anchor, [
     { label: 'Переименовать папку', icon: 'pencil', run: async () => { const t = await promptDlg({ title: 'Переименовать папку', value: name, ok: 'Сохранить' }); if (t && t.trim() && t.trim() !== name) { S.bookmarks.forEach(b => { if (b.folder === name) b.folder = t.trim(); }); persist(); refreshBmView($('#bmQ') ? $('#bmQ').value : ''); toast('Папка переименована', { icon: 'folder' }); } } },
-    { label: 'Разгруппировать', icon: 'ban', danger: true, run: () => { S.bookmarks.forEach(b => { if (b.folder === name) delete b.folder; }); persist(); refreshBmView($('#bmQ') ? $('#bmQ').value : ''); toast('Папка убрана, закладки сохранены', { icon: 'folder' }); } }
+    { label: 'Разгруппировать', icon: 'ban', run: () => { S.bookmarks.forEach(b => { if (b.folder === name) delete b.folder; }); persist(); refreshBmView($('#bmQ') ? $('#bmQ').value : ''); toast('Папка убрана, закладки сохранены', { icon: 'folder' }); } },
+    { label: 'Удалить папку и закладки', icon: 'trash', danger: true, run: () => {
+      const removed = S.bookmarks.filter(b => b.folder === name);
+      if (!removed.length) return;
+      S.bookmarks = S.bookmarks.filter(b => b.folder !== name);
+      persist(); refreshBmView($('#bmQ') ? $('#bmQ').value : ''); renderBadges(); renderHeroLinks(); updateToolbar();
+      toast('Папка удалена (' + removed.length + ')', { icon: 'trash', action: { label: 'Вернуть', run: () => { S.bookmarks.push(...removed); persist(); refreshBmView($('#bmQ') ? $('#bmQ').value : ''); renderBadges(); renderHeroLinks(); updateToolbar(); } } });
+    } }
   ], { place: 'bottom-end' });
 }
 function refreshBmView(q = '') {
@@ -6631,7 +6695,8 @@ function bmMenu(anchor) {
   const b = S.bookmarks.find(x => x.id === anchor.dataset.id); if (!b) return;
   openMenu(anchor, [
     { label: 'Открыть в новой вкладке', icon: 'ext', run: () => navigate(b.url, { newTab: true }) },
-    { label: 'Переименовать', icon: 'pencil', run: async () => { const t = await promptDlg({ title: 'Переименовать закладку', value: b.title, ok: 'Сохранить' }); if (t) { b.title = t; persist(); refreshPage('bookmarks'); renderHeroLinks(); } } },
+    { label: 'Редактировать', icon: 'pencil', run: () => bmEditDlg(b.id) },
+    { label: 'Отобразить в баре', icon: b.inBar ? 'eye' : 'eye-off', checked: !!b.inBar, run: () => toggleBmBar(b.id) },
     { label: 'Копировать ссылку', icon: 'link', run: () => { copyText(b.url); toast('Ссылка скопирована', { icon: 'link' }); } },
     { label: 'Переместить в папку', icon: 'folder', run: () => bmMoveMenu(anchor, b.id) },
     '-',
@@ -6646,6 +6711,7 @@ function bmEditDlg(id) {
       <label class="field"><span>Название</span><input class="input" id="bmETitle" value="${esc(b.title)}" maxlength="60" placeholder="Например, GitHub"></label>
       <label class="field"><span>Адрес</span><input class="input" id="bmEUrl" value="${esc(b.url)}" placeholder="habr.com"></label>
       <label class="field"><span>Папка</span><input class="input" id="bmEFolder" list="bmFolderDL" value="${esc(b.folder || '')}" maxlength="40" placeholder="Без папки"><datalist id="bmFolderDL">${bmFolderList().map(f => `<option value="${esc(f)}">`).join('')}</datalist></label>
+      <div class="field"><span>Экспресс-панель</span><button type="button" class="bmf-chip${b.inBar ? ' on' : ''}" id="bmEBar" aria-pressed="${b.inBar ? 'true' : 'false'}">${ico('eye')}<span>Отобразить в баре</span></button></div>
     </div>
     <div class="modal-f"><button class="btn ghost" data-bme="0">Отмена</button><button class="btn primary" data-bme="1">Сохранить</button></div>`,
     onClose: () => {} });
@@ -6659,10 +6725,16 @@ function bmEditDlg(id) {
     if (!u || !isUrl(raw)) { toast('Похоже, это не адрес', { icon: 'info' }); return; }
     b.title = title || urlMeta(u).title; b.url = u;
     if (folder) b.folder = folder; else delete b.folder;
+    const barChip = sc.querySelector('#bmEBar');
+    b.inBar = !!(barChip && barChip.classList.contains('on'));
     persist(); close(); renderHeroLinks(); renderBadges(); updateToolbar(); refreshPage('bookmarks');
     toast('Закладка сохранена', { icon: 'star' });
   };
-  sc.addEventListener('click', e => { const r = e.target.closest('[data-bme]'); if (!r) return; if (r.dataset.bme === '1') save(); else close(); });
+  sc.addEventListener('click', e => {
+    const chip = e.target.closest('#bmEBar');
+    if (chip) { chip.classList.toggle('on'); chip.setAttribute('aria-pressed', chip.classList.contains('on') ? 'true' : 'false'); return; }
+    const r = e.target.closest('[data-bme]'); if (!r) return; if (r.dataset.bme === '1') save(); else close();
+  });
   sc.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('input')) { e.preventDefault(); save(); } });
   setTimeout(() => { const i = sc.querySelector('#bmETitle'); if (i) { i.focus(); i.select(); } }, 30);
 }
@@ -6675,15 +6747,10 @@ function bmEditDlg(id) {
 })();
 function bmHeroMenu(anchor) {
   const b = S.bookmarks.find(x => x.id === anchor.dataset.bm); if (!b) return;
-  const showN = () => S.ui.bmShow || 6;
   openMenu(anchor, [
     { label: 'Редактировать', icon: 'pencil', run: () => bmEditDlg(b.id) },
     { label: 'Дублировать', icon: 'copy', run: () => { const i = S.bookmarks.indexOf(b); S.bookmarks.splice(i + 1, 0, Object.assign({}, b, { id: uid('b') })); persist(); renderHeroLinks(); renderBadges(); toast('Закладка продублирована', { icon: 'copy' }); } },
-    { label: 'Скрыть с экспресс-панели', icon: 'eye-off', run: () => { b.hide = true; persist(); renderHeroLinks(); toast('Скрыто с экспресс-панели', { icon: 'eye-off', action: { label: 'Вернуть', run: () => { delete b.hide; persist(); renderHeroLinks(); } } }); } },
-    '-',
-    { label: 'Показывать только 5 закладок', icon: 'grid', checked: showN() === 5, run: () => { S.ui.bmShow = 5; persist(); renderHeroLinks(); } },
-    { label: 'Показывать только 10 закладок', icon: 'grid', checked: showN() === 10, run: () => { S.ui.bmShow = 10; persist(); renderHeroLinks(); } },
-    { label: 'Показывать только 15 закладок', icon: 'grid', checked: showN() === 15, run: () => { S.ui.bmShow = 15; persist(); renderHeroLinks(); } },
+    { label: 'Отобразить в баре', icon: b.inBar ? 'eye' : 'eye-off', checked: !!b.inBar, run: () => toggleBmBar(b.id) },
     '-',
     { label: 'Удалить', icon: 'trash', danger: true, run: () => { const i = S.bookmarks.indexOf(b); S.bookmarks.splice(i, 1); persist(); renderBadges(); renderHeroLinks(); updateToolbar(); refreshPage('bookmarks'); toast('Закладка удалена', { icon: 'trash', action: { label: 'Вернуть', run: () => { S.bookmarks.splice(i, 0, b); persist(); renderBadges(); renderHeroLinks(); refreshPage('bookmarks'); } } }); } }
   ], { place: 'bottom-start' });
@@ -9727,6 +9794,7 @@ const ACT = {
   visDel: el => { const at = +el.dataset.at; S.visits = S.visits.filter(v => v.at !== at); persist(); histRerender(); toast('Удалено из истории', { icon: 'trash' }); },
   histDayMenu: el => openMenu(el, [{ label: 'Удалить историю за этот день', icon: 'trash', danger: true, run: () => { const k = H0().sel; clearVisits(v => dayKey(v.at) === k, 'День очищен'); } }], { place: 'bottom-end' }),
   bmMenu: el => bmMenu(el),
+  bmBarToggle: el => toggleBmBar(el.dataset.id),
   bmFolderToggle: el => bmToggleFolder(el.dataset.folder),
   bmMoveMenu: el => bmMoveMenu(el, el.dataset.id),
   bmFolderMenu: el => bmFolderMenu(el, el.dataset.folder),
@@ -10006,5 +10074,5 @@ init();
   window.addEventListener('resize', invalidateRect, { passive: true });
 })();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a43cb1740a90ccd2',t:'MTc5MDg3MDU2MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>

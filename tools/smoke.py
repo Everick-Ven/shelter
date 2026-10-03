@@ -520,6 +520,25 @@ try:
         except Exception as e:
             log(f"{name} unavailable:", e)
 
+    # --- медиа-кодеки того же бинаря (задача «стриминг не работает») ---
+    try:
+        probe = (
+            "(function(){var v=document.createElement('video'),a=document.createElement('audio');"
+            "return JSON.stringify({"
+            "mp4_h264:v.canPlayType('video/mp4; codecs=\"avc1.42E01E\"'),"
+            "mp4_aac:v.canPlayType('video/mp4; codecs=\"mp4a.40.2\"'),"
+            "mp3:a.canPlayType('audio/mpeg'),"
+            "webm_vp9:v.canPlayType('video/webm; codecs=\"vp9,opus\"'),"
+            "webm_av1:v.canPlayType('video/webm; codecs=\"av01.0.05M.08\"'),"
+            "ogg:v.canPlayType('video/ogg; codecs=\"theora\"'),"
+            "mse:typeof MediaSource!=='undefined',"
+            "eme:typeof navigator.requestMediaKeySystemAccess==='function'"
+            "});})()"
+        )
+        log("media probes: " + str(c.eval(probe)))
+    except Exception as e:
+        log("media probes failed:", e)
+
     log("SMOKE DONE")
 finally:
     try:

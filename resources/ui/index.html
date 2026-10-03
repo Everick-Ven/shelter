@@ -5950,7 +5950,7 @@ function bmFavHtml(b, cls = '') {
   favCacheFetch(host);
   const src = 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(host);
   const yx = 'https://favicon.yandex.net/favicon.v2/' + encodeURIComponent(host);
-  return `<span class="fav fimg ${cls}" style="background:${m.color || 'var(--card-3)'}" title="${esc(host)}">${esc(letter)}<img data-favhost="${esc(host)}" src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="if(!this.dataset.f){this.dataset.f='1';this.src='${yx}';}else{this.remove();}"></span>`;
+  return `<span class="fav fimg ${cls}" style="background:${m.color || 'var(--card-3)'}" title="${esc(host)}">${esc(letter)}<img data-favhost="${esc(host)}" src="${esc(src)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="if(!this.dataset.f){this.dataset.f='1';this.src='${yx}';}else{this.remove();}"></span>`;
 }
 function toggleBmBar(id) {
   const b = S.bookmarks.find(x => x.id === id); if (!b) return;
@@ -9686,7 +9686,7 @@ function tabPreviewHtml(t) {
   if (!host || host === 'shelter.dev') host = (m.title || t.title || 'SHELTER').replace(/ · .*$/, '');
   const color = t.color || m.color || '';
   const ph = color ? (color.charAt(0) === '#' ? color : ('#' + String(color).replace(/[^0-9a-f]/gi, '').slice(0, 6))) : '';
-  return `<div class="q-prev${src ? ' has-img' : ''}" data-thumb="${t.id}"${ph ? ` style="--ph:${esc(ph)}"` : ''}>${src ? `<img alt="" src="${src}">` : ''}<div class="q-ph"><span class="q-ph-fav">${m.kind === 'internal' ? ico(m.icon || 'home') : favHtml(t)}</span><span class="q-ph-host">${esc(host)}</span></div></div>`;
+  return `<div class="q-prev${src ? ' has-img' : ''}" data-thumb="${t.id}"${ph ? ` style="--ph:${esc(ph)}"` : ''}>${src ? `<img alt="" src="${src}" decoding="async">` : ''}<div class="q-ph"><span class="q-ph-fav">${m.kind === 'internal' ? ico(m.icon || 'home') : favHtml(t)}</span><span class="q-ph-host">${esc(host)}</span></div></div>`;
 }
 function quickTabsHtml() {
   const view = S.ui.tabView === 'tiles' ? 'tiles' : 'list';
@@ -9748,7 +9748,7 @@ window.shelterOnThumb = (id, url) => {
   T.thumbs[id] = url;
   document.querySelectorAll('.q-prev[data-thumb="' + id + '"]').forEach(box => {
     let img = box.querySelector('img');
-    if (!img) { img = document.createElement('img'); img.alt = ''; box.insertBefore(img, box.firstChild); }
+    if (!img) { img = document.createElement('img'); img.alt = ''; img.decoding = 'async'; box.insertBefore(img, box.firstChild); }
     img.src = url;
     box.classList.add('has-img');
   });

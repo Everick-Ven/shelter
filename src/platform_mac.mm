@@ -2,6 +2,8 @@
 #import <QuartzCore/QuartzCore.h>
 #import <Security/Security.h>
 
+#include <cstdarg>
+#include <cstdio>
 #include <string>
 
 #include "src/platform.h"
@@ -15,6 +17,39 @@ namespace {
 constexpr const char kCookieSvc[] = "Chromium Safe Storage";
 constexpr const char kCookieAcct[] = "Chromium";
 
+// Диагностика в keychain.log (публикуется CI): любые аномалии ключейни должны
+// быть видны без доступа к машине. Пишем в общий каталог данных приложения.
+void LogKC(const char* fmt, ...) {
+  std::string dir = UserDataDir();
+  if (dir.empty()) return;
+  const std::string path = dir + "/keychain.log";
+  FILE* f = fopen(path.c_str(), "a");
+  if (!f) return;
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(f, fmt, ap);
+  va_end(ap);
+  fputc('\n', f);
+  fclose(f);
+}
+
+// Разблокирована ли login keychain — запрос СТАТУСА, без UI и без обращений к
+// записям: единственный абсолютно безопасный способ не провисеть на диалоге
+// разблокировки в headless-окружении (CI).
+bool LoginKeychainUnlocked() {
+  SecKeychainRef kc = nullptr;
+  if (SecKeychainCopyDefault(&kc) != errSecSuccess || !kc) {
+    LogKC("status: no default keychain");
+    return false;
+  }
+  SecKeychainStatus st = 0;
+  OSStatus s = SecKeychainGetStatus(kc, &st);
+  CFRelease(kc);
+  const bool unlocked = (s == errSecSuccess) && (st & kSecUnlockStateStatus);
+  LogKC("status: os=%d st=%u unlocked=%d", (int)s, (unsigned)st, unlocked ? 1 : 0);
+  return unlocked;
+}
+
 CFStringRef MakeCF(const char* s) {
   return CFStringCreateWithCString(kCFAllocatorDefault, s, kCFStringEncodingUTF8);
 }
@@ -22,8 +57,11 @@ CFStringRef MakeCF(const char* s) {
 // Чтение generic-пароли БЕЗ возможности показать запрос (kSecUseAuthenticationUIFail).
 // errSecSuccess — данные получены; errSecItemNotFound — записи нет; прочее —
 // есть, но недоступна молча (чужой ACL / заблокирована).
+// Если login keychain заблокирована — вообще не трогаем SecItem (диалог
+// разблокировки в CI = вечное зависание старта; статус-проверка его исключает).
 OSStatus KeychainReadNoPrompt(const char* service, const char* account,
                               std::string* out) {
+  if (!LoginKeychainUnlocked()) return errSecInteractionNotAllowed;
   CFStringRef svc = MakeCF(service);
   CFStringRef acct = MakeCF(account);
   const void* keys[] = {kSecClass, kSecAttrService, kSecAttrAccount,
@@ -38,6 +76,7 @@ OSStatus KeychainReadNoPrompt(const char* service, const char* account,
   if (query) CFRelease(query);
   if (svc) CFRelease(svc);
   if (acct) CFRelease(acct);
+  LogKC("read %s/%s -> os=%d", service, account, (int)st);
   if (st != errSecSuccess || !res) {
     if (res) CFRelease(res);
     return st;
@@ -110,6 +149,7 @@ bool KeychainPutOpen(const char* service, const char* account,
         &kCFTypeDictionaryValueCallBacks);
     OSStatus addSt = SecItemAdd(add, nullptr);
     // duplicate = уже записано (гонка/повтор) — цель достигнута.
+    LogKC("add %s/%s -> os=%d", service, account, (int)addSt);
     ok = (addSt == errSecSuccess || addSt == errSecDuplicateItem);
     if (add) CFRelease(add);
     if (data) CFRelease(data);
@@ -124,8 +164,9 @@ bool KeychainPutOpen(const char* service, const char* account,
 bool EnsureCookieKeychain() {
   std::string existing;
   OSStatus st = KeychainReadNoPrompt(kCookieSvc, kCookieAcct, &existing);
-  if (st == errSecSuccess) return true;  // читается молча — Chromium тоже прочитает
-  if (st != errSecItemNotFound) return false;  // чужая запись/нет доступа → mock-keychain
+  LogKC("ensure-cookie: read os=%d", (int)st);
+  if (st == errSecSuccess) { LogKC("ensure-cookie: => true (readable)"); return true; }  // читается молча — Chromium тоже прочитает
+  if (st != errSecItemNotFound) { LogKC("ensure-cookie: => false (foreign/denied)"); return false; }  // чужая запись/нет доступа → mock-keychain
   // Записи нет — создаём со случайным ключом и открытой ACL: Chromium найдёт
   // её и будет шифровать куки настоящим случайным ключом без запросов
   // (запись создаётся до старта CefInitialize, см. OnBeforeCommandLineProcessing).
@@ -147,8 +188,10 @@ bool EnsureCookieKeychain() {
   // Верификация: перечитываем без UI — если прочиталось, Chromium тоже
   // прочитает молча (ACL уже проверен при записи).
   std::string verify;
-  return KeychainReadNoPrompt(kCookieSvc, kCookieAcct, &verify) ==
-         errSecSuccess;
+  const bool verified =
+      KeychainReadNoPrompt(kCookieSvc, kCookieAcct, &verify) == errSecSuccess;
+  LogKC("ensure-cookie: => %d (created+verified)", verified ? 1 : 0);
+  return verified;
 }
 
 

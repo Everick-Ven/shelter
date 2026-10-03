@@ -168,7 +168,9 @@ jobs:
         if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: tools/push_log.sh macos configure.log build.log smoke-run.log package.log geometry.log smoke/*
+        run: |
+          cp "$HOME/Library/Application Support/SHELTER/keychain.log" ./keychain.log 2>/dev/null || true
+          tools/push_log.sh macos configure.log build.log smoke-run.log package.log geometry.log keychain.log smoke/*
 
   release:
     name: Release

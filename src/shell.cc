@@ -20,6 +20,7 @@
 
 #include "include/base/cef_callback.h"
 #include "include/cef_app.h"
+#include "include/cef_auth_callback.h"
 #include "include/cef_command_line.h"
 #include "include/cef_parser.h"
 #include "include/cef_stream.h"

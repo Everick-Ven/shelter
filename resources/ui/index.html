@@ -4305,13 +4305,13 @@ document.addEventListener('mousedown', e => {
   if (sel && !sel.disabled) e.preventDefault();
 }, true);
 
-function openModal({ html, cls = '', width, onClose, top = false, dismiss = true, raw = false }) {
+function openModal({ html, cls = '', width, onClose, top = false, dismiss = true, raw = false, guard = null }) {
   closeMenu(); hideTip();
   const scrim = document.createElement('div');
   scrim.className = 'scrim' + (top ? ' top' : '');
   scrim.innerHTML = raw ? html : `<div class="modal ${cls}" role="dialog" aria-modal="true"${width ? ` style="width:min(${width}px,100%)"` : ''}>${html}</div>`;
   document.body.appendChild(scrim);
-  const entry = { scrim, onClose, dismiss, down: false };
+  const entry = { scrim, onClose, dismiss, down: false, guard };
   OV.stack.push(entry);
   scrim.addEventListener('pointerdown', e => { entry.down = e.target === scrim; });
   scrim.addEventListener('click', e => { if (e.target === scrim && entry.down && entry.dismiss) closeModal(entry); entry.down = false; });
@@ -4320,6 +4320,16 @@ function openModal({ html, cls = '', width, onClose, top = false, dismiss = true
 }
 function closeModal(entry) {
   entry = entry || OV.stack[OV.stack.length - 1]; if (!entry) return;
+  /* «Защита от дурака»: модалка с несохранённым вводом закрывается только
+     после подтверждения (guard возвращает true/false). */
+  if (entry.guard && !entry.__guarding) {
+    entry.__guarding = true;
+    Promise.resolve().then(() => entry.guard()).then(ok => {
+      entry.__guarding = false;
+      if (ok) { entry.guard = null; closeModal(entry); }
+    }, () => { entry.__guarding = false; });
+    return;
+  }
   const i = OV.stack.indexOf(entry); if (i < 0) return;
   OV.stack.splice(i, 1);
   entry.scrim.classList.add('closing'); setTimeout(() => entry.scrim.remove(), 200);
@@ -6722,7 +6732,7 @@ function visMenu(anchor) {
     { label: 'В закладки', icon: 'star', run: () => addBookmark(v.url, v.title) },
     { label: 'Копировать ссылку', icon: 'link', run: () => { copyText(v.url); toast('Ссылка скопирована', { icon: 'link' }); } },
     '-',
-    { label: 'Удалить из истории', icon: 'trash', danger: true, run: () => { S.visits = S.visits.filter(x => x !== v); persist(); histRerender(); toast('Удалено из истории', { icon: 'trash' }); } },
+    { label: 'Удалить из истории', icon: 'trash', danger: true, run: () => { const i = S.visits.indexOf(v); if (i < 0) return; S.visits.splice(i, 1); persist(); histRerender(); toast('Удалено из истории', { icon: 'trash', action: { label: 'Вернуть', run: () => { S.visits.splice(Math.min(i, S.visits.length), 0, v); persist(); histRerender(); } } }); } },
     { label: 'Удалить всё с ' + hostOf(v.url), icon: 'ban', danger: true, run: () => clearVisits(x => hostOf(x.url) === hostOf(v.url), 'Удалено с ' + hostOf(v.url)) }
   ], { place: 'bottom-end' });
 }
@@ -7184,6 +7194,17 @@ const POMO_LABEL = { work: 'Фокус', short: 'Короткий перерыв
 function pomoState() { return T.pomo || (T.pomo = { mode: 'work', remain: POMO_DUR.work, running: false, cycles: 0 }); }
 const pomoDur = mode => POMO_DUR[mode] || POMO_DUR.work;
 const pomoFmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + pad2(s % 60); };
+/* «Защита от дурака»: переключение/сброс незавершённой сессии помодоро —
+   только после подтверждения, чтобы не потерять идущий прогресс. */
+const pomoBusy = () => { const P = pomoState(); return P.running || P.remain < pomoDur(P.mode) - 0.5; };
+function pomoGuardSwitch() {
+  if (!pomoBusy()) return Promise.resolve(true);
+  return confirmDlg({
+    title: 'Таймер уже запущен',
+    text: 'Сессия помодоро не завершена — переключение сбросит текущий прогресс. Действительно переключить таймер?',
+    ok: 'Переключить', cancel: 'Остаться', danger: true, icon: 'timer'
+  });
+}
 function pomoAdvance() {
   const P = pomoState();
   if (P.mode === 'work') { P.cycles++; P.mode = (P.cycles % 4 === 0) ? 'long' : 'short'; }
@@ -7324,7 +7345,7 @@ function openWidgetAddMenu(anchor) {
 }
 RENDER.messenger = () => RENDER.widgets();
 AFTER.messenger = () => {};
-function msgOpen(id) { const M = M0(); if (M.active === id) return; M.active = id; stopRec(true); $('#msgMain').innerHTML = chatMainHtml(); $('#chatList').innerHTML = chatListHtml(); if (!REDUCED()) $('#msgMain').animate([{ opacity: 0, transform: 'translate3d(8px,0,0)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.22,1,.36,1)' }); msgBind(); }
+function msgOpen(id) { const M = M0(); if (M.active === id) return; const ta0 = $('#msgIn'); if (ta0) (T.msgDrafts || (T.msgDrafts = {}))[M.active] = ta0.value; M.active = id; stopRec(true); $('#msgMain').innerHTML = chatMainHtml(); $('#chatList').innerHTML = chatListHtml(); if (!REDUCED()) $('#msgMain').animate([{ opacity: 0, transform: 'translate3d(8px,0,0)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.22,1,.36,1)' }); msgBind(); const ta = $('#msgIn'); if (ta) ta.value = (T.msgDrafts || {})[id] || ''; }
 function msgPush(chatId, m) {
   (S.messages[chatId] || (S.messages[chatId] = [])).push(m); persist();
   if (M0().active === chatId && $('#msgBody')) { const b = $('#msgBody'); b.insertAdjacentHTML('beforeend', msgHtml(m)); b.scrollTo({ top: b.scrollHeight, behavior: REDUCED() ? 'auto' : 'smooth' }); $('#chatList').innerHTML = chatListHtml(); }
@@ -7347,6 +7368,7 @@ function msgSend() {
   if (M.rec) { stopRec(false); return; }
   const ta = $('#msgIn'), v = ta ? ta.value.trim() : ''; if (!v) { if (ta) ta.focus(); return; }
   ta.value = ''; autoGrow(ta);
+  if (T.msgDrafts) delete T.msgDrafts[M.active];
   msgPush(M.active, { me: true, text: v, at: Date.now() }); autoReply(M.active);
 }
 function startRec() {
@@ -7545,6 +7567,19 @@ function taskModal(id, opts) {
     <div class="modal-f">${isNew ? '' : `<button class="btn ghost danger" data-r="del" style="margin-right:auto">${ico('trash')}Удалить</button>`}<button class="btn ghost" data-r="invite" id="tfInvite">${ico('users')}Пригласить</button><button class="btn ghost" data-r="0">Отмена</button><button class="btn primary" data-r="1">${okLabel}</button></div>`;
   const m = openModal({ width: 620, html: simple ? simpleHtml : fullHtml });
   const root = m.scrim, g = s => $(s, root);
+  /* Черновик задачи: закрытие формы с несохранёнными полями — с подтверждением */
+  const tfSnap = () => {
+    const vals = ['#tfTitle', '#tfComment', '#tfDeadline', '#tfDays', '#tfProject', '#tfAssignee', '#tfPrio', '#tfStatus', '#tfTerm', '#tfFormat']
+      .map(s => { const el = g(s); return el ? String(el.value || '') : ''; });
+    const qm = g('#tfQm .on'); vals.push(qm ? qm.dataset.qm : '');
+    return vals.join('\u0001');
+  };
+  const tfInitial = tfSnap();
+  m.guard = () => (tfSnap() === tfInitial ? true : confirmDlg({
+    title: 'Закрыть без сохранения?',
+    text: 'В форме задачи есть несохранённые изменения — черновик будет потерян.',
+    ok: 'Закрыть без сохранения', cancel: 'Вернуться к форме', danger: true, icon: 'ban'
+  }));
   if (simple) {
     g('#tfQm').addEventListener('click', e => {
       const qb = e.target.closest('[data-qm]'); if (!qb) return;
@@ -7600,7 +7635,7 @@ function taskModal(id, opts) {
       projectInvite(pid && pid !== '__add' ? pid : '');
       return;
     }
-    if (r.dataset.r === 'del') { closeModal(m); if (await confirmDlg({ title: 'Удалить задачу?', text: String(src.title || ''), ok: 'Удалить', danger: true, icon: 'trash' })) { b.tasks = b.tasks.filter(x => x !== src); persist(); tasksRerender(); toast('Задача удалена', { icon: 'trash' }); } return; }
+    if (r.dataset.r === 'del') { m.guard = null; closeModal(m); if (await confirmDlg({ title: 'Удалить задачу?', text: String(src.title || ''), ok: 'Удалить', danger: true, icon: 'trash' })) { b.tasks = b.tasks.filter(x => x !== src); persist(); tasksRerender(); toast('Задача удалена', { icon: 'trash' }); } return; }
     const title = g('#tfTitle').value.trim(); if (!title) { g('#tfTitle').focus(); g('#tfTitle').animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }], { duration: 300 }); return; }
     if (simple) {
       const qEl = g('#tfQm .on');
@@ -7612,7 +7647,7 @@ function taskModal(id, opts) {
       const prio = imp ? 'Срочно' : 'Не срочные';
       const data = { title, kind: 'personal', project: '', projectId: '', assignee: 'Вы', prio, prevPrio: prio, status: 'В работе', term: t.term, days: 1, deadline: dl, format: t.format, comment: '', qm, ownerEmail: accountEmail() || (S.board.ownerEmail || '') };
       b.tasks.push(Object.assign({ id: uid('task'), created: ruDate(Date.now()) }, data));
-      persist(); closeModal(m); tasksRerender(); toast('Дело в матрице', { icon: 'check' }); return;
+      m.guard = null; persist(); closeModal(m); tasksRerender(); toast('Дело в матрице', { icon: 'check' }); return;
     }
     if (kind === 'project' && (!g('#tfProject').value || g('#tfProject').value === '__add')) {
       toast('Выберите проект', { icon: 'info' }); return;
@@ -7627,7 +7662,7 @@ function taskModal(id, opts) {
       data.qm = ((prio === 'Критично' || prio === 'Срочно') ? 0 : 2) + (u ? 0 : 1);
     } else delete data.qm;
     if (isNew) b.tasks.push(Object.assign({ id: uid('task'), created: ruDate(Date.now()) }, data)); else Object.assign(src, data);
-    persist(); closeModal(m); tasksRerender();
+    m.guard = null; persist(); closeModal(m); tasksRerender();
     toast(isNew ? (kind === 'personal' ? 'Дело в матрице' : 'Задача создана') : 'Задача сохранена', { icon: 'check' });
   });
   setTimeout(() => g('#tfTitle').focus(), 60);
@@ -10054,9 +10089,9 @@ const ACT = {
   achToggle: () => { T.profileAchOpen = !T.profileAchOpen; refreshPage('profile'); },
   achHint: () => showProfileHint(),
   pomoToggle: () => { pomoState().running = !pomoState().running; pomoRenderTick(); },
-  pomoStatus: () => { const P = pomoState(); P.mode = P.mode === 'work' ? 'short' : (P.mode === 'short' ? 'long' : 'work'); P.remain = pomoDur(P.mode); P.running = false; pomoRenderTick(); toast('Режим: ' + POMO_LABEL[P.mode], { icon: 'timer' }); },
-  pomoReset: () => { const P = pomoState(); P.mode = 'work'; P.remain = pomoDur('work'); P.running = false; P.cycles = 0; pomoRenderTick(); },
-  pomoSkip: () => { pomoAdvance(); pomoState().running = false; pomoRenderTick(); },
+  pomoStatus: async () => { if (!(await pomoGuardSwitch())) return; const P = pomoState(); P.mode = P.mode === 'work' ? 'short' : (P.mode === 'short' ? 'long' : 'work'); P.remain = pomoDur(P.mode); P.running = false; pomoRenderTick(); toast('Режим: ' + POMO_LABEL[P.mode], { icon: 'timer' }); },
+  pomoReset: async () => { const P = pomoState(); if (pomoBusy() && !(await confirmDlg({ title: 'Сбросить помодоро?', text: 'Текущий прогресс сессии и счётчик циклов за сегодня будут сброшены.', ok: 'Сбросить', danger: true, icon: 'ref' }))) return; P.mode = 'work'; P.remain = pomoDur('work'); P.running = false; P.cycles = 0; pomoRenderTick(); },
+  pomoSkip: async () => { if (!(await pomoGuardSwitch())) return; pomoAdvance(); pomoState().running = false; pomoRenderTick(); },
   wgShowMenu: el => openWidgetPicker(el),
   wgAdd: el => openWidgetAddMenu(el),
   activatePromoKey: () => activatePromoKey(),

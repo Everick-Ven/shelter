@@ -108,6 +108,17 @@ class Shell {
   void OnTabTitle(CefRefPtr<CefBrowser> browser, const std::string& title);
   void OnTabLoading(CefRefPtr<CefBrowser> browser, bool loading);
   void OnTabNewWindow(CefRefPtr<CefBrowser> browser, const std::string& url);
+  void OnTabFullscreen(CefRefPtr<CefBrowser> browser, bool on);
+  void SetWindowFullscreen(bool on);
+
+  // ---- расширения (Chrome Web Store / .crx) ----
+  void ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
+  void ExtInstall(const std::string& src);
+  void ExtRemove(const std::string& id);
+  void ExtPick();
+  void ExtToast(const std::string& text, bool err);
+  void ExtPushList();
+  void ExtInstallBytes(std::string bytes, const std::string& origin);
   bool OnTabKey(CefRefPtr<CefBrowser> browser, const CefKeyEvent& event);
   void OnTabFindResult(CefRefPtr<CefBrowser> browser, int count, int idx,
                        bool final_update);

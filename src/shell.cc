@@ -14,10 +14,18 @@
 #include <sys/types.h>
 #endif
 
+#include <cctype>
+#include <cstring>
+
 #include "include/base/cef_callback.h"
 #include "include/cef_app.h"
 #include "include/cef_command_line.h"
+#include "include/cef_extension.h"
+#include "include/cef_extension_handler.h"
 #include "include/cef_parser.h"
+#include "include/cef_stream.h"
+#include "include/cef_urlrequest.h"
+#include "include/cef_zip_reader.h"
 #include "include/views/cef_box_layout.h"
 #include "include/views/cef_display.h"
 #include "include/wrapper/cef_closure_task.h"
@@ -131,6 +139,183 @@ class PopupWindowDelegate : public CefWindowDelegate {
   IMPLEMENT_REFCOUNTING(PopupWindowDelegate);
   DISALLOW_COPY_AND_ASSIGN(PopupWindowDelegate);
 };
+
+// ---- расширения: CRX -> распаковка -> CefRequestContext::LoadExtension ----
+
+std::string ExtManifestString(CefRefPtr<CefExtension> e, const char* key) {
+  if (!e) return std::string();
+  CefRefPtr<CefDictionaryValue> m = e->GetManifest();
+  if (m && m->HasKey(key) && m->GetType(key) == VTYPE_STRING)
+    return m->GetString(key).ToString();
+  return std::string();
+}
+
+std::string BuildExtListJson() {
+  CefRefPtr<CefRequestContext> ctx = CefRequestContext::GetGlobalContext();
+  std::ostringstream os;
+  os << "{\"list\":[";
+  if (ctx) {
+    std::vector<CefString> ids;
+    ctx->GetExtensions(ids);
+    bool first = true;
+    for (const auto& id : ids) {
+      CefRefPtr<CefExtension> e = ctx->GetExtension(id);
+      if (!e) continue;
+      std::string name = ExtManifestString(e, "name");
+      if (name.empty()) name = id.ToString();
+      if (!first) os << ",";
+      first = false;
+      os << "{\"id\":" << JsString(id.ToString())
+         << ",\"name\":" << JsString(name)
+         << ",\"ver\":" << JsString(ExtManifestString(e, "version"))
+         << ",\"path\":" << JsString(e->GetPath().ToString()) << "}";
+    }
+  }
+  os << "]}";
+  return os.str();
+}
+
+class ShellExtHandler : public CefExtensionHandler {
+ public:
+  ShellExtHandler() = default;
+  void OnExtensionLoadFailed(cef_errorcode_t err) override {
+    Shell::Get().ExtToast(
+        "Расширение не загрузилось (несовместимо с Shelter, код " +
+            std::to_string(static_cast<int>(err)) + ")",
+        true);
+  }
+  void OnExtensionLoaded(CefRefPtr<CefRequestContext>,
+                         CefRefPtr<CefExtension> ext) override {
+    const std::string name = ExtManifestString(ext, "name");
+    Shell::Get().ExtToast(name.empty() ? "Расширение загружено"
+                                       : "Расширение загружено: " + name,
+                          false);
+    Shell::Get().ExtPushList();
+  }
+  void OnExtensionUnloaded(CefRefPtr<CefRequestContext>,
+                           CefRefPtr<CefExtension>) override {
+    Shell::Get().ExtPushList();
+  }
+
+ private:
+  IMPLEMENT_REFCOUNTING(ShellExtHandler);
+  DISALLOW_COPY_AND_ASSIGN(ShellExtHandler);
+};
+
+// Загрузка .crx/.zip пакета расширения через CefURLRequest.
+class CrxDownload : public CefURLRequestClient {
+ public:
+  explicit CrxDownload(std::string origin) : origin_(std::move(origin)) {}
+  void Start(const std::string& url) {
+    CefRefPtr<CefRequest> req = CefRequest::Create();
+    req->SetURL(url);
+    req->SetMethod("GET");
+    CefURLRequest::Create(req, this, CefRequestContext::GetGlobalContext());
+  }
+
+  void OnRequestComplete(CefRefPtr<CefURLRequest> request) override {
+    if (request->GetRequestStatus() == UR_SUCCESS && !buf_.empty()) {
+      Shell::Get().ExtInstallBytes(std::move(buf_), origin_);
+    } else {
+      Shell::Get().ExtToast(
+          "Не удалось скачать пакет расширения (сеть или магазин недоступны)",
+          true);
+    }
+  }
+  void OnUploadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+  void OnDownloadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+  void OnResponseReceived(CefRefPtr<CefURLRequest>,
+                          CefRefPtr<CefResponse>) override {}
+  void OnReadResponse(CefRefPtr<CefURLRequest>, void* data_out,
+                      size_t bytes_to_read, int64_t& bytes_read, void*& buffer,
+                      size_t& buffer_size) override {
+    const size_t have = buf_.size() - pos_;
+    const size_t n = std::min(bytes_to_read, have);
+    if (n) memcpy(data_out, buf_.data() + pos_, n);
+    pos_ += n;
+    bytes_read = static_cast<int64_t>(n);
+    buffer = nullptr;
+    buffer_size = 0;
+  }
+
+ private:
+  std::string origin_;
+  std::string buf_;
+  size_t pos_ = 0;
+  IMPLEMENT_REFCOUNTING(CrxDownload);
+  DISALLOW_COPY_AND_ASSIGN(CrxDownload);
+};
+
+uint32_t ReadLe32(const std::string& b, size_t off) {
+  uint32_t v = 0;
+  memcpy(&v, b.data() + off, 4);
+  return v;
+}
+
+// Смещение ZIP-части внутри CRX (v2/v3). Для обычного ZIP возвращает 0.
+size_t CrxZipOffset(const std::string& b) {
+  if (b.size() < 4 || memcmp(b.data(), "Cr24", 4) != 0) return 0;
+  if (b.size() < 12) return b.size();
+  const uint32_t ver = ReadLe32(b, 4);
+  if (ver == 3) {
+    const size_t off = 12 + ReadLe32(b, 8);
+    return off <= b.size() ? off : b.size();
+  }
+  if (ver == 2 && b.size() >= 16) {
+    const size_t off = 16 + ReadLe32(b, 8) + ReadLe32(b, 12);
+    return off <= b.size() ? off : b.size();
+  }
+  return b.size();
+}
+
+bool SafeZipName(const std::string& name) {
+  if (name.empty() || name[0] == '/') return false;
+  size_t start = 0;
+  while (start <= name.size()) {
+    size_t slash = name.find('/', start);
+    const std::string part = name.substr(
+        start, slash == std::string::npos ? std::string::npos : slash - start);
+    if (part == "..") return false;
+    if (slash == std::string::npos) break;
+    start = slash + 1;
+  }
+  return true;
+}
+
+bool UnzipBytesTo(const std::string& bytes, const fs::path& dir) {
+  if (bytes.empty()) return false;
+  CefRefPtr<CefStreamReader> sr = CefStreamReader::CreateForData(
+      const_cast<char*>(bytes.data()), bytes.size());
+  if (!sr) return false;
+  CefRefPtr<CefZipReader> zr = CefZipReader::Create(sr);
+  if (!zr || !zr->MoveToFirstFile()) return false;
+  bool any = false;
+  do {
+    std::string name = zr->GetFileName().ToString();
+    for (auto& ch : name) {
+      if (ch == '\\') ch = '/';
+    }
+    if (!SafeZipName(name)) continue;
+    fs::path fp = dir / name;
+    std::error_code ec;
+    if (name.back() == '/') {
+      fs::create_directories(fp, ec);
+      continue;
+    }
+    fs::create_directories(fp.parent_path(), ec);
+    if (zr->OpenFile(CefString(), true)) {
+      std::ofstream out(fp, std::ios::binary | std::ios::trunc);
+      char chunk[65536];
+      size_t n = 0;
+      while ((n = zr->ReadFile(chunk, sizeof(chunk))) > 0)
+        out.write(chunk, static_cast<std::streamsize>(n));
+      out.close();
+      zr->CloseFile();
+      any = true;
+    }
+  } while (zr->MoveToNextFile());
+  return any;
+}
 
 }  // namespace
 
@@ -757,6 +942,208 @@ void Shell::DownloadDecision(const std::string& id, const std::string& action) {
     pd.callback->Continue(path, action == "saveAs");
   }
   // "cancel": callback освобождается без Continue — загрузка отменяется.
+}
+
+// ---- полноэкранный режим контента ------------------------------------------
+
+void Shell::OnTabFullscreen(CefRefPtr<CefBrowser> browser, bool on) {
+  CEF_REQUIRE_UI_THREAD();
+  Tab* t = FindTabByBrowser(browser ? browser->GetIdentifier() : -1);
+  if (!t) return;
+  Log("fullscreen tab=" + t->id + " on=" + (on ? "1" : "0"));
+  UiEvent("fullscreen",
+          "{\"id\":" + JsString(t->id) + ",\"on\":" + (on ? "true" : "false") + "}");
+}
+
+void Shell::SetWindowFullscreen(bool on) {
+  CEF_REQUIRE_UI_THREAD();
+  if (window_) window_->SetFullscreen(on);
+}
+
+// ---- расширения -------------------------------------------------------------
+
+void Shell::ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb) {
+  CEF_REQUIRE_UI_THREAD();
+  cb->Success(BuildExtListJson());
+}
+
+void Shell::ExtPushList() {
+  CEF_REQUIRE_UI_THREAD();
+  UiEvent("ext", BuildExtListJson());
+}
+
+void Shell::ExtToast(const std::string& text, bool err) {
+  CEF_REQUIRE_UI_THREAD();
+  UiEvent("ext-toast",
+          "{\"text\":" + JsString(text) + ",\"err\":" + (err ? "true" : "false") + "}");
+}
+
+void Shell::ExtRemove(const std::string& id) {
+  CEF_REQUIRE_UI_THREAD();
+  CefRefPtr<CefRequestContext> ctx = CefRequestContext::GetGlobalContext();
+  if (!ctx || id.empty()) return;
+  CefRefPtr<CefExtension> e = ctx->GetExtension(id);
+  if (e) e->Remove();
+}
+
+namespace {
+class ExtPickCallback : public CefRunFileDialogCallback {
+ public:
+  ExtPickCallback() = default;
+  void OnFileDialogDismissed(const std::vector<CefString>& file_paths) override {
+    for (const auto& p : file_paths) Shell::Get().ExtInstall(p.ToString());
+  }
+
+ private:
+  IMPLEMENT_REFCOUNTING(ExtPickCallback);
+  DISALLOW_COPY_AND_ASSIGN(ExtPickCallback);
+};
+}  // namespace
+
+void Shell::ExtPick() {
+  CEF_REQUIRE_UI_THREAD();
+  if (!ui_browser_) return;
+  std::vector<CefString> filters;
+  filters.push_back(CefString("*.crx"));
+  filters.push_back(CefString("*.zip"));
+  ui_browser_->GetHost()->RunFileDialog(
+      FILE_DIALOG_OPEN, CefString::CreateASCII("Установить расширение"),
+      CefString(), filters, new ExtPickCallback());
+}
+
+void Shell::ExtInstall(const std::string& src) {
+  CEF_REQUIRE_UI_THREAD();
+  std::string s = src;
+  const auto b = s.find_first_not_of(" \t\r\n");
+  const auto e = s.find_last_not_of(" \t\r\n");
+  s = (b == std::string::npos) ? "" : s.substr(b, e - b + 1);
+  if (s.empty()) {
+    ExtToast("Вставьте ID расширения, ссылку из Chrome Web Store или путь к .crx", true);
+    return;
+  }
+
+  // Локальный файл: путь или file:// URL.
+  std::string path;
+  if (s.rfind("file://", 0) == 0) {
+    CefURLParts parts;
+    if (CefParseURL(s, parts)) path = CefString(&parts.path).ToString();
+  } else if (s[0] == '/' || s.rfind("./", 0) == 0 ||
+             (s.size() > 2 && s[1] == ':' && (s[2] == '/' || s[2] == '\\'))) {
+    path = s;
+  }
+  if (!path.empty()) {
+    std::ifstream f(path, std::ios::binary);
+    if (!f) {
+      ExtToast("Файл не найден: " + path, true);
+      return;
+    }
+    std::ostringstream ss;
+    ss << f.rdbuf();
+    ExtInstallBytes(ss.str(), path);
+    return;
+  }
+
+  // ID расширения: 32 символа a-p (голосом или из ссылки магазина).
+  const auto is_id = [](const std::string& x) {
+    if (x.size() != 32) return false;
+    for (char c : x) {
+      if (c < 'a' || c > 'p') return false;
+    }
+    return true;
+  };
+  std::string id;
+  if (is_id(s)) {
+    id = s;
+  } else {
+    for (size_t i = 0; i + 32 <= s.size(); ++i) {
+      if (is_id(s.substr(i, 32))) {
+        id = s.substr(i, 32);
+        break;
+      }
+    }
+  }
+  if (id.empty()) {
+    if (s.rfind("http", 0) == 0 && s.find(".crx") != std::string::npos) {
+      CefRefPtr<CrxDownload> dl = new CrxDownload(s);
+      dl->Start(s);
+      return;
+    }
+    ExtToast("Нужен ID расширения (32 символа) или ссылка из Chrome Web Store", true);
+    return;
+  }
+  const std::string url =
+      "https://clients2.google.com/service/update2/crx?response=redirect"
+      "&prodversion=131.0&acceptformat=crx2,crx3&x=id%3D" + id +
+      "%26installsource%3Dondemand%26uc";
+  CefRefPtr<CrxDownload> dl = new CrxDownload(id);
+  dl->Start(url);
+}
+
+void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
+  CEF_REQUIRE_UI_THREAD();
+  Log("ext install bytes=" + std::to_string(bytes.size()) + " from=" + origin);
+  const size_t off = CrxZipOffset(bytes);
+  if (off >= bytes.size()) {
+    ExtToast("Пакет не похож на CRX/ZIP расширения", true);
+    return;
+  }
+  CefRefPtr<CefRequestContext> ctx = CefRequestContext::GetGlobalContext();
+  if (!ctx) {
+    ExtToast("Нет профиля для установки расширений", true);
+    return;
+  }
+  const fs::path cache = ctx->GetCachePath().ToString();
+  if (cache.empty()) {
+    ExtToast("Путь профиля не определён", true);
+    return;
+  }
+  const fs::path root = cache / "Extensions";
+  std::error_code ec;
+  fs::create_directories(root, ec);
+  static int seq = 0;
+  fs::path tmp = root / ("_tmp" + std::to_string(++seq));
+  fs::create_directories(tmp, ec);
+  const std::string zip(bytes.begin() + static_cast<std::ptrdiff_t>(off), bytes.end());
+  if (!UnzipBytesTo(zip, tmp)) {
+    ExtToast("Не удалось распаковать архив расширения", true);
+    fs::remove_all(tmp, ec);
+    return;
+  }
+  std::ifstream mf(tmp / "manifest.json", std::ios::binary);
+  if (!mf) {
+    ExtToast("В архиве нет manifest.json — это не расширение", true);
+    fs::remove_all(tmp, ec);
+    return;
+  }
+  std::ostringstream mss;
+  mss << mf.rdbuf();
+  CefRefPtr<CefValue> v = CefParseJSON(mss.str(), JSON_PARSER_RFC);
+  std::string name, ver;
+  if (v && v->GetType() == VTYPE_DICTIONARY) {
+    CefRefPtr<CefDictionaryValue> d = v->GetDictionary();
+    if (d->HasKey("name") && d->GetType("name") == VTYPE_STRING)
+      name = d->GetString("name").ToString();
+    if (d->HasKey("version") && d->GetType("version") == VTYPE_STRING)
+      ver = d->GetString("version").ToString();
+  }
+  if (name.empty()) name = "extension";
+  std::string slug;
+  for (char c : name) {
+    if (isalnum(static_cast<unsigned char>(c))) slug += static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    else if (!slug.empty() && slug.back() != '-') slug += '-';
+  }
+  if (slug.empty() || slug.back() == '-') slug += "ext";
+  fs::path dest = root / slug;
+  for (int uniq = 2; fs::exists(dest, ec) && uniq < 50; ++uniq)
+    dest = root / (slug + "-" + std::to_string(uniq));
+  fs::rename(tmp, dest, ec);
+  if (ec) {
+    ExtToast("Не удалось разместить расширение в профиле", true);
+    fs::remove_all(tmp, ec);
+    return;
+  }
+  ExtToast("Устанавливаю: " + name + (ver.empty() ? "" : " v" + ver), false);
+  ctx->LoadExtension(dest.ToString(), new ShellExtHandler());
 }
 
 void Shell::OnTabDownloadUpdated(CefRefPtr<CefDownloadItem> item) {

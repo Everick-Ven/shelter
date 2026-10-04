@@ -153,6 +153,30 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser>, const std::string& m,
     cb->Success("{}");
     return true;
   }
+  if (m == "win.fullscreen") {
+    SetWindowFullscreen(Flag(a, "on", false));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "ext.list") {
+    ExtList(cb);
+    return true;
+  }
+  if (m == "ext.install") {
+    ExtInstall(Str(a, "src"));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "ext.remove") {
+    ExtRemove(Str(a, "id"));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "ext.pick") {
+    ExtPick();
+    cb->Success("{}");
+    return true;
+  }
   if (m == "win.openPlain") {  // «Открыть в новом окне» — пока вкладкой
     UiEvent("newtab", "{\"url\":" + JsString(Str(a, "url")) + "}");
     cb->Success("{}");

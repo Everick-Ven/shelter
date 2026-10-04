@@ -501,7 +501,12 @@
     onDownloadPrompt: function (cb) { cbs.dlprompt = cb; },
     downloadDecision: function (o) { return q('dl.decision', o || {}); },
     secretEnc: function (t) { return Sec.enc(t); },
-    secretDec: function (t) { return Sec.dec(t); }
+    secretDec: function (t) { return Sec.dec(t); },
+    setFullscreen: function (on) { return q('win.fullscreen', { on: !!on }); },
+    extList: function () { return q('ext.list'); },
+    extInstall: function (src) { return q('ext.install', { src: String(src || '') }); },
+    extRemove: function (id) { return q('ext.remove', { id: String(id || '') }); },
+    extPick: function () { return q('ext.pick'); }
     // authWindow / devTools — не определены: вёрстка использует запасной путь.
   };
 
@@ -558,7 +563,13 @@
   window.__shelterHost = {
     ev: function (name, payload) {
       var f = H[name];
-      if (!f) return;
+      if (!f) {
+        // События без локальной обработки (fullscreen, ext, …) уходят в UI.
+        if (typeof window.shelterCefDispatch === 'function') {
+          try { window.shelterCefDispatch(name, payload || {}); } catch (_) {}
+        }
+        return;
+      }
       try { f(payload || {}); } catch (e) { try { console.error('[shelter]', name, e); } catch (_) {} }
     }
   };

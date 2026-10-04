@@ -629,6 +629,11 @@ html[data-theme="ivory"] .tabs-card .q-prev,html[data-theme="porcelain"] .tabs-c
 .progress{position:absolute;left:0;top:0;height:2px;width:100%;z-index:30;transform-origin:0 50%;transform:scaleX(0);opacity:0;pointer-events:none;
   background:linear-gradient(90deg,rgb(var(--ga)),rgb(var(--gc)),rgb(var(--gb)));box-shadow:0 0 14px rgb(var(--gc)/.7)}
 .viewport{position:absolute;inset:0;overflow:hidden;transition:top .5s var(--ease),left .5s var(--ease),right .5s var(--ease),bottom .5s var(--ease),border-radius .5s var(--ease)}
+/* Полноэкранный режим контента (видео по кнопке «во весь экран»): весь хром
+   браузера прячется, область вкладки занимает всё окно — как в обычных браузерах */
+body.tab-fs .sb,body.tab-fs .tb,body.tab-fs .tab-mount,body.tab-fs .bm-mount,body.tab-fs .findbar{display:none!important}
+body.tab-fs .main{padding:0;gap:0}
+body.tab-fs .stage{border-radius:0;border:0}
 /* 1.0.90: контейнер размера — контент внутри эмуляции устройства адаптируется к рамке, а не к окну */
 .viewport{container-type:inline-size;container-name:shelter}
 .stage[data-device="tablet"] .viewport{top:40px;bottom:18px;left:max(18px,calc(50% - 410px));right:max(18px,calc(50% - 410px));border-radius:26px;border:1px solid var(--line-2);box-shadow:var(--sh-lg)}
@@ -728,6 +733,8 @@ html[data-theme="ivory"] .omni,html[data-theme="porcelain"] .omni,html[data-them
   -webkit-backdrop-filter:blur(8px) saturate(1.15);backdrop-filter:blur(8px) saturate(1.15);
   border:1px solid color-mix(in srgb,var(--line-2) 80%,transparent);
   box-shadow:0 10px 30px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05)}
+/* Пустой бар закладок не оставляет артефакт-«таблетку» — скрываем полностью */
+.hero-links:empty{display:none}
 .qlink .fav.fimg{position:relative;overflow:hidden}
 .qlink .fav.fimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff;border-radius:inherit}
 /* ---------- Сверху/Снизу: отдельная тонкая полоса ВНЕ секции с веб-страницей (не внутри .stage) ---------- */
@@ -825,6 +832,7 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .menu{position:fixed;z-index:200;min-width:230px;max-width:340px;padding:6px;border-radius:15px;background:var(--menu);border:1px solid var(--line-2);box-shadow:var(--sh-lg);
   transform-origin:var(--ox,50%) var(--oy,0%);animation:menuIn .2s var(--ease) both;max-height:calc(100vh - 24px);overflow:auto}
 .menu.closing{animation:menuOut .14s ease forwards;pointer-events:none}
+.menu-select{min-width:0;max-width:min(420px,calc(100vw - 16px));max-height:min(420px,calc(100vh - 16px));overflow-y:auto;overscroll-behavior:contain}
 @keyframes menuIn{from{opacity:0;transform:scale(.96) translate3d(0,-4px,0)}}
 @keyframes menuOut{to{opacity:0;transform:scale(.97)}}
 .mi{display:flex;align-items:center;gap:11px;width:100%;min-height:34px;padding:0 10px;border-radius:9px;font-size:13px;color:var(--text-2);text-align:left;white-space:nowrap;transition:background .12s,color .12s}
@@ -1347,6 +1355,17 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .ext p{font-size:12.5px;color:var(--text-2);line-height:1.5;min-height:38px}
 .ext .ft{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3)}
 .ext .ft .sp{flex:1}
+.ext .ft .mono-dim{font-family:var(--font-m,ui-monospace,monospace);font-size:11px;color:var(--text-4,var(--text-3));opacity:.8;overflow:hidden;text-overflow:ellipsis;max-width:45%}
+.ext-state{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:99px;flex:none;
+  background:rgb(var(--ok)/.12);color:rgb(var(--ok));font-size:10.5px;font-weight:650;letter-spacing:.02em}
+.ext-state .i{width:12px;height:12px}
+.ext-store{display:flex;flex-direction:column;gap:14px;padding:16px 18px;border-radius:18px;background:var(--card);border:1px solid var(--line);box-shadow:var(--hi)}
+.es-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.es-row .wg-ic{width:34px;height:34px;border-radius:11px}
+.es-row .tx{flex:1;min-width:200px}
+.es-row .tx b{display:block;font-size:13.5px}
+.es-row .tx small{display:block;margin-top:2px;color:var(--text-3);font-size:11.5px}
+.es-row .input{width:auto;flex:1;min-width:220px}
 .sec-t{font:600 15px var(--font-d);letter-spacing:-.01em;margin:26px 0 12px;display:flex;align-items:center;gap:10px}
 .sec-t:first-child{margin-top:0}
 .sec-t small{font:400 12px var(--font);color:var(--text-3)}
@@ -2500,14 +2519,23 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 
 .pomo-body{ display:flex; align-items:center; gap:22px; flex:1; }
 .pomo-ring{ position:relative; width:126px; height:126px; flex:none; }
-.pomo-ring svg{ width:100%; height:100%; transform:rotate(-90deg); }
+/* overflow:visible — иначе свечение дуги обрезается прямоугольником svg и
+   выглядит квадратной рамкой по краю кольца */
+.pomo-ring svg{ width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
 .pomo-ring circle{ fill:none; stroke-width:8; }
 .pomo-ring circle.trk{ stroke:var(--glass-3); }
 .pomo-ring circle.val{ stroke:rgb(var(--gc)); stroke-linecap:round; transition:stroke-dasharray .6s var(--ease),stroke .3s; filter:drop-shadow(0 0 8px rgb(var(--gc)/.5)); }
 .pomo-tile.is-break .pomo-ring circle.val{ stroke:rgb(var(--ok)); filter:drop-shadow(0 0 8px rgb(var(--ok)/.5)); }
 .pomo-time-wrap{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
 .pomo-time-wrap b{ font:650 27px/1 var(--font-d); letter-spacing:-.02em; color:var(--text); font-variant-numeric:tabular-nums; }
-.pomo-time-wrap span{ font-size:9.5px; color:var(--text-3); font-weight:650; text-transform:uppercase; letter-spacing:.05em; }
+/* Статус («Фокус» / «Короткий перерыв») — только кнопкой вне кольца таймера */
+.pomo-status{ display:inline-flex; align-items:center; gap:7px; height:26px; padding:0 11px; border-radius:99px;
+  border:1px solid var(--line-2); background:var(--pill); color:var(--text-2);
+  font-size:11px; font-weight:650; letter-spacing:.02em; cursor:pointer; flex:none;
+  transition:color .2s,border-color .2s,background .2s; }
+.pomo-status i{ width:7px; height:7px; border-radius:50%; background:rgb(var(--gc)); box-shadow:0 0 8px rgb(var(--gc)/.7); flex:none; }
+.pomo-status.break i{ background:rgb(var(--ok)); box-shadow:0 0 8px rgb(var(--ok)/.7); }
+.pomo-status:hover{ color:var(--text); border-color:var(--line-3); }
 .pomo-side{ flex:1; min-width:0; display:flex; flex-direction:column; gap:9px; }
 .pomo-side .btn{ width:100%; justify-content:center; }
 .pomo-cycles{ display:flex; align-items:center; gap:8px; color:var(--text-3); font-size:11px; margin-top:2px; }
@@ -3199,6 +3227,20 @@ html[data-theme="graphite"] .badge.hot{
     return syncFallback !== undefined ? syncFallback : Promise.resolve({ ok: false, offline: true });
   }
 
+  /* Протокол host-bridge {m,a} — для команд, которых нет в легаси-словаре */
+  function mq2(m, a) {
+    if (typeof window.cefQuery !== 'function') return Promise.resolve(null);
+    return new Promise(resolve => {
+      try {
+        window.cefQuery({
+          request: JSON.stringify({ m, a: a || {} }),
+          onSuccess: r => { try { resolve(r ? JSON.parse(r) : {}); } catch (_) { resolve(r); } },
+          onFailure: () => resolve(null)
+        });
+      } catch (_) { resolve(null); }
+    });
+  }
+
   const listeners = { ctxClose: [], zoom: [] };
   const detectPlat = () => {
     if (rawCef && rawCef.platform) return String(rawCef.platform);
@@ -3245,6 +3287,11 @@ html[data-theme="graphite"] .badge.hot{
       },
       secretEnc: s => (rawCef && typeof rawCef.secretEnc === 'function') ? String(rawCef.secretEnc(s) || '') : '',
       secretDec: s => (rawCef && typeof rawCef.secretDec === 'function') ? String(rawCef.secretDec(s) || '') : '',
+      setFullscreen: on => mq2('win.fullscreen', { on: !!on }),
+      extList: () => mq2('ext.list'),
+      extInstall: src => mq2('ext.install', { src: String(src || '') }),
+      extRemove: id => mq2('ext.remove', { id: String(id || '') }),
+      extPick: () => mq2('ext.pick'),
       onCtxClose: fn => { if (typeof fn === 'function') listeners.ctxClose.push(fn); },
       onZoom: fn => { if (typeof fn === 'function') listeners.zoom.push(fn); }
     };
@@ -3400,6 +3447,26 @@ html[data-theme="graphite"] .badge.hot{
         case 'window-state':
           document.body.classList.toggle('is-maximized', !!d.maximized);
           document.body.classList.toggle('is-fullscreen', !!d.fullscreen);
+          break;
+        case 'fullscreen': {
+          // Контент вкладки вошёл/вышел из полноэкранного режима (видео и т.п.)
+          const on = !!d.on;
+          const act = typeof window.getActiveTabId === 'function' ? window.getActiveTabId() : null;
+          if (on && d.id && d.id !== act && typeof window.activateTab === 'function') { try { window.activateTab(d.id); } catch (_) {} }
+          window.__fsTabId = on ? (d.id || act || null) : null;
+          document.body.classList.toggle('tab-fs', on);
+          document.body.classList.toggle('is-fullscreen', on);
+          try { syncViewport(true); } catch (_) {}
+          try { window.dispatchEvent(new Event('resize')); } catch (_) {}
+          const N = window.shelterNative;
+          if (N && typeof N.setFullscreen === 'function') N.setFullscreen(on);
+          break;
+        }
+        case 'ext':
+          if (typeof window.shelterApplyExt === 'function') window.shelterApplyExt(d.list);
+          break;
+        case 'ext-toast':
+          if (typeof window.toast === 'function') window.toast(d.text || '', { icon: d.err ? 'ban' : 'puzzle' });
           break;
         case 'context-close':
           window.shelterCef.notifyCtxClose();
@@ -3654,16 +3721,6 @@ const SPACE_COLORS = ['#8B7CF6', '#4F8BFF', '#3DBE8B', '#E3A34B', '#E8698F', '#2
 const SPACE_ICONS = ['layers', 'home', 'briefcase', 'building', 'sail', 'folder', 'star', 'heart', 'grid', 'book', 'chat', 'pin'];
 const PALETTE = ['#6E7BF2', '#E0795A', '#3DAE8A', '#C0679A', '#4E9BD8', '#B68A3E', '#8E6FD6', '#D2615F', '#3E9E9E', '#7D8794'];
 const hostColor = h => PALETTE[hashStr(h) % PALETTE.length];
-const EXT_CATALOG = {
-  ublock:   { name: 'uBlock Origin', l: 'u', c: '#800000', ver: '1.62.0', desc: 'Лёгкий блокировщик рекламы и трекеров с фильтрами EasyList.' },
-  onepass:  { name: '1Password', l: '1', c: '#1A8CFF', ver: '8.10.52', desc: 'Пароли, passkeys и автозаполнение в одном месте.' },
-  darkr:    { name: 'Dark Reader', l: 'D', c: '#1F2A30', ver: '4.9.99', desc: 'Тёмная тема для любых сайтов с тонкой настройкой.' },
-  gramm:    { name: 'Grammarly', l: 'G', c: '#15C39A', ver: '14.1210', desc: 'Проверка английского текста и стиля.' },
-  bitwarden:{ name: 'Bitwarden', l: 'B', c: '#175DDC', ver: '2026.9', desc: 'Менеджер паролей с открытым исходным кодом.' },
-  wappa:    { name: 'Wappalyzer', l: 'W', c: '#4608AD', ver: '6.10', desc: 'Определяет технологии, на которых построен сайт.' },
-  jsonv:    { name: 'JSON Viewer', l: '{', c: '#2F6F4F', ver: '1.4.2', desc: 'Подсветка и сворачивание JSON прямо во вкладке.' },
-  momentum: { name: 'Momentum', l: 'M', c: '#B5651D', ver: '3.21', desc: 'Фокус дня, задачи и цитаты на новой вкладке.' }
-};
 const GLOW_PALETTE = [
   ['#5E8BFF', 'Индиго'],
   ['#9B7BFF', 'Аметист'],
@@ -3966,7 +4023,7 @@ function seedChats() {
   };
 }
 function seedMisc() {
-  S.ext = [ { id: 'ublock', on: true, ghost: true, demo: true }, { id: 'onepass', on: true, ghost: false, demo: true }, { id: 'darkr', on: false, ghost: false, demo: true }, { id: 'gramm', on: false, ghost: false, demo: true } ];
+  S.ext = [];
   const now = Date.now();
   S.downloads = [
     { id: 'd1', name: 'design-tokens-luxe.zip', size: 12.4, p: 64, state: 'run', at: now - 60e3, demo: true },
@@ -4011,6 +4068,7 @@ function load() {
   S.bookmarks = store.json('shelter:bookmarks', null);
   const rawVisits = blobFromStore('__visitsBlob', store.json('shelter:visits', null), []);
   S.visits = (Array.isArray(rawVisits) ? rawVisits : []).filter(v => v && v.url && v.at);
+  dedupeVisits();
   S.board = store.json('shelter:board', null);
   const breg = store.json('shelter:boards', null);
   S.boards = (breg && Array.isArray(breg.boards)) ? breg.boards : null;
@@ -4031,7 +4089,7 @@ function load() {
   S.chats = Array.isArray(rawChats) ? rawChats : [];
   S.messages = (rawMessages && typeof rawMessages === 'object' && !Array.isArray(rawMessages)) ? rawMessages : {};
   S.downloads = lux.downloads || []; S.passwords = pwFromStore(lux.passwords); S.blocks = lux.blocks || {};
-  if (Array.isArray(ext)) S.ext = ext.filter(e => e && EXT_CATALOG[e.id]);
+  if (Array.isArray(ext)) S.ext = ext.filter(e => e && e.id && e.name);
   if (!Array.isArray(S.bookmarks)) S.bookmarks = DEFAULT_BOOKMARKS.slice();
   /* Миграция модели «Отобразить в баре»: раньше бралось !hide + лимит bmShow */
   S.bookmarks.forEach(b => { if (typeof b.inBar === 'undefined') b.inBar = !b.hide; delete b.hide; });
@@ -4216,6 +4274,35 @@ function openMenu(anchor, items, opts = {}) {
 document.addEventListener('pointerdown', e => {
   const m = OV.menu; if (!m) return;
   if (!m.el.contains(e.target) && !(m.anchor && m.anchor.contains(e.target))) closeMenu();
+}, true);
+
+/* Системный popup нативного <select> во frameless-окне рисуется без рамки с
+   четырёх сторон и может уйти за видимую область окна. Перехватываем мышь и
+   открываем своё меню: рамка со всех сторон + кламп внутри окна (positionFloating). */
+function openSelectMenu(sel) {
+  const items = Array.from(sel.options).map((o, i) => ({
+    label: o.text || '—',
+    checked: i === sel.selectedIndex,
+    disabled: o.disabled,
+    run: () => {
+      if (sel.selectedIndex === i) return;
+      sel.selectedIndex = i;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }));
+  if (!items.length) return;
+  const el = openMenu(sel, items, { cls: 'menu-select', place: 'bottom-start' });
+  if (el) el.style.minWidth = Math.max(140, sel.offsetWidth) + 'px';
+}
+document.addEventListener('pointerdown', e => {
+  const sel = e.target.closest && e.target.closest('select.select');
+  if (!sel || sel.disabled) return;
+  e.preventDefault();
+  openSelectMenu(sel);
+}, true);
+document.addEventListener('mousedown', e => {
+  const sel = e.target.closest && e.target.closest('select.select');
+  if (sel && !sel.disabled) e.preventDefault();
 }, true);
 
 function openModal({ html, cls = '', width, onClose, top = false, dismiss = true, raw = false }) {
@@ -4424,8 +4511,7 @@ function toggleSetting(key, el) {
   if (swDisabled(key) || (el && el.disabled)) return;
   if (key === 'ghost') { toggleGhost(); return; }
   if (key === 'deep') { setDeep(!S.deep); return; }
-  if (key.startsWith('ext:')) { const e = S.ext.find(x => x.id === key.slice(4)); if (e) { e.on = !e.on; el.classList.toggle('on', e.on); persist(); renderExtBar(); toast((e.on ? 'Включено: ' : 'Выключено: ') + EXT_CATALOG[e.id].name, { icon: 'puzzle' }); } return; }
-  if (key.startsWith('extg:')) { const e = S.ext.find(x => x.id === key.slice(5)); if (e) { e.ghost = !e.ghost; el.classList.toggle('on', e.ghost); persist(); } return; }
+
   const tracksAchievement = ['trackers', 'https', 'fp', 'strict'].includes(key);
   const achievementBefore = tracksAchievement ? profileAchievementCheckpoint() : null;
   if (achievementBefore) captureProfileUnlocks(achievementBefore.d);
@@ -4923,6 +5009,13 @@ function activateTab(id, animate = true) {
   const dir = order.indexOf(id) >= order.indexOf(S.activeTabId) ? 1 : -1;
   const changed = S.activeTabId !== id;
   S.activeTabId = id; sp.lastActive = id;
+  // Ушли с полноэкранной вкладки (переключение/закрытие) — гасим fullscreen UI
+  if (document.body.classList.contains('tab-fs') && window.__fsTabId && window.__fsTabId !== id) {
+    window.__fsTabId = null;
+    document.body.classList.remove('tab-fs', 'is-fullscreen');
+    const N = window.shelterNative;
+    if (N && typeof N.setFullscreen === 'function') N.setFullscreen(false);
+  }
   if (innerWidth <= 720) $('#app').classList.remove('sb-open');
   renderTabs(); renderView(animate && changed, dir); persist();
 }
@@ -5173,11 +5266,39 @@ function openPage(page, opts = {}) {
 }
 function recordVisit(url, title, tabId) {
   if (S.ghost) return;
-  const now = Date.now();
+  const now = Date.now(), nu = histNorm(url);
+  // Одна навигация = одна запись. Повторные события той же навигации
+  // (title/change, load-end, SPA-push с тем же адресом) склеиваем с последней
+  // записью вкладки, иначе история двоит/троит посещение.
+  for (let i = S.visits.length - 1; i >= 0; i--) {
+    const v = S.visits[i];
+    if (v.tab !== tabId) continue;
+    if (histNorm(v.url) === nu && now - (v.at || 0) < 90000) {
+      // титул дополняется (url -> настоящий), но не затирается повтором
+      if (title && title !== v.url && (!v.title || v.title === v.url)) { v.title = title; persist(); }
+      return;
+    }
+    break;
+  }
   for (let i = S.visits.length - 1; i >= Math.max(0, S.visits.length - 60); i--) { const v = S.visits[i]; if (v.tab && v.tab === tabId && !v.dur) { v.dur = clamp(Math.round((now - v.at) / 6e4), 1, 90); break; } }
   S.visits.push({ url, title, at: now, space: S.currentSpace, tab: tabId });
   if (S.visits.length > 5000) S.visits.splice(0, S.visits.length - 5000);
   persist();
+}
+// Миграция: схлопнуть задвоенные записи старых версий (та же вкладка, тот же
+// адрес, интервал < 90 c) до одной реальной записи посещения.
+function dedupeVisits() {
+  if (!Array.isArray(S.visits) || S.visits.length < 2) return;
+  const out = [];
+  for (const v of S.visits) {
+    const p = out[out.length - 1];
+    if (p && p.tab && v.tab === p.tab && histNorm(p.url) === histNorm(v.url) && (v.at || 0) - (p.at || 0) < 90000) {
+      if (v.title && v.title !== v.url && !p.title) p.title = v.title;
+      continue;
+    }
+    out.push(v);
+  }
+  if (out.length !== S.visits.length) { S.visits = out; persist(); }
 }
 function countBlocks(m) {
   if (!S.prefs.trackers) return 0;
@@ -5229,7 +5350,7 @@ function updateToolbar() {
 }
 function omniValue(t) { const m = urlMeta(t.url); return m.kind === 'internal' ? (m.page === 'start' ? '' : 'shelter://' + m.page + (m.q ? '?q=' + m.q : '')) : t.url; }
 function renderExtBar() {
-  $('#extBar').innerHTML = S.ext.filter(e => e.on && EXT_CATALOG[e.id]).slice(0, 3).map(e => { const x = EXT_CATALOG[e.id]; return `<button class="ext-ico" data-act="extPop" data-id="${e.id}" data-tip="${esc(x.name)}"><span style="background:${x.c}">${esc(x.l)}</span></button>`; }).join('');
+  $('#extBar').innerHTML = S.ext.filter(e => e && e.name && e.on !== false).slice(0, 3).map(e => { const c = e.c || hostColor(e.id || e.name), l = e.l || (e.name || '?').slice(0, 1).toUpperCase(); return `<button class="ext-ico" data-act="extPop" data-id="${esc(e.id)}" data-tip="${esc(e.name)}"><span style="background:${esc(c)}">${esc(l)}</span></button>`; }).join('');
 }
 
 const SG = { tb: { box: '#tbSuggest', items: [], hl: -1, q: '' }, hero: { box: '#heroSuggest', items: [], hl: -1, q: '' } };
@@ -7079,7 +7200,8 @@ function pomoRenderTick() {
   const P = pomoState(), dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100));
   const t = $('#pomoTime'); if (!t) return;
   t.textContent = pomoFmt(P.remain);
-  const m = $('#pomoMode'); if (m) m.textContent = POMO_LABEL[P.mode];
+  const sb = $('#pomoStatusBtn');
+  if (sb) { sb.classList.toggle('break', P.mode !== 'work'); sb.querySelector('span').textContent = POMO_LABEL[P.mode]; sb.dataset.tip = 'Режим: ' + POMO_LABEL[P.mode] + '. Нажмите, чтобы сменить'; }
   const c = $('#pomoCycles b'); if (c) c.textContent = P.cycles;
   const ring = $('#pomoRing circle.val'); if (ring) { const C = 2 * Math.PI * 52; ring.style.strokeDasharray = `${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}`; }
   const btn = $('#pomoToggleBtn'); if (btn) btn.innerHTML = (P.running ? ico('pause') : ico('play')) + `<span>${P.running ? 'Пауза' : 'Старт'}</span>`;
@@ -7088,9 +7210,9 @@ function pomoRenderTick() {
 function pomoWidgetHtml() {
   const P = pomoState(), dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100)), C = 2 * Math.PI * 52;
   return `<div class="card wg-tile pomo-tile ${P.mode !== 'work' ? 'is-break' : ''}">
-    <div class="wg-head"><span class="wg-ic pomo">${ico('timer')}</span><div class="wg-tt"><b>Помодоро</b><small>Фокус-сессии с перерывами</small></div><button class="icon-btn sm" data-act="pomoReset" data-tip="Сбросить">${ico('ref')}</button></div>
+    <div class="wg-head"><span class="wg-ic pomo">${ico('timer')}</span><div class="wg-tt"><b>Помодоро</b><small>Фокус-сессии с перерывами</small></div><button class="pomo-status ${P.mode !== 'work' ? 'break' : ''}" id="pomoStatusBtn" data-act="pomoStatus" data-tip="Режим: ${esc(POMO_LABEL[P.mode])}. Нажмите, чтобы сменить"><i></i><span>${POMO_LABEL[P.mode]}</span></button><button class="icon-btn sm" data-act="pomoReset" data-tip="Сбросить">${ico('ref')}</button></div>
     <div class="pomo-body">
-      <div class="pomo-ring" id="pomoRing"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52"/><circle class="val" cx="60" cy="60" r="52" style="stroke-dasharray:${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="pomo-time-wrap"><b id="pomoTime" class="num">${pomoFmt(P.remain)}</b><span id="pomoMode">${POMO_LABEL[P.mode]}</span></div></div>
+      <div class="pomo-ring" id="pomoRing"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52"/><circle class="val" cx="60" cy="60" r="52" style="stroke-dasharray:${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="pomo-time-wrap"><b id="pomoTime" class="num">${pomoFmt(P.remain)}</b></div></div>
       <div class="pomo-side">
         <button class="btn primary" id="pomoToggleBtn" data-act="pomoToggle">${P.running ? ico('pause') : ico('play')}<span>${P.running ? 'Пауза' : 'Старт'}</span></button>
         <button class="btn ghost sm" data-act="pomoSkip">${ico('fwd')}<span>Дальше</span></button>
@@ -7849,33 +7971,50 @@ function pwAddModal() {
   setTimeout(() => $('#paS', root).focus(), 50);
 }
 
+/* Расширения: только реально загруженные нативно (CEF LoadExtension).
+   Магазин — настоящий Chrome Web Store, открывается вкладкой. */
+const CWS_URL = 'https://chromewebstore.google.com/';
+function extMeta(e) { return { c: e.c || hostColor(e.id || e.name), l: e.l || (e.name || '?').slice(0, 1).toUpperCase() }; }
 function extCard(e, i) {
-  const x = EXT_CATALOG[e.id];
-  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${x.c}">${esc(x.l)}</span><div class="tx"><b>${esc(x.name)}</b><small>v${esc(x.ver)}</small></div>${swHtml('ext:' + e.id, e.on)}</div><p>${esc(x.desc)}</p><div class="ft"><span>В «Призраке»</span><button class="sw-t ${e.ghost ? 'on' : ''}" data-sw="extg:${e.id}" role="switch" style="--w:34px;transform:scale(.85)"></button><span class="sp"></span><button class="btn sm ghost" data-act="extRemove" data-id="${e.id}">Удалить</button></div></div>`;
-}
-function storeCard(k, i) {
-  const x = EXT_CATALOG[k], R = rng(hashStr(k));
-  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${x.c}">${esc(x.l)}</span><div class="tx"><b>${esc(x.name)}</b><small>v${esc(x.ver)} · ★ 4,${1 + (R() * 8 | 0)}</small></div></div><p>${esc(x.desc)}</p><div class="ft"><span style="white-space:nowrap">${Math.round(20 + R() * 900)} тыс. пользователей</span><span class="sp"></span><button class="btn sm primary" data-act="extInstall" data-id="${k}">Установить</button></div></div>`;
+  const m = extMeta(e);
+  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div class="tx"><b>${esc(e.name)}</b><small>${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chromium extension</small></div><span class="ext-state">${ico('check')}Загружено</span></div>
+  <p>${esc(e.desc || 'Расширение установлено нативно и работает во вкладках.')}</p>
+  <div class="ft"><span class="mono-dim">${esc((e.id || '').slice(0, 16))}${(e.id || '').length > 16 ? '…' : ''}</span><span class="sp"></span><button class="btn sm ghost" data-act="extPage" data-id="${esc(e.id)}">${ico('globe')}Страница</button><button class="btn sm ghost" data-act="extRemove" data-id="${esc(e.id)}">Удалить</button></div></div>`;
 }
 RENDER.extensions = () => {
-  const inst = S.ext.filter(e => EXT_CATALOG[e.id]), avail = Object.keys(EXT_CATALOG).filter(k => !inst.find(e => e.id === k));
-  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div><div class="page-sub">Совместимы с Chrome Web Store · работают отдельно в каждом пространстве</div></div><div class="page-actions"><button class="btn" data-act="extDev">${ico('code')}Загрузить распакованное</button></div></div>
+  const inst = S.ext.filter(e => e && e.id && e.name);
+  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div><div class="page-sub">Настоящие расширения Chromium: Chrome Web Store или файл .crx</div></div>
+  <div class="page-actions"><button class="btn" data-act="extPick">${ico('file')}Из файла…</button><button class="btn primary" data-act="extStore">${ico('globe')}Chrome Web Store</button></div></div>
   <div class="sec-t">Установленные <small>${inst.length}</small></div>
-  <div class="ext-grid">${inst.length ? inst.map(extCard).join('') : emptyState('puzzle', 'Нет расширений', 'Установите что-нибудь из магазина ниже')}</div>
-  <div class="sec-t">Магазин SHELTER <small>каждое расширение проверено вручную</small></div>
-  <div class="ext-grid">${avail.length ? avail.map(storeCard).join('') : emptyState('check', 'Всё установлено', 'Новые расширения скоро появятся')}</div></div>`;
+  <div class="ext-grid">${inst.length ? inst.map(extCard).join('') : emptyState('puzzle', 'Нет расширений', 'Откройте Chrome Web Store и установите расширение по ID или выберите файл .crx')}</div>
+  <div class="sec-t">Магазин <small>Chrome Web Store — официальный магазин расширений Chromium</small></div>
+  <div class="card ext-store">
+    <div class="es-row"><span class="wg-ic">${ico('globe')}</span><div class="tx"><b>Chrome Web Store</b><small>Реальный магазин откроется в новой вкладке — как в обычном браузере</small></div><button class="btn sm primary" data-act="extStore">${ico('globe')}Открыть магазин</button></div>
+    <div class="es-row"><span class="wg-ic">${ico('link')}</span><div class="tx"><b>Установить по ID или ссылке</b><small>ID со страницы магазина (32 символа) или сама ссылка на расширение</small></div><input class="input" id="extSrc" placeholder="например: cjpalhdlnbpafiamekefhncdjljmbd" spellcheck="false" autocomplete="off"><button class="btn sm" data-act="extInstallSrc">Установить</button></div>
+  </div></div>`;
+  if (NAT && NAT.extList) Promise.resolve(NAT.extList()).then(r => { if (r && r.list) applyExtList(r.list); }).catch(() => {});
 };
-function extInstall(btn) {
-  const id = btn.dataset.id; btn.disabled = true; btn.innerHTML = '<span class="think"><i></i><i></i><i></i></span>';
-  setTimeout(() => { if (!S.ext.find(e => e.id === id)) S.ext.push({ id, on: true, ghost: false }); persist(); renderExtBar(); refreshPage('extensions'); toast('Установлено: ' + EXT_CATALOG[id].name, { icon: 'puzzle' }); }, 900);
+function extInstallSrc(src, btn) {
+  src = String(src || '').trim();
+  if (!src) { toast('Вставьте ID расширения или ссылку из Chrome Web Store', { icon: 'link' }); return; }
+  if (btn) btn.disabled = true;
+  Promise.resolve(NAT && NAT.extInstall ? NAT.extInstall(src) : null).then(() => { if (btn) btn.disabled = false; });
+  toast('Запрашиваю пакет расширения…', { icon: 'puzzle' });
 }
 function extPop(anchor) {
-  const e = S.ext.find(x => x.id === anchor.dataset.id); if (!e) return; const x = EXT_CATALOG[e.id], m = urlMeta(curTab().url);
-  openMenu(anchor, null, { place: 'bottom-end', cls: 'pop', html: `<div class="pop-h"><span class="fav lg" style="background:${x.c}">${esc(x.l)}</span><div><b>${esc(x.name)}</b><span>v${esc(x.ver)}</span></div></div>
-    ${e.id === 'ublock' ? `<div class="kv"><span>Заблокировано на странице</span><b class="num">${curTab().blocked || 0}</b></div>` : ''}
-    <div class="kv"><span>Доступ к ${esc(m.kind === 'site' ? m.host : 'этой странице')}</span><b>${m.kind === 'internal' ? 'Нет' : 'При клике'}</b></div>
-    <div class="kv"><span>В «Призраке»</span><b>${e.ghost ? 'Разрешено' : 'Запрещено'}</b></div>
-    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm" style="flex:1" data-act="page" data-page="extensions">Управлять</button></div>` });
+  const e = S.ext.find(x => x.id === anchor.dataset.id); if (!e) return;
+  const m = extMeta(e);
+  openMenu(anchor, null, { place: 'bottom-end', cls: 'pop', html: `<div class="pop-h"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div><b>${esc(e.name)}</b><span>${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}расширение Chromium</span></div></div>
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm" style="flex:1" data-act="extPage" data-id="${esc(e.id)}">${ico('globe')}Страница</button><button class="btn sm ghost" style="flex:1" data-act="extRemove" data-id="${esc(e.id)}">Удалить</button></div>` });
+}
+function applyExtList(list) {
+  if (!Array.isArray(list)) return;
+  const clean = list.filter(x => x && x.id && x.name);
+  const sig = JSON.stringify(clean.map(x => [x.id, x.name, x.ver || '']));
+  if (sig === S.__extSig) return;
+  S.__extSig = sig; S.ext = clean; persist(); renderExtBar();
+  const pg = curTab() && urlMeta(curTab().url).page;
+  if (pg === 'extensions') refreshPage('extensions');
 }
 
 RENDER.certs = () => {
@@ -9915,6 +10054,7 @@ const ACT = {
   achToggle: () => { T.profileAchOpen = !T.profileAchOpen; refreshPage('profile'); },
   achHint: () => showProfileHint(),
   pomoToggle: () => { pomoState().running = !pomoState().running; pomoRenderTick(); },
+  pomoStatus: () => { const P = pomoState(); P.mode = P.mode === 'work' ? 'short' : (P.mode === 'short' ? 'long' : 'work'); P.remain = pomoDur(P.mode); P.running = false; pomoRenderTick(); toast('Режим: ' + POMO_LABEL[P.mode], { icon: 'timer' }); },
   pomoReset: () => { const P = pomoState(); P.mode = 'work'; P.remain = pomoDur('work'); P.running = false; P.cycles = 0; pomoRenderTick(); },
   pomoSkip: () => { pomoAdvance(); pomoState().running = false; pomoRenderTick(); },
   wgShowMenu: el => openWidgetPicker(el),
@@ -9929,8 +10069,12 @@ const ACT = {
   pwDel: async el => { const p = S.passwords.find(x => x.id === el.dataset.id); if (!p) return; if (await confirmDlg({ title: 'Удалить пароль для ' + p.site + '?', ok: 'Удалить', danger: true, icon: 'key' })) { S.passwords = S.passwords.filter(x => x !== p); persist(); refreshPage('passwords'); } },
   pwGen: () => pwGenModal(), pwAdd: () => pwAddModal(),
   pwFix: () => { let n = 0; S.passwords.forEach(p => { if (p.strength < 2) { p.pass = genPassword(18); p.strength = 3; n++; } }); persist(); refreshPage('passwords'); toast('Усилено паролей: ' + n + ' · обновите их на сайтах', { icon: 'shield-check' }); },
-  extInstall: el => extInstall(el), extPop: el => extPop(el), extDev: () => toast('Перетащите папку с manifest.json в это окно', { icon: 'code' }),
-  extRemove: async el => { const x = EXT_CATALOG[el.dataset.id]; if (await confirmDlg({ title: 'Удалить «' + x.name + '»?', ok: 'Удалить', danger: true, icon: 'puzzle' })) { S.ext = S.ext.filter(e => e.id !== el.dataset.id); persist(); renderExtBar(); refreshPage('extensions'); } },
+  extPop: el => extPop(el),
+  extStore: () => { addTab(CWS_URL); toast('Chrome Web Store открыт в новой вкладке', { icon: 'globe' }); },
+  extPick: () => { if (NAT && NAT.extPick) NAT.extPick(); else toast('Установка из файла доступна в сборке Shelter', { icon: 'file' }); },
+  extInstallSrc: el => extInstallSrc(($('#extSrc') || {}).value, el),
+  extPage: el => { if (el.dataset.id) addTab(CWS_URL + 'detail/' + el.dataset.id); },
+  extRemove: async el => { const e = S.ext.find(x => x.id === el.dataset.id); if (!e) return; if (await confirmDlg({ title: 'Удалить «' + e.name + '»?', ok: 'Удалить', danger: true, icon: 'puzzle' })) { S.ext = S.ext.filter(x => x.id !== el.dataset.id); S.__extSig = ''; persist(); renderExtBar(); refreshPage('extensions'); if (NAT && NAT.extRemove) NAT.extRemove(el.dataset.id); } },
   deepAsk: el => navigate('shelter.dev/deepthink?q=' + encodeURIComponent(el.dataset.q)),
   aiModel: async () => { const r = await agentDlg(); if (r) renderHeroBits(); },
   agentApi: async () => { const r = await agentDlg(); if (r) { renderHeroBits(); refreshPage('deepthink'); } },
@@ -10096,6 +10240,14 @@ window.openFind = () => openFind();
 window.doFind = q => doFind(q);
 window.toggleDevtools = () => toggleDevtools();
 window.pushTabHist = pushTabHist;
+/* Тестовая поверхность (headless-регрессии): минимум внутренностей наружу */
+window.shelterTest = {
+  state: () => S,
+  recordVisit: (u, t, id) => recordVisit(u, t, id),
+  pomo: () => pomoState(),
+  visits: () => S.visits
+};
+window.shelterApplyExt = list => applyExtList(list);
 window.navBack = goStackBack;
 window.navForward = goStackFwd;
 window.navRefresh = () => { const t = curTab(); if (t) loadUrl(t, t.url, { push: false }); };

@@ -155,6 +155,8 @@ class TabClient : public CefClient,
                        const CefString& url) override;
   void OnTitleChange(CefRefPtr<CefBrowser> browser,
                      const CefString& title) override;
+  void OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
+                              bool fullscreen) override;
 
   // CefContextMenuHandler
   bool RunContextMenu(CefRefPtr<CefBrowser> browser,
@@ -203,6 +205,8 @@ class PopupClient : public CefClient,
   void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
   void OnTitleChange(CefRefPtr<CefBrowser> browser,
                      const CefString& title) override;
+  void OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
+                              bool fullscreen) override;
 
  private:
   IMPLEMENT_REFCOUNTING(PopupClient);

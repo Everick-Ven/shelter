@@ -356,24 +356,19 @@ class CrxDownload : public CefURLRequestClient {
   }
   void OnUploadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
   void OnDownloadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
-  void OnResponseReceived(CefRefPtr<CefURLRequest>,
-                          CefRefPtr<CefResponse>) override {}
-  void OnReadResponse(CefRefPtr<CefURLRequest>, void* data_out,
-                      size_t bytes_to_read, int64_t& bytes_read, void*& buffer,
-                      size_t& buffer_size) override {
-    const size_t have = buf_.size() - pos_;
-    const size_t n = std::min(bytes_to_read, have);
-    if (n) memcpy(data_out, buf_.data() + pos_, n);
-    pos_ += n;
-    bytes_read = static_cast<int64_t>(n);
-    buffer = nullptr;
-    buffer_size = 0;
+  void OnDownloadData(CefRefPtr<CefURLRequest>, const void* data,
+                      size_t data_length) override {
+    buf_.append(static_cast<const char*>(data), data_length);
+  }
+  bool GetAuthCredentials(bool, const CefString&, int, const CefString&,
+                          const CefString&,
+                          CefRefPtr<CefAuthCallback>) override {
+    return false;
   }
 
  private:
   std::string origin_;
   std::string buf_;
-  size_t pos_ = 0;
   IMPLEMENT_REFCOUNTING(CrxDownload);
   DISALLOW_COPY_AND_ASSIGN(CrxDownload);
 };
@@ -435,7 +430,7 @@ bool UnzipBytesTo(const std::string& bytes, const fs::path& dir) {
       continue;
     }
     fs::create_directories(fp.parent_path(), ec);
-    if (zr->OpenFile(CefString(), true)) {
+    if (zr->OpenFile(CefString())) {
       std::ofstream out(fp, std::ios::binary | std::ios::trunc);
       char chunk[65536];
       size_t n = 0;
@@ -1144,7 +1139,7 @@ void Shell::ExtPick() {
   filters.push_back(CefString("*.crx"));
   filters.push_back(CefString("*.zip"));
   ui_browser_->GetHost()->RunFileDialog(
-      FILE_DIALOG_OPEN, CefString::CreateASCII("Установить расширение"),
+      FILE_DIALOG_OPEN, CefString::CreateUTF8("Установить расширение"),
       CefString(), filters, new ExtPickCallback());
 }
 

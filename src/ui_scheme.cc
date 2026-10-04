@@ -72,6 +72,42 @@ void InjectStateHook(std::string* html) {
   html->insert(pos + marker.size(), hook);
 }
 
+// Если index.html не найден рядом с exe (запуск прямо из архива без распаковки,
+// потерянная папка ui/ при копировании), вместо пустого чёрного окна отдаём
+// встроенную страницу-подсказку: пользователю видно, что произошло и что делать.
+std::string MissingUiHintHtml(const std::string& looked_in) {
+  std::string html = R"(<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<title>SHELTER — неполная папка</title><style>
+html,body{height:100%;margin:0;background:#0E0E10;color:#EDEDF0;
+font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+display:flex;align-items:center;justify-content:center}
+.card{max-width:560px;padding:36px 40px;border-radius:20px;background:#141417;
+border:1px solid #26262B;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.logo{width:52px;height:52px;border-radius:14px;background:#000;color:#fff;
+display:flex;align-items:center;justify-content:center;
+font:700 26px/1 system-ui,sans-serif;margin-bottom:18px;border:1px solid #2E2E33}
+h1{font-size:20px;margin:0 0 10px}p{margin:0 0 10px;color:#B9B9C0}
+code{background:#1D1D22;border:1px solid #2A2A30;border-radius:6px;
+padding:1px 6px;color:#E8E8EC;font-size:13px}
+ol{margin:0 0 12px;padding-left:20px;color:#B9B9C0}li{margin:4px 0}
+b{color:#EDEDF0}</style></head><body><div class="card">
+<div class="logo">S</div>
+<h1>Папка приложения неполная</h1>
+<p>SHELTER запустился, но не нашёл рядом свои файлы интерфейса — поэтому
+окно пустое. Обычно это значит, что <b>exe запустили прямо из архива</b>
+или скопировали без папки <code>ui</code>.</p>
+<ol>
+<li>Распакуйте <b>всю папку</b> архива (например <code>SHELTER-win-x64</code>),
+а не только exe;</li>
+<li>запустите <code>SHELTER.exe</code> из распакованной папки —
+либо установите приложение через <code>SHELTER-Setup-x64.exe</code>.</li>
+</ol>
+<p>Искали интерфейс здесь: <code>@DIR@</code></p>
+</div></body></html>)";
+  ReplaceAll(&html, "@DIR@", looked_in);
+  return html;
+}
+
 class UiSchemeHandlerFactory : public CefSchemeHandlerFactory {
  public:
   CefRefPtr<CefResourceHandler> Create(CefRefPtr<CefBrowser> browser,
@@ -89,6 +125,16 @@ class UiSchemeHandlerFactory : public CefSchemeHandlerFactory {
 
     std::string data;
     if (!ReadFile(platform::UiResourceDir() + "/" + rel, &data)) {
+      if (rel == "index.html") {
+        // Чёрное пустое окно пугает и не объясняет причину. Отдаём подсказку.
+        std::string hint = MissingUiHintHtml(platform::UiResourceDir());
+        CefRefPtr<CefStreamReader> stream = CefStreamReader::CreateForData(
+            hint.data(), hint.size());
+        CefResponse::HeaderMap headers;
+        headers.insert({"Cache-Control", "no-store"});
+        return new CefStreamResourceHandler(200, "OK", "text/html", headers,
+                                            stream);
+      }
       return NotFound();
     }
 

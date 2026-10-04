@@ -1139,9 +1139,10 @@ void Shell::ExtPick() {
   std::vector<CefString> filters;
   filters.push_back(CefString("*.crx"));
   filters.push_back(CefString("*.zip"));
-  ui_browser_->GetHost()->RunFileDialog(
-      FILE_DIALOG_OPEN, CefString::CreateUTF8("Установить расширение"),
-      CefString(), filters, new ExtPickCallback());
+  CefString title;
+  title.FromUTF8("Установить расширение");
+  ui_browser_->GetHost()->RunFileDialog(FILE_DIALOG_OPEN, title, CefString(),
+                                        filters, new ExtPickCallback());
 }
 
 void Shell::ExtInstall(const std::string& src) {

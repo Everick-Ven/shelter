@@ -282,6 +282,19 @@ void TabClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
   Shell::Get().OnTabTitle(browser, title.ToString());
 }
 
+void TabClient::OnLoadStart(CefRefPtr<CefBrowser> browser,
+                            CefRefPtr<CefFrame> frame,
+                            cef_transition_type_t) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnTabLoadStart(browser, frame);
+}
+
+void TabClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
+                          CefRefPtr<CefFrame> frame, int) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnTabLoadEnd(browser, frame);
+}
+
 // Контент вкладки запросил полноэкранный режим (видео, презентация, F11 на
 // странице). Сообщаем UI: он спрячет хром и растянет вкладку на всё окно,
 // после чего попросит оболочку перевести окно в immersive-fullscreen.

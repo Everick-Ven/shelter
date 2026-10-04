@@ -110,6 +110,8 @@ class Shell {
   void OnTabNewWindow(CefRefPtr<CefBrowser> browser, const std::string& url);
   void OnTabFullscreen(CefRefPtr<CefBrowser> browser, bool on);
   void SetWindowFullscreen(bool on);
+  void OnTabLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame);
+  void OnTabLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame);
 
   // ---- расширения (Chrome Web Store / .crx) ----
   void ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);

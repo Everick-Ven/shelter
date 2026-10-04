@@ -16,12 +16,11 @@
 
 #include <cctype>
 #include <cstring>
+#include <regex>
 
 #include "include/base/cef_callback.h"
 #include "include/cef_app.h"
 #include "include/cef_command_line.h"
-#include "include/cef_extension.h"
-#include "include/cef_extension_handler.h"
 #include "include/cef_parser.h"
 #include "include/cef_stream.h"
 #include "include/cef_urlrequest.h"
@@ -140,67 +139,200 @@ class PopupWindowDelegate : public CefWindowDelegate {
   DISALLOW_COPY_AND_ASSIGN(PopupWindowDelegate);
 };
 
-// ---- расширения: CRX -> распаковка -> CefRequestContext::LoadExtension ----
+// ---- расширения: CRX -> распаковка -> собственный runtime content-scripts --
+// CEF вырезал API расширений (~M127), поэтому Shelter сам выполняет ту часть
+// модели Chromium-расширений, которая не требует Chrome-UI: content_scripts
+// (JS/CSS из пакета) внедряются в главные фреймы вкладок по match-паттернам.
+// Фоновые service worker и chrome.* API не поддерживаются — об этом честно
+// написано на странице «Расширения».
 
-std::string ExtManifestString(CefRefPtr<CefExtension> e, const char* key) {
-  if (!e) return std::string();
-  CefRefPtr<CefDictionaryValue> m = e->GetManifest();
-  if (m && m->HasKey(key) && m->GetType(key) == VTYPE_STRING)
-    return m->GetString(key).ToString();
-  return std::string();
+struct ExtContentScript {
+  std::vector<std::string> matches;
+  std::string js;    // объединённый исходник js-файлов
+  std::string css;   // объединённый исходник css-файлов
+  bool at_start = false;  // run_at: document_start
+};
+
+struct ExtEntry {
+  std::string id;
+  std::string name;
+  std::string ver;
+  std::string path;
+  std::vector<ExtContentScript> scripts;
+};
+
+std::map<std::string, ExtEntry> g_exts;
+bool g_exts_scanned = false;
+
+std::string ReadFileStr(const fs::path& p) {
+  std::ifstream f(p, std::ios::binary);
+  if (!f) return std::string();
+  std::ostringstream ss;
+  ss << f.rdbuf();
+  return ss.str();
+}
+
+// match-pattern (<scheme>://<host>/<path>, <all_urls>) -> regex.
+bool ExtMatch(const std::string& pattern, const std::string& url) {
+  if (pattern == "<all_urls>")
+    return url.rfind("http://", 0) == 0 || url.rfind("https://", 0) == 0;
+  const auto sep = pattern.find("://");
+  if (sep == std::string::npos) return false;
+  std::string scheme = pattern.substr(0, sep);
+  const std::string rest = pattern.substr(sep + 3);
+  const auto slash = rest.find('/');
+  const std::string host =
+      slash == std::string::npos ? rest : rest.substr(0, slash);
+  std::string path = slash == std::string::npos ? "/" : rest.substr(slash);
+  if (path.empty()) path = "/";
+  CefURLParts parts;
+  if (!CefParseURL(url, parts)) return false;
+  const std::string uscheme = CefString(&parts.scheme).ToString();
+  const std::string uhost = CefString(&parts.host).ToString();
+  std::string upath = CefString(&parts.path).ToString();
+  if (upath.empty()) upath = "/";
+  if (scheme != "*" && scheme != uscheme) return false;
+  const auto to_regex = [](const std::string& s) {
+    std::string r;
+    for (char c : s) {
+      if (c == '*') r += ".*";
+      else if (strchr(".+?[]^$(){}|\\", c)) { r += '\\'; r += c; }
+      else r += c;
+    }
+    return r;
+  };
+  std::string hpat = to_regex(host);
+  if (!host.empty() && host[0] == '*') {  // *.host или *
+    hpat = to_regex(host.substr(1));
+    hpat = "([a-z0-9.-]+\\.)?" + hpat;
+    if (host == "*") hpat = ".*";
+  }
+  if (!std::regex_match(uhost, std::regex(hpat))) return false;
+  return std::regex_match(upath, std::regex(to_regex(path)));
+}
+
+bool ExtScriptApplies(const ExtContentScript& cs, const std::string& url) {
+  for (const auto& m : cs.matches) {
+    if (ExtMatch(m, url)) return true;
+  }
+  return false;
+}
+
+void LoadExtFromDir(const fs::path& dir) {
+  const std::string manifest = ReadFileStr(dir / "manifest.json");
+  if (manifest.empty()) return;
+  CefRefPtr<CefValue> v = CefParseJSON(manifest, JSON_PARSER_RFC);
+  if (!v || v->GetType() != VTYPE_DICTIONARY) return;
+  CefRefPtr<CefDictionaryValue> d = v->GetDictionary();
+  ExtEntry e;
+  e.path = dir.string();
+  e.id = dir.filename().string();
+  if (d->HasKey("name") && d->GetType("name") == VTYPE_STRING)
+    e.name = d->GetString("name").ToString();
+  if (e.name.empty()) e.name = e.id;
+  if (d->HasKey("version") && d->GetType("version") == VTYPE_STRING)
+    e.ver = d->GetString("version").ToString();
+  if (d->HasKey("content_scripts") &&
+      d->GetType("content_scripts") == VTYPE_LIST) {
+    CefRefPtr<CefListValue> list = d->GetList("content_scripts");
+    for (size_t i = 0; i < list->GetSize(); ++i) {
+      if (list->GetType(i) != VTYPE_DICTIONARY) continue;
+      CefRefPtr<CefDictionaryValue> cs = list->GetDictionary(i);
+      ExtContentScript out;
+      if (cs->HasKey("run_at") && cs->GetType("run_at") == VTYPE_STRING)
+        out.at_start = cs->GetString("run_at").ToString() == "document_start";
+      if (cs->HasKey("matches") && cs->GetType("matches") == VTYPE_LIST) {
+        CefRefPtr<CefListValue> mm = cs->GetList("matches");
+        for (size_t k = 0; k < mm->GetSize(); ++k)
+          out.matches.push_back(mm->GetString(k).ToString());
+      }
+      const auto append_files = [&](const char* key, bool is_js) {
+        if (!cs->HasKey(key) || cs->GetType(key) != VTYPE_LIST) return;
+        CefRefPtr<CefListValue> fl = cs->GetList(key);
+        for (size_t k = 0; k < fl->GetSize(); ++k) {
+          const std::string rel = fl->GetString(k).ToString();
+          if (rel.empty() || rel[0] == '/' || rel.find("..") != std::string::npos)
+            continue;
+          const std::string src = ReadFileStr(dir / rel);
+          if (is_js) {
+            if (!out.js.empty()) out.js += "\n;\n";
+            out.js += src;
+          } else {
+            if (!out.css.empty()) out.css += "\n";
+            out.css += src;
+          }
+        }
+      };
+      append_files("js", true);
+      append_files("css", false);
+      if (!out.matches.empty() && (!out.js.empty() || !out.css.empty()))
+        e.scripts.push_back(std::move(out));
+    }
+  }
+  g_exts[e.id] = std::move(e);
+}
+
+fs::path ExtRootDir() {
+  CefRefPtr<CefRequestContext> ctx = CefRequestContext::GetGlobalContext();
+  if (!ctx) return fs::path();
+  const std::string cache = ctx->GetCachePath().ToString();
+  if (cache.empty()) return fs::path();
+  return fs::path(cache) / "Extensions";
+}
+
+void ExtEnsureScanned() {
+  if (g_exts_scanned) return;
+  g_exts_scanned = true;
+  const fs::path root = ExtRootDir();
+  if (root.empty()) return;
+  std::error_code ec;
+  if (!fs::is_directory(root, ec)) return;
+  for (const auto& entry : fs::directory_iterator(root, ec)) {
+    if (!entry.is_directory()) continue;
+    if (entry.path().filename().string().rfind("_tmp", 0) == 0) continue;
+    LoadExtFromDir(entry.path());
+  }
 }
 
 std::string BuildExtListJson() {
-  CefRefPtr<CefRequestContext> ctx = CefRequestContext::GetGlobalContext();
+  ExtEnsureScanned();
   std::ostringstream os;
   os << "{\"list\":[";
-  if (ctx) {
-    std::vector<CefString> ids;
-    ctx->GetExtensions(ids);
-    bool first = true;
-    for (const auto& id : ids) {
-      CefRefPtr<CefExtension> e = ctx->GetExtension(id);
-      if (!e) continue;
-      std::string name = ExtManifestString(e, "name");
-      if (name.empty()) name = id.ToString();
-      if (!first) os << ",";
-      first = false;
-      os << "{\"id\":" << JsString(id.ToString())
-         << ",\"name\":" << JsString(name)
-         << ",\"ver\":" << JsString(ExtManifestString(e, "version"))
-         << ",\"path\":" << JsString(e->GetPath().ToString()) << "}";
-    }
+  bool first = true;
+  for (const auto& kv : g_exts) {
+    const ExtEntry& e = kv.second;
+    if (!first) os << ",";
+    first = false;
+    os << "{\"id\":" << JsString(e.id) << ",\"name\":" << JsString(e.name)
+       << ",\"ver\":" << JsString(e.ver) << ",\"path\":" << JsString(e.path)
+       << ",\"cs\":" << e.scripts.size() << "}";
   }
   os << "]}";
   return os.str();
 }
 
-class ShellExtHandler : public CefExtensionHandler {
- public:
-  ShellExtHandler() = default;
-  void OnExtensionLoadFailed(cef_errorcode_t err) override {
-    Shell::Get().ExtToast(
-        "Расширение не загрузилось (несовместимо с Shelter, код " +
-            std::to_string(static_cast<int>(err)) + ")",
-        true);
+void InjectExtScripts(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+                      bool start_phase) {
+  if (!browser || !frame || !frame->IsMain()) return;
+  ExtEnsureScanned();
+  if (g_exts.empty()) return;
+  const std::string url = frame->GetURL().ToString();
+  if (url.empty() || url == "about:blank") return;
+  for (const auto& kv : g_exts) {
+    for (const auto& cs : kv.second.scripts) {
+      if (cs.at_start != start_phase) continue;
+      if (!ExtScriptApplies(cs, url)) continue;
+      if (!cs.css.empty()) {
+        const std::string js =
+            "(function(){var s=document.createElement('style');s.textContent=" +
+            JsString(cs.css) +
+            ";(document.head||document.documentElement).appendChild(s);})();";
+        frame->ExecuteJavaScript(js, url, 0);
+      }
+      if (!cs.js.empty()) frame->ExecuteJavaScript(cs.js, url, 0);
+    }
   }
-  void OnExtensionLoaded(CefRefPtr<CefRequestContext>,
-                         CefRefPtr<CefExtension> ext) override {
-    const std::string name = ExtManifestString(ext, "name");
-    Shell::Get().ExtToast(name.empty() ? "Расширение загружено"
-                                       : "Расширение загружено: " + name,
-                          false);
-    Shell::Get().ExtPushList();
-  }
-  void OnExtensionUnloaded(CefRefPtr<CefRequestContext>,
-                           CefRefPtr<CefExtension>) override {
-    Shell::Get().ExtPushList();
-  }
-
- private:
-  IMPLEMENT_REFCOUNTING(ShellExtHandler);
-  DISALLOW_COPY_AND_ASSIGN(ShellExtHandler);
-};
+}
 
 // Загрузка .crx/.zip пакета расширения через CefURLRequest.
 class CrxDownload : public CefURLRequestClient {
@@ -980,10 +1112,15 @@ void Shell::ExtToast(const std::string& text, bool err) {
 
 void Shell::ExtRemove(const std::string& id) {
   CEF_REQUIRE_UI_THREAD();
-  CefRefPtr<CefRequestContext> ctx = CefRequestContext::GetGlobalContext();
-  if (!ctx || id.empty()) return;
-  CefRefPtr<CefExtension> e = ctx->GetExtension(id);
-  if (e) e->Remove();
+  ExtEnsureScanned();
+  auto it = g_exts.find(id);
+  if (it == g_exts.end()) return;
+  const std::string name = it->second.name;
+  std::error_code ec;
+  fs::remove_all(it->second.path, ec);
+  g_exts.erase(it);
+  ExtToast("Расширение удалено: " + name, false);
+  ExtPushList();
 }
 
 namespace {
@@ -1087,17 +1224,11 @@ void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
     ExtToast("Пакет не похож на CRX/ZIP расширения", true);
     return;
   }
-  CefRefPtr<CefRequestContext> ctx = CefRequestContext::GetGlobalContext();
-  if (!ctx) {
-    ExtToast("Нет профиля для установки расширений", true);
-    return;
-  }
-  const fs::path cache = ctx->GetCachePath().ToString();
-  if (cache.empty()) {
+  const fs::path root = ExtRootDir();
+  if (root.empty()) {
     ExtToast("Путь профиля не определён", true);
     return;
   }
-  const fs::path root = cache / "Extensions";
   std::error_code ec;
   fs::create_directories(root, ec);
   static int seq = 0;
@@ -1142,8 +1273,22 @@ void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
     fs::remove_all(tmp, ec);
     return;
   }
-  ExtToast("Устанавливаю: " + name + (ver.empty() ? "" : " v" + ver), false);
-  ctx->LoadExtension(dest.ToString(), new ShellExtHandler());
+  LoadExtFromDir(dest);
+  ExtToast("Расширение установлено: " + name + (ver.empty() ? "" : " v" + ver),
+           false);
+  ExtPushList();
+}
+
+void Shell::OnTabLoadStart(CefRefPtr<CefBrowser> browser,
+                           CefRefPtr<CefFrame> frame) {
+  CEF_REQUIRE_UI_THREAD();
+  InjectExtScripts(browser, frame, true);
+}
+
+void Shell::OnTabLoadEnd(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefFrame> frame) {
+  CEF_REQUIRE_UI_THREAD();
+  InjectExtScripts(browser, frame, false);
 }
 
 void Shell::OnTabDownloadUpdated(CefRefPtr<CefDownloadItem> item) {

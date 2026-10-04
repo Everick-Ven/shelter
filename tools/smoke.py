@@ -112,11 +112,21 @@ try:
     if not ui:
         log("FAIL: UI target not found; process alive =", proc.poll() is None)
         sys.exit(1)
-    time.sleep(3)
     c = Cdp(ui["webSocketDebuggerUrl"])
     c.call("Runtime.enable")
     c.call("Log.enable")
     c.call("Page.enable")
+    # Ждём полной готовности UI: маркер window.getActiveTabId выставляется тем же
+    # местом скрипта, что и window.__shelterTab (state hook), поэтому он —
+    # надёжный сигнал «скрипт выполнен». Фиксированного sleep(3) не хватало на
+    # медленных раннерах (первый eval приходил до конца загрузки).
+    ready = False
+    for _ in range(30):
+        if c.eval("typeof window.getActiveTabId === 'function' && !!document.getElementById('viewport')") is True:
+            ready = True
+            break
+        time.sleep(0.5)
+    log("ui ready:", ready)
     log("title:", c.eval("document.title"))
     log("shelterNative:", c.eval("JSON.stringify({n: !!window.shelterNative, p: window.shelterNative && window.shelterNative.platform, open: typeof window.shelterOpen, tabHook: typeof window.__shelterTab, cq: typeof window.cefQuery})"))
     log("viewport:", c.eval("JSON.stringify(document.getElementById('viewport').getBoundingClientRect())"))

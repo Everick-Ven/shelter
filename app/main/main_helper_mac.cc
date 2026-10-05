@@ -77,7 +77,12 @@ int main(int argc, char* argv[]) {
 
   CefMainArgs args(argc, argv);
   CefRefPtr<shelter::App> app(new shelter::App);
+  shelter::Log(shelter::LogLevel::Info,
+               "CEF helper loaded the framework; dispatching subprocess");
   const int exit_code = CefExecuteProcess(args, app, nullptr);
+  shelter::Log(shelter::LogLevel::Info,
+               "CEF helper subprocess exited with status " +
+                   std::to_string(exit_code));
   if (exit_code < 0) {
     shelter::Log(shelter::LogLevel::Error,
                  "CEF helper received no recognized subprocess command");

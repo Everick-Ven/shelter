@@ -60,6 +60,8 @@ jobs:
           cp mac/Helper-Info.plist "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/Info.plist"
           printf 'APPL????' > package/SHELTER.app/Contents/PkgInfo
           printf 'APPL????' > "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/PkgInfo"
+          codesign --force --deep --sign - --timestamp=none package/SHELTER.app
+          codesign --verify --deep --strict --verbose=2 package/SHELTER.app
           mkdir -p dmg-root
           cp -R package/SHELTER.app dmg-root/SHELTER.app
           ln -s /Applications dmg-root/Applications

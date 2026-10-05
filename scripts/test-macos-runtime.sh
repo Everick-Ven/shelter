@@ -32,6 +32,7 @@ if [[ ! -x "$main_executable" || ! -x "$helper_executable" ]]; then
 fi
 
 plutil -lint "$main_info" "$helper_info"
+codesign --verify --deep --strict "$app_path"
 helper_package_type="$(/usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$helper_info")"
 if [[ "$helper_package_type" != "APPL" ]]; then
   echo "CEF helper bundle must have CFBundlePackageType APPL, got '$helper_package_type'." >&2

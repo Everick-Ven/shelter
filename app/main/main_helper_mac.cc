@@ -1,14 +1,32 @@
 #include "app/cef/cef_app.h"
+#include "app/common/logging.h"
 #include "include/cef_app.h"
 #include "include/wrapper/cef_library_loader.h"
 
+#include <cstdlib>
+#include <filesystem>
+#include <string>
 #include <string_view>
+#include <system_error>
 
 #if defined(CEF_USE_SANDBOX)
 #include "include/cef_sandbox_mac.h"
 #endif
 
 namespace {
+namespace fs = std::filesystem;
+
+std::string PathToUtf8(const fs::path& path) {
+  const auto value = path.u8string();
+  return std::string(reinterpret_cast<const char*>(value.data()), value.size());
+}
+
+fs::path GetLogDirectory() {
+  if (const char* home = std::getenv("HOME")) {
+    return fs::path(home) / "Library" / "Application Support" / "SHELTER";
+  }
+  return fs::temp_directory_path() / "SHELTER";
+}
 
 bool IsHelperLoaderSmokeTest(int argc, char* argv[]) {
   constexpr std::string_view kSwitch = "--shelter-helper-smoke-test";
@@ -24,17 +42,45 @@ bool IsHelperLoaderSmokeTest(int argc, char* argv[]) {
 // renderer, GPU and utility subprocesses. It must load CEF from the helper
 // bundle's relative location, not from the main application's executable path.
 int main(int argc, char* argv[]) {
-  const bool smoke_test = IsHelperLoaderSmokeTest(argc, argv);
+  std::error_code error;
+  fs::path log_directory = GetLogDirectory();
+  fs::create_directories(log_directory, error);
+  if (error) {
+    error.clear();
+    log_directory = fs::temp_directory_path() / "SHELTER";
+    fs::create_directories(log_directory, error);
+  }
+  const std::string log_path = PathToUtf8(log_directory / "shelter-helper.log");
+  shelter::InitializeLogging(log_path.c_str());
+
 #if defined(CEF_USE_SANDBOX)
   CefScopedSandboxContext sandbox_context;
-  if (!smoke_test && !sandbox_context.Initialize(argc, argv)) return 1;
+  if (!sandbox_context.Initialize(argc, argv)) {
+    shelter::Log(shelter::LogLevel::Error,
+                 "CEF macOS sandbox initialization failed in helper process");
+    return 1;
+  }
 #endif
 
   CefScopedLibraryLoader library_loader;
-  if (!library_loader.LoadInHelper()) return 1;
-  if (smoke_test) return 0;
+  if (!library_loader.LoadInHelper()) {
+    shelter::Log(shelter::LogLevel::Error,
+                 "Failed to load the CEF framework in helper process");
+    return 1;
+  }
+
+  if (IsHelperLoaderSmokeTest(argc, argv)) {
+    shelter::Log(shelter::LogLevel::Info,
+                 "CEF helper framework load smoke test passed");
+    return 0;
+  }
 
   CefMainArgs args(argc, argv);
   CefRefPtr<shelter::App> app(new shelter::App);
-  return CefExecuteProcess(args, app, nullptr);
+  const int exit_code = CefExecuteProcess(args, app, nullptr);
+  if (exit_code < 0) {
+    shelter::Log(shelter::LogLevel::Error,
+                 "CEF helper received no recognized subprocess command");
+  }
+  return exit_code;
 }

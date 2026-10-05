@@ -29,6 +29,11 @@ namespace shelter {
 namespace {
 namespace fs = std::filesystem;
 
+std::string PathToUtf8(const fs::path& path) {
+  const auto value = path.u8string();
+  return std::string(reinterpret_cast<const char*>(value.data()), value.size());
+}
+
 class Handler final : public CefResourceHandler {
  public:
   Handler(std::string data, std::string mime_type, int status)
@@ -200,10 +205,18 @@ class Factory final : public CefSchemeHandlerFactory {
 
     const fs::path resource_path = (ui_directory_ / relative_path).lexically_normal();
     std::error_code error;
-    if (!fs::is_regular_file(resource_path, error)) return NotFound();
+    if (!fs::is_regular_file(resource_path, error)) {
+      Log(LogLevel::Error,
+          "SHELTER UI resource not found: " + PathToUtf8(resource_path));
+      return NotFound();
+    }
 
     std::ifstream file(resource_path, std::ios::binary);
-    if (!file) return NotFound();
+    if (!file) {
+      Log(LogLevel::Error,
+          "Failed to open SHELTER UI resource: " + PathToUtf8(resource_path));
+      return NotFound();
+    }
 
     std::string data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     return new Handler(std::move(data), MimeTypeFor(resource_path), 200);
@@ -219,10 +232,13 @@ class Factory final : public CefSchemeHandlerFactory {
 void RegisterUiScheme() {
   const fs::path ui_directory = ResolveUiDirectory();
   std::error_code error;
-  if (!fs::is_regular_file(ui_directory / "index.html", error)) {
-    Log(LogLevel::Error, "SHELTER UI index.html was not found in the app resources");
+  const fs::path index_path = ui_directory / "index.html";
+  if (!fs::is_regular_file(index_path, error)) {
+    Log(LogLevel::Error,
+        "SHELTER UI index.html was not found: " + PathToUtf8(index_path));
   } else {
-    Log(LogLevel::Info, "SHELTER UI resources resolved");
+    Log(LogLevel::Info,
+        "SHELTER UI resources resolved: " + PathToUtf8(ui_directory));
   }
 
   if (!CefRegisterSchemeHandlerFactory("shelter", "ui", new Factory(ui_directory))) {

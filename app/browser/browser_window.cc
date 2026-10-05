@@ -1,6 +1,7 @@
 #include "app/browser/browser_window.h"
 
 #include "app/cef/cef_client.h"
+#include "app/common/logging.h"
 #include "app/common/url_utils.h"
 #include "include/cef_app.h"
 #include "include/cef_frame.h"
@@ -129,13 +130,17 @@ void BrowserWindow::Create() {
       new Client(this, nullptr, std::string(), true), kUiUrl, settings,
       nullptr, nullptr, nullptr);
   if (!ui_view_) {
+    Log(LogLevel::Error, "Failed to create the SHELTER UI browser view");
     CefQuitMessageLoop();
     return;
   }
 
   window_ = CefWindow::CreateTopLevelWindow(
       new ShellWindowDelegate(this, ui_view_));
-  if (!window_) CefQuitMessageLoop();
+  if (!window_) {
+    Log(LogLevel::Error, "Failed to create the SHELTER top-level window");
+    CefQuitMessageLoop();
+  }
 }
 
 void BrowserWindow::OnWindowClosing(CefRefPtr<CefWindow> window) {

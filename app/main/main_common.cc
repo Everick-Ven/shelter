@@ -70,7 +70,14 @@ std::filesystem::path GetProfilePath() {
 }  // namespace
 
 int main(int argc, char** argv) {
-  shelter::InitializeLogging("shelter.log");
+  namespace fs = std::filesystem;
+  const fs::path profile_path = GetProfilePath();
+  const fs::path application_support_path = profile_path.parent_path();
+  std::error_code log_directory_error;
+  fs::create_directories(application_support_path, log_directory_error);
+  const std::string application_log_path =
+      PathToUtf8(application_support_path / "shelter.log");
+  shelter::InitializeLogging(application_log_path.c_str());
 #if defined(__APPLE__)
   CefScopedLibraryLoader library_loader;
   if (!library_loader.LoadInMain()) {
@@ -90,7 +97,7 @@ int main(int argc, char** argv) {
 
   CefSettings settings;
   settings.no_sandbox = true;
-  CefString(&settings.cache_path) = PathToUtf8(GetProfilePath());
+  CefString(&settings.cache_path) = PathToUtf8(profile_path);
   settings.persist_session_cookies = true;
 #if defined(__APPLE__)
   // The helper executable lives in Contents/Frameworks inside the top-level
@@ -110,8 +117,15 @@ int main(int argc, char** argv) {
   }
   CefString(&settings.browser_subprocess_path) = PathToUtf8(helper_path);
 #endif
-  CefString(&settings.log_file) = "shelter-cef.log";
-  if (!CefInitialize(args, settings, app, nullptr)) return 1;
+  const std::string cef_log_path =
+      PathToUtf8(application_support_path / "shelter-cef.log");
+  CefString(&settings.log_file) = cef_log_path;
+  if (!CefInitialize(args, settings, app, nullptr)) {
+    shelter::Log(shelter::LogLevel::Error, "CefInitialize failed");
+    return 1;
+  }
+  shelter::Log(shelter::LogLevel::Info,
+               "CEF initialized; entering the browser message loop");
   CefRunMessageLoop();
   CefShutdown();
   return 0;

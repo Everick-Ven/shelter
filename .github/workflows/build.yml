@@ -36,7 +36,7 @@ jobs:
         run: CEF_PLATFORM=macos ./scripts/bootstrap-cef.sh
       - name: Build and test
         run: |
-          bash scripts/ci-command.sh configure cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64
+          bash scripts/ci-command.sh configure cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 -DUSE_SANDBOX=OFF
           bash scripts/ci-command.sh build cmake --build build
           bash scripts/ci-command.sh test ctest --test-dir build --output-on-failure
       - name: Package macOS app

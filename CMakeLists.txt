@@ -6,6 +6,11 @@ if(MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "macOS minimum version")
+if(APPLE)
+  # SHELTER currently runs CEF with no_sandbox=true and ships without the
+  # signing/entitlements required to bootstrap CEF's macOS helper sandbox.
+  set(USE_SANDBOX OFF CACHE BOOL "Use the CEF macOS helper sandbox" FORCE)
+endif()
 set(SHELTER_CEF_ROOT "${CMAKE_SOURCE_DIR}/cef" CACHE PATH "CEF distribution")
 set(CEF_ROOT "${SHELTER_CEF_ROOT}")
 set(CMAKE_MODULE_PATH "${SHELTER_CEF_ROOT}/cmake" ${CMAKE_MODULE_PATH})

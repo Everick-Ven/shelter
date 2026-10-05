@@ -40,7 +40,10 @@ fi
 
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/shelter-runtime.XXXXXX")"
 main_pid=""
+export HOME="$work_dir/home"
 export SHELTER_HELPER_BUNDLE_NAME="SHELTER Helper"
+support_dir="$HOME/Library/Application Support/SHELTER"
+mkdir -p "$HOME"
 
 find_helper_pids() {
   ps -axo pid=,command= | awk '
@@ -57,7 +60,8 @@ find_renderer_pid() {
 
 print_logs() {
   for log_file in "$work_dir/helper.stdout.log" "$work_dir/app.stdout.log" \
-                  "$work_dir/shelter.log" "$work_dir/shelter-cef.log"; do
+                  "$support_dir/shelter.log" "$support_dir/shelter-helper.log" \
+                  "$support_dir/shelter-cef.log"; do
     if [[ -f "$log_file" ]]; then
       echo "--- $log_file ---" >&2
       tail -n 100 "$log_file" >&2 || true
@@ -87,13 +91,17 @@ if ! "$helper_executable" --shelter-helper-smoke-test \
   print_logs
   exit 1
 fi
+if ! grep -Fq "CEF helper framework load smoke test passed" \
+  "$support_dir/shelter-helper.log"; then
+  echo "The helper loader smoke test returned without its success marker." >&2
+  print_logs
+  exit 1
+fi
 
 "$main_executable" --disable-gpu --disable-gpu-compositing \
   >"$work_dir/app.stdout.log" 2>&1 &
 main_pid=$!
 
-context_seen=0
-context_seen_at=0
 for _ in $(seq 1 60); do
   if ! kill -0 "$main_pid" 2>/dev/null; then
     set +e
@@ -105,25 +113,20 @@ for _ in $(seq 1 60); do
     exit 1
   fi
 
-  renderer_pid="$(find_renderer_pid || true)"
-  if [[ "$renderer_pid" =~ ^[0-9]+$ ]]; then
-    echo "Packaged macOS app started its CEF renderer (PID $renderer_pid)."
-    exit 0
-  fi
-
-  if [[ -f "$work_dir/shelter.log" ]] && \
-     grep -Fq "CEF context initialized" "$work_dir/shelter.log"; then
-    if (( ! context_seen )); then
-      context_seen=1
-      context_seen_at=$SECONDS
-    elif (( SECONDS - context_seen_at >= 20 )); then
-      echo "Packaged app initialized CEF; no renderer process was exposed by this macOS runner."
-      exit 0
+  if [[ -f "$support_dir/shelter.log" ]] && \
+     grep -Fq "SHELTER UI main document loaded with status 200" \
+       "$support_dir/shelter.log"; then
+    renderer_pid="$(find_renderer_pid || true)"
+    if [[ "$renderer_pid" =~ ^[0-9]+$ ]]; then
+      echo "Packaged app loaded the SHELTER UI and started renderer PID $renderer_pid."
+    else
+      echo "Packaged app loaded the SHELTER UI in its CEF renderer."
     fi
+    exit 0
   fi
   sleep 1
 done
 
-echo "Timed out waiting for SHELTER to initialize CEF." >&2
+echo "Timed out waiting for the packaged app to load SHELTER UI (HTTP 200)." >&2
 print_logs
 exit 1

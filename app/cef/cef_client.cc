@@ -177,8 +177,12 @@ void Client::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
 }
 
 void Client::OnLoadEnd(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
-                       int) {
-  if (is_ui_ && frame && frame->IsMain() && window_) window_->OnUiLoadEnd();
+                       int http_status_code) {
+  if (!is_ui_ || !frame || !frame->IsMain()) return;
+  Log(LogLevel::Info,
+      "SHELTER UI main document loaded with status " +
+          std::to_string(http_status_code));
+  if (window_) window_->OnUiLoadEnd();
 }
 
 void Client::OnLoadError(CefRefPtr<CefBrowser>,

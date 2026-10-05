@@ -112,6 +112,16 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$work_dir"
+if curl --fail --show-error --silent --location --max-time 20 \
+  --output "$work_dir/example.com.html" \
+  --write-out 'SHELTER_WEB_SMOKE_CURL_PROBE http_status=%{http_code} bytes=%{size_download}\n' \
+  "${SHELTER_WEB_SMOKE_URL}"; then
+  :
+else
+  curl_status=$?
+  echo "SHELTER_WEB_SMOKE_CURL_PROBE_FAILED exit=$curl_status" >&2
+fi
+
 for index in "${!helper_executables[@]}"; do
   helper_executable="${helper_executables[$index]}"
   if ! "$helper_executable" --shelter-helper-smoke-test \

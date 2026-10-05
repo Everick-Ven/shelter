@@ -120,6 +120,12 @@ class ShellWindowDelegate final : public CefWindowDelegate {
 
   bool CanClose(CefRefPtr<CefWindow>) override { return true; }
 
+  cef_runtime_style_t GetWindowRuntimeStyle() override {
+    // The SHELTER window contains one UI BrowserView plus native BrowserViews
+    // for web tabs. Chrome-style windows reject additional BrowserViews.
+    return CEF_RUNTIME_STYLE_ALLOY;
+  }
+
   void OnWindowClosing(CefRefPtr<CefWindow> window) override {
     if (owner_) owner_->OnWindowClosing(window);
   }

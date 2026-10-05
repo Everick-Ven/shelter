@@ -371,7 +371,7 @@ void BrowserWindow::OnWebTitleChanged(const std::string& tab_id,
   auto data = NewDictionary();
   data->SetString("tabId", tab_id);
   data->SetString("title", title);
-  DispatchToUi("title", data);
+  DispatchToUiAsync("title", data);
 }
 
 void BrowserWindow::OnWebLoadingChanged(const std::string& tab_id,
@@ -386,7 +386,7 @@ void BrowserWindow::OnWebLoadingChanged(const std::string& tab_id,
   data->SetBool("loading", loading);
   data->SetBool("canGoBack", can_go_back);
   data->SetBool("canGoForward", can_go_forward);
-  DispatchToUi("loading", data);
+  DispatchToUiAsync("loading", data);
 }
 
 void BrowserWindow::OnWebFullscreenChanged(CefRefPtr<CefBrowser> browser,
@@ -397,7 +397,7 @@ void BrowserWindow::OnWebFullscreenChanged(CefRefPtr<CefBrowser> browser,
   auto data = NewDictionary();
   data->SetBool("fullscreen", fullscreen);
   data->SetBool("maximized", window_->IsMaximized());
-  DispatchToUi("window-state", data);
+  DispatchToUiAsync("window-state", data);
 }
 
 void BrowserWindow::OnWebBeforeDownload(
@@ -418,7 +418,7 @@ void BrowserWindow::OnWebBeforeDownload(
   data->SetString("filename", item->GetSuggestedFileName());
   data->SetString("url", item->GetURL());
   data->SetDouble("size", static_cast<double>(item->GetTotalBytes()));
-  DispatchToUi("download-prompt", data);
+  DispatchToUiAsync("download-prompt", data);
 }
 
 void BrowserWindow::OnWebDownloadUpdated(CefRefPtr<CefDownloadItem> item) {
@@ -438,7 +438,7 @@ void BrowserWindow::OnWebDownloadUpdated(CefRefPtr<CefDownloadItem> item) {
   data->SetString("state", state);
   data->SetDouble("total", static_cast<double>(item->GetTotalBytes()));
   data->SetDouble("bytes", static_cast<double>(item->GetReceivedBytes()));
-  DispatchToUi("download", data);
+  DispatchToUiAsync("download", data);
 
   if (item->IsComplete() || item->IsCanceled() || item->IsInterrupted()) {
     pending_downloads_.erase(item->GetId());
@@ -820,6 +820,18 @@ void BrowserWindow::DispatchToUi(const std::string& event,
   ui_browser_->GetMainFrame()->ExecuteJavaScript(script, kUiUrl, 0);
 }
 
+void BrowserWindow::DispatchToUiAsync(std::string event,
+                                      CefRefPtr<CefDictionaryValue> data) {
+  CefRefPtr<BrowserWindow> self(this);
+  CefRefPtr<CefTask> task = new DeferredBrowserTask(
+      [self, event = std::move(event), data = std::move(data)] {
+        if (!self->window_destroyed_) self->DispatchToUi(event, data);
+      });
+  if (!CefPostTask(TID_UI, task)) {
+    Log(LogLevel::Warning, "Failed to queue SHELTER UI event: " + event);
+  }
+}
+
 void BrowserWindow::DispatchWebTabState(const std::string& tab_id) {
   auto tab = controller_.tabs().Find(tab_id);
   if (!tab) return;
@@ -828,7 +840,7 @@ void BrowserWindow::DispatchWebTabState(const std::string& tab_id) {
   data->SetString("url", tab->url);
   data->SetBool("canGoBack", tab->browser && tab->browser->CanGoBack());
   data->SetBool("canGoForward", tab->browser && tab->browser->CanGoForward());
-  DispatchToUi("url", data);
+  DispatchToUiAsync("url", data);
 }
 
 bool BrowserWindow::IsTrustedUiFrame(CefRefPtr<CefBrowser> browser,

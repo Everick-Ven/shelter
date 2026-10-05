@@ -203,6 +203,9 @@ void Client::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
     window_->OnWebLoadingChanged(tab_id_, is_loading, can_go_back,
                                  can_go_forward);
   }
+  if (!is_ui_ && std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info, "SHELTER_WEB_SMOKE_LOADING_CALLBACK_END");
+  }
 }
 
 void Client::OnLoadStart(CefRefPtr<CefBrowser> browser,

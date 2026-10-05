@@ -27,7 +27,7 @@ else
   # parallel build log. Fall back to the tail for failures without diagnostics.
   diagnostics_file="$(mktemp "${TMPDIR:-/tmp}/shelter-${safe_label}-diagnostics.XXXXXX")"
   if [[ "$label" == "runtime" ]]; then
-    grep -Ei 'error|fatal|SHELTER_WEB_SMOKE_(CURL_PROBE|REQUESTED|NAVIGATE|NAVIGATION_QUEUED|VIEW_CREATED|OVERLAY_[A-Z_]+|CLIENT_AFTER_CREATED|BROWSER_CREATED|BROWSER_CLOSED|BEFORE_BROWSE|LOAD_START|LOAD_URL_[A-Z_]+|LOADING_STATE|LOAD_ERROR|DOCUMENT_LOADED|RENDERER_TERMINATED)|SHELTER_DASHBOARD_LAYOUT' \
+    grep -Ei 'error|fatal|SHELTER_WEB_SMOKE_(CURL_PROBE|REQUESTED|NAVIGATE|NAVIGATION_QUEUED|VIEW_CREATED|OVERLAY_[A-Z_]+|CLIENT_AFTER_CREATED|BROWSER_CREATED|BROWSER_CLOSED|BEFORE_BROWSE|LOAD_START|LOAD_URL_[A-Z_]+|LOADING_STATE|LOADING_CALLBACK_END|LOAD_ERROR|DOCUMENT_LOADED|RENDERER_TERMINATED)|SHELTER_DASHBOARD_LAYOUT' \
       "$log_file" | tail -n 20 >"$diagnostics_file" || true
   else
     grep -Ei 'error|fatal|undefined reference|unresolved external|no such file|not found' \

@@ -66,6 +66,8 @@ class BrowserWindow final : public CefBaseRefCounted {
   void CloseWebTab(const std::string& tab_id);
   void DispatchToUi(const std::string& event,
                     CefRefPtr<CefDictionaryValue> data = nullptr);
+  void DispatchToUiAsync(std::string event,
+                         CefRefPtr<CefDictionaryValue> data);
   void DispatchWebTabState(const std::string& tab_id);
   bool IsTrustedUiFrame(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame) const;
   void ContinueDownload(int download_id, const std::string& action);

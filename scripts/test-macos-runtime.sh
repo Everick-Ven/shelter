@@ -81,7 +81,8 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$work_dir"
-"$main_executable" >"$work_dir/app.stdout.log" 2>&1 &
+"$main_executable" --disable-gpu --disable-gpu-compositing \
+  >"$work_dir/app.stdout.log" 2>&1 &
 main_pid=$!
 
 for _ in $(seq 1 60); do

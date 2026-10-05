@@ -674,8 +674,10 @@ bool BrowserWindow::EnsureWebTab(const std::string& tab_id,
   if (!inserted) return false;
 
   CefBrowserSettings settings;
+  // Avoid starting a document load while CEF is attaching the BrowserView.
+  // The requested URL is loaded explicitly once AddOverlayView completes.
   auto view = CefBrowserView::CreateBrowserView(
-      new Client(this, &controller_, tab_id, false), "about:blank", settings,
+      new Client(this, &controller_, tab_id, false), "", settings,
       nullptr, nullptr, new AlloyBrowserViewDelegate());
   if (!view) {
     web_tabs_.erase(web_tab_it);

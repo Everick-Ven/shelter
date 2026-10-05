@@ -13,10 +13,12 @@
 #include "include/cef_request_handler.h"
 #include "include/wrapper/cef_message_router.h"
 
+#include <memory>
 #include <string>
 
 namespace shelter {
 
+class BridgeHandler;
 class BrowserWindow;
 
 class Client final : public CefClient,
@@ -28,6 +30,7 @@ class Client final : public CefClient,
  public:
   Client(BrowserWindow* window, BrowserController* controller,
          std::string tab_id, bool is_ui);
+  ~Client() override;
 
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
@@ -37,9 +40,10 @@ class Client final : public CefClient,
 
   bool OnBeforePopup(CefRefPtr<CefBrowser> browser,
                      CefRefPtr<CefFrame> frame,
+                     int popup_id,
                      const CefString& target_url,
                      const CefString& target_frame_name,
-                     WindowOpenDisposition target_disposition,
+                     CefLifeSpanHandler::WindowOpenDisposition target_disposition,
                      bool user_gesture,
                      const CefPopupFeatures& popup_features,
                      CefWindowInfo& window_info,
@@ -55,7 +59,9 @@ class Client final : public CefClient,
                       bool user_gesture,
                       bool is_redirect) override;
   void OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
-                                 TerminationStatus status) override;
+                                 CefRequestHandler::TerminationStatus status,
+                                 int error_code,
+                                 const CefString& error_string) override;
   bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                 CefRefPtr<CefFrame> frame,
                                 CefProcessId source_process,
@@ -93,6 +99,7 @@ class Client final : public CefClient,
   std::string tab_id_;
   bool is_ui_ = false;
   CefRefPtr<CefMessageRouterBrowserSide> router_;
+  std::unique_ptr<BridgeHandler> bridge_handler_;
 
   IMPLEMENT_REFCOUNTING(Client);
 };

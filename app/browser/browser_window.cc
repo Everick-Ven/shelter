@@ -150,9 +150,7 @@ void BrowserWindow::OnWindowClosing(CefRefPtr<CefWindow> window) {
     if (tab && tab->browser) tab->browser->GetHost()->CloseBrowser(true);
   }
 
-  for (auto& [id, pending] : pending_downloads_) {
-    if (pending.callback) pending.callback->Cancel();
-  }
+  // Releasing an uncontinued CefBeforeDownloadCallback cancels its download.
   pending_downloads_.clear();
   if (ui_browser_) ui_browser_->GetHost()->CloseBrowser(true);
 }
@@ -281,10 +279,7 @@ void BrowserWindow::OnWebBeforeDownload(
     CefRefPtr<CefBeforeDownloadCallback> callback) {
   CEF_REQUIRE_UI_THREAD();
   if (!item || !callback) return;
-  if (!ui_browser_) {
-    callback->Cancel();
-    return;
-  }
+  if (!ui_browser_) return;
 
   const int id = item->GetId();
   PendingDownload pending;
@@ -508,7 +503,7 @@ bool BrowserWindow::EnsureWebTab(const std::string& tab_id,
   }
   auto overlay = window_->AddOverlayView(view, CEF_DOCKING_MODE_CUSTOM, true);
   if (!overlay) {
-    view->Destroy();
+    // This detached view has not created a browser and is released here.
     controller_.tabs().Close(tab_id);
     return false;
   }
@@ -566,9 +561,9 @@ void BrowserWindow::DispatchToUi(const std::string& event,
   CefRefPtr<CefValue> value = CefValue::Create();
   value->SetDictionary(data);
   const std::string json = CefWriteJSON(value, JSON_WRITER_DEFAULT).ToString();
-  const std::string script = "if (typeof window.shelterCefDispatch === 'function') "
-                             "window.shelterCefDispatch(" +
-                             "'" + event + "'," + json + ");";
+  const std::string script =
+      std::string("if (typeof window.shelterCefDispatch === 'function') ") +
+      "window.shelterCefDispatch('" + event + "'," + json + ");";
   ui_browser_->GetMainFrame()->ExecuteJavaScript(script, kUiUrl, 0);
 }
 
@@ -601,18 +596,12 @@ void BrowserWindow::ContinueDownload(int download_id,
   const std::string filename = it->second.filename;
   pending_downloads_.erase(it);
 
-  if (action == "cancel") {
-    callback->Cancel();
-    return;
-  }
+  if (action == "cancel") return;
   if (action == "saveAs") {
     callback->Continue(filename, true);
     return;
   }
-  if (action != "save") {
-    callback->Cancel();
-    return;
-  }
+  if (action != "save") return;
   callback->Continue(GetUniqueDownloadPath(filename, download_id), false);
 }
 

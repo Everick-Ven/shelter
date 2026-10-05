@@ -9,7 +9,6 @@
 #include <utility>
 
 namespace shelter {
-namespace {
 
 class BridgeHandler final : public CefMessageRouterBrowserSide::Handler {
  public:
@@ -50,11 +49,7 @@ class BridgeHandler final : public CefMessageRouterBrowserSide::Handler {
 
  private:
   BrowserWindow* window_ = nullptr;
-
-  IMPLEMENT_REFCOUNTING(BridgeHandler);
 };
-
-}  // namespace
 
 Client::Client(BrowserWindow* window, BrowserController* controller,
                std::string tab_id, bool is_ui)
@@ -64,15 +59,23 @@ Client::Client(BrowserWindow* window, BrowserController* controller,
       is_ui_(is_ui) {
   if (is_ui_) {
     router_ = CefMessageRouterBrowserSide::Create(CefMessageRouterConfig());
-    if (router_) router_->AddHandler(new BridgeHandler(window_), false);
+    if (router_) {
+      bridge_handler_ = std::make_unique<BridgeHandler>(window_);
+      router_->AddHandler(bridge_handler_.get(), false);
+    }
   }
+}
+
+Client::~Client() {
+  if (router_ && bridge_handler_) router_->RemoveHandler(bridge_handler_.get());
 }
 
 bool Client::OnBeforePopup(CefRefPtr<CefBrowser>,
                            CefRefPtr<CefFrame>,
+                           int,
                            const CefString& target_url,
                            const CefString&,
-                           WindowOpenDisposition,
+                           CefLifeSpanHandler::WindowOpenDisposition,
                            bool,
                            const CefPopupFeatures&,
                            CefWindowInfo&,
@@ -89,7 +92,6 @@ bool Client::OnBeforePopup(CefRefPtr<CefBrowser>,
 }
 
 void Client::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
-  if (router_) router_->OnAfterCreated(browser);
   if (is_ui_) {
     if (window_) window_->OnUiBrowserCreated(browser);
     return;
@@ -117,10 +119,15 @@ bool Client::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
 }
 
 void Client::OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
-                                       TerminationStatus status) {
+                                       CefRequestHandler::TerminationStatus status,
+                                       int error_code,
+                                       const CefString& error_string) {
   if (router_) router_->OnRenderProcessTerminated(browser);
   Log(LogLevel::Warning,
-      "CEF renderer terminated: " + std::to_string(static_cast<int>(status)));
+      "CEF renderer terminated: status=" +
+          std::to_string(static_cast<int>(status)) +
+          " error=" + std::to_string(error_code) + " " +
+          error_string.ToString());
 }
 
 bool Client::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
@@ -189,7 +196,8 @@ bool Client::OnBeforeDownload(CefRefPtr<CefBrowser>,
                               const CefString&,
                               CefRefPtr<CefBeforeDownloadCallback> callback) {
   if (window_) window_->OnWebBeforeDownload(download_item, callback);
-  else if (callback) callback->Cancel();
+  // Returning true without retaining/continuing the callback cancels the
+  // download when there is no browser window to present the download prompt.
   return true;
 }
 

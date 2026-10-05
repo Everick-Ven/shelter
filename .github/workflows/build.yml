@@ -56,13 +56,17 @@ jobs:
           iconutil -c icns /tmp/SHELTER.iconset -o package/SHELTER.app/Contents/Resources/SHELTER.icns
           cp -R "cef/Release/Chromium Embedded Framework.framework" package/SHELTER.app/Contents/Frameworks/
           mkdir -p "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS"
-          cp build/shelter.app/Contents/MacOS/shelter "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper"
+          cp build/shelter_helper "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper"
           cp mac/Helper-Info.plist "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/Info.plist"
+          printf 'APPL????' > package/SHELTER.app/Contents/PkgInfo
+          printf 'APPL????' > "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/PkgInfo"
           mkdir -p dmg-root
           cp -R package/SHELTER.app dmg-root/SHELTER.app
           ln -s /Applications dmg-root/Applications
           rm -f SHELTER-macos-x64.dmg
           hdiutil detach "$(hdiutil info | awk '/dmg-root/{print $1; exit}')" 2>/dev/null || true
           hdiutil create -volname SHELTER -srcfolder "${GITHUB_WORKSPACE}/dmg-root" -ov -format UDZO "${GITHUB_WORKSPACE}/SHELTER-macos-x64.dmg"
+      - name: Runtime smoke test (packaged macOS app)
+        run: bash scripts/ci-command.sh runtime bash scripts/test-macos-runtime.sh "$GITHUB_WORKSPACE/package/SHELTER.app"
       - uses: actions/upload-artifact@v4
         with: { name: SHELTER-macos-x64, path: SHELTER-macos-x64.dmg }

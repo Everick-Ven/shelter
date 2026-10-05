@@ -45,6 +45,14 @@ target_include_directories(shelter PRIVATE ${CMAKE_SOURCE_DIR} ${SHELTER_CEF_ROO
 if(APPLE)
   set_target_properties(shelter PROPERTIES MACOSX_BUNDLE TRUE)
   target_link_libraries(shelter PRIVATE "-framework Cocoa")
+
+  # The helper has a distinct entry point because CEF must load its framework
+  # relative to the nested Helper.app bundle via LoadInHelper().
+  add_executable(shelter_helper app/main/main_helper_mac.cc)
+  target_link_libraries(shelter_helper PRIVATE shelter_common libcef_dll_wrapper
+                        ${CEF_STANDARD_LIBS} "-framework Cocoa")
+  target_include_directories(shelter_helper PRIVATE ${CMAKE_SOURCE_DIR}
+                             ${SHELTER_CEF_ROOT} ${SHELTER_CEF_ROOT}/include)
   set(SHELTER_UI_RESOURCE_DIR "$<TARGET_BUNDLE_DIR:shelter>/Contents/Resources/ui")
 else()
   set(SHELTER_UI_RESOURCE_DIR "$<TARGET_FILE_DIR:shelter>/Resources/ui")

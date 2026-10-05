@@ -33,7 +33,7 @@ std::filesystem::path GetExecutablePath(const char* argv0) {
   if (path_size > 0) {
     std::string path_buffer(path_size, '\0');
     if (_NSGetExecutablePath(path_buffer.data(), &path_size) == 0) {
-      const fs::path path = fs::u8path(path_buffer.c_str());
+      const fs::path path(path_buffer.c_str());
       std::error_code error;
       const fs::path canonical_path = fs::weakly_canonical(path, error);
       return error ? path : canonical_path;
@@ -41,8 +41,8 @@ std::filesystem::path GetExecutablePath(const char* argv0) {
   }
 
   std::error_code error;
-  const fs::path path = fs::absolute(fs::u8path(argv0), error);
-  return error ? fs::u8path(argv0) : path;
+  const fs::path path = fs::absolute(fs::path(argv0), error);
+  return error ? fs::path(argv0) : path;
 }
 #endif
 
@@ -58,7 +58,7 @@ std::filesystem::path GetProfilePath() {
   }
 #else
   if (const char* home = std::getenv("HOME")) {
-    base = fs::u8path(home) / "Library" / "Application Support" / "SHELTER" / "CEF";
+    base = fs::path(home) / "Library" / "Application Support" / "SHELTER" / "CEF";
   }
 #endif
   if (base.empty()) base = fs::temp_directory_path() / "SHELTER" / "CEF";
@@ -74,7 +74,8 @@ int main(int argc, char** argv) {
 #if defined(__APPLE__)
   CefScopedLibraryLoader library_loader;
   if (!library_loader.LoadInMain()) {
-    Log(LogLevel::Error, "Failed to load the CEF framework for the browser process");
+    shelter::Log(shelter::LogLevel::Error,
+                 "Failed to load the CEF framework for the browser process");
     return 1;
   }
 #endif
@@ -103,8 +104,8 @@ int main(int argc, char** argv) {
       "MacOS" / "SHELTER Helper";
   std::error_code helper_error;
   if (!fs::is_regular_file(helper_path, helper_error) || helper_error) {
-    Log(LogLevel::Error,
-        "CEF helper executable is missing: " + PathToUtf8(helper_path));
+    shelter::Log(shelter::LogLevel::Error,
+                 "CEF helper executable is missing: " + PathToUtf8(helper_path));
     return 1;
   }
   CefString(&settings.browser_subprocess_path) = PathToUtf8(helper_path);

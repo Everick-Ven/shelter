@@ -450,10 +450,6 @@ body.no-badges .badge{display:none!important}
   transform:translate3d(var(--x,10px),-50%,0);transition:transform .42s var(--ease)}
 .theme-mini{display:none;position:relative;width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--line-2);flex:none}
 .theme-mini i{inset:8px}
-.app.collapsed .set-line{flex-direction:column;gap:8px}
-.app.collapsed .set-full{width:100%}
-.app.collapsed .swatches{display:none}
-.app.collapsed .theme-mini{display:block;margin:0 auto}
 .ni.boxed{border:1px solid var(--line-2);background:var(--card);box-shadow:var(--hi)}
 .ni.boxed:hover{background:var(--card-2)}
 .user-row{display:flex;align-items:center;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
@@ -548,6 +544,10 @@ body.no-badges .badge{display:none!important}
 .q-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .q-row .q-h{margin:0}
 .q-sec > .q-h{margin:0 0 10px}
+.q-theme-swatches{flex:0 1 300px;width:min(300px,100%);max-width:100%;height:38px;padding:0 8px}
+.q-theme-swatches .swatch{width:24px;height:24px}
+.q-theme-sec{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.q-theme-sec > .q-h{margin:0;min-width:130px}
 .q-tabs.list{display:flex;flex-direction:column;gap:2px;max-height:min(360px,50vh);overflow:auto}
 .q-li{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 8px;border-radius:10px;color:var(--text);text-align:left;width:100%;background:none;border:0;cursor:pointer}
 .q-li:hover{background:var(--hover)}
@@ -850,6 +850,7 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .mi.danger .i{color:rgb(var(--danger)/.8)}
 .mi .sub{display:block;font-size:11.5px;color:var(--text-3);margin-top:1px;white-space:normal}
 .mi.tall{min-height:46px;padding-top:6px;padding-bottom:6px}
+.menu-avatar{width:28px;height:28px;border-radius:9px;font-size:10px}
 .msep{height:1px;background:var(--line);margin:6px 4px}
 .mh{padding:8px 10px 5px;font-size:11px;color:var(--text-3);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
 .mrow{display:flex;align-items:center;gap:8px;padding:4px 6px 4px 10px;font-size:13px;color:var(--text-2)}
@@ -3085,21 +3086,6 @@ html[data-theme="graphite"] .badge.hot{
       </div>
     </div>
 
-    <div class="sb-bottom">
-      <button class="ni toggle-row" data-act="schemeMode" id="sbSchemeRow" data-tip="Светлый/Тёмный режим">
-        <svg class="i" id="sbSchemeIco"><use href="#i-moon"/></svg>
-        <span class="lbl hc">Тёмная тема</span>
-        <span class="sw-t hc" id="sbSchemeSw" aria-hidden="true"><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></span>
-      </button>
-      <div class="set-line">
-        <div class="swatches" id="swatches"></div>
-        <button class="theme-mini" data-act="themeMenu" id="themeMini" data-tip="Тема" aria-label="Тема"><i></i></button>
-      </div>
-      <button class="ni boxed set-full" data-act="settings" data-tip="Настройки  ⌘,"><svg class="i"><use href="#i-gear"/></svg><span class="lbl hc">Настройки</span></button>
-      <div class="user-row">
-        <button class="user" data-act="account" id="userCard" data-tip="Профиль"></button>
-      </div>
-    </div>
   </aside>
 
   <!-- ============ ОСНОВНАЯ ОБЛАСТЬ ============ -->
@@ -3123,9 +3109,11 @@ html[data-theme="graphite"] .badge.hot{
       </div>
       <div class="tb-g" style="gap:6px">
         <div class="tb-ctls" id="ctlGrid" role="group" aria-label="Защита"></div>
+        <button class="tb-btn" id="schemeModeBtn" data-act="schemeMode" data-tip="Переключить на светлую тему" aria-label="Переключить цветовую схему" aria-pressed="true"><svg class="i"><use href="#i-moon"/></svg></button>
         <div class="tb-g hide-sm" id="extBar"></div>
         <button class="tb-btn" id="quickBtn" data-act="quick" data-tip="Анимации и вкладки" aria-label="Анимации и вкладки"><svg class="i"><use href="#i-sliders"/></svg></button>
-        <button class="tb-btn" data-act="more" data-tip="Меню" aria-label="Меню"><svg class="i"><use href="#i-dots"/></svg></button>
+        <button class="tb-btn" id="settingsBtn" data-act="settings" data-tip="Настройки  ⌘," aria-label="Настройки"><svg class="i"><use href="#i-gear"/></svg></button>
+        <button class="tb-btn" id="moreBtn" data-act="more" data-tip="Меню" aria-label="Меню"><svg class="i"><use href="#i-dots"/></svg></button>
         <div class="wctl" id="winCtl" hidden>
           <button class="wc" data-w="minimize" data-tip="Свернуть" aria-label="Свернуть окно"><svg viewBox="0 0 12 12"><path d="M2 6h8" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg></button>
           <button class="wc" data-w="maximize" data-tip="Растянуть" aria-label="Растянуть окно"><svg viewBox="0 0 12 12"><rect x="2.4" y="2.4" width="7.2" height="7.2" rx="1.2" stroke="currentColor" stroke-width="1.3" fill="none"/></svg></button>
@@ -4779,12 +4767,13 @@ function schemeSetMode(mode) {
 function schemeToggleMode() { schemeSetMode(schemeModeNow() === 'dark' ? 'light' : 'dark'); }
 function syncSchemeBtn() {
   const dark = schemeModeNow() === 'dark';
-  const row = document.getElementById('sbSchemeRow');
-  if (row) {
-    row.setAttribute('aria-pressed', String(dark));
-    const ico2 = document.getElementById('sbSchemeIco'); if (ico2) { const use = ico2.querySelector('use'); if (use) use.setAttribute('href', dark ? '#i-moon' : '#i-sun'); }
-    const sw = document.getElementById('sbSchemeSw'); if (sw) sw.classList.toggle('on', dark);
-  }
+  const button = document.getElementById('schemeModeBtn');
+  if (!button) return;
+  button.setAttribute('aria-pressed', String(dark));
+  button.setAttribute('aria-label', dark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему');
+  button.setAttribute('data-tip', dark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему');
+  const use = button.querySelector('use');
+  if (use) use.setAttribute('href', dark ? '#i-moon' : '#i-sun');
 }
 SEG.schemeMode = v => schemeSetMode(v);
 SEG.schemeDark = v => {
@@ -4800,14 +4789,15 @@ SEG.schemeLight = v => {
   toast('Светлая тема: ' + THEMES[v].name, { icon: 'sun' });
 };
 function syncThemeUI() {
-  const i = Math.max(0, THEME_ORDER.indexOf(S.theme)), t = THEMES[S.theme] || THEMES.obsidian;
-  const ind = $('#swInd'), activeBtn = $(`#swatches .swatch[data-theme="${S.theme}"]`);
+  const i = Math.max(0, THEME_ORDER.indexOf(S.theme));
+  const swatches = document.querySelector('.menu-quick:not(.closing) #swatches');
+  const ind = swatches && swatches.querySelector('#swInd');
+  const activeBtn = swatches && swatches.querySelector(`.swatch[data-theme="${S.theme}"]`);
   if (ind) {
-    const x = (activeBtn && activeBtn.offsetWidth > 0) ? activeBtn.offsetLeft : (10 + i * 38);
+    const x = (activeBtn && activeBtn.offsetWidth > 0) ? activeBtn.offsetLeft : (8 + i * 38);
     ind.style.setProperty('--x', x + 'px');
   }
-  $$('#swatches .swatch').forEach(b => b.setAttribute('aria-pressed', b.dataset.theme === S.theme));
-  const mini = $('#themeMini'); if (mini) mini.style.cssText = `--c1:${t.sw[0]};--c2:${t.sw[1]};--c3:${t.sw[2]}`;
+  if (swatches) swatches.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', b.dataset.theme === S.theme));
   $$('.tcard').forEach(c => c.classList.toggle('on', c.dataset.theme === S.theme));
   if (typeof applyGlowPrefs === 'function') applyGlowPrefs();
 }
@@ -4951,17 +4941,20 @@ function syncControls() {
   $$('#ctlGrid .ctl[data-sw]').forEach(b => { const k = b.dataset.sw; b.classList.toggle('on', swState(k)); b.setAttribute('aria-pressed', swState(k)); });
   const pt = $('#protToday'); if (pt) pt.textContent = S.prefs.trackers ? fmtN(tb) + ' ' + plural(tb, ['блокировка', 'блокировки', 'блокировок']) + ' сегодня' : 'блокировка выключена';
 }
-function renderSwatches() {
-  $('#swatches').innerHTML = `<span class="sw-ind" id="swInd"></span>` + THEME_ORDER.map(k => { const t = THEMES[k]; return `<button class="swatch" data-act="theme" data-theme="${k}" style="--c1:${t.sw[0]};--c2:${t.sw[1]};--c3:${t.sw[2]}" aria-label="Тема: ${t.name}" title="${t.name}"><i></i></button>`; }).join('');
-  syncThemeUI();
-  requestAnimationFrame(syncThemeUI);
+function themeSwatchesMarkup() {
+  return `<div class="swatches q-theme-swatches" id="swatches"><span class="sw-ind" id="swInd"></span>` + THEME_ORDER.map(k => {
+    const t = THEMES[k];
+    return `<button type="button" class="swatch" data-act="theme" data-theme="${k}" style="--c1:${t.sw[0]};--c2:${t.sw[1]};--c3:${t.sw[2]}" aria-label="Тема: ${t.name}" aria-pressed="${k === S.theme}" title="${t.name}"><i></i></button>`;
+  }).join('') + `</div>`;
 }
 function renderUser() {
+  const card = $('#userCard');
+  if (!card) return;
   const a = S.account, name = a ? a.name : (S.ui.profileName || 'Вы');
   const ini = a ? (a.initials || initialsOf(name)) : (S.ui.profileName ? initialsOf(name) : 'В');
   const avSrc = profileAvatarSource();
   const sub = a && a.email ? esc(a.email) : (isPremium() ? 'Premium' : 'Профиль');
-  $('#userCard').innerHTML = `<span class="avatar ${avSrc ? 'has-photo' : ''}">${profileAvatarContent(name, avSrc, ini)}</span><span class="meta hc"><span class="n" style="display:block">${esc(name)}</span><span class="e" style="display:block">${sub}</span></span>`;
+  card.innerHTML = `<span class="avatar ${avSrc ? 'has-photo' : ''}">${profileAvatarContent(name, avSrc, ini)}</span><span class="meta hc"><span class="n" style="display:block">${esc(name)}</span><span class="e" style="display:block">${sub}</span></span>`;
 }
 function renderBadges() {
   $('#bdgBm').textContent = S.bookmarks.length;
@@ -9972,14 +9965,14 @@ function quickPanelHtml() {
   const bmPos = ['top', 'center', 'bottom'].includes(S.ui.bmPos) ? S.ui.bmPos : 'center';
   const glassOp = clamp(+S.prefs.glassOp || 82, 40, 100);
   const shownOp = isPerf ? 100 : glassOp;
-  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}<div class="q-row ${isPerf ? 'is-disabled' : ''}" id="qGlowRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Свечение</div>${swHtml('glow', !isPerf && S.prefs.glow !== false, isPerf)}</div></div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
+  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}<div class="q-row ${isPerf ? 'is-disabled' : ''}" id="qGlowRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Свечение</div>${swHtml('glow', !isPerf && S.prefs.glow !== false, isPerf)}</div></div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec q-theme-sec" id="quickThemeSec"><div class="q-h">Цветовая тема</div>${themeSwatchesMarkup()}</div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
 }
 function syncQuickPanel(full) {
   const el = OV.menu && OV.menu.el;
   if (!el || !el.classList.contains('menu-quick')) return;
   if (full) {
     el.innerHTML = quickPanelHtml();
-    initSegs(el); initRanges(el);
+    initSegs(el); initRanges(el); syncThemeUI();
     if (OV.menu.anchor) positionFloating(el, OV.menu.anchor, { place: 'bottom-end', noFlip: true });
     return;
   }
@@ -10004,7 +9997,7 @@ window.shelterOnThumb = (id, url) => {
 function quickPanel(anchor) {
   const el = openMenu(anchor, [], { place: 'bottom-end', noFlip: true, cls: 'menu-quick', html: quickPanelHtml() });
   if (!el) return;
-  initSegs(el); initRanges(el);
+  initSegs(el); initRanges(el); syncThemeUI();
   el.addEventListener('click', e => {
     const x = e.target.closest('[data-q-close]');
     if (!x) return;
@@ -10026,11 +10019,12 @@ function quickPanel(anchor) {
   try { if (typeof window.shelterCaptureVisibleTabs === 'function') window.shelterCaptureVisibleTabs(); } catch (e) {}
 }
 function moreMenu(anchor) {
+  const account = S.account;
+  const name = account ? account.name : (S.ui.profileName || 'Вы');
+  const initials = account ? (account.initials || initialsOf(name)) : (S.ui.profileName ? initialsOf(name) : 'В');
+  const avatarSrc = profileAvatarSource();
+  const profileLead = `<span class="avatar menu-avatar ${avatarSrc ? 'has-photo' : ''}" aria-hidden="true">${profileAvatarContent(name, avatarSrc, initials)}</span>`;
   const el = openMenu(anchor, [
-    { label: 'Новая вкладка', icon: 'plus', kbd: '⌘T', run: () => addTab() },
-    { label: 'Новое пространство', icon: 'layers', run: () => editSpace(null) },
-    { label: S.ghost ? 'Выключить «Призрак»' : 'Режим «Призрак»', icon: 'ghost', kbd: '⌘⇧P', run: () => toggleGhost() },
-    '-',
     ...(S.prefs.menuZoom !== false ? [
       { html: `<div class="mrow"><span class="lb" style="display:flex;align-items:center;gap:11px">${ico('search')}Масштаб</span><button class="icon-btn" data-z="-10" aria-label="Уменьшить">${ico('minus')}</button><span class="zoomv" id="menuZoom">${S.ui.zoom}%</span><button class="icon-btn" data-z="10" aria-label="Увеличить">${ico('plus')}</button></div>` }
     ] : []),
@@ -10043,13 +10037,9 @@ function moreMenu(anchor) {
     ] : []),
     { label: 'Печать…', icon: 'printer', kbd: '⌘P', run: () => { try { window.print(); } catch (e) {} } },
     '-',
-    { label: 'История', icon: 'history', kbd: '⌘Y', run: () => openPage('history') },
-    { label: 'Загрузки', icon: 'download', run: () => openPage('downloads') },
-    { label: 'Пароли', icon: 'key', run: () => openPage('passwords') },
-    { label: 'Сертификаты РФ', icon: 'award', run: () => openPage('certs') },
-    '-',
     { label: 'Горячие клавиши', icon: 'keyboard', kbd: '?', run: showShortcuts },
-    { label: 'Настройки', icon: 'gear', kbd: '⌘,', run: () => openSettings() }
+    '-',
+    { label: 'Профиль', lead: profileLead, run: () => openPage('profile') }
   ], { place: 'bottom-end' });
   if (el) el.addEventListener('click', e => { const z = e.target.closest('[data-z]'); if (z) setZoom(S.ui.zoom + +z.dataset.z); });
 }
@@ -10336,7 +10326,7 @@ function init() {
   const app = $('#app');
   if (S.ui.collapsed || (innerWidth < 980 && innerWidth > 720)) app.classList.add('collapsed');
   const _sbk = document.querySelector('.sb-search .kbd'); if (_sbk) _sbk.textContent = kb(_sbk.textContent);
-  renderSwatches(); renderControls(); renderSpaceRow(); renderTabs(); renderUser(); renderBadges();
+  renderControls(); renderSpaceRow(); renderTabs(); renderUser(); renderBadges();
   initTabDnD(); initOmnibox(); initHeroInput(); initFind(); initWinLights();
   applyTabPos(); applyBmPos(); applyPers();
   $('#tabList').addEventListener('scroll', tabsScrollSync, { passive: true });

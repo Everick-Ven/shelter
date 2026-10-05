@@ -283,6 +283,67 @@ def sidebar_scroll_probe(ui: Cdp, width: int, height: int) -> Dict[str, Any]:
     return json.loads(raw)
 
 
+def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
+    """Verify that toolbar actions and the trimmed overflow menu stay in place."""
+    expression = r"""
+      (async function() {
+        const frame = () => new Promise(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        );
+        const quick = document.getElementById('quickBtn');
+        const settings = document.getElementById('settingsBtn');
+        const more = document.getElementById('moreBtn');
+        const controls = document.getElementById('ctlGrid');
+        const mode = document.getElementById('schemeModeBtn');
+        const fire = controls && controls.querySelector('.ctl.fire');
+        if (!quick || !settings || !more || !controls || !mode || !fire)
+          return null;
+        const toolbar = {
+          settingsBeforeMenu: settings.parentElement === more.parentElement &&
+            settings.nextElementSibling === more,
+          themeAfterFire: controls.lastElementChild === fire &&
+            mode.previousElementSibling === controls,
+          sidebarClean: !document.querySelector('#sb [data-act="schemeMode"], #sb #swatches, #sb [data-act="settings"], #sb [data-act="account"]')
+        };
+        more.click();
+        await frame();
+        const menu = document.querySelector('.menu:not(.closing)');
+        if (!menu) return null;
+        const labels = Array.from(menu.querySelectorAll('.mi .lb')).map(el => el.innerText.trim());
+        const forbidden = ['Новая вкладка', 'Новое пространство', 'Режим «Призрак»',
+          'Выключить «Призрак»', 'История', 'Загрузки', 'Пароли', 'Сертификаты РФ', 'Настройки'];
+        const visibleForbidden = forbidden.filter(label => menu.innerText.includes(label));
+        const menuItems = Array.from(menu.querySelectorAll('.mi'));
+        const lastItem = menuItems[menuItems.length - 1];
+        const profileLast = !!lastItem &&
+          lastItem.querySelector('.lb')?.innerText.trim() === 'Профиль' &&
+          !!lastItem.querySelector('.avatar');
+        quick.click();
+        await frame();
+        const quickMenu = document.querySelector('.menu-quick');
+        const opacity = quickMenu && quickMenu.querySelector('#glassOpSec');
+        const palette = quickMenu && quickMenu.querySelector('#quickThemeSec');
+        const paletteState = {
+          immediatelyAfterOpacity: !!opacity && opacity.nextElementSibling === palette,
+          swatchCount: palette ? palette.querySelectorAll('.swatches .swatch[data-theme]').length : 0
+        };
+        quick.click();
+        await frame();
+        return JSON.stringify({
+          toolbar: toolbar,
+          menuLabels: labels,
+          visibleForbidden: visibleForbidden,
+          profileLast: profileLast,
+          palette: paletteState
+        });
+      })()
+    """
+    raw = ui.evaluate(expression, timeout=20)
+    if not raw:
+        raise AcceptanceError("Toolbar/menu layout probe could not inspect the UI")
+    return json.loads(raw)
+
+
 def page_state(page: Cdp) -> Dict[str, Any]:
     raw = page.evaluate(
         "JSON.stringify({url:location.href,title:document.title,"
@@ -516,6 +577,33 @@ def main() -> int:
             print(
                 "SHELTER_ACCEPTANCE_SIDEBAR_PASS "
                 + json.dumps(sidebar_measurements, ensure_ascii=False),
+                flush=True,
+            )
+
+            toolbar_menu = toolbar_menu_measurement(ui)
+            print(
+                "SHELTER_ACCEPTANCE_TOOLBAR_MENU "
+                + json.dumps(toolbar_menu, ensure_ascii=False),
+                flush=True,
+            )
+            if not all(toolbar_menu["toolbar"].values()):
+                raise AcceptanceError(f"Toolbar buttons are misplaced: {toolbar_menu}")
+            if toolbar_menu["visibleForbidden"]:
+                raise AcceptanceError(
+                    f"Removed actions remain in the burger menu: {toolbar_menu}"
+                )
+            if not toolbar_menu["profileLast"]:
+                raise AcceptanceError(
+                    f"Profile with avatar is not the last burger-menu item: {toolbar_menu}"
+                )
+            palette = toolbar_menu["palette"]
+            if not palette["immediatelyAfterOpacity"] or palette["swatchCount"] != 6:
+                raise AcceptanceError(
+                    f"Theme palette is not directly after opacity: {toolbar_menu}"
+                )
+            print(
+                "SHELTER_ACCEPTANCE_TOOLBAR_MENU_PASS "
+                + json.dumps(toolbar_menu, ensure_ascii=False),
                 flush=True,
             )
 

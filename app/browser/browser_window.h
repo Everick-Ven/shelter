@@ -48,6 +48,7 @@ class BrowserWindow final : public CefBaseRefCounted {
   struct WebTab {
     CefRefPtr<CefBrowserView> view;
     CefRefPtr<CefOverlayController> overlay;
+    CefRefPtr<CefBrowser> browser;
     std::string requested_url;
     std::string pending_url;
     bool closing = false;

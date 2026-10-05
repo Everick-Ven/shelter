@@ -200,13 +200,23 @@ void Client::OnLoadEnd(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
 }
 
 void Client::OnLoadError(CefRefPtr<CefBrowser>,
-                         CefRefPtr<CefFrame>,
+                         CefRefPtr<CefFrame> frame,
                          ErrorCode error_code,
-                         const CefString&,
+                         const CefString& error_text,
                          const CefString& failed_url) {
+  const bool main_frame = frame && frame->IsMain();
   Log(LogLevel::Warning,
       "navigation error: " + std::to_string(static_cast<int>(error_code)) +
+          " main=" + (main_frame ? "true" : "false") +
           " url=" + failed_url.ToString());
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Warning,
+        "SHELTER_WEB_SMOKE_LOAD_ERROR code=" +
+            std::to_string(static_cast<int>(error_code)) +
+            " main=" + (main_frame ? "true" : "false") +
+            " text=" + error_text.ToString() +
+            " url=" + failed_url.ToString());
+  }
 }
 
 bool Client::OnBeforeDownload(CefRefPtr<CefBrowser>,

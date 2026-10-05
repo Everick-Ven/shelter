@@ -276,17 +276,32 @@ void BrowserWindow::OnUiBrowserClosed(CefRefPtr<CefBrowser> browser) {
 void BrowserWindow::OnWebBrowserCreated(const std::string& tab_id,
                                         CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
-  ++live_browsers_;
-  if (window_destroyed_ || !window_) {
-    if (browser) browser->GetHost()->CloseBrowser(true);
-    return;
-  }
+  if (!browser) return;
+
   auto it = web_tabs_.find(tab_id);
   if (it == web_tabs_.end()) {
-    if (browser) browser->GetHost()->CloseBrowser(true);
+    // A tab removed while CEF was still creating its browser must not survive.
+    ++live_browsers_;
+    browser->GetHost()->CloseBrowser(true);
     return;
   }
-  if (it->second.closing) {
+  if (it->second.browser) {
+    if (it->second.browser->GetIdentifier() == browser->GetIdentifier()) {
+      UpdateWebTabBoundsAndVisibility();
+      return;
+    }
+    browser->GetHost()->CloseBrowser(true);
+    return;
+  }
+
+  it->second.browser = browser;
+  ++live_browsers_;
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_BROWSER_CREATED tab=" + tab_id +
+            " browser_id=" + std::to_string(browser->GetIdentifier()));
+  }
+  if (window_destroyed_ || !window_ || it->second.closing) {
     browser->GetHost()->CloseBrowser(true);
     return;
   }
@@ -299,8 +314,14 @@ void BrowserWindow::OnWebBrowserCreated(const std::string& tab_id,
 }
 
 void BrowserWindow::OnWebBrowserClosed(const std::string& tab_id,
-                                       CefRefPtr<CefBrowser>) {
+                                       CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_BROWSER_CLOSED tab=" + tab_id +
+            " browser_id=" +
+            (browser ? std::to_string(browser->GetIdentifier()) : "unknown"));
+  }
   if (live_browsers_ > 0) --live_browsers_;
   auto it = web_tabs_.find(tab_id);
   if (it == web_tabs_.end()) {
@@ -477,6 +498,10 @@ bool BrowserWindow::HandleBridgeCommand(
 
   if (command == "tab:navigate") {
     const std::string url = get_string("url");
+    if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+      Log(LogLevel::Info,
+          "SHELTER_WEB_SMOKE_NAVIGATE tab=" + tab_id + " url=" + url);
+    }
     if (tab_id.empty() || !IsWebUrl(url) || !EnsureWebTab(tab_id, url)) return false;
     active_tab_id_ = tab_id;
     content_visible_ = true;
@@ -593,28 +618,39 @@ bool BrowserWindow::EnsureWebTab(const std::string& tab_id,
   }
   controller_.tabs().Activate(tab_id);
 
+  // Register the tab before creating/attaching its BrowserView. CEF may deliver
+  // OnAfterCreated synchronously during either call; the client callback must
+  // be able to associate that browser instead of treating it as an orphan.
+  WebTab web_tab;
+  web_tab.requested_url = url;
+  auto [web_tab_it, inserted] = web_tabs_.emplace(tab_id, std::move(web_tab));
+  if (!inserted) return false;
+
   CefBrowserSettings settings;
   auto view = CefBrowserView::CreateBrowserView(
       new Client(this, &controller_, tab_id, false), url, settings,
       nullptr, nullptr, new AlloyBrowserViewDelegate());
   if (!view) {
+    web_tabs_.erase(web_tab_it);
     controller_.tabs().Close(tab_id);
     return false;
   }
+  web_tab_it->second.view = view;
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info, "SHELTER_WEB_SMOKE_VIEW_CREATED tab=" + tab_id);
+  }
   auto overlay = window_->AddOverlayView(view, CEF_DOCKING_MODE_CUSTOM, true);
   if (!overlay) {
-    // This detached view has not created a browser and is released here.
+    if (auto browser = view->GetBrowser()) browser->GetHost()->CloseBrowser(true);
+    web_tabs_.erase(web_tab_it);
     controller_.tabs().Close(tab_id);
     return false;
   }
 
-  WebTab web_tab;
-  web_tab.view = view;
-  web_tab.overlay = overlay;
-  web_tab.requested_url = url;
-  web_tabs_.emplace(tab_id, std::move(web_tab));
+  web_tab_it->second.overlay = overlay;
   overlay->SetBounds(viewport_bounds_);
   overlay->SetVisible(false);
+  UpdateWebTabBoundsAndVisibility();
   return true;
 }
 

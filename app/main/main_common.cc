@@ -8,10 +8,6 @@
 #include <string>
 #include <system_error>
 
-#if defined(__APPLE__)
-#include <cstdint>
-#include <mach-o/dyld.h>
-#endif
 #if defined(_WIN32)
 #include <objbase.h>
 #include <shlobj.h>
@@ -24,27 +20,6 @@ std::string PathToUtf8(const std::filesystem::path& path) {
   const auto value = path.u8string();
   return std::string(reinterpret_cast<const char*>(value.data()), value.size());
 }
-
-#if defined(__APPLE__)
-std::filesystem::path GetExecutablePath(const char* argv0) {
-  namespace fs = std::filesystem;
-  uint32_t path_size = 0;
-  _NSGetExecutablePath(nullptr, &path_size);
-  if (path_size > 0) {
-    std::string path_buffer(path_size, '\0');
-    if (_NSGetExecutablePath(path_buffer.data(), &path_size) == 0) {
-      const fs::path path(path_buffer.c_str());
-      std::error_code error;
-      const fs::path canonical_path = fs::weakly_canonical(path, error);
-      return error ? path : canonical_path;
-    }
-  }
-
-  std::error_code error;
-  const fs::path path = fs::absolute(fs::path(argv0), error);
-  return error ? fs::path(argv0) : path;
-}
-#endif
 
 std::filesystem::path GetProfilePath() {
   namespace fs = std::filesystem;
@@ -99,24 +74,6 @@ int main(int argc, char** argv) {
   settings.no_sandbox = true;
   CefString(&settings.cache_path) = PathToUtf8(profile_path);
   settings.persist_session_cookies = true;
-#if defined(__APPLE__)
-  // The helper executable lives in Contents/Frameworks inside the top-level
-  // app bundle. Resolve the running executable rather than relying on cwd or
-  // argv[0], which can be relative when launched outside Finder.
-  namespace fs = std::filesystem;
-  const fs::path executable_path = GetExecutablePath(argv[0]);
-  const fs::path bundle_contents = executable_path.parent_path().parent_path();
-  const fs::path helper_path =
-      bundle_contents / "Frameworks" / "SHELTER Helper.app" / "Contents" /
-      "MacOS" / "SHELTER Helper";
-  std::error_code helper_error;
-  if (!fs::is_regular_file(helper_path, helper_error) || helper_error) {
-    shelter::Log(shelter::LogLevel::Error,
-                 "CEF helper executable is missing: " + PathToUtf8(helper_path));
-    return 1;
-  }
-  CefString(&settings.browser_subprocess_path) = PathToUtf8(helper_path);
-#endif
   const std::string cef_log_path =
       PathToUtf8(application_support_path / "shelter-cef.log");
   CefString(&settings.log_file) = cef_log_path;

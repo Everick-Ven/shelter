@@ -54,16 +54,34 @@ jobs:
           sips -z 128 128 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_128x128.png >/dev/null
           sips -z 256 256 resources/icons/icon-256.png --out /tmp/SHELTER.iconset/icon_128x128@2x.png >/dev/null
           iconutil -c icns /tmp/SHELTER.iconset -o package/SHELTER.app/Contents/Resources/SHELTER.icns
-          cp -R "cef/Release/Chromium Embedded Framework.framework" package/SHELTER.app/Contents/Frameworks/
-          mkdir -p "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS"
-          cp build/shelter_helper "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/MacOS/SHELTER Helper"
-          cp mac/Helper-Info.plist "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/Info.plist"
+          ditto "cef/Release/Chromium Embedded Framework.framework" "package/SHELTER.app/Contents/Frameworks/Chromium Embedded Framework.framework"
           printf 'APPL????' > package/SHELTER.app/Contents/PkgInfo
-          printf 'APPL????' > "package/SHELTER.app/Contents/Frameworks/SHELTER Helper.app/Contents/PkgInfo"
-          codesign --force --deep --sign - --timestamp=none package/SHELTER.app
+          for helper_suffix in "" " (GPU)" " (Plugin)" " (Renderer)"; do
+            helper_name="SHELTER Helper${helper_suffix}"
+            case "$helper_suffix" in
+              " (GPU)") bundle_id_suffix=".gpu" ;;
+              " (Plugin)") bundle_id_suffix=".plugin" ;;
+              " (Renderer)") bundle_id_suffix=".renderer" ;;
+              *) bundle_id_suffix="" ;;
+            esac
+            helper_bundle="package/SHELTER.app/Contents/Frameworks/${helper_name}.app"
+            helper_contents="$helper_bundle/Contents"
+            helper_info="$helper_contents/Info.plist"
+            mkdir -p "$helper_contents/MacOS"
+            cp build/shelter_helper "$helper_contents/MacOS/$helper_name"
+            cp mac/Helper-Info.plist "$helper_info"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable '$helper_name'" "$helper_info"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.everick.shelter.helper${bundle_id_suffix}" "$helper_info"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleName '$helper_name'" "$helper_info"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName '$helper_name'" "$helper_info"
+            printf 'APPL????' > "$helper_contents/PkgInfo"
+            codesign --force --sign - --timestamp=none "$helper_bundle"
+          done
+          codesign --force --deep --sign - --timestamp=none "package/SHELTER.app/Contents/Frameworks/Chromium Embedded Framework.framework"
+          codesign --force --sign - --timestamp=none package/SHELTER.app
           codesign --verify --deep --strict --verbose=2 package/SHELTER.app
           mkdir -p dmg-root
-          cp -R package/SHELTER.app dmg-root/SHELTER.app
+          ditto package/SHELTER.app dmg-root/SHELTER.app
           ln -s /Applications dmg-root/Applications
           rm -f SHELTER-macos-x64.dmg
           hdiutil detach "$(hdiutil info | awk '/dmg-root/{print $1; exit}')" 2>/dev/null || true

@@ -301,6 +301,7 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           return null;
         const fireRect = fire.getBoundingClientRect();
         const modeRect = mode.getBoundingClientRect();
+        const quickRect = quick.getBoundingClientRect();
         const settingsRect = settings.getBoundingClientRect();
         const moreRect = more.getBoundingClientRect();
         const headerRect = header.getBoundingClientRect();
@@ -313,6 +314,9 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
             mode.previousElementSibling === controls &&
             Math.abs(modeRect.top - fireRect.top) <= 1 &&
             modeRect.left >= fireRect.right - 1,
+          extraGapBeforeQuick: quickRect.left - modeRect.right >= 20,
+          quickLabelUpdated: quick.dataset.tip === 'Оформление и вкладки' &&
+            quick.getAttribute('aria-label') === 'Оформление и вкладки',
           noHorizontalOverflow: header.scrollWidth <= header.clientWidth + 1 &&
             headerRect.right <= innerWidth + 1,
           sidebarClean: !document.querySelector('#sb [data-act="schemeMode"], #sb #swatches, #sb [data-act="settings"], #sb [data-act="account"]')

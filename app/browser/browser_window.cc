@@ -6,12 +6,11 @@
 #include "include/cef_app.h"
 #include "include/cef_frame.h"
 #include "include/cef_parser.h"
+#include "include/cef_task.h"
 #include "include/cef_values.h"
-#include "include/base/cef_callback.h"
 #include "include/views/cef_box_layout.h"
 #include "include/views/cef_browser_view_delegate.h"
 #include "include/views/cef_window_delegate.h"
-#include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 
 #include <algorithm>
@@ -19,6 +18,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <functional>
 #include <system_error>
 #include <utility>
 
@@ -35,6 +35,21 @@ extern char** environ;
 namespace shelter {
 namespace {
 constexpr char kUiUrl[] = "shelter://ui/index.html";
+
+class DeferredBrowserTask final : public CefTask {
+ public:
+  explicit DeferredBrowserTask(std::function<void()> callback)
+      : callback_(std::move(callback)) {}
+
+  void Execute() override {
+    if (callback_) callback_();
+  }
+
+ private:
+  std::function<void()> callback_;
+
+  IMPLEMENT_REFCOUNTING(DeferredBrowserTask);
+};
 
 class AlloyBrowserViewDelegate final : public CefBrowserViewDelegate {
  public:
@@ -515,9 +530,9 @@ bool BrowserWindow::HandleBridgeCommand(
     // dispatching JavaScript back to that renderer while it is waiting on this
     // query can deadlock inside AddOverlayView.
     CefRefPtr<BrowserWindow> self(this);
-    if (!CefPostTask(
-            TID_UI,
-            base::BindOnce(&BrowserWindow::NavigateWebTab, self, tab_id, url))) {
+    CefRefPtr<CefTask> task = new DeferredBrowserTask(
+        [self, tab_id, url] { self->NavigateWebTab(tab_id, url); });
+    if (!CefPostTask(TID_UI, task)) {
       Log(LogLevel::Error, "Failed to queue native browser navigation");
       return false;
     }

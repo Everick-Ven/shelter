@@ -126,7 +126,7 @@ bool Client::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
                             bool is_redirect) {
   if (!is_ui_ && std::getenv("SHELTER_WEB_SMOKE_URL")) {
     Log(LogLevel::Info,
-        "SHELTER_WEB_SMOKE_BEFORE_BROWSE main=" +
+        std::string("SHELTER_WEB_SMOKE_BEFORE_BROWSE main=") +
             (frame && frame->IsMain() ? "true" : "false") +
             " redirect=" + (is_redirect ? "true" : "false") +
             " url=" +
@@ -188,7 +188,7 @@ void Client::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
   if (is_ui_) return;
   if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
     Log(LogLevel::Info,
-        "SHELTER_WEB_SMOKE_LOADING_STATE loading=" +
+        std::string("SHELTER_WEB_SMOKE_LOADING_STATE loading=") +
             (is_loading ? "true" : "false") +
             " browser_id=" +
             std::to_string(browser ? browser->GetIdentifier() : -1) +
@@ -210,7 +210,7 @@ void Client::OnLoadStart(CefRefPtr<CefBrowser> browser,
                          TransitionType transition_type) {
   if (is_ui_ || !frame || !std::getenv("SHELTER_WEB_SMOKE_URL")) return;
   Log(LogLevel::Info,
-      "SHELTER_WEB_SMOKE_LOAD_START main=" +
+      std::string("SHELTER_WEB_SMOKE_LOAD_START main=") +
           (frame->IsMain() ? "true" : "false") +
           " transition=" + std::to_string(static_cast<int>(transition_type)) +
           " browser_id=" +

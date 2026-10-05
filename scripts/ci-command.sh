@@ -23,16 +23,24 @@ else
   cat "$log_file"
   printf '::error title=SHELTER %s failed::Command exited with status %s\n' "$label" "$status"
 
-  # Keep the end of the output, which contains the compiler diagnostic and build
-  # summary, and split it into short annotations accepted by GitHub Checks.
+  # Include compiler/test errors even when they occur before the end of a
+  # parallel build log. Fall back to the tail for failures without diagnostics.
+  diagnostics_file="$(mktemp "${TMPDIR:-/tmp}/shelter-${safe_label}-diagnostics.XXXXXX")"
+  grep -Ei 'error|fatal|undefined reference|unresolved external|no such file|not found' \
+    "$log_file" | tail -n 20 >"$diagnostics_file" || true
+  if [[ ! -s "$diagnostics_file" ]]; then
+    tail -n 30 "$log_file" >"$diagnostics_file"
+  fi
+
+  # Split the selected output into short annotations accepted by GitHub Checks.
   while IFS= read -r line; do
     line="${line:0:2000}"
     line="${line//'%'/'%25'}"
     line="${line//$'\r'/'%0D'}"
     line="${line//$'\n'/'%0A'}"
     printf '::error title=SHELTER %s diagnostic::%s\n' "$label" "$line"
-  done < <(tail -n 30 "$log_file")
+  done < "$diagnostics_file"
 
-  rm -f "$log_file"
+  rm -f "$log_file" "$diagnostics_file"
   exit "$status"
 fi

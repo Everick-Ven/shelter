@@ -1,7 +1,7 @@
 #pragma once
 
 #include "app/browser/browser_controller.h"
-#include "include/cef_dictionary_value.h"
+#include "include/cef_values.h"
 #include "include/cef_download_handler.h"
 #include "include/cef_frame.h"
 #include "include/views/cef_browser_view.h"

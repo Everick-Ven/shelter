@@ -2,7 +2,7 @@
 
 #include "app/browser/browser_controller.h"
 #include "include/cef_client.h"
-#include "include/cef_dictionary_value.h"
+#include "include/cef_values.h"
 #include "include/cef_display_handler.h"
 #include "include/cef_download_handler.h"
 #include "include/cef_frame.h"

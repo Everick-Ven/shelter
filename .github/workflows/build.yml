@@ -86,6 +86,11 @@ jobs:
           Start-Sleep -Seconds 2
           if (Test-Path $exe) { throw "SHELTER executable remains after uninstall: $exe" }
 
+      - name: Report Windows acceptance diagnostics
+        if: failure()
+        shell: pwsh
+        run: python tools/report_ci_failure.py install.log smoke-run.log acceptance-app.log
+
       - name: Portable zip
         shell: pwsh
         run: |
@@ -172,6 +177,10 @@ jobs:
           trap - EXIT
           ls -la /Applications/SHELTER.app/Contents/Resources
           python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee smoke-run.log
+
+      - name: Report macOS acceptance diagnostics
+        if: failure()
+        run: python3 tools/report_ci_failure.py package.log geometry.log smoke-run.log acceptance-app.log
 
       - uses: actions/upload-artifact@v4
         with:

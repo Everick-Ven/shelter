@@ -139,6 +139,7 @@ def viewport_measurement(ui: Cdp) -> Dict[str, Any]:
         const bottom = document.querySelector('.dash-bottom');
         if (!viewport || !page || !top) return null;
         const edge = viewport.getBoundingClientRect().right;
+        const pageEdge = page.getBoundingClientRect().right;
         let overflow = 0;
         document.querySelectorAll(
           '.dash-top > *, .dash-right > *, .dash-bottom > *'
@@ -150,10 +151,29 @@ def viewport_measurement(ui: Cdp) -> Dict[str, Any]:
         [page, top, right, bottom, document.documentElement].forEach(function(el) {
           if (el) overflow = Math.max(overflow, el.scrollWidth - el.clientWidth);
         });
+        const overflowNodes = Array.from(page.querySelectorAll('*')).map(function(el) {
+          const rect = el.getBoundingClientRect();
+          const rightPx = Math.max(0, rect.right - pageEdge);
+          const scrollPx = Math.max(0, el.scrollWidth - el.clientWidth);
+          const amount = Math.max(rightPx, scrollPx);
+          if (amount <= 1 || rect.width <= 0 || rect.height <= 0) return null;
+          const classes = Array.from(el.classList || []).slice(0, 2).join('.');
+          return {
+            element: el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') +
+              (classes ? '.' + classes : ''),
+            rightPx: Math.round(rightPx),
+            scrollPx: Math.round(scrollPx),
+            width: Math.round(rect.width),
+            scrollWidth: el.scrollWidth
+          };
+        }).filter(Boolean).sort(function(a, b) {
+          return Math.max(b.rightPx, b.scrollPx) - Math.max(a.rightPx, a.scrollPx);
+        }).slice(0, 8);
         return JSON.stringify({
           windowWidth: window.innerWidth,
           viewportWidth: viewport.clientWidth,
-          overflowPx: Math.max(0, overflow)
+          overflowPx: Math.max(0, overflow),
+          overflowNodes: overflowNodes
         });
       })()
     """

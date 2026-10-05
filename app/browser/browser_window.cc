@@ -8,6 +8,7 @@
 #include "include/cef_parser.h"
 #include "include/cef_values.h"
 #include "include/views/cef_box_layout.h"
+#include "include/views/cef_browser_view_delegate.h"
 #include "include/views/cef_window_delegate.h"
 #include "include/wrapper/cef_helpers.h"
 
@@ -32,6 +33,16 @@ extern char** environ;
 namespace shelter {
 namespace {
 constexpr char kUiUrl[] = "shelter://ui/index.html";
+
+class AlloyBrowserViewDelegate final : public CefBrowserViewDelegate {
+ public:
+  cef_runtime_style_t GetBrowserRuntimeStyle() override {
+    return CEF_RUNTIME_STYLE_ALLOY;
+  }
+
+ private:
+  IMPLEMENT_REFCOUNTING(AlloyBrowserViewDelegate);
+};
 
 bool IsWebUrl(const std::string& url) {
   if (!IsValidNavigationUrl(url)) return false;
@@ -150,7 +161,7 @@ void BrowserWindow::Create() {
   CefBrowserSettings settings;
   ui_view_ = CefBrowserView::CreateBrowserView(
       new Client(this, nullptr, std::string(), true), kUiUrl, settings,
-      nullptr, nullptr, nullptr);
+      nullptr, nullptr, new AlloyBrowserViewDelegate());
   if (!ui_view_) {
     Log(LogLevel::Error, "Failed to create the SHELTER UI browser view");
     CefQuitMessageLoop();
@@ -585,7 +596,7 @@ bool BrowserWindow::EnsureWebTab(const std::string& tab_id,
   CefBrowserSettings settings;
   auto view = CefBrowserView::CreateBrowserView(
       new Client(this, &controller_, tab_id, false), url, settings,
-      nullptr, nullptr, nullptr);
+      nullptr, nullptr, new AlloyBrowserViewDelegate());
   if (!view) {
     controller_.tabs().Close(tab_id);
     return false;

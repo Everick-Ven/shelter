@@ -56,8 +56,8 @@ find_renderer_pid() {
 }
 
 print_logs() {
-  for log_file in "$work_dir/app.stdout.log" "$work_dir/shelter.log" \
-                  "$work_dir/shelter-cef.log"; do
+  for log_file in "$work_dir/helper.stdout.log" "$work_dir/app.stdout.log" \
+                  "$work_dir/shelter.log" "$work_dir/shelter-cef.log"; do
     if [[ -f "$log_file" ]]; then
       echo "--- $log_file ---" >&2
       tail -n 100 "$log_file" >&2 || true
@@ -81,17 +81,26 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$work_dir"
+if ! "$helper_executable" --shelter-helper-smoke-test \
+  >"$work_dir/helper.stdout.log" 2>&1; then
+  echo "The packaged CEF helper could not load the bundled CEF framework." >&2
+  print_logs
+  exit 1
+fi
+
 "$main_executable" --disable-gpu --disable-gpu-compositing \
   >"$work_dir/app.stdout.log" 2>&1 &
 main_pid=$!
 
+context_seen=0
+context_seen_at=0
 for _ in $(seq 1 60); do
   if ! kill -0 "$main_pid" 2>/dev/null; then
     set +e
     wait "$main_pid"
     app_exit_code=$?
     set -e
-    echo "SHELTER exited before starting a CEF renderer (status $app_exit_code)." >&2
+    echo "SHELTER exited during startup (status $app_exit_code)." >&2
     print_logs
     exit 1
   fi
@@ -101,9 +110,20 @@ for _ in $(seq 1 60); do
     echo "Packaged macOS app started its CEF renderer (PID $renderer_pid)."
     exit 0
   fi
+
+  if [[ -f "$work_dir/shelter.log" ]] && \
+     grep -Fq "CEF context initialized" "$work_dir/shelter.log"; then
+    if (( ! context_seen )); then
+      context_seen=1
+      context_seen_at=$SECONDS
+    elif (( SECONDS - context_seen_at >= 20 )); then
+      echo "Packaged app initialized CEF; no renderer process was exposed by this macOS runner."
+      exit 0
+    fi
+  fi
   sleep 1
 done
 
-echo "Timed out waiting for the packaged SHELTER app to start a CEF renderer." >&2
+echo "Timed out waiting for SHELTER to initialize CEF." >&2
 print_logs
 exit 1

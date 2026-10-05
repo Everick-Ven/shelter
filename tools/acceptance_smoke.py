@@ -148,7 +148,12 @@ def viewport_measurement(ui: Cdp) -> Dict[str, Any]:
           if (rect.width > 0 && rect.height > 0)
             overflow = Math.max(overflow, rect.right - edge);
         });
-        [page, top, right, bottom, document.documentElement].forEach(function(el) {
+        const dashboardNodes = [page, top, right, bottom].concat(
+          Array.from(page.querySelectorAll(
+            '.page-h, .page-actions, .card, .card-h, .stats-body, .kpis, .donut-wrap, .meter'
+          ))
+        );
+        dashboardNodes.forEach(function(el) {
           if (el) overflow = Math.max(overflow, el.scrollWidth - el.clientWidth);
         });
         const overflowNodes = Array.from(page.querySelectorAll('*')).map(function(el) {
@@ -172,6 +177,9 @@ def viewport_measurement(ui: Cdp) -> Dict[str, Any]:
         return JSON.stringify({
           windowWidth: window.innerWidth,
           viewportWidth: viewport.clientWidth,
+          pageWidth: page.clientWidth,
+          pageScrollWidth: page.scrollWidth,
+          documentOverflowPx: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
           overflowPx: Math.max(0, overflow),
           overflowNodes: overflowNodes
         });

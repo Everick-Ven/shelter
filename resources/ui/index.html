@@ -1508,6 +1508,9 @@ html[data-theme="ivory"],html[data-theme="porcelain"],html[data-theme="bordeaux"
   .app.sb-open .sb{transform:none}
   .app.collapsed .hc{opacity:1;pointer-events:auto}
   .main{padding:0 6px 6px}
+  .tb{height:auto;min-height:54px;flex-wrap:wrap;align-content:center;gap:4px 8px;padding:5px 8px}
+  .tb>#omniTb{flex:1 1 140px;min-width:140px;max-width:none;margin:0}
+  .tb>.tb-actions{flex:1 0 100%;min-width:0;flex-wrap:wrap;justify-content:flex-end}
   .page{padding:22px 16px 40px}
   .tb-pill .lbl2,.tb .hide-sm{display:none}
   .cal,.cal-dows{gap:5px}
@@ -3107,7 +3110,7 @@ html[data-theme="graphite"] .badge.hot{
         <button class="tb-btn" id="starBtn" data-act="star" data-tip="В закладки  ⌘D" aria-label="В закладки"><svg class="i"><use href="#i-star"/></svg></button>
         <div class="suggest" id="tbSuggest" hidden></div>
       </div>
-      <div class="tb-g" style="gap:6px">
+      <div class="tb-g tb-actions" style="gap:6px">
         <div class="tb-ctls" id="ctlGrid" role="group" aria-label="Защита"></div>
         <button class="tb-btn" id="schemeModeBtn" data-act="schemeMode" data-tip="Переключить на светлую тему" aria-label="Переключить цветовую схему" aria-pressed="true"><svg class="i"><use href="#i-moon"/></svg></button>
         <div class="tb-g hide-sm" id="extBar"></div>

@@ -295,14 +295,26 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const more = document.getElementById('moreBtn');
         const controls = document.getElementById('ctlGrid');
         const mode = document.getElementById('schemeModeBtn');
+        const header = document.querySelector('.tb');
         const fire = controls && controls.querySelector('.ctl.fire');
-        if (!quick || !settings || !more || !controls || !mode || !fire)
+        if (!quick || !settings || !more || !controls || !mode || !fire || !header)
           return null;
+        const fireRect = fire.getBoundingClientRect();
+        const modeRect = mode.getBoundingClientRect();
+        const settingsRect = settings.getBoundingClientRect();
+        const moreRect = more.getBoundingClientRect();
+        const headerRect = header.getBoundingClientRect();
         const toolbar = {
           settingsBeforeMenu: settings.parentElement === more.parentElement &&
-            settings.nextElementSibling === more,
+            settings.nextElementSibling === more &&
+            Math.abs(settingsRect.top - moreRect.top) <= 1 &&
+            Math.abs(moreRect.left - settingsRect.right) <= 12,
           themeAfterFire: controls.lastElementChild === fire &&
-            mode.previousElementSibling === controls,
+            mode.previousElementSibling === controls &&
+            Math.abs(modeRect.top - fireRect.top) <= 1 &&
+            modeRect.left >= fireRect.right - 1,
+          noHorizontalOverflow: header.scrollWidth <= header.clientWidth + 1 &&
+            headerRect.right <= innerWidth + 1,
           sidebarClean: !document.querySelector('#sb [data-act="schemeMode"], #sb #swatches, #sb [data-act="settings"], #sb [data-act="account"]')
         };
         more.click();
@@ -330,6 +342,7 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         quick.click();
         await frame();
         return JSON.stringify({
+          viewportWidth: innerWidth,
           toolbar: toolbar,
           menuLabels: labels,
           visibleForbidden: visibleForbidden,
@@ -580,32 +593,50 @@ def main() -> int:
                 flush=True,
             )
 
-            toolbar_menu = toolbar_menu_measurement(ui)
-            print(
-                "SHELTER_ACCEPTANCE_TOOLBAR_MENU "
-                + json.dumps(toolbar_menu, ensure_ascii=False),
-                flush=True,
-            )
-            if not all(toolbar_menu["toolbar"].values()):
-                raise AcceptanceError(f"Toolbar buttons are misplaced: {toolbar_menu}")
-            if toolbar_menu["visibleForbidden"]:
-                raise AcceptanceError(
-                    f"Removed actions remain in the burger menu: {toolbar_menu}"
+            for width in (1280, 390):
+                ui.call(
+                    "Emulation.setDeviceMetricsOverride",
+                    {
+                        "width": width,
+                        "height": 900,
+                        "deviceScaleFactor": 1,
+                        "mobile": False,
+                        "screenWidth": width,
+                        "screenHeight": 900,
+                    },
                 )
-            if not toolbar_menu["profileLast"]:
-                raise AcceptanceError(
-                    f"Profile with avatar is not the last burger-menu item: {toolbar_menu}"
+                try:
+                    toolbar_menu = toolbar_menu_measurement(ui)
+                finally:
+                    ui.call("Emulation.clearDeviceMetricsOverride")
+                print(
+                    "SHELTER_ACCEPTANCE_TOOLBAR_MENU "
+                    + json.dumps(toolbar_menu, ensure_ascii=False),
+                    flush=True,
                 )
-            palette = toolbar_menu["palette"]
-            if not palette["immediatelyAfterOpacity"] or palette["swatchCount"] != 6:
-                raise AcceptanceError(
-                    f"Theme palette is not directly after opacity: {toolbar_menu}"
+                if not all(toolbar_menu["toolbar"].values()):
+                    raise AcceptanceError(
+                        f"Toolbar buttons are misplaced at {width}px: {toolbar_menu}"
+                    )
+                if toolbar_menu["visibleForbidden"]:
+                    raise AcceptanceError(
+                        f"Removed actions remain in the burger menu: {toolbar_menu}"
+                    )
+                if not toolbar_menu["profileLast"]:
+                    raise AcceptanceError(
+                        "Profile with avatar is not the last burger-menu item: "
+                        f"{toolbar_menu}"
+                    )
+                palette = toolbar_menu["palette"]
+                if not palette["immediatelyAfterOpacity"] or palette["swatchCount"] != 6:
+                    raise AcceptanceError(
+                        f"Theme palette is not directly after opacity: {toolbar_menu}"
+                    )
+                print(
+                    "SHELTER_ACCEPTANCE_TOOLBAR_MENU_PASS "
+                    + json.dumps(toolbar_menu, ensure_ascii=False),
+                    flush=True,
                 )
-            print(
-                "SHELTER_ACCEPTANCE_TOOLBAR_MENU_PASS "
-                + json.dumps(toolbar_menu, ensure_ascii=False),
-                flush=True,
-            )
 
             ui.evaluate("window.newTab('https://example.com/')")
             target, page, state = wait_for_site(port, "example.com", process)

@@ -65,6 +65,7 @@ work_dir="$(mktemp -d "${TMPDIR:-/tmp}/shelter-runtime.XXXXXX")"
 main_pid=""
 export HOME="$work_dir/home"
 export SHELTER_HELPER_BUNDLE_NAME="SHELTER Helper"
+export SHELTER_WEB_SMOKE_URL="https://example.com/"
 support_dir="$HOME/Library/Application Support/SHELTER"
 mkdir -p "$HOME"
 
@@ -135,25 +136,35 @@ for _ in $(seq 1 60); do
     wait "$main_pid"
     app_exit_code=$?
     set -e
-    echo "SHELTER exited during startup (status $app_exit_code)." >&2
+    echo "SHELTER exited before completing the packaged runtime smoke test (status $app_exit_code)." >&2
+    print_logs
+    exit 1
+  fi
+
+  if [[ -f "$support_dir/shelter.log" ]] && \
+     grep -Fq "SHELTER_DASHBOARD_LAYOUT_FAIL" "$support_dir/shelter.log"; then
+    echo "The packaged SHELTER dashboard overflows its viewport." >&2
     print_logs
     exit 1
   fi
 
   if [[ -f "$support_dir/shelter.log" ]] && \
      grep -Fq "SHELTER UI main document loaded with status 200" \
+       "$support_dir/shelter.log" && \
+     grep -Fq "SHELTER_DASHBOARD_LAYOUT_PASS" "$support_dir/shelter.log" && \
+     grep -Fq "SHELTER_WEB_SMOKE_DOCUMENT_LOADED status=200 url=https://example.com/" \
        "$support_dir/shelter.log"; then
     renderer_pid="$(find_renderer_pid || true)"
     if [[ "$renderer_pid" =~ ^[0-9]+$ ]]; then
-      echo "Packaged app loaded the SHELTER UI and started renderer PID $renderer_pid."
+      echo "Packaged app passed dashboard overflow checks, loaded https://example.com/ through the native tab bridge, and started renderer PID $renderer_pid."
     else
-      echo "Packaged app loaded the SHELTER UI in its CEF renderer."
+      echo "Packaged app passed dashboard overflow checks and loaded a real HTTPS page through the native tab bridge."
     fi
     exit 0
   fi
   sleep 1
 done
 
-echo "Timed out waiting for the packaged app to load SHELTER UI (HTTP 200)." >&2
+echo "Timed out waiting for the packaged app to load https://example.com/ through the native browser tab bridge (HTTP 200)." >&2
 print_logs
 exit 1

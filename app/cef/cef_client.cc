@@ -6,6 +6,7 @@
 #include "include/cef_parser.h"
 #include "include/cef_values.h"
 
+#include <cstdlib>
 #include <utility>
 
 namespace shelter {
@@ -178,11 +179,24 @@ void Client::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
 
 void Client::OnLoadEnd(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
                        int http_status_code) {
-  if (!is_ui_ || !frame || !frame->IsMain()) return;
-  Log(LogLevel::Info,
-      "SHELTER UI main document loaded with status " +
-          std::to_string(http_status_code));
-  if (window_) window_->OnUiLoadEnd();
+  if (!frame || !frame->IsMain()) return;
+  if (is_ui_) {
+    Log(LogLevel::Info,
+        "SHELTER UI main document loaded with status " +
+            std::to_string(http_status_code));
+    if (window_) window_->OnUiLoadEnd();
+    return;
+  }
+
+  // Keep successful page URLs out of normal browsing logs. The explicit
+  // runtime smoke test opts in so CI can prove that an actual remote document
+  // loaded through the tab bridge (not just that the UI shell started).
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_DOCUMENT_LOADED status=" +
+            std::to_string(http_status_code) +
+            " url=" + frame->GetURL().ToString());
+  }
 }
 
 void Client::OnLoadError(CefRefPtr<CefBrowser>,

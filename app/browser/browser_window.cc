@@ -95,8 +95,24 @@ class ShellWindowDelegate final : public CefWindowDelegate {
 
   void OnWindowCreated(CefRefPtr<CefWindow> window) override {
     window->SetTitle("SHELTER");
-    window->SetToFillLayout();
+
+    // AddOverlayView creates a root-level z-order reference view. A FillLayout
+    // stretches that reference across the whole window and lets it intercept
+    // hit testing, which can leave native CEF web-tab overlays hidden behind
+    // the UI on macOS. Keep the reference at zero width and let only the UI
+    // browser view consume the window's horizontal space.
+    CefBoxLayoutSettings layout_settings;
+    layout_settings.horizontal = true;
+    layout_settings.inside_border_insets = CefInsets(0, 0, 0, 0);
+    layout_settings.between_child_spacing = 0;
+    layout_settings.main_axis_alignment = CEF_AXIS_ALIGNMENT_START;
+    layout_settings.cross_axis_alignment = CEF_AXIS_ALIGNMENT_STRETCH;
+    layout_settings.minimum_cross_axis_size = 0;
+    layout_settings.default_flex = 0;
+    CefRefPtr<CefBoxLayout> layout = window->SetToBoxLayout(layout_settings);
     window->AddChildView(ui_view_);
+    if (layout) layout->SetFlexForView(ui_view_, 1);
+
     window->SetBounds(CefRect(100, 80, 1280, 820));
     window->Show();
     ui_view_->RequestFocus();
@@ -183,6 +199,52 @@ void BrowserWindow::OnUiLoadEnd() {
   auto data = NewDictionary();
   data->SetString("engine", "CEF");
   DispatchToUi("engine-ready", data);
+
+  // The packaged-app runtime test sets this variable to exercise the complete
+  // UI -> native bridge -> CEF web-tab path against a real HTTPS document.
+  const char* smoke_url = std::getenv("SHELTER_WEB_SMOKE_URL");
+  if (web_smoke_requested_ || !smoke_url || !*smoke_url ||
+      !IsWebUrl(smoke_url) || !ui_browser_ || !ui_browser_->GetMainFrame()) {
+    return;
+  }
+
+  CefRefPtr<CefValue> value = CefValue::Create();
+  value->SetString(std::string(smoke_url));
+  const std::string json = CefWriteJSON(value, JSON_WRITER_DEFAULT).ToString();
+  const std::string script =
+      "(function() {"
+      "  if (typeof window.openPage !== 'function' || !window.shelterCef) return;"
+      "  window.openPage('dashboard');"
+      "  window.setTimeout(function() {"
+      "    const viewport = document.getElementById('viewport');"
+      "    const page = document.getElementById('page');"
+      "    const top = document.querySelector('.dash-top');"
+      "    let overflowPx = 0;"
+      "    if (viewport) {"
+      "      const edge = viewport.getBoundingClientRect().right;"
+      "      document.querySelectorAll('.dash-top > *, .dash-right > *, .dash-bottom > *').forEach(function(card) {"
+      "        overflowPx = Math.max(overflowPx, card.getBoundingClientRect().right - edge);"
+      "      });"
+      "    }"
+      "    if (page) overflowPx = Math.max(overflowPx, page.scrollWidth - page.clientWidth);"
+      "    if (top) overflowPx = Math.max(overflowPx, top.scrollWidth - top.clientWidth);"
+      "    overflowPx = Math.max(0, overflowPx);"
+      "    const passed = Boolean(viewport && page && top && overflowPx <= 1);"
+      "    const result = window.shelterCef.send('runtime:dashboard-layout', {"
+      "      passed: passed, overflowPx: overflowPx,"
+      "      viewportWidth: viewport ? viewport.clientWidth : 0"
+      "    });"
+      "    Promise.resolve(result).finally(function() {"
+      "      window.setTimeout(function() {"
+      "        if (window.shelter && typeof window.shelter.navigate === 'function')"
+      "          window.shelter.navigate(" + json + ");"
+      "      }, 100);"
+      "    });"
+      "  }, 750);"
+      "})();";
+  web_smoke_requested_ = true;
+  Log(LogLevel::Info, "SHELTER_WEB_SMOKE_REQUESTED url=" + std::string(smoke_url));
+  ui_browser_->GetMainFrame()->ExecuteJavaScript(script, kUiUrl, 0);
 }
 
 void BrowserWindow::OnUiBrowserClosed(CefRefPtr<CefBrowser> browser) {
@@ -359,6 +421,22 @@ bool BrowserWindow::HandleBridgeCommand(
     return arguments->HasKey(key) ? arguments->GetString(key).ToString() : std::string();
   };
   const std::string tab_id = get_string("tabId");
+
+  if (command == "runtime:dashboard-layout") {
+    if (!std::getenv("SHELTER_WEB_SMOKE_URL")) return false;
+    const bool passed = arguments->HasKey("passed") &&
+                        arguments->GetType("passed") == VTYPE_BOOL &&
+                        arguments->GetBool("passed");
+    const double overflow_px = GetNumber(arguments, "overflowPx");
+    const double viewport_width = GetNumber(arguments, "viewportWidth");
+    Log(LogLevel::Info,
+        std::string("SHELTER_DASHBOARD_LAYOUT_") +
+            (passed ? "PASS" : "FAIL") +
+            " overflow_px=" + std::to_string(overflow_px) +
+            " viewport_width=" + std::to_string(viewport_width));
+    response = passed ? "{\"ok\":true}" : "{\"ok\":false}";
+    return true;
+  }
 
   if (command == "viewport:sync") {
     active_tab_id_ = get_string("activeTabId");

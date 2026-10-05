@@ -80,6 +80,7 @@ class BrowserWindow final : public CefBaseRefCounted {
   CefRect viewport_bounds_;
   std::string active_tab_id_;
   bool content_visible_ = false;
+  bool web_smoke_requested_ = false;
   bool window_destroyed_ = false;
   size_t live_browsers_ = 0;
 

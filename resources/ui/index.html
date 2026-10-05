@@ -2317,6 +2317,24 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 .dash-top{ gap:20px; grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr); }
 .dash-right{ gap:20px; }
 .dash-bottom{ gap:20px; margin-top:20px; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); }
+/* Keep responsive dashboard tracks authoritative after the desktop theme overrides.
+   The old fixed 320px right track plus a two-column .dash-right could exceed the
+   available viewport width on scaled/macOS windows. */
+.dash-top > *, .dash-right > *, .dash-bottom > *{ min-width:0; }
+@media (max-width:1180px){
+  .dash-top{ grid-template-columns:minmax(0,1fr); }
+  .dash-right{ grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:none; }
+}
+@media (max-width:900px){
+  .dash-right,.dash-bottom{ grid-template-columns:minmax(0,1fr); }
+}
+@container shelter (max-width:1180px){
+  .dash-top{ grid-template-columns:minmax(0,1fr); }
+  .dash-right{ grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:none; }
+}
+@container shelter (max-width:900px){
+  .dash-right,.dash-bottom{ grid-template-columns:minmax(0,1fr); }
+}
 .bm-grid{ gap:14px; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
 .ext-grid{ gap:14px; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
 .wg-grid{ gap:18px; grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr)); }

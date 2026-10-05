@@ -93,6 +93,15 @@ bool Client::OnBeforePopup(CefRefPtr<CefBrowser>,
 }
 
 void Client::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
+  if (!is_ui_ && std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_CLIENT_AFTER_CREATED browser_id=" +
+            std::to_string(browser ? browser->GetIdentifier() : -1) +
+            " url=" +
+            (browser && browser->GetMainFrame()
+                 ? browser->GetMainFrame()->GetURL().ToString()
+                 : "unavailable"));
+  }
   if (is_ui_) {
     if (window_) window_->OnUiBrowserCreated(browser);
     return;
@@ -112,9 +121,17 @@ void Client::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
 
 bool Client::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
                             CefRefPtr<CefFrame> frame,
-                            CefRefPtr<CefRequest>,
+                            CefRefPtr<CefRequest> request,
                             bool,
-                            bool) {
+                            bool is_redirect) {
+  if (!is_ui_ && std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_BEFORE_BROWSE main=" +
+            (frame && frame->IsMain() ? "true" : "false") +
+            " redirect=" + (is_redirect ? "true" : "false") +
+            " url=" +
+            (request ? request->GetURL().ToString() : "unavailable"));
+  }
   if (router_) router_->OnBeforeBrowse(browser, frame);
   return false;
 }
@@ -129,6 +146,13 @@ void Client::OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
           std::to_string(static_cast<int>(status)) +
           " error=" + std::to_string(error_code) + " " +
           error_string.ToString());
+  if (!is_ui_ && std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Warning,
+        "SHELTER_WEB_SMOKE_RENDERER_TERMINATED status=" +
+            std::to_string(static_cast<int>(status)) +
+            " code=" + std::to_string(error_code) +
+            " detail=" + error_string.ToString());
+  }
 }
 
 bool Client::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
@@ -157,11 +181,20 @@ void Client::OnAddressChange(CefRefPtr<CefBrowser>,
   if (window_) window_->OnWebAddressChanged(tab_id_, value);
 }
 
-void Client::OnLoadingStateChange(CefRefPtr<CefBrowser>,
+void Client::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
                                   bool is_loading,
                                   bool can_go_back,
                                   bool can_go_forward) {
   if (is_ui_) return;
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_LOADING_STATE loading=" +
+            (is_loading ? "true" : "false") +
+            " browser_id=" +
+            std::to_string(browser ? browser->GetIdentifier() : -1) +
+            " can_back=" + (can_go_back ? "true" : "false") +
+            " can_forward=" + (can_go_forward ? "true" : "false"));
+  }
   if (controller_) {
     controller_->SetLoading(tab_id_, is_loading);
     controller_->SetHistoryState(tab_id_, can_go_back, can_go_forward);
@@ -170,6 +203,19 @@ void Client::OnLoadingStateChange(CefRefPtr<CefBrowser>,
     window_->OnWebLoadingChanged(tab_id_, is_loading, can_go_back,
                                  can_go_forward);
   }
+}
+
+void Client::OnLoadStart(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefFrame> frame,
+                         TransitionType transition_type) {
+  if (is_ui_ || !frame || !std::getenv("SHELTER_WEB_SMOKE_URL")) return;
+  Log(LogLevel::Info,
+      "SHELTER_WEB_SMOKE_LOAD_START main=" +
+          (frame->IsMain() ? "true" : "false") +
+          " transition=" + std::to_string(static_cast<int>(transition_type)) +
+          " browser_id=" +
+          std::to_string(browser ? browser->GetIdentifier() : -1) +
+          " url=" + frame->GetURL().ToString());
 }
 
 void Client::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,

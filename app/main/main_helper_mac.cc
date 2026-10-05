@@ -77,12 +77,29 @@ int main(int argc, char* argv[]) {
 
   CefMainArgs args(argc, argv);
   CefRefPtr<shelter::App> app(new shelter::App);
+  std::string process_type = "browser";
+  for (int i = 1; i < argc; ++i) {
+    if (argv[i] && std::string_view(argv[i]).rfind("--type=", 0) == 0) {
+      process_type = argv[i] + std::string_view("--type=").size();
+      break;
+    }
+  }
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    shelter::Log(shelter::LogLevel::Info,
+                 "SHELTER_WEB_SMOKE_HELPER_PROCESS_STARTED type=" +
+                     process_type);
+  }
   shelter::Log(shelter::LogLevel::Info,
                "CEF helper loaded the framework; dispatching subprocess");
   const int exit_code = CefExecuteProcess(args, app, nullptr);
   shelter::Log(shelter::LogLevel::Info,
                "CEF helper subprocess exited with status " +
                    std::to_string(exit_code));
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    shelter::Log(shelter::LogLevel::Info,
+                 "SHELTER_WEB_SMOKE_HELPER_PROCESS_EXIT type=" +
+                     process_type + " code=" + std::to_string(exit_code));
+  }
   if (exit_code < 0) {
     shelter::Log(shelter::LogLevel::Error,
                  "CEF helper received no recognized subprocess command");

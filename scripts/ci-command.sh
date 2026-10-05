@@ -26,7 +26,7 @@ else
   # Include compiler/test errors even when they occur before the end of a
   # parallel build log. Fall back to the tail for failures without diagnostics.
   diagnostics_file="$(mktemp "${TMPDIR:-/tmp}/shelter-${safe_label}-diagnostics.XXXXXX")"
-  grep -Ei 'error|fatal|undefined reference|unresolved external|no such file|not found|SHELTER_WEB_SMOKE|SHELTER_DASHBOARD_LAYOUT' \
+  grep -Ei 'error|fatal|undefined reference|unresolved external|no such file|not found|SHELTER_WEB_SMOKE|SHELTER_DASHBOARD_LAYOUT|CEF helper|CEF initialized|SHELTER Helper|--type=' \
     "$log_file" | tail -n 20 >"$diagnostics_file" || true
   if [[ ! -s "$diagnostics_file" ]]; then
     tail -n 30 "$log_file" >"$diagnostics_file"

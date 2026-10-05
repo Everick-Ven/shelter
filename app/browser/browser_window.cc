@@ -299,7 +299,11 @@ void BrowserWindow::OnWebBrowserCreated(const std::string& tab_id,
   if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
     Log(LogLevel::Info,
         "SHELTER_WEB_SMOKE_BROWSER_CREATED tab=" + tab_id +
-            " browser_id=" + std::to_string(browser->GetIdentifier()));
+            " browser_id=" + std::to_string(browser->GetIdentifier()) +
+            " url=" +
+            (browser->GetMainFrame()
+                 ? browser->GetMainFrame()->GetURL().ToString()
+                 : "unavailable"));
   }
   if (window_destroyed_ || !window_ || it->second.closing) {
     browser->GetHost()->CloseBrowser(true);
@@ -628,7 +632,7 @@ bool BrowserWindow::EnsureWebTab(const std::string& tab_id,
 
   CefBrowserSettings settings;
   auto view = CefBrowserView::CreateBrowserView(
-      new Client(this, &controller_, tab_id, false), url, settings,
+      new Client(this, &controller_, tab_id, false), "about:blank", settings,
       nullptr, nullptr, new AlloyBrowserViewDelegate());
   if (!view) {
     web_tabs_.erase(web_tab_it);
@@ -651,6 +655,37 @@ bool BrowserWindow::EnsureWebTab(const std::string& tab_id,
   overlay->SetBounds(viewport_bounds_);
   overlay->SetVisible(false);
   UpdateWebTabBoundsAndVisibility();
+
+  // Start remote navigation only after the BrowserView is attached to the
+  // window. If CEF has not delivered OnAfterCreated yet, retain the URL for
+  // OnWebBrowserCreated to load once the browser is ready.
+  bool navigation_started = false;
+  if (web_tab_it->second.browser) {
+    navigation_started = controller_.Navigate(tab_id, url);
+    if (!navigation_started &&
+        web_tab_it->second.browser->GetMainFrame()) {
+      web_tab_it->second.browser->GetMainFrame()->LoadURL(url);
+      navigation_started = true;
+    }
+  } else {
+    web_tab_it->second.pending_url = url;
+    navigation_started = true;
+  }
+
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_OVERLAY_ATTACHED tab=" + tab_id +
+            " visible=" +
+            (content_visible_ && active_tab_id_ == tab_id ? "true" : "false") +
+            " bounds=" + std::to_string(viewport_bounds_.x) + "," +
+            std::to_string(viewport_bounds_.y) + "," +
+            std::to_string(viewport_bounds_.width) + "," +
+            std::to_string(viewport_bounds_.height) +
+            " browser_attached=" +
+            (web_tab_it->second.browser ? "true" : "false") +
+            " navigation_started=" +
+            (navigation_started ? "true" : "false") + " url=" + url);
+  }
   return true;
 }
 

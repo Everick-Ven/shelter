@@ -91,6 +91,9 @@ print_logs() {
       tail -n 100 "$log_file" >&2 || true
     fi
   done
+  echo "--- CEF process snapshot ---" >&2
+  ps -axo pid=,ppid=,command= | \
+    grep -E '[s]helter|[S]HELTER Helper|--type=' >&2 || true
 }
 
 cleanup() {

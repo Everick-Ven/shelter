@@ -75,6 +75,9 @@ class Client final : public CefClient,
                             bool is_loading,
                             bool can_go_back,
                             bool can_go_forward) override;
+  void OnLoadStart(CefRefPtr<CefBrowser> browser,
+                   CefRefPtr<CefFrame> frame,
+                   TransitionType transition_type) override;
   void OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
                               bool fullscreen) override;
   void OnLoadEnd(CefRefPtr<CefBrowser> browser,

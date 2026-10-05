@@ -108,6 +108,10 @@ void Client::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   }
   if (controller_) controller_->Attach(tab_id_, browser);
   if (window_) window_->OnWebBrowserCreated(tab_id_, browser);
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_CLIENT_AFTER_CREATED_END tab=" + tab_id_);
+  }
 }
 
 void Client::OnBeforeClose(CefRefPtr<CefBrowser> browser) {

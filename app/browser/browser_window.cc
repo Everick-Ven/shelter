@@ -332,6 +332,10 @@ void BrowserWindow::OnWebBrowserCreated(const std::string& tab_id,
     controller_.Navigate(tab_id, pending_url);
   }
   UpdateWebTabBoundsAndVisibility();
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_BROWSER_CREATED_CALLBACK_END tab=" + tab_id);
+  }
 }
 
 void BrowserWindow::OnWebBrowserClosed(const std::string& tab_id,

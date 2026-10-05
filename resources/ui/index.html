@@ -321,9 +321,12 @@ html[data-theme="ivory"] .logo::after,html[data-theme="porcelain"] .logo::after,
 .sb-search .i{width:17px;height:17px}
 .sb-search span:not(.kbd){flex:1;text-align:left;font-size:13.5px;white-space:nowrap}
 .kbd{display:inline-flex;align-items:center;gap:2px;font:500 11.5px/1 var(--font);padding:5px 7px;border-radius:7px;background:var(--card-2);border:1px solid var(--line-2);color:var(--text-2);white-space:nowrap}
-.sb-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;margin:6px -12px 0;padding:0 12px 8px;scrollbar-width:thin;scrollbar-color:var(--line-3) transparent;
-  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 calc(100% - 18px),transparent);
-  mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 calc(100% - 18px),transparent)}
+.sb-scroll{flex:0 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;margin:6px -12px 0;padding:0 12px;scrollbar-width:thin;scrollbar-color:var(--line-3) transparent;
+  /* Scrollport follows the list's intrinsic height and only shrinks when it
+     must fit between the pinned navigation and the fixed footer. Do not fade
+     or pad after the final real item: it is the scroll boundary. */
+  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 100%);
+  mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 100%)}
 .sb-scroll::-webkit-scrollbar{display:none}
 .sb-inner{position:relative;padding-top:4px}
 .sb-pin{position:relative;flex:none;padding-top:4px}

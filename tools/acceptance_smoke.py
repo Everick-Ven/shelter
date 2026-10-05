@@ -191,6 +191,98 @@ def viewport_measurement(ui: Cdp) -> Dict[str, Any]:
     return json.loads(raw)
 
 
+def sidebar_scroll_probe(ui: Cdp, width: int, height: int) -> Dict[str, Any]:
+    """Exercise intrinsic growth, overflow, and collapse of the real sidebar."""
+    ui.call(
+        "Emulation.setDeviceMetricsOverride",
+        {
+            "width": width,
+            "height": height,
+            "deviceScaleFactor": 1,
+            "mobile": False,
+            "screenWidth": width,
+            "screenHeight": height,
+        },
+    )
+    expression = r"""
+      (async function() {
+        const scroll = document.getElementById('sbScroll');
+        const tabs = document.getElementById('tabList');
+        const ext = document.querySelector('#sbInner .ni[data-page="extensions"]');
+        if (!scroll || !tabs || !ext || tabs.parentElement !== document.getElementById('dockLeft'))
+          return null;
+        const originalMarkup = tabs.innerHTML;
+        const originalScrollTop = scroll.scrollTop;
+        const nextLayout = () => new Promise(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        );
+        const measure = () => {
+          const scrollRect = scroll.getBoundingClientRect();
+          const extRect = ext.getBoundingClientRect();
+          return {
+            clientHeight: scroll.clientHeight,
+            scrollHeight: scroll.scrollHeight,
+            scrollTop: scroll.scrollTop,
+            maxScroll: Math.max(0, scroll.scrollHeight - scroll.clientHeight),
+            scrollBottom: Math.round(scrollRect.bottom * 100) / 100,
+            extensionsBottom: Math.round(extRect.bottom * 100) / 100,
+            gapAfterExtensionsPx: Math.round((scrollRect.bottom - extRect.bottom) * 100) / 100
+          };
+        };
+        const addProbeTabs = count => {
+          tabs.replaceChildren();
+          for (let i = 0; i < count; i++) {
+            const row = document.createElement('div');
+            row.className = 'tab';
+            row.setAttribute('data-acceptance-probe', '1');
+            row.innerHTML = '<span class="fav int">S</span>' +
+              '<span class="t">Acceptance tab ' + (i + 1) + '</span>';
+            tabs.appendChild(row);
+          }
+        };
+        try {
+          addProbeTabs(0);
+          scroll.scrollTop = 0;
+          await nextLayout();
+          const empty = measure();
+
+          addProbeTabs(1);
+          await nextLayout();
+          const oneTab = measure();
+
+          addProbeTabs(30);
+          await nextLayout();
+          const manyTabs = measure();
+          scroll.scrollTop = scroll.scrollHeight;
+          await nextLayout();
+          const atBottom = measure();
+
+          addProbeTabs(0);
+          scroll.scrollTop = 0;
+          await nextLayout();
+          const collapsed = measure();
+          return JSON.stringify({
+            viewport: { width: innerWidth, height: innerHeight },
+            empty: empty,
+            oneTab: oneTab,
+            manyTabs: manyTabs,
+            atBottom: atBottom,
+            collapsed: collapsed
+          });
+        } finally {
+          tabs.innerHTML = originalMarkup;
+          scroll.scrollTop = originalScrollTop;
+        }
+      })()
+    """
+    raw = ui.evaluate(expression, timeout=20)
+    if not raw:
+        raise AcceptanceError(
+            f"Sidebar scroll probe could not find the left-tab layout at {width}x{height}"
+        )
+    return json.loads(raw)
+
+
 def page_state(page: Cdp) -> Dict[str, Any]:
     raw = page.evaluate(
         "JSON.stringify({url:location.href,title:document.title,"
@@ -372,6 +464,58 @@ def main() -> int:
             print(
                 "SHELTER_ACCEPTANCE_DASHBOARD_PASS "
                 + json.dumps(measurements, ensure_ascii=False),
+                flush=True,
+            )
+
+            sidebar_measurements: List[Dict[str, Any]] = []
+            for width in (1280, 390):
+                measurement = sidebar_scroll_probe(ui, width, 1100)
+                sidebar_measurements.append(measurement)
+                print(
+                    "SHELTER_ACCEPTANCE_SIDEBAR "
+                    + json.dumps(measurement, ensure_ascii=False),
+                    flush=True,
+                )
+                empty = measurement["empty"]
+                one_tab = measurement["oneTab"]
+                many_tabs = measurement["manyTabs"]
+                at_bottom = measurement["atBottom"]
+                collapsed = measurement["collapsed"]
+                if one_tab["clientHeight"] <= empty["clientHeight"] + 20:
+                    raise AcceptanceError(
+                        "Sidebar scrollport did not grow with one added tab at "
+                        f"{width}px: {measurement}"
+                    )
+                if abs(collapsed["clientHeight"] - empty["clientHeight"]) > 2:
+                    raise AcceptanceError(
+                        "Sidebar scrollport did not shrink after removing tabs at "
+                        f"{width}px: {measurement}"
+                    )
+                if many_tabs["scrollHeight"] <= many_tabs["clientHeight"] + 20:
+                    raise AcceptanceError(
+                        "Sidebar did not become scrollable with a long tab list at "
+                        f"{width}px: {measurement}"
+                    )
+                if abs(at_bottom["scrollTop"] - at_bottom["maxScroll"]) > 2:
+                    raise AcceptanceError(
+                        "Sidebar probe did not reach the actual scroll limit at "
+                        f"{width}px: {measurement}"
+                    )
+                for state_name, state in (
+                    ("empty", empty),
+                    ("oneTab", one_tab),
+                    ("atBottom", at_bottom),
+                    ("collapsed", collapsed),
+                ):
+                    if abs(state["gapAfterExtensionsPx"]) > 1.5:
+                        raise AcceptanceError(
+                            "Empty scroll space remains after Extensions "
+                            f"({state_name}, {width}px): {measurement}"
+                        )
+            ui.call("Emulation.clearDeviceMetricsOverride")
+            print(
+                "SHELTER_ACCEPTANCE_SIDEBAR_PASS "
+                + json.dumps(sidebar_measurements, ensure_ascii=False),
                 flush=True,
             )
 

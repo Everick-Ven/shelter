@@ -642,9 +642,19 @@ bool BrowserWindow::EnsureWebTab(const std::string& tab_id,
   web_tab_it->second.view = view;
   if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
     Log(LogLevel::Info, "SHELTER_WEB_SMOKE_VIEW_CREATED tab=" + tab_id);
+    Log(LogLevel::Info, "SHELTER_WEB_SMOKE_OVERLAY_ADD_BEGIN tab=" + tab_id);
   }
   auto overlay = window_->AddOverlayView(view, CEF_DOCKING_MODE_CUSTOM, true);
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_OVERLAY_ADD_END tab=" + tab_id +
+            " success=" + (overlay ? "true" : "false"));
+  }
   if (!overlay) {
+    if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+      Log(LogLevel::Error,
+          "SHELTER_WEB_SMOKE_OVERLAY_ADD_FAILED tab=" + tab_id);
+    }
     if (auto browser = view->GetBrowser()) browser->GetHost()->CloseBrowser(true);
     web_tabs_.erase(web_tab_it);
     controller_.tabs().Close(tab_id);
@@ -653,23 +663,52 @@ bool BrowserWindow::EnsureWebTab(const std::string& tab_id,
 
   web_tab_it->second.overlay = overlay;
   overlay->SetBounds(viewport_bounds_);
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info, "SHELTER_WEB_SMOKE_OVERLAY_BOUNDS_SET tab=" + tab_id);
+  }
   overlay->SetVisible(false);
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info, "SHELTER_WEB_SMOKE_OVERLAY_HIDDEN tab=" + tab_id);
+  }
   UpdateWebTabBoundsAndVisibility();
+  if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+    Log(LogLevel::Info,
+        "SHELTER_WEB_SMOKE_OVERLAY_VISIBILITY_UPDATED tab=" + tab_id);
+  }
 
   // Start remote navigation only after the BrowserView is attached to the
   // window. If CEF has not delivered OnAfterCreated yet, retain the URL for
   // OnWebBrowserCreated to load once the browser is ready.
   bool navigation_started = false;
   if (web_tab_it->second.browser) {
+    if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+      Log(LogLevel::Info,
+          "SHELTER_WEB_SMOKE_LOAD_URL_BEGIN tab=" + tab_id +
+              " source=controller url=" + url);
+    }
     navigation_started = controller_.Navigate(tab_id, url);
     if (!navigation_started &&
         web_tab_it->second.browser->GetMainFrame()) {
+      if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+        Log(LogLevel::Warning,
+            "SHELTER_WEB_SMOKE_LOAD_URL_FALLBACK tab=" + tab_id);
+      }
       web_tab_it->second.browser->GetMainFrame()->LoadURL(url);
       navigation_started = true;
+    }
+    if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+      Log(LogLevel::Info,
+          "SHELTER_WEB_SMOKE_LOAD_URL_END tab=" + tab_id +
+              " started=" +
+              (navigation_started ? "true" : "false"));
     }
   } else {
     web_tab_it->second.pending_url = url;
     navigation_started = true;
+    if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+      Log(LogLevel::Info,
+          "SHELTER_WEB_SMOKE_LOAD_URL_PENDING tab=" + tab_id + " url=" + url);
+    }
   }
 
   if (std::getenv("SHELTER_WEB_SMOKE_URL")) {

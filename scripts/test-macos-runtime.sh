@@ -39,19 +39,8 @@ if [[ "$helper_package_type" != "APPL" ]]; then
 fi
 
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/shelter-runtime.XXXXXX")"
+main_pid=""
 export SHELTER_HELPER_BUNDLE_NAME="SHELTER Helper"
-export SHELTER_MAIN_EXECUTABLE="$main_executable"
-
-find_main_pids() {
-  local pids
-  pids="$(ps -axo pid=,command= | awk '
-    index($0, ENVIRON["SHELTER_MAIN_EXECUTABLE"]) > 0 { print $1 }
-  ')"
-  if [[ -z "$pids" ]]; then
-    pids="$(pgrep -x shelter || pgrep -x SHELTER || true)"
-  fi
-  printf '%s\n' "$pids" | awk 'NF'
-}
 
 find_helper_pids() {
   ps -axo pid=,command= | awk '
@@ -67,7 +56,7 @@ find_renderer_pid() {
 }
 
 print_logs() {
-  for log_file in "$work_dir/open.log" "$work_dir/shelter.log" \
+  for log_file in "$work_dir/app.stdout.log" "$work_dir/shelter.log" \
                   "$work_dir/shelter-cef.log"; do
     if [[ -f "$log_file" ]]; then
       echo "--- $log_file ---" >&2
@@ -77,12 +66,12 @@ print_logs() {
 }
 
 cleanup() {
-  local main_pids helper_pids pid
-  main_pids="$(find_main_pids || true)"
-  while IFS= read -r pid; do
-    [[ "$pid" =~ ^[0-9]+$ ]] && kill "$pid" 2>/dev/null || true
-  done <<< "$main_pids"
-  sleep 1
+  local helper_pids pid
+  if [[ -n "$main_pid" ]]; then
+    kill "$main_pid" 2>/dev/null || true
+    sleep 1
+    wait "$main_pid" 2>/dev/null || true
+  fi
   helper_pids="$(find_helper_pids || true)"
   while IFS= read -r pid; do
     [[ "$pid" =~ ^[0-9]+$ ]] && kill "$pid" 2>/dev/null || true
@@ -92,27 +81,24 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$work_dir"
-if ! open -n "$app_path" >"$work_dir/open.log" 2>&1; then
-  echo "Launch Services could not open $app_path." >&2
-  print_logs
-  exit 1
-fi
+"$main_executable" >"$work_dir/app.stdout.log" 2>&1 &
+main_pid=$!
 
-main_seen=0
 for _ in $(seq 1 60); do
+  if ! kill -0 "$main_pid" 2>/dev/null; then
+    set +e
+    wait "$main_pid"
+    app_exit_code=$?
+    set -e
+    echo "SHELTER exited before starting a CEF renderer (status $app_exit_code)." >&2
+    print_logs
+    exit 1
+  fi
+
   renderer_pid="$(find_renderer_pid || true)"
   if [[ "$renderer_pid" =~ ^[0-9]+$ ]]; then
     echo "Packaged macOS app started its CEF renderer (PID $renderer_pid)."
     exit 0
-  fi
-
-  main_pids="$(find_main_pids || true)"
-  if [[ -n "$main_pids" ]]; then
-    main_seen=1
-  elif (( main_seen )); then
-    echo "SHELTER exited before starting a CEF renderer." >&2
-    print_logs
-    exit 1
   fi
   sleep 1
 done

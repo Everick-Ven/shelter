@@ -320,9 +320,8 @@ html[data-theme="ivory"] .logo::after,html[data-theme="porcelain"] .logo::after,
 .sb-search .i{width:17px;height:17px}
 .sb-search span:not(.kbd){flex:1;text-align:left;font-size:13.5px;white-space:nowrap}
 .kbd{display:inline-flex;align-items:center;gap:2px;font:500 11.5px/1 var(--font);padding:5px 7px;border-radius:7px;background:var(--card-2);border:1px solid var(--line-2);color:var(--text-2);white-space:nowrap}
-.sb-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;margin:6px -12px 0;padding:0 12px 8px;scrollbar-width:thin;scrollbar-color:var(--line-3) transparent;
-  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 calc(100% - 18px),transparent);
-  mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 calc(100% - 18px),transparent)}
+.sb-scroll{flex:0 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;margin:6px -12px 0;padding:0 12px;scrollbar-width:thin;scrollbar-color:var(--line-3) transparent}
+.sb-scroll.has-overflow{-webkit-mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 calc(100% - 18px),transparent)}
 .sb-scroll::-webkit-scrollbar{display:none}
 .sb-inner{position:relative;padding-top:4px}
 .sb-pin{position:relative;flex:none;padding-top:4px}
@@ -422,8 +421,11 @@ body.no-badges .badge{display:none!important}
 .ctl.fire{color:rgb(var(--danger)/.8)}
 .ctl.fire::after{display:none}
 .ctl.fire:hover{background:rgb(var(--danger)/.1);border-color:rgb(var(--danger)/.3);color:rgb(var(--danger))}
+.ctl.is-disabled{opacity:.48;cursor:not-allowed}
+.ctl.is-disabled:hover{border-color:var(--line);color:var(--text-3)}
+.tb-ctls .ctl.is-disabled:hover{background:transparent;color:var(--text-3)}
 
-.sb-bottom{flex:none;padding-top:10px;border-top:1px solid var(--line);margin:0 0 0}
+.sb-bottom{flex:none;padding-top:10px;border-top:1px solid var(--line);margin:auto 0 0}
 .ni.toggle-row{margin-bottom:8px;width:100%}
 .ni.toggle-row .sw-t{flex:none;pointer-events:none}
 @media (max-height:720px){
@@ -2992,7 +2994,7 @@ html[data-theme="graphite"] .badge.hot{
       <div class="sb-label"><span class="hc">Обзор</span></div>
       <button class="ni" data-act="page" data-page="start" data-tip="Экспресс-панель"><svg class="i"><use href="#i-home"/></svg><span class="lbl hc">Экспресс-панель</span></button>
       <button class="ni" data-act="page" data-page="tasks" data-tip="Задачи"><svg class="i"><use href="#i-tasks"/></svg><span class="lbl hc">Задачи</span><span class="badge hc" id="bdgTasks" hidden>0</span></button>
-      <button class="ni" data-act="page" data-page="deepthink" data-tip="Ассистент"><svg class="i"><use href="#i-chat"/></svg><span class="lbl hc">Ассистент</span><span class="badge new hc">AI</span></button>
+      <button class="ni" data-act="page" data-page="deepthink" data-tip="AI-ассистент · не подключён"><svg class="i"><use href="#i-chat"/></svg><span class="lbl hc">AI-ассистент</span><span class="badge hc">OFF</span></button>
       <button class="ni" data-act="page" data-page="bookmarks" data-tip="Закладки"><svg class="i"><use href="#i-bookmark"/></svg><span class="lbl hc">Закладки</span><span class="badge hc" id="bdgBm">0</span></button>
     </div>
 
@@ -3195,7 +3197,7 @@ html[data-theme="graphite"] .badge.hot{
     return syncFallback !== undefined ? syncFallback : Promise.resolve({ ok: false, offline: true });
   }
 
-  const listeners = { ctxClose: [], zoom: [] };
+  const listeners = { ctxClose: [], zoom: [], downloadPrompt: [] };
   const detectPlat = () => {
     if (rawCef && rawCef.platform) return String(rawCef.platform);
     const p = (navigator.platform || navigator.userAgent || '').toLowerCase();
@@ -3212,14 +3214,18 @@ html[data-theme="graphite"] .badge.hot{
       minimize: () => cefSend('window:minimize'),
       maximize: () => cefSend('window:maximize'),
       close: () => cefSend('window:close'),
+      goBack: () => cefSend('tab:back', { tabId: typeof window.getActiveTabId === 'function' ? window.getActiveTabId() : '' }),
+      goForward: () => cefSend('tab:forward', { tabId: typeof window.getActiveTabId === 'function' ? window.getActiveTabId() : '' }),
+      reload: () => cefSend('tab:reload', { tabId: typeof window.getActiveTabId === 'function' ? window.getActiveTabId() : '' }),
+      downloadDecision: opts => cefSend('download:decision', opts || {}),
+      onDownloadPrompt: fn => { if (typeof fn === 'function') listeners.downloadPrompt.push(fn); },
+      showInFolder: path => cefSend('file:showInFolder', { path: String(path || '') }),
       themeScheme: scheme => cefSend('theme:scheme', { scheme }),
       clearPrivacy: partitions => cefSend('privacy:clear', { partitions }),
       authWindow: opts => cefSend('auth:open', opts),
       ctxAct: opts => cefSend('ctx:act', opts),
       openPlainWindow: opts => cefSend('window:openPlain', opts),
       devTools: msg => cefSend('devtools:ctl', msg),
-      testAgent: cfg => cefSend('ai:test', cfg),
-      agentChat: (cfg, prompt) => cefSend('ai:chat', { cfg, prompt }),
       clipWrite: text => {
         if (rawCef && typeof rawCef.clipWrite === 'function') return rawCef.clipWrite(text);
         try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(String(text || '')).catch(() => {}); } catch (_) {}
@@ -3366,13 +3372,29 @@ html[data-theme="graphite"] .badge.hot{
           break;
         case 'visit':
         case 'url':
-          if (typeof window.shelterRecordVisit === 'function' && d.url) window.shelterRecordVisit(d.url, d.title);
+          if (event === 'url' && typeof d.canGoBack === 'boolean' && typeof window.shelterUpdateNativeHistory === 'function') {
+            window.shelterUpdateNativeHistory(d.tabId, d.canGoBack, d.canGoForward);
+          }
+          if (d.url) {
+            if (typeof window.pushTabHist === 'function') window.pushTabHist(d.url, d.tabId);
+            if (typeof window.shelterRecordVisit === 'function') window.shelterRecordVisit(d.url, d.title, d.tabId);
+          }
           break;
         case 'loading':
           if (d.tabId) {
             if (d.loading) loadingTabs.add(d.tabId);
             else loadingTabs.delete(d.tabId);
+            if (typeof d.canGoBack === 'boolean' && typeof window.shelterUpdateNativeHistory === 'function') {
+              window.shelterUpdateNativeHistory(d.tabId, d.canGoBack, d.canGoForward);
+            }
           }
+          if (d.tabId === (typeof window.getActiveTabId === 'function' ? window.getActiveTabId() : null) && typeof window.onNativeLoading === 'function') window.onNativeLoading(!!d.loading);
+          break;
+        case 'download-prompt':
+          listeners.downloadPrompt.slice().forEach(fn => { try { fn(d); } catch (_) {} });
+          break;
+        case 'download':
+          if (typeof window.shelterDownload === 'function') window.shelterDownload(d);
           break;
         case 'thumb':
           if (typeof window.shelterOnThumb === 'function') window.shelterOnThumb(d.tabId, d.dataUrl || d.url);
@@ -3449,23 +3471,6 @@ function pwFromStore(v) {
   }
   return [];
 }
-function aiFromStore(v) {
-  if (!v) return null;
-  if (typeof v === 'string') {
-    if (/^(ss1:|p1:)/.test(v)) {
-      const d = secretDec(v);
-      if (d) { try { return JSON.parse(d) || null; } catch (_) {} }
-      S.__aiBlob = v; return null;
-    }
-    return null;
-  }
-  return v;
-}
-function aiToStore(cfg) {
-  const b = secretEnc(JSON.stringify(cfg));
-  S.__aiBlob = '';
-  return b ? b : cfg;
-}
 async function copySecret(txt) {
   let prev = '';
   try { prev = (window.shelterNative && window.shelterNative.clipRead) ? await window.shelterNative.clipRead() : ''; } catch (_) {}
@@ -3479,7 +3484,7 @@ async function copySecret(txt) {
   }, 60000);
 }
 
-/* хранилище — безопасно для sandbox-iframe (там localStorage недоступен) */
+/* Browser storage: localStorage when available, in-memory fallback for opaque origins. */
 const store = (() => {
   let ls = null; const mem = {};
   try { ls = window.localStorage; ls.setItem('__sh', '1'); ls.removeItem('__sh'); } catch (e) { ls = null; }
@@ -3553,7 +3558,7 @@ const PAGES = {
   certs:      { t: 'Сертификаты РФ', i: 'award' },
   profile:    { t: 'Профиль',        i: 'user' },
   checkout:   { t: 'Платёжный шлюз', i: 'wallet' },
-  deepthink:  { t: 'Ассистент',      i: 'chat' },
+  deepthink:  { t: 'AI-ассистент · не подключён', i: 'chat' },
   tabs:       { t: 'Все вкладки',    i: 'layers' }
 };
 const SITES = {
@@ -3608,8 +3613,8 @@ const GLOW_PALETTE = [
   ['#C4CAD6', 'Жемчуг']
 ];
 const PREF_DEFAULTS = {
-  trackers: true, https: true, fp: true, strict: false,
-  ruca: true, rucaupd: true, gostbadge: true,
+  trackers: false, https: false, fp: false, strict: false,
+  ruca: false, rucaupd: false, gostbadge: false,
   pinnedProtect: true, dragTabs: true, hoverPreview: false, lazyTabs: true, memSaver: true,
   suggestHistory: true, checkUpdates: true, startup: 'ntp', dns: 'cf', lang: 'ru', motion: 'reduced', glow: true, gfx: 'balance', askDownload: false,
   menuAdapt: true, menuDev: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true, persets: {}, cleanSurf: false, glassOp: 82,
@@ -3618,7 +3623,7 @@ const PREF_DEFAULTS = {
 };
 const UI_DEFAULTS = {
   collapsed: false, zoom: 100, device: 'desktop',
-  dashPeriod: 'week', dashMetric: 'trackers',
+  dashPeriod: 'week', dashMetric: 'visits',
   histView: 'calendar', histScope: 'all',
   taskView: 'open', tabView: 'list',
   tabPos: 'left', bmPos: 'center', railCollapsed: false, bmHidden: false, bmShow: 6,
@@ -3634,9 +3639,9 @@ const S = {
   theme: 'obsidian', ghost: false, engine: 'google', deep: false,
   spaces: null, currentSpace: 'main', activeTabId: null,
   bookmarks: null, visits: [], board: null, boards: null, boardId: '', ext: [],
-  chats: [], messages: {}, downloads: [], passwords: [], blocks: {},
+  chats: [], messages: {}, downloads: [], passwords: [],
   prefs: Object.assign({}, PREF_DEFAULTS), ui: Object.assign({}, UI_DEFAULTS),
-  account: null, closed: [], ai: null
+  account: null, closed: []
 };
 const T = {}; // временное состояние страниц (не сохраняется)
 
@@ -3845,17 +3850,6 @@ function seedVisits() {
   }
   return out;
 }
-function seedBlocks() {
-  const R = rng(777), o = {};
-  for (let d = 60; d >= 0; d--) {
-    const k = dayKey(Date.now() - d * DAY), we = [0, 6].includes(new Date(Date.now() - d * DAY).getDay());
-    const s = we ? .6 : 1;
-    o[k] = { t: Math.round((70 + R() * 170) * s), a: Math.round((24 + R() * 70) * s), c: Math.round((12 + R() * 40) * s), f: Math.round((2 + R() * 14) * s), demo: true };
-  }
-  const tk = dayKey(Date.now()); const h = new Date().getHours() / 24;
-  Object.keys(o[tk]).forEach(k => { if (k !== 'demo') o[tk][k] = Math.round(o[tk][k] * Math.max(.15, h)); });
-  return o;
-}
 function seedTasks(b) {
   const d = n => ruDate(Date.now() + n * DAY);
   const mk = (title, project, prio, term, days, dl, format, assignee, status, comment) => ({ id: uid('task'), title, project, created: d(-3), prio: status === 'Готово' ? 'Выполнено' : prio, term, days, deadline: dl, format, assignee, comment: comment || '', status, demo: true });
@@ -3920,20 +3914,21 @@ function seedMisc() {
 }
 function seedDemo() {
   S.visits = S.visits.concat(seedVisits()).sort((a, b) => a.at - b.at);
-  S.blocks = Object.assign(seedBlocks(), S.blocks);
   if (!S.board || !S.board.tasks || !S.board.tasks.length) { S.board = S.board || defaultBoard(); seedTasks(S.board); }
   if (!S.chats.length) seedChats();
   seedMisc();
 }
 function clearDemo() {
+  const visitCount = S.visits.length;
   S.visits = S.visits.filter(v => !v.demo);
-  Object.keys(S.blocks).forEach(k => { if (S.blocks[k].demo) delete S.blocks[k]; });
+  if (S.visits.length !== visitCount) store.put('shelter:visits', S.visits);
   if (S.board) S.board.tasks = S.board.tasks.filter(t => !t.demo);
   S.chats = S.chats.filter(c => !c.demo); Object.keys(S.messages).forEach(k => { if (!S.chats.find(c => c.id === k)) delete S.messages[k]; });
   S.ext = S.ext.filter(e => !e.demo); S.downloads = S.downloads.filter(d => !d.demo); S.passwords = S.passwords.filter(p => !p.demo);
 }
 
 /* ---------- загрузка / сохранение ---------- */
+let legacyAiPrototypeDataRemoved = false;
 function load() {
   const map = { light: 'ivory', dark: 'obsidian', midnight: 'amethyst' };
   let th = store.get('shelter:theme'); th = map[th] || th; S.theme = THEMES[th] ? th : 'obsidian';
@@ -3948,28 +3943,48 @@ function load() {
   const breg = store.json('shelter:boards', null);
   S.boards = (breg && Array.isArray(breg.boards)) ? breg.boards : null;
   S.boardId = (breg && breg.id) || '';
-  const ext = store.json('shelter:ext', null);
+  // The old extension catalog only saved demo toggles; discard it rather than imply anything is installed.
+  store.del('shelter:ext'); S.ext = [];
   const lux = store.json('shelter:lux', {}) || {};
   Object.assign(S.prefs, lux.prefs || {});
+  // Never restore legacy UI-only privacy toggles as if they were active protections.
+  S.prefs.trackers = false; S.prefs.https = false; S.prefs.fp = false; S.prefs.strict = false;
+  S.prefs.ruca = false; S.prefs.rucaupd = false; S.prefs.gostbadge = false;
   if (!lux.prefs || !('motion' in lux.prefs)) { try { if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) S.prefs.motion = 'reduced'; } catch (_) {} }
   Object.assign(S.ui, lux.ui || {});
+  if (!['time', 'visits'].includes(S.ui.dashMetric)) S.ui.dashMetric = 'visits';
   /* Уровень графики задаёт режим анимаций (beauty=full, balance=reduced, perf=off) */
   if (S.prefs.motion === 'off' && S.prefs.gfx !== 'perf') S.prefs.glow = false;
   S.prefs.motion = ({ beauty: 'full', balance: 'reduced', perf: 'off' })[S.prefs.gfx] || 'reduced';
   if (S.ui.dlSeen == null) S.ui.dlSeen = Date.now();
-  S.deep = !!lux.deep; S.account = lux.account || null;
-  S.ai = aiFromStore(store.json('shelter:ai', null));
+  S.deep = false; // AI mode is unavailable in this build; discard any legacy demo toggle.
+  const legacyAccount = lux.account;
+  S.account = null; // OAuth and account synchronization are not connected in this build.
+  if (!S.ui.profileName && legacyAccount && typeof legacyAccount.name === 'string') S.ui.profileName = legacyAccount.name;
+  const legacyAiConfig = store.get('shelter:ai');
+  const legacyAiThreads = Array.isArray(S.ui.dtThreads) && S.ui.dtThreads.length > 0;
+  if (legacyAiConfig != null && legacyAiConfig !== '') store.del('shelter:ai');
+  if (legacyAiThreads) {
+    delete S.ui.dtThreads;
+    delete S.ui.dtRailCollapsed;
+    delete S.ui.dtFs;
+  }
+  if (legacyAiConfig || legacyAiThreads) {
+    // Remove prototype credentials and prompts: neither secure secret storage nor AI transport exists here.
+    legacyAiPrototypeDataRemoved = true;
+  }
   S.chats = lux.chats || []; S.messages = lux.messages || {};
-  S.downloads = lux.downloads || []; S.passwords = pwFromStore(lux.passwords); S.blocks = lux.blocks || {};
-  if (Array.isArray(ext)) S.ext = ext.filter(e => e && EXT_CATALOG[e.id]);
+  S.downloads = lux.downloads || []; S.passwords = pwFromStore(lux.passwords);
   if (!Array.isArray(S.bookmarks)) S.bookmarks = DEFAULT_BOOKMARKS.slice();
   if (!S.spaces || typeof S.spaces !== 'object' || !Object.keys(S.spaces).length) S.spaces = seedSpaces();
   if (!S.board || !Array.isArray(S.board.tasks)) S.board = Object.assign(defaultBoard(), S.board && typeof S.board === 'object' ? S.board : {}, { tasks: (S.board && S.board.tasks) || [] });
   ensureBoard();
+  clearDemo(); // discard persisted sample visits, tasks, chats, downloads, and password rows from older builds
   // нормализация вкладок и пространств
   Object.keys(S.spaces).forEach(k => {
     const sp = S.spaces[k]; sp.name = sp.name || 'Пространство'; sp.color = sp.color || SPACE_COLORS[0]; sp.icon = SPACE_ICONS.includes(sp.icon) ? sp.icon : 'layers';
     sp.tabs = (sp.tabs || []).map(t => { if (!t.stack || !t.stack.length) { t.stack = [t.url]; t.idx = 0; } if (!t.id) t.id = uid('t');
+      t.blocked = 0;
       const ip = internalPage(t.url || ''); if (ip && ip.page === 'start' && (!t.title || t.title === 'Новая вкладка')) t.title = PAGES.start.t;
       return t; });
   });
@@ -3998,7 +4013,7 @@ function saveNow() {
   store.put('shelter:board', S.board);
   store.put('shelter:boards', { boards: S.boards || [], id: S.boardId || '' });
   store.put('shelter:ext', S.ext);
-  store.put('shelter:lux', { seeded: true, prefs: S.prefs, ui: S.ui, deep: S.deep, account: S.account, chats: S.chats, messages: S.messages, downloads: S.downloads, passwords: pwToStore(S.passwords), blocks: S.blocks });
+  store.put('shelter:lux', { seeded: true, prefs: S.prefs, ui: S.ui, deep: S.deep, account: S.account, chats: S.chats, messages: S.messages, downloads: S.downloads, passwords: pwToStore(S.passwords) });
   if (!S.ghost) {
     const now = Date.now();
     if (now - _visitsAt >= 4000) { flushVisits(); }
@@ -4170,59 +4185,8 @@ function promptDlg({ title, value = '', placeholder = '', ok = 'Готово', l
   });
 }
 function agentDlg() {
-  const cur = S.ai || {};
-  return new Promise(res => {
-    let done = false;
-    const m = openModal({ width: 470,
-      html: `<div class="modal-h"><div class="mi-ic">${ico('bulb')}</div><h3>${S.ai ? 'Настройка AI-ассистента' : 'Подключение AI-ассистента'}</h3></div>
-        <div class="modal-b">
-          <p style="margin:0 0 14px">Ассистент подключается по API: адрес совместимого эндпоинта, ключ и модель. Всё хранится только на устройстве.</p>
-          <label class="field"><span>Адрес API</span><input class="input" data-ai="baseUrl" value="${esc(cur.baseUrl || '')}" placeholder="https://api.openai.com/v1" spellcheck="false"></label>
-          <label class="field"><span>API-ключ</span><input class="input" type="password" data-ai="apiKey" value="${esc(cur.apiKey || '')}" placeholder="sk-…" spellcheck="false"></label>
-          <label class="field"><span>Модель</span><input class="input" data-ai="model" value="${esc(cur.model || '')}" placeholder="gpt-4o-mini" spellcheck="false"></label>
-          <div data-ai="status" style="min-height:18px;margin-top:8px;font-size:12.5px"></div>
-        </div>
-        <div class="modal-f"><button class="btn ghost" data-r="0">Отмена</button><button class="btn primary" data-r="1">${S.ai ? 'Сохранить и проверить' : 'Подключить'}</button></div>`,
-      onClose: () => { if (!done) { done = true; res(null); } } });
-    const val = k => { const el = m.scrim.querySelector('[data-ai="' + k + '"]'); return el ? String(el.value || '').trim() : ''; };
-    const finish = v => { if (done) return; done = true; res(v); closeModal(m); };
-    const test = async (b) => {
-      const cfg = {
-        baseUrl: val('baseUrl') || 'https://api.openai.com/v1',
-        apiKey: val('apiKey'),
-        model: val('model') || 'gpt-4o-mini',
-        provider: 'openai'
-      };
-      const st = m.scrim.querySelector('[data-ai="status"]');
-      b.disabled = true;
-      if (st) { st.textContent = 'Проверяю подключение…'; st.style.color = ''; }
-      let r = null;
-      try {
-        r = (NAT && typeof NAT.testAgent === 'function') ? await NAT.testAgent(cfg) : { ok: false, error: 'Нет доступа' };
-      } catch (err) { r = { ok: false, error: String(err && err.message || err) }; }
-      b.disabled = false;
-      if (r && r.ok) {
-        S.ai = cfg;
-        try { store.put('shelter:ai', aiToStore(cfg)); } catch (_) {}
-        if (st) { st.textContent = 'Подключено ✓'; st.style.color = 'rgb(var(--ok, #3DD68C))'; }
-        setTimeout(() => { finish(cfg); toast('AI-ассистент подключён', { icon: 'check' }); }, 380);
-      } else {
-        if (st) { st.textContent = 'Не подключено: ' + ((r && r.error) || 'ошибка'); st.style.color = 'rgb(var(--danger))'; }
-      }
-    };
-    m.scrim.addEventListener('click', e => {
-      const b = e.target.closest('[data-r]'); if (!b) return;
-      if (b.dataset.r === '0') { finish(null); return; }
-      test(b);
-    });
-    m.scrim.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-ai]')) {
-        e.preventDefault();
-        const b = m.scrim.querySelector('[data-r="1"]'); if (b && !b.disabled) test(b);
-      }
-    });
-    setTimeout(() => { const f = m.scrim.querySelector('[data-ai="baseUrl"]'); if (f) { f.focus(); f.select(); } }, 50);
-  });
+  toast('Подключение AI-сервиса не реализовано. Не вводите API-ключи.', { icon: 'info' });
+  return Promise.resolve(null);
 }
 function toast(msg, opts = {}) {
   const root = $('#toasts'); const el = document.createElement('div');
@@ -4296,7 +4260,8 @@ function segHtml(name, opts, val, cls = '') {
   return `<div class="seg ${cls}" data-seg="${name}"><span class="seg-th"></span>${opts.map(o => `<button data-v="${o[0]}" class="${o[0] === val ? 'on' : ''}"${o[2] ? ` data-tip="${esc(o[2])}"` : ''}>${o[1]}</button>`).join('')}</div>`;
 }
 function setSegValue(seg, v) { if (!seg) return; $$('button[data-v]', seg).forEach(b => b.classList.toggle('on', b.dataset.v === v)); segSync(seg); }
-const swDisabled = key => key === 'glow' && S.prefs.gfx === 'perf';
+const INACTIVE_SWITCHES = new Set(['deep', 'trackers', 'https', 'fp', 'strict', 'ruca', 'rucaupd', 'gostbadge']);
+const swDisabled = key => INACTIVE_SWITCHES.has(key) || (key === 'glow' && S.prefs.gfx === 'perf');
 const swHtml = (key, on, disabled = swDisabled(key)) => `<button class="sw-t ${(!disabled && on) ? 'on' : ''}${disabled ? ' is-disabled' : ''}" data-sw="${key}" role="switch" aria-checked="${!!(!disabled && on)}"${disabled ? ' disabled aria-disabled="true"' : ''}><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></button>`;
 const swState = key => key === 'ghost' ? S.ghost : key === 'deep' ? S.deep : key === 'glow' ? (S.prefs.gfx !== 'perf' && S.prefs.glow !== false) : !!S.prefs[key];
 function syncSwitches() {
@@ -4315,7 +4280,7 @@ function syncSwitches() {
   });
   syncControls(); DASH.protUpdate();
 }
-const PREF_TOAST = { trackers: ['Блокировка трекеров включена', 'Блокировка трекеров выключена', 'shield'], https: ['HTTPS-only и DoH включены', 'HTTPS-only выключен', 'lock'], fp: ['Защита от отпечатка включена', 'Защита от отпечатка выключена', 'finger'], strict: ['Строгий режим включён', 'Строгий режим выключен', 'shield-check'],
+const PREF_TOAST = { trackers: ['Демо-переключатель изменён — фильтрация не подключена', 'Демо-переключатель выключен — фильтрация не подключена', 'shield'], https: ['Демо-настройка изменена — HTTPS/DoH не подключены', 'Демо-настройка выключена — HTTPS/DoH не подключены', 'lock'], fp: ['Демо-настройка изменена — защита не подключена', 'Демо-настройка выключена — защита не подключена', 'finger'], strict: ['Демо-настройка изменена — строгий режим не подключён', 'Демо-настройка выключена — строгий режим не подключён', 'shield-check'],
   menuAdapt: ['«Адаптация» показана в меню «...»', '«Адаптация» скрыта в меню «...»', 'monitor'],
   menuDev: ['DevTools-пункт показан в меню «...»', 'DevTools-пункт скрыт в меню «...»', 'code'],
   menuZoom: ['Масштаб страницы показан в меню «...»', 'Масштаб страницы скрыт в меню «...»', 'search'],
@@ -4592,11 +4557,25 @@ function themeMenu(anchor, place) {
 let justAdded = null;
 const curSpace = () => S.spaces[S.currentSpace];
 const curTab = () => curSpace().tabs.find(t => t.id === S.activeTabId) || curSpace().tabs[0];
+let sbScrollObserver = null;
+function syncSidebarScrollState() {
+  const scroll = $('#sbScroll');
+  if (scroll) scroll.classList.toggle('has-overflow', scroll.scrollHeight > scroll.clientHeight + 1);
+}
+function observeSidebarScroll() {
+  const scroll = $('#sbScroll'), content = $('#sbInner');
+  if (scroll && typeof ResizeObserver !== 'undefined') {
+    sbScrollObserver = new ResizeObserver(syncSidebarScrollState);
+    sbScrollObserver.observe(scroll);
+    if (content) sbScrollObserver.observe(content);
+  }
+  syncSidebarScrollState();
+}
 
 function renderSpaceRow() {
   const sp = curSpace();
   const classic = S.ui.tabPos === 'top' || S.ui.tabPos === 'bottom';
-  $('#spaceRow').innerHTML = `<button class="space-btn" data-act="spaceMenu" data-tip="${esc(sp.name)}${sp.keepSession ? ' · сессии хранятся' : ''}"><span class="space-ico" style="background:${sp.color}">${ico(sp.icon)}</span><span class="nm hc">${esc(sp.name)}</span>${sp.keepSession ? ico('lock', 'hc') : ''}${ico('chev', 'chev hc')}</button>${classic ? '' : `<button class="icon-btn hc" data-act="newTab" aria-label="Новая вкладка">${ico('plus')}</button>`}`;
+  $('#spaceRow').innerHTML = `<button class="space-btn" data-act="spaceMenu" data-tip="${esc(sp.name)}${sp.keepSession ? ' · вкладки сохраняются' : ''}"><span class="space-ico" style="background:${sp.color}">${ico(sp.icon)}</span><span class="nm hc">${esc(sp.name)}</span>${sp.keepSession ? ico('lock', 'hc') : ''}${ico('chev', 'chev hc')}</button>${classic ? '' : `<button class="icon-btn hc" data-act="newTab" aria-label="Новая вкладка">${ico('plus')}</button>`}`;
 }
 function tabsScrollSync() {
   const tl = $('#tabList'); if (!tl) return;
@@ -4635,6 +4614,7 @@ function renderTabs() {
   tabsScrollSync();
   positionNavInd();
   syncQuickPanel();
+  syncSidebarScrollState();
 }
 function applyTabPos() {
   const pos = ['left', 'top', 'right', 'bottom'].includes(S.ui.tabPos) ? S.ui.tabPos : 'left';
@@ -4681,24 +4661,27 @@ function updateNavActive(page) {
   $$('#sbPin .ni[data-page], #sbInner .ni[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   positionNavInd();
 }
-function blocksDay(k) { return S.blocks[k] || { t: 0, a: 0, c: 0, f: 0 }; }
-function todayBlocked() { const b = blocksDay(dayKey(Date.now())); return b.t + b.a + b.c + b.f; }
 function renderControls() {
   const tiles = [
-    ['ghost', 'ghost', 'Призрак — приватный режим\nНичего не сохраняется: история, cookies и входы на сайтах стираются сразу, как только вы закроете вкладку. Сайты вас «не запомнят».'],
-    ['trackers', 'shield', 'Блокировка трекеров и рекламы\nОтключает рекламные вставки и счётчики, которые следят, что вы смотрите и куда ходите. Страницы грузятся быстрее, вас сложнее вычислить.'],
-    ['https', 'lock', 'Безопасный HTTPS + приватный DNS\nЕсли сайт открывается по незащищённому http://, SHELTER сам переключит на https://. DNS-запросы (куда идёт адрес сайта) шифруются — оператор связи их не видит.'],
-    ['fp', 'finger', 'Анти-отпечаток\nСайты узнают вас по «отпечатку» браузера (шрифты, экран, карта). Эта кнопка немного меняет эти данные, чтобы вас было сложнее узнать и отследить без cookies.']
+    ['ghost', 'ghost', 'ПРОТОТИП · Режим «Призрак»\nМеняет только состояние интерфейса и локальной истории SHELTER. Не создаёт отдельный приватный профиль и не удаляет cookies, входы или данные сайтов.'],
+    ['trackers', 'shield', 'НЕ ПОДКЛЮЧЕНО · Блокировка трекеров и рекламы\nЭтот переключатель пока не блокирует рекламу, счётчики или сетевые запросы.'],
+    ['https', 'lock', 'НЕ ПОДКЛЮЧЕНО · HTTPS и приватный DNS\nАвтоматическое переключение на HTTPS и DNS-over-HTTPS не реализованы. SHELTER открывает адрес, который вы ввели.'],
+    ['fp', 'finger', 'НЕ ПОДКЛЮЧЕНО · Защита от цифрового отпечатка\nОтпечаток браузера не изменяется; используется стандартное поведение CEF/Chromium.']
   ];
   const g = $('#ctlGrid'); if (!g) return;
   g.innerHTML = tiles.map(t => `<button class="ctl" data-sw="${t[0]}" data-tip="${t[2]}" data-tip-always="1" data-tip-pos="top" aria-label="${t[2].split('\n')[0]}">${ico(t[1])}</button>`).join('')
-    + `<button class="ctl fire" data-act="fire" data-tip="Удалить сессии\nНажмите — и все входы, cookies и данные сайтов будут стёрты во всех пространствах, будто вы заходили в чужой компьютер. Готовые пространства с пометкой «сессии хранятся» не трогаются." data-tip-always="1" data-tip-pos="top" aria-label="Удалить сессии">${ico('flame')}</button>`;
+    + `<button class="ctl fire" data-act="fire" data-tip="ОЧИСТКА ТОЛЬКО SHELTER\nУдаляет локальную историю SHELTER и закрывает незакреплённые вкладки. Cookies, кэш и входы на сайтах этой сборкой не очищаются." data-tip-always="1" data-tip-pos="top" aria-label="Очистить данные SHELTER">${ico('flame')}</button>`;
   syncControls(); syncSchemeBtn();
 }
 function syncControls() {
-  const tb = todayBlocked();
-  $$('#ctlGrid .ctl[data-sw]').forEach(b => { const k = b.dataset.sw; b.classList.toggle('on', swState(k)); b.setAttribute('aria-pressed', swState(k)); });
-  const pt = $('#protToday'); if (pt) pt.textContent = S.prefs.trackers ? fmtN(tb) + ' ' + plural(tb, ['блокировка', 'блокировки', 'блокировок']) + ' сегодня' : 'блокировка выключена';
+  $$('#ctlGrid .ctl[data-sw]').forEach(b => {
+    const disabled = swDisabled(b.dataset.sw), active = !disabled && swState(b.dataset.sw);
+    b.classList.toggle('on', active);
+    b.classList.toggle('is-disabled', disabled);
+    b.disabled = disabled;
+    b.setAttribute('aria-pressed', String(active));
+    b.setAttribute('aria-disabled', String(disabled));
+  });
 }
 function renderSwatches() {
   $('#swatches').innerHTML = `<span class="sw-ind" id="swInd"></span>` + THEME_ORDER.map(k => { const t = THEMES[k]; return `<button class="swatch" data-act="theme" data-theme="${k}" style="--c1:${t.sw[0]};--c2:${t.sw[1]};--c3:${t.sw[2]}" aria-label="Тема: ${t.name}" title="${t.name}"><i></i></button>`; }).join('');
@@ -4808,11 +4791,20 @@ function activateTab(id, animate = true) {
   if (innerWidth <= 720) $('#app').classList.remove('sb-open');
   renderTabs(); renderView(animate && changed, dir); persist();
 }
+function nativeCloseWebTab(id) {
+  nativeHistoryState.delete(String(id || ''));
+  try {
+    if (window.shelterCef && window.shelterCef.isCef && typeof window.shelterCef.send === 'function') {
+      window.shelterCef.send('tab:close', { tabId: String(id || '') });
+    }
+  } catch (_) {}
+}
 function closeTab(id, silent) {
   const sp = curSpace(), i = sp.tabs.findIndex(t => t.id === id); if (i < 0) return;
   const t = sp.tabs[i], el = $(`#tabList .tab[data-tab="${id}"]`);
   const done = () => {
     const j = sp.tabs.indexOf(t); if (j < 0) return;
+    nativeCloseWebTab(id);
     sp.tabs.splice(j, 1);
     S.closed.push({ tab: t, space: S.currentSpace, index: j, at: Date.now() }); if (S.closed.length > 25) S.closed.shift();
     if (!sp.tabs.length) sp.tabs.push(newTabObj('shelter.dev/start'));
@@ -4830,21 +4822,24 @@ function closeTab(id, silent) {
 function closedRestore(c) {
   recordProfileCounter('profileTabRestores');
   if (S.spaces[c.space] && c.space !== S.currentSpace) { S.currentSpace = c.space; renderSpaceRow(); }
-  const sp = curSpace(); sp.tabs.splice(Math.min(c.index, sp.tabs.length), 0, c.tab);
-  justAdded = c.tab.id; S.activeTabId = c.tab.id; renderTabs(); renderView(true); persist();
+  const sp = curSpace();
+  const restored = Object.assign({}, c.tab, { id: uid('t') });
+  sp.tabs.splice(Math.min(c.index, sp.tabs.length), 0, restored);
+  justAdded = restored.id; S.activeTabId = restored.id; renderTabs(); renderView(true); persist();
 }
 function undoClose() {
   const c = S.closed.pop(); if (!c) { toast('Нет недавно закрытых вкладок', { icon: 'undo' }); return; }
   closedRestore(c);
 }
-function closeOthers(id) { const sp = curSpace(); const n = sp.tabs.length; sp.tabs = sp.tabs.filter(t => t.id === id || t.pinned); S.activeTabId = id; renderTabs(); renderView(false); persist(); noteShow('Вкладки', `<div class="dlf-ok"><span>Закрыто вкладок: ${n - sp.tabs.length}</span></div>`, 3500); }
-function closeBelow(id) { const sp = curSpace(); const vis = sp.tabs.filter(t => t.pinned).concat(sp.tabs.filter(t => !t.pinned)); const k = vis.findIndex(t => t.id === id); const drop = new Set(vis.slice(k + 1).filter(t => !t.pinned).map(t => t.id)); sp.tabs = sp.tabs.filter(t => !drop.has(t.id)); if (drop.has(S.activeTabId)) S.activeTabId = id; renderTabs(); renderView(false); persist(); }
+function closeOthers(id) { const sp = curSpace(); const n = sp.tabs.length; const removed = sp.tabs.filter(t => t.id !== id && !t.pinned); removed.forEach(t => nativeCloseWebTab(t.id)); sp.tabs = sp.tabs.filter(t => t.id === id || t.pinned); S.activeTabId = id; renderTabs(); renderView(false); persist(); noteShow('Вкладки', `<div class="dlf-ok"><span>Закрыто вкладок: ${n - sp.tabs.length}</span></div>`, 3500); }
+function closeBelow(id) { const sp = curSpace(); const vis = sp.tabs.filter(t => t.pinned).concat(sp.tabs.filter(t => !t.pinned)); const k = vis.findIndex(t => t.id === id); const drop = new Set(vis.slice(k + 1).filter(t => !t.pinned).map(t => t.id)); drop.forEach(nativeCloseWebTab); sp.tabs = sp.tabs.filter(t => !drop.has(t.id)); if (drop.has(S.activeTabId)) S.activeTabId = id; renderTabs(); renderView(false); persist(); }
 function closeAllTabs() {
   const sp = curSpace();
   const kept = S.prefs.pinnedProtect ? sp.tabs.filter(t => t.pinned) : [];
   const closedTabs = sp.tabs.filter(t => !kept.includes(t));
   const count = closedTabs.length;
   closedTabs.forEach((t, idx) => {
+    nativeCloseWebTab(t.id);
     S.closed.push({ tab: t, space: S.currentSpace, index: idx, at: Date.now() });
     if (S.closed.length > 25) S.closed.shift();
   });
@@ -4882,7 +4877,7 @@ function switchSpace(key) {
 }
 function spaceMenu(anchor) {
   const items = [{ header: 'Пространства' }];
-  Object.keys(S.spaces).forEach((k, i) => { const sp = S.spaces[k]; items.push({ label: sp.name, sub: sp.tabs.length + ' ' + plural(sp.tabs.length, ['вкладка', 'вкладки', 'вкладок']) + (sp.keepSession ? ' · сессии хранятся' : ''), lead: `<span class="space-ico" style="background:${sp.color}">${ico(sp.icon)}</span>`, trail: sp.keepSession ? ico('lock') : '', checked: k === S.currentSpace, kbd: !(k === S.currentSpace) && i < 4 ? '⌘' + (i + 1) : '', run: () => switchSpace(k) }); });
+  Object.keys(S.spaces).forEach((k, i) => { const sp = S.spaces[k]; items.push({ label: sp.name, sub: sp.tabs.length + ' ' + plural(sp.tabs.length, ['вкладка', 'вкладки', 'вкладок']) + (sp.keepSession ? ' · вкладки сохраняются при очистке SHELTER' : ''), lead: `<span class="space-ico" style="background:${sp.color}">${ico(sp.icon)}</span>`, trail: sp.keepSession ? ico('lock') : '', checked: k === S.currentSpace, kbd: !(k === S.currentSpace) && i < 4 ? '⌘' + (i + 1) : '', run: () => switchSpace(k) }); });
   items.push('-', { label: 'Новое пространство', icon: 'plus', run: () => editSpace(null) }, { label: 'Изменить «' + curSpace().name + '»', icon: 'pencil', run: () => editSpace(S.currentSpace) });
   openMenu(anchor, items, { place: 'bottom-start' });
 }
@@ -4895,9 +4890,9 @@ function editSpace(key) {
       <label class="field"><span>Название</span><input class="input" id="spName" value="${esc(sp.name)}" placeholder="Например, Путешествия" maxlength="28"></label>
       <div class="field"><span>Цвет</span><div style="display:flex;gap:8px;flex-wrap:wrap" id="spColors">${SPACE_COLORS.map(c => `<button class="swatch" data-c="${c}" style="--c1:${c};--c2:${c};--c3:${c};${c === color ? 'box-shadow:0 0 0 2px var(--card),0 0 0 3.5px ' + c : ''}"><i></i></button>`).join('')}</div></div>
       <div class="field"><span>Иконка</span><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px" id="spIcons">${SPACE_ICONS.map(i => `<button class="btn icon ${i === icon ? 'primary' : ''}" data-i="${i}" style="width:100%">${ico(i)}</button>`).join('')}</div></div>
-      <p class="muted" style="font-size:12px">Каждое пространство — отдельный профиль хранилища: свои cookies, сессии и история.</p>
+      <p class="muted" style="font-size:12px">Пространства группируют вкладки в интерфейсе. Сайты используют общий профиль CEF: cookies и входы между пространствами не разделены.</p>
       <div class="set-row" style="padding:12px 0 0;border:0;gap:14px">
-        <div class="tx"><b>Хранить сессии</b><span>Не стирать cookies и вход при «Удалить сессии».</span></div>
+        <div class="tx"><b>Сохранять вкладки при очистке SHELTER</b><span>Это не сохраняет и не разделяет cookies; очистка данных сайтов не реализована.</span></div>
         <button type="button" class="sw-t${sp.keepSession ? ' on' : ''}" id="spKeep" role="switch" aria-checked="${sp.keepSession ? 'true' : 'false'}"></button>
       </div>
     </div>
@@ -4911,9 +4906,9 @@ function editSpace(key) {
     if (r.dataset.r === '0') { closeModal(m); return; }
     if (r.dataset.r === 'del') {
       closeModal(m);
-      const ok = await confirmDlg({ title: 'Удалить «' + sp.name + '»?', text: 'Вкладки и данные этого пространства будут удалены.', ok: 'Удалить', danger: true, icon: 'trash' });
+      const ok = await confirmDlg({ title: 'Удалить «' + sp.name + '»?', text: 'Будет удалена эта группа вкладок SHELTER. Cookies и история сайтов не очищаются.', ok: 'Удалить группу', danger: true, icon: 'trash' });
       if (!ok) return;
-      try { if (window.shelterNative && window.shelterNative.clearPrivacy) window.shelterNative.clearPrivacy(['persist:space-' + key, 'temp:ghost-' + key]); } catch (e) {}
+      (sp.tabs || []).forEach(t => nativeCloseWebTab(t.id));
       delete S.spaces[key];
       if (S.currentSpace === key) { S.currentSpace = Object.keys(S.spaces)[0]; S.activeTabId = curSpace().tabs[0].id; }
       renderSpaceRow(); renderTabs(); renderView(true); persist(); return;
@@ -4960,10 +4955,10 @@ function resolveInput(raw) {
   if (/^(https?:\/\/)?shelter\.dev\//i.test(raw) || /^shelter:\/\//i.test(raw) || raw === 'about:blank') { const ip = internalPage(raw); return 'shelter.dev/' + ip.page + (ip.q ? '?q=' + encodeURIComponent(ip.q) : ''); }
   if (isUrl(raw)) {
     if (/^https?:\/\//i.test(raw)) return raw;
-    if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) return S.deep ? 'shelter.dev/deepthink?q=' + encodeURIComponent(raw) : ENGINES[S.engine].url + encodeURIComponent(raw);
+    if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) return ENGINES[S.engine].url + encodeURIComponent(raw);
     return (/^(localhost|\d{1,3}(\.\d{1,3}){3})/i.test(raw) ? 'http://' : 'https://') + raw;
   }
-  return S.deep ? 'shelter.dev/deepthink?q=' + encodeURIComponent(raw) : ENGINES[S.engine].url + encodeURIComponent(raw);
+  return ENGINES[S.engine].url + encodeURIComponent(raw);
 }
 function navigate(input, opts = {}) {
   const url = resolveInput(input); if (!url) return;
@@ -5019,12 +5014,26 @@ function navArmed() {
   return true;
 }
 function goStackBack() {
-  const t = curTab(); if (!t || t.idx <= 0) return;
+  const t = curTab(); if (!t) return;
+  const native = window.shelterCef && window.shelterCef.isCef && urlMeta(t.url).kind !== 'internal'
+    ? nativeHistoryState.get(t.id) : null;
+  if (native) {
+    if (native.canGoBack) window.shelterCef.send('tab:back', { tabId: t.id });
+    return;
+  }
+  if (t.idx <= 0) return;
   t.idx -= 1;
   loadUrl(t, t.stack[t.idx], { push: false });
 }
 function goStackFwd() {
-  const t = curTab(); if (!t || t.idx >= t.stack.length - 1) return;
+  const t = curTab(); if (!t) return;
+  const native = window.shelterCef && window.shelterCef.isCef && urlMeta(t.url).kind !== 'internal'
+    ? nativeHistoryState.get(t.id) : null;
+  if (native) {
+    if (native.canGoForward) window.shelterCef.send('tab:forward', { tabId: t.id });
+    return;
+  }
+  if (t.idx >= t.stack.length - 1) return;
   t.idx += 1;
   loadUrl(t, t.stack[t.idx], { push: false });
 }
@@ -5056,19 +5065,23 @@ function openPage(page, opts = {}) {
 function recordVisit(url, title, tabId) {
   if (S.ghost) return;
   const now = Date.now();
+  const normalizedUrl = histNorm(url);
+  for (let i = S.visits.length - 1; i >= Math.max(0, S.visits.length - 20); i--) {
+    const recent = S.visits[i];
+    if (recent.tab === tabId && histNorm(recent.url) === normalizedUrl && now - recent.at < 3000) {
+      if (title && title !== recent.title) recent.title = title;
+      persist();
+      return;
+    }
+  }
   for (let i = S.visits.length - 1; i >= Math.max(0, S.visits.length - 60); i--) { const v = S.visits[i]; if (v.tab && v.tab === tabId && !v.dur) { v.dur = clamp(Math.round((now - v.at) / 6e4), 1, 90); break; } }
   S.visits.push({ url, title, at: now, space: S.currentSpace, tab: tabId });
   if (S.visits.length > 5000) S.visits.splice(0, S.visits.length - 5000);
   persist();
 }
-function countBlocks(m) {
-  if (!S.prefs.trackers) return 0;
-  const R = rng(hashStr(m.host) + (Date.now() / 6e4 | 0));
-  const add = { t: 3 + (R() * 16 | 0), a: 1 + (R() * 8 | 0), c: R() * 6 | 0, f: S.prefs.fp ? R() * 3 | 0 : 0 };
-  const k = dayKey(Date.now()), b = S.blocks[k] || (S.blocks[k] = { t: 0, a: 0, c: 0, f: 0 });
-  b.t += add.t; b.a += add.a; b.c += add.c; b.f += add.f;
-  raf(() => { syncControls(); renderHeroFoot(); });
-  return add.t + add.a + add.c + add.f;
+function countBlocks() {
+  // Network filtering is not implemented; never manufacture tracker-block counts.
+  return 0;
 }
 function progress() {
   if (REDUCED()) return; const p = $('#progress');
@@ -5090,11 +5103,19 @@ window.onNativeLoading = load => setStopUI(!!load);
    Верхняя панель, адресная строка, подсказки
    ========================================================= */
 let omniFocused = false;
+const nativeHistoryState = new Map();
+window.shelterUpdateNativeHistory = (tabId, canGoBack, canGoForward) => {
+  if (!tabId) return;
+  nativeHistoryState.set(String(tabId), { canGoBack: !!canGoBack, canGoForward: !!canGoForward });
+  if (curTab() && curTab().id === tabId) updateToolbar();
+};
 const sameUrl = (a, b) => { const n = u => String(u || '').replace(/^https?:\/\/(www\.)?/i, '').replace(/\/+$/, '').toLowerCase(); return n(a) === n(b); };
 function updateToolbar() {
   const t = curTab(); if (!t) return; const m = urlMeta(t.url);
-  $('#btnBack').classList.toggle('off', !(t.idx > 0));
-  $('#btnFwd').classList.toggle('off', !(t.idx < t.stack.length - 1));
+  const native = window.shelterCef && window.shelterCef.isCef && m.kind !== 'internal'
+    ? nativeHistoryState.get(t.id) : null;
+  $('#btnBack').classList.toggle('off', native ? !native.canGoBack : !(t.idx > 0));
+  $('#btnFwd').classList.toggle('off', native ? !native.canGoForward : !(t.idx < t.stack.length - 1));
   const sec = $('#secBtn');
   sec.className = 'sec-btn ' + (m.kind === 'internal' ? 'int' : m.kind === 'search' ? 'srch' : m.ru ? 'ru' : '');
   sec.innerHTML = m.kind === 'internal' ? ico(m.page === 'start' ? 'search' : 'shield-check') : ico(m.kind === 'search' ? 'search' : 'lock');
@@ -5106,12 +5127,13 @@ function updateToolbar() {
   const bm = S.bookmarks.some(b => sameUrl(b.url, t.url)), star = $('#starBtn');
   star.innerHTML = ico('star', bm ? 'fill' : ''); star.style.color = bm ? 'rgb(var(--ga))' : '';
   star.hidden = m.kind === 'internal';
-  const sn = $('#shieldN'); if (sn) sn.textContent = fmtN(todayBlocked());
   renderExtBar();
 }
 function omniValue(t) { const m = urlMeta(t.url); return m.kind === 'internal' ? (m.page === 'start' ? '' : 'shelter://' + m.page + (m.q ? '?q=' + m.q : '')) : t.url; }
 function renderExtBar() {
-  $('#extBar').innerHTML = S.ext.filter(e => e.on && EXT_CATALOG[e.id]).slice(0, 3).map(e => { const x = EXT_CATALOG[e.id]; return `<button class="ext-ico" data-act="extPop" data-id="${e.id}" data-tip="${esc(x.name)}"><span style="background:${x.c}">${esc(x.l)}</span></button>`; }).join('');
+  // Extension entries in the old prototype were mock data; do not present them as installed.
+  const bar = $('#extBar');
+  if (bar) bar.innerHTML = '';
 }
 
 const SG = { tb: { box: '#tbSuggest', items: [], hl: -1, q: '' }, hero: { box: '#heroSuggest', items: [], hl: -1, q: '' } };
@@ -5120,7 +5142,6 @@ function buildSuggestions(q) {
   const ql = q.toLowerCase(), out = [], seen = new Set();
   if (isUrl(q)) out.push({ kind: 'go', label: q });
   out.push({ kind: 'search', label: q, engine: S.engine });
-  if (!S.deep) out.push({ kind: 'deep', label: q });
   S.bookmarks.filter(b => b.title.toLowerCase().includes(ql) || b.url.toLowerCase().includes(ql)).slice(0, 3).forEach(b => { seen.add(b.url); out.push({ kind: 'bm', label: b.title, url: b.url }); });
   if (S.prefs.suggestHistory) for (let i = S.visits.length - 1; i >= 0 && out.length < 8; i--) { const v = S.visits[i]; if (seen.has(v.url)) continue; if ((v.title || '').toLowerCase().includes(ql) || v.url.toLowerCase().includes(ql)) { seen.add(v.url); out.push({ kind: 'hist', label: v.title, url: v.url }); } }
   Object.keys(PAGES).forEach(p => { if (out.length < 10 && PAGES[p].t.toLowerCase().startsWith(ql)) out.push({ kind: 'page', label: PAGES[p].t, url: 'shelter.dev/' + p, icon: PAGES[p].i }); });
@@ -5131,7 +5152,6 @@ function sgHtml(it, i, hl, q) {
   let ic = '', t = '', u = '', k = '';
   if (it.kind === 'go') { ic = `<span class="ic">${ico('globe')}</span>`; t = esc(kb(it.label)); k = 'Перейти'; }
   else if (it.kind === 'search') { const E = ENGINES[it.engine]; ic = `<span class="ic" style="background:${E.c};color:#fff;font-weight:800;font-size:11px">${E.l}</span>`; t = esc(kb(it.label)); k = 'Искать · ' + E.name; }
-  else if (it.kind === 'deep') { ic = `<span class="ic" style="color:rgb(var(--gc))">${ico('bulb')}</span>`; t = esc(kb(it.label)); k = 'Спросить AI-ассистента'; }
   else if (it.kind === 'page') { ic = `<span class="ic">${ico(it.icon)}</span>`; t = markQ(it.label, q); u = 'shelter://'; }
   else { ic = favFor(it.url, 'md'); t = markQ(it.label || it.url, q); u = esc(hostOf(it.url)); k = it.kind === 'bm' ? 'Закладка' : ''; }
   return `<div class="sg ${i === hl ? 'hl' : ''}" data-sg="${i}">${ic}<span class="t">${t}</span>${u ? `<span class="u">${u}</span>` : ''}${k ? `<span class="k">${k}</span>` : ''}</div>`;
@@ -5148,7 +5168,6 @@ function runSuggest(w, i) {
   const it = SG[w].items[i]; if (!it) return false;
   hideSuggest(w);
   if (it.kind === 'search') navigate(ENGINES[it.engine].url + encodeURIComponent(it.label));
-  else if (it.kind === 'deep') navigate('shelter.dev/deepthink?q=' + encodeURIComponent(it.label));
   else if (it.kind === 'go') navigate(it.label);
   else navigate(it.url);
   return true;
@@ -5678,6 +5697,19 @@ const Hero = (() => {
    Рендер активной вкладки
    ========================================================= */
 const RENDER = {}, AFTER = {};
+const INACTIVE_MODULE_NOTICES = {
+  widgets: 'Внешние интеграции — почта, календарь, погода и другие сервисы — не подключены; доступные виджеты работают локально.',
+  messenger: 'Это макет мессенджера. Отправка и получение реальных сообщений не подключены.',
+  tasks: 'Задачи сохраняются только в локальном профиле SHELTER; совместная работа и синхронизация с внешним сервисом не подключены.',
+  passwords: 'Это демонстрационный экран, а не защищённое хранилище паролей. Не вводите и не сохраняйте здесь реальные пароли.',
+  extensions: 'Управление расширениями пока не подключено: расширения не устанавливаются и не выполняются.',
+  certs: 'Этот экран пока демонстрационный. Отдельный менеджер сертификатов и дополнительные корневые сертификаты не подключены.',
+  profile: 'Реальный вход в учётную запись, облачный профиль и синхронизация не подключены; этот экран не подтверждает вход в сторонний сервис.',
+  checkout: 'Это демонстрационный экран. Покупки и реальные платежи не выполняются.',
+  deepthink: 'AI-сервис не подключён. Запросы с этой страницы не отправляются, ответы не генерируются.',
+  site: 'Это резервный макет сайта, а не открытая веб-страница. Введите адрес в адресную строку, чтобы перейти на настоящий сайт.',
+  search: 'Это резервный макет поиска. Для настоящих результатов откройте поисковую систему по адресу.'
+};
 let pageTimers = [];
 const pageTimer = (f, ms, interval) => { const id = interval ? setInterval(f, ms) : setTimeout(f, ms); pageTimers.push([id, interval]); return id; };
 function clearPageTimers() { pageTimers.forEach(([id, iv]) => iv ? clearInterval(id) : clearTimeout(id)); pageTimers = []; }
@@ -5686,8 +5718,6 @@ function hideNativeView() {
   try { if (typeof window.shelterShowChrome === 'function') window.shelterShowChrome(); } catch (e) {}
 }
 function renderView(animate = true, dir = 1) {
-  try { if (urlMeta(curTab().url).page !== 'deepthink' && T.dt && T.dt.timer) DT_CLEANUP(); } catch (_) {}
-
   const t = curTab(); if (!t) return;
   const m = urlMeta(t.url);
   clearPageTimers(); closeFind(true);
@@ -5713,6 +5743,11 @@ function renderView(animate = true, dir = 1) {
   }
   hideNativeView();
   page.innerHTML = (RENDER[m.page] || RENDER.site)(m, t);
+  const moduleNotice = INACTIVE_MODULE_NOTICES[m.page] || (m.page === 'downloads' ? 'Реальные загрузки сайтов обрабатываются браузером; строки с пометкой «демо» — только примеры интерфейса.' : '');
+  if (moduleNotice) {
+    const noticeHost = page.firstElementChild || page;
+    noticeHost.insertAdjacentHTML('afterbegin', `<div role="status" style="margin:0 0 16px;padding:12px 14px;border:1px solid color-mix(in srgb,#E5A93D 38%,var(--line));border-radius:12px;background:color-mix(in srgb,#E5A93D 9%,var(--card));color:var(--text);font-size:12px;line-height:1.55"><b style="color:#C48A22">Пока не подключено</b><br>${esc(moduleNotice)}</div>`);
+  }
   page.scrollTop = 0;
   if (animate && !REDUCED()) { page.style.setProperty('--dy', dy); page.classList.remove('enter'); void page.offsetWidth; page.classList.add('enter'); }
   initSegs(page);
@@ -5727,18 +5762,11 @@ function renderHeroBits() {
   $('#greet').textContent = greeting(); $('#heroDate').textContent = dateFull(Date.now());
   const mp = $('#modePill'); mp.innerHTML = `${ico(S.ghost ? 'ghost' : 'feather')}<span class="lb">${S.ghost ? 'Призрак' : 'Обычный'}</span>${ico('chev', 'chev')}`; mp.classList.toggle('lit', S.ghost);
   const E = ENGINES[S.engine], ep = $('#enginePill');
-  ep.innerHTML = S.deep ? `${ico('bulb')}<span class="lb">AI ассистент</span>${ico('chev', 'chev')}` : `<span class="eng" style="background:${E.c}">${E.l}</span><span class="lb">${E.name}</span>${ico('chev', 'chev')}`;
-  ep.classList.toggle('lit', S.deep);
+  ep.innerHTML = `<span class="eng" style="background:${E.c}">${E.l}</span><span class="lb">${E.name}</span>${ico('chev', 'chev')}`;
+  ep.classList.remove('lit');
   const mdp = $('#modelPill');
-  if (mdp) {
-    mdp.hidden = !S.deep;
-    if (S.deep) {
-      const m = S.ai && S.ai.key && S.ai.model ? S.ai.model : 'API не подключён';
-      mdp.innerHTML = `${ico('sparkles')}<span class="lb">${esc(m)}</span>${ico('chev', 'chev')}`;
-      mdp.classList.toggle('lit', !!(S.ai && S.ai.key));
-    }
-  }
-  $('#heroInput').placeholder = S.deep ? 'Спросите AI-ассистента о чём угодно…' : 'Спросите что угодно или введите адрес…';
+  if (mdp) mdp.hidden = true;
+  $('#heroInput').placeholder = 'Введите запрос для поиска или веб-адрес…';
   renderHeroLinks(); renderHeroFoot();
 }
 function bmFavHtml(b, cls = '') {
@@ -5781,9 +5809,7 @@ function initHeroInput() {
   });
 }
 function openFileDlg() {
-  const inp = document.createElement('input'); inp.type = 'file';
-  inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) { addTab('file:///Users/ven/Downloads/' + encodeURIComponent(f.name)); toast('Открыт файл: ' + f.name, { icon: 'file' }); } };
-  inp.click();
+  toast('Открытие локальных файлов пока не подключено', { icon: 'info' });
 }
 async function pasteAndGo() {
   try { const t = await navigator.clipboard.readText(); if (t && t.trim()) { navigate(t.trim()); return; } } catch (e) {}
@@ -5793,20 +5819,20 @@ function heroModeMenu(anchor) {
   openMenu(anchor, [
     { header: 'Режим' },
     { label: 'Обычный', sub: 'История и сессии сохраняются', icon: 'feather', checked: !S.ghost, run: () => toggleGhost(false) },
-    { label: 'Призрак', sub: 'Только в памяти · без истории · ⌘⇧P', icon: 'ghost', checked: S.ghost, run: () => toggleGhost(true) }
+    { label: 'Призрак · прототип', sub: 'Не изолирует cookies и сессии сайтов · ⌘⇧P', icon: 'ghost', checked: S.ghost, run: () => toggleGhost(true) }
   ], { place: 'bottom-start' });
 }
 function engineMenu(anchor) {
-  const items = [{ header: 'Поисковая система' }].concat(Object.keys(ENGINES).map(k => ({ label: ENGINES[k].name, checked: !S.deep && S.engine === k,
+  const items = [{ header: 'Поисковая система' }].concat(Object.keys(ENGINES).map(k => ({ label: ENGINES[k].name, checked: S.engine === k,
     lead: `<span class="eng" style="width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:${ENGINES[k].c};color:#fff;font-size:9.5px;font-weight:800;flex:none">${ENGINES[k].l}</span>`,
-    run: () => { S.engine = k; setDeep(false, true); persist(); renderHeroBits(); toast('Поиск: ' + ENGINES[k].name, { icon: 'search' }); } })));
-  items.push('-', { label: 'AI ассистент', sub: 'Ответы AI вместо поиска', icon: 'bulb', keep: true, trail: `<span class="sw-t ${S.deep ? 'on' : ''}" style="--w:34px;transform:scale(.9)"></span>`,
-    run: b => { setDeep(!S.deep); const s = b.querySelector('.sw-t'); if (s) s.classList.toggle('on', S.deep); } });
+    run: () => { S.engine = k; persist(); renderHeroBits(); toast('Поиск: ' + ENGINES[k].name, { icon: 'search' }); } })));
+  items.push('-', { label: 'AI-ассистент · не подключён', sub: 'В этой сборке AI-сервис недоступен', icon: 'bulb', disabled: true });
   openMenu(anchor, items, { place: 'bottom-start' });
 }
 function setDeep(v, silent) {
-  S.deep = !!v; persist(); renderHeroBits(); syncSwitches();
-  if (!silent) toast(S.deep ? 'AI-ассистент включён — запросы уходят ассистенту' : 'AI-ассистент выключен', { icon: 'bulb' });
+  S.deep = false;
+  persist(); renderHeroBits(); syncSwitches();
+  if (!silent && v) toast('AI-ассистент не подключён в этой сборке', { icon: 'info' });
 }
 /* ---------- Призрак, сжечь, закладки ---------- */
 function closeGhostTabs() {
@@ -5814,6 +5840,8 @@ function closeGhostTabs() {
   Object.keys(S.spaces).forEach((k) => {
     const sp = S.spaces[k];
     if (!sp || !Array.isArray(sp.tabs)) return;
+    const removed = sp.tabs.filter(t => t && t.ghost);
+    removed.forEach(t => nativeCloseWebTab(t.id));
     const before = sp.tabs.length;
     sp.tabs = sp.tabs.filter(t => !(t && t.ghost));
     n += before - sp.tabs.length;
@@ -5836,7 +5864,7 @@ async function toggleGhost(force) {
   if (!v) {
     const ok = await confirmDlg({
       title: 'Отключить режим «Призрак»', icon: 'ghost', danger: true, ok: 'Да', cancel: 'Нет',
-      text: 'Вы отключаете режим призрака. Все вкладки, открытые в этом режиме, закроются и данные удалятся. Вы уверены?'
+      text: 'Незакреплённые вкладки, помеченные этим режимом в SHELTER, закроются. Cookies и данные сайтов этим действием не удаляются. Продолжить?'
     });
     if (!ok) return false;
   }
@@ -5849,34 +5877,28 @@ async function toggleGhost(force) {
   reconcileProfileAchievementChange(achievementBefore);
   syncSwitches(); updateToolbar(); renderHeroBits(); refreshPage('profile');
   try { if (typeof window.shelterGhostSync === 'function') window.shelterGhostSync(!v); } catch (_) {}
-  toast(v ? 'Призрак включён — ничего не сохраняется на диск'
-    : (closed ? `Призрак выключен · закрыто вкладок: ${closed} · данные очищены` : 'Призрак выключен · данные очищены'), { icon: 'ghost' });
+  toast(v ? 'Прототип «Призрак»: скрывает вкладки из локальной истории SHELTER; cookies не изолируются'
+    : (closed ? `Прототип «Призрак» выключен · закрыто вкладок: ${closed}; данные сайтов не очищены` : 'Прототип «Призрак» выключен; данные сайтов не очищены'), { icon: 'ghost' });
   return true;
 }
 async function fire() {
-  const keep = Object.keys(S.spaces).filter(k => S.spaces[k].keepSession);
   const wipe = Object.keys(S.spaces).filter(k => !S.spaces[k].keepSession);
-  const keepNames = keep.map(k => '«' + S.spaces[k].name + '»').join(', ');
-  const text = keep.length
-    ? ('В ' + keepNames + ' cookies, вход и вкладки сохранятся. В остальных пространствах закроем вкладки (кроме закреплённых) и сотрём:')
-    : 'SHELTER закроет вкладки (кроме закреплённых) во всех пространствах и сотрёт:';
-  const ok = await confirmDlg({ title: 'Удалить сессии?', icon: 'flame', danger: true, ok: keep.length ? 'Удалить в остальных' : 'Удалить всё', text, list: ['Историю посещений и кэш', 'Cookies и данные сайтов', 'Недавно закрытые вкладки'] });
+  const text = 'Будут удалены записи истории SHELTER и незакреплённые вкладки в обычных пространствах. Cookies, кэш и входы на сайтах эта сборка не очищает.';
+  const ok = await confirmDlg({ title: 'Очистить данные SHELTER?', icon: 'flame', danger: true, ok: 'Очистить', text, list: ['Локальную историю просмотров', 'Незакреплённые вкладки в обычных пространствах', 'Cookies и кэш сайтов останутся нетронутыми'] });
   if (!ok) return;
   wipe.forEach(k => {
     const sp = S.spaces[k];
+    sp.tabs.filter(t => !t.pinned).forEach(t => nativeCloseWebTab(t.id));
     sp.tabs = sp.tabs.filter(t => t.pinned);
     if (!sp.tabs.length) sp.tabs.push(newTabObj('shelter.dev/start'));
   });
   S.visits = []; S.closed = [];
   const sp = curSpace();
   if (!sp.tabs.some(t => t.id === S.activeTabId)) S.activeTabId = sp.tabs[sp.tabs.length - 1].id;
-  const parts = [];
-  wipe.forEach(k => { parts.push('persist:space-' + k); parts.push('temp:ghost-' + k); });
-  try { if (parts.length && window.shelterNative && window.shelterNative.clearPrivacy) window.shelterNative.clearPrivacy(parts); } catch (e) {}
   try { if (typeof window.shelterAfterFire === 'function') window.shelterAfterFire(); } catch (e) {}
   saveNow(); renderAll();
   if (!REDUCED()) $('#stage').animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.25) saturate(1.2)' }, { filter: 'brightness(1)' }], { duration: 600, easing: 'ease-out' });
-  toast(keep.length ? (wipe.length ? 'Сессии удалены. Защищённые пространства сохранены.' : 'Защищённые пространства не тронуты.') : 'Сессии удалены. Никаких следов.', { icon: 'flame' });
+  toast('История SHELTER и выбранные вкладки очищены; cookies и кэш сайтов не удалены', { icon: 'flame' });
 }
 function addBookmark(url, title) {
   if (S.bookmarks.some(b => sameUrl(b.url, url))) { toast('Уже в закладках', { icon: 'star' }); return; }
@@ -5930,37 +5952,35 @@ function periodRange(P) {
   if (P === 'week') return { from: t0 - 6 * DAY, to: now, len: 7 * DAY, n: 7 };
   return { from: t0 - 29 * DAY, to: now, len: 30 * DAY, n: 30 };
 }
-function sumBlocks(from, to) { let s = { t: 0, a: 0, c: 0, f: 0 }; for (let d = startOfDay(from).getTime(); d <= to; d += DAY) { const b = blocksDay(dayKey(d)); s.t += b.t; s.a += b.a; s.c += b.c; s.f += b.f; } return s; }
-const bsum = b => b.t + b.a + b.c + b.f;
 function niceMax(v) { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
 function fmtAxis(v, M) { if (M === 'time') return v < 60 ? Math.round(v) + 'м' : (v / 60).toFixed(v % 60 ? 1 : 0).replace('.', ',') + 'ч'; return v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 1 : 0).replace('.', ',') + 'k' : String(Math.round(v)); }
 const fmtVal = (v, M) => M === 'time' ? fmtDurS(v) : fmtN(v);
 function dashData(P, M) {
-  const r = periodRange(P), vs = S.visits.filter(v => v.at >= r.from && v.at <= r.to);
-  const prevVs = S.visits.filter(v => v.at >= r.from - r.len && v.at < r.from);
+  const r = periodRange(P), vs = S.visits.filter(v => !v.demo && v.at >= r.from && v.at <= r.to);
+  const prevVs = S.visits.filter(v => !v.demo && v.at >= r.from - r.len && v.at < r.from);
   const bars = [];
   if (P === 'day') {
     for (let i = 0; i < 12; i++) bars.push({ label: pad2(i * 2) + ':00', v: 0 });
-    const per = new Array(12).fill(0); vs.forEach(v => per[new Date(v.at).getHours() >> 1]++);
-    if (M === 'trackers') { const tot = todayBlocked(), cnt = vs.length || 1; per.forEach((c, i) => bars[i].v = Math.round(tot * c / cnt)); }
-    else vs.forEach(v => { bars[new Date(v.at).getHours() >> 1].v += M === 'visits' ? 1 : visitDur(v); });
+    if (M === 'visits') vs.forEach(v => { bars[new Date(v.at).getHours() >> 1].v++; });
+    else vs.forEach(v => { bars[new Date(v.at).getHours() >> 1].v += visitDur(v); });
     bars[new Date().getHours() >> 1].today = true;
   } else {
     const idx = {};
     for (let i = r.n - 1; i >= 0; i--) { const d = new Date(startOfDay(Date.now()).getTime() - i * DAY), k = dayKey(d); idx[k] = bars.length; bars.push({ key: k, label: P === 'week' ? DOW[(d.getDay() + 6) % 7] : String(d.getDate()), v: 0, today: i === 0 }); }
-    if (M === 'trackers') bars.forEach(b => b.v = bsum(blocksDay(b.key)));
-    else vs.forEach(v => { const i = idx[dayKey(v.at)]; if (i != null) bars[i].v += M === 'visits' ? 1 : visitDur(v); });
+    vs.forEach(v => { const i = idx[dayKey(v.at)]; if (i != null) bars[i].v += M === 'visits' ? 1 : visitDur(v); });
   }
-  const total = bars.reduce((s, b) => s + b.v, 0);
-  let prev;
-  if (M === 'trackers') prev = P === 'day' ? Math.round(bsum(blocksDay(dayKey(Date.now() - DAY))) * Math.max(.15, new Date().getHours() / 24)) : bsum(sumBlocks(r.from - r.len, r.from - 1));
-  else prev = M === 'visits' ? prevVs.length : prevVs.reduce((s, v) => s + visitDur(v), 0);
+  const total = bars.reduce((sum, b) => sum + b.v, 0);
+  const prev = M === 'visits' ? prevVs.length : prevVs.reduce((sum, v) => sum + visitDur(v), 0);
   const ch = prev ? Math.round((total - prev) / prev * 100) : 0;
   const days = P === 'day' ? 1 : r.n, hosts = new Set(vs.map(v => hostOf(v.url))).size;
   let k1, k2;
-  if (M === 'trackers') { k1 = { l: 'Заблокировано', i: 'shield', v: total, ch }; k2 = { l: 'Сэкономлено трафика', i: 'zap', v: total * .042, fmt: 'mb', sub: '≈ ' + Math.max(1, Math.round(total * .09 / 60)) + ' мин загрузки' }; }
-  else if (M === 'time') { k1 = { l: 'Время в сети', i: 'clock', v: total, fmt: 'dur', ch }; k2 = { l: 'В среднем за день', i: 'timer', v: total / days, fmt: 'dur', sub: P === 'day' ? 'по сегодняшним данным' : 'за ' + days + ' дн.' }; }
-  else { k1 = { l: 'Визиты', i: 'globe', v: total, ch }; k2 = { l: 'Уникальных сайтов', i: 'layers', v: hosts, sub: 'в ' + Object.keys(S.spaces).length + ' ' + plural(Object.keys(S.spaces).length, ['пространстве', 'пространствах', 'пространствах']) }; }
+  if (M === 'time') {
+    k1 = { l: 'Время в сети', i: 'clock', v: total, fmt: 'dur', ch };
+    k2 = { l: 'В среднем за день', i: 'timer', v: total / days, fmt: 'dur', sub: P === 'day' ? 'по сегодняшним данным' : 'за ' + days + ' дн.' };
+  } else {
+    k1 = { l: 'Визиты', i: 'globe', v: total, ch };
+    k2 = { l: 'Уникальных сайтов', i: 'layers', v: hosts, sub: 'в ' + Object.keys(S.spaces).length + ' ' + plural(Object.keys(S.spaces).length, ['пространстве', 'пространствах', 'пространствах']) };
+  }
   return { bars, k1, k2, M };
 }
 function kpiHtml(k) {
@@ -5976,71 +5996,55 @@ function statsBody(d) {
   return `<div class="kpis">${kpiHtml(d.k1)}${kpiHtml(d.k2)}</div><div class="chart" id="dashChart"><div class="chart-grid">${grid}</div><div class="bars" style="gap:${gap}px">${bars}</div></div>`;
 }
 function topSitesHtml(P) {
-  const r = periodRange(P), vs = S.visits.filter(v => v.at >= r.from), by = {};
+  const r = periodRange(P), vs = S.visits.filter(v => !v.demo && v.at >= r.from && v.at <= r.to), by = {};
   vs.forEach(v => { const h = hostOf(v.url); by[h] = (by[h] || 0) + 1; });
   const arr = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 4), tot = vs.length || 1, top = arr.length ? arr[0][1] : 1;
   const cols = ['var(--accent)', 'var(--gb)', 'var(--ga)', 'var(--gc)'];
   return `<div class="card-h"><h3>${ico('trend')}Топ сайтов</h3><button class="btn sm ghost" data-act="page" data-page="history">Все${ico('chev-r')}</button></div>
     ${arr.length ? `<div class="toplist">${arr.map(([h, n], i) => `<div class="trow">${favFor('https://' + h, 'md')}<span class="nm">${esc(siteInfo(h).t)}</span><span class="pc">${Math.round(n / tot * 100)}%</span><div class="dots" data-on="${Math.max(1, Math.round(n / top * 10))}" style="--c:${cols[i]}">${'<i></i>'.repeat(12).replace(/<i>/g, (m, o) => `<i style="--i:${o / 7}">`)}</div></div>`).join('')}</div>` : emptyState('trend', 'Нет данных', 'Откройте несколько сайтов')}`;
 }
-function donutHtml(P) {
-  const r = periodRange(P), b = P === 'day' ? blocksDay(dayKey(Date.now())) : sumBlocks(r.from, r.to), tot = bsum(b) || 1, C = 2 * Math.PI * 46;
-  const segs = [['Трекеры', b.t, 'var(--accent)'], ['Реклама', b.a, 'var(--gb)'], ['Сторонние cookie', b.c, 'var(--ga)'], ['Отпечаток', b.f, 'var(--gc)']];
-  let off = 0;
-  const circles = segs.map(s => { const len = s[1] / tot * C, h = `<circle class="seg2" cx="60" cy="60" r="46" data-len="${Math.max(0, len - 5).toFixed(2)}" style="stroke:rgb(${s[2]});stroke-dasharray:0 ${C.toFixed(2)};stroke-dashoffset:${(-(off + 2.5)).toFixed(2)}"/>`; off += len; return h; }).join('');
-  return `<div class="card-h"><h3>${ico('pie')}Структура блокировок</h3></div>
-    <div class="donut-wrap"><div class="donut"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="46"/>${circles}</svg><div class="ctr"><small>Всего</small><b class="num" data-count="${bsum(b)}">0</b></div></div>
-    <div class="legend">${segs.map(s => `<div><span class="dot" style="background:rgb(${s[2]})"></span>${s[0]}<b>${Math.round(s[1] / tot * 100)}%</b></div>`).join('')}</div></div>`;
+function filteringStatusHtml() {
+  return `<div class="card-h"><h3>${ico('pie')}Фильтрация трафика</h3><span class="chip down">Не подключена</span></div>
+    <div role="status" class="muted" style="font-size:12px;line-height:1.6;padding:8px 0 2px">SHELTER не фильтрует сетевые запросы и не собирает счётчики блокировок. Статистика рекламы и трекеров недоступна.</div>`;
 }
 function timeTableHtml(P) {
   const r = periodRange(P), by = {};
-  S.visits.filter(v => v.at >= r.from).forEach(v => { const h = hostOf(v.url); by[h] = (by[h] || 0) + visitDur(v); });
+  S.visits.filter(v => !v.demo && v.at >= r.from && v.at <= r.to).forEach(v => { const h = hostOf(v.url); by[h] = (by[h] || 0) + visitDur(v); });
   const arr = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 5), max = arr.length ? arr[0][1] : 1;
   return `<div class="card-h"><h3>${ico('clock')}Время на сайтах</h3><span class="chip">${periodLabel(P)}</span></div>
     ${arr.length ? `<table class="tbl"><thead><tr><th>Сайт</th><th style="width:42%">Доля времени</th><th style="text-align:right">Время</th></tr></thead><tbody>${arr.map(([h, m], i) => { const inf = siteInfo(h); return `<tr><td><div class="site">${favFor('https://' + h, 'md')}<div style="min-width:0"><b>${esc(inf.t)}</b><small>${esc(inf.cat)}</small></div></div></td><td><div class="pbar"><i style="--w:${(m / max * 100).toFixed(1)}%;--i:${i}"></i></div></td><td style="text-align:right;white-space:nowrap" class="num">${fmtDurS(m)}</td></tr>`; }).join('')}</tbody></table>` : emptyState('clock', 'Пока пусто', 'Время появится после первых визитов')}`;
 }
-const protLevel = () => { const P = S.prefs; return Math.min(100, 30 + (P.trackers ? 25 : 0) + (P.https ? 18 : 0) + (P.fp ? 15 : 0) + (P.strict ? 7 : 0) + (S.ghost ? 5 : 0)); };
-const PROT_ROWS = [['trackers', 'shield', 'Блокировка трекеров', 'EasyPrivacy · CNAME-клоакинг'], ['https', 'lock', 'HTTPS-only + DoH', 'Шифрованный DNS'], ['fp', 'finger', 'Анти-отпечаток', 'Шум Canvas, WebGL, Audio'], ['strict', 'shield-check', 'Строгий режим', 'Сторонние скрипты — только по запросу'], ['ghost', 'ghost', 'Призрак', 'Сессия только в оперативной памяти']];
 function protHtml() {
-  const lvl = protLevel();
-  return `<div class="card-h"><h3>${ico('shield-check')}Защита</h3><span class="chip ${lvl >= 80 ? 'up' : lvl >= 55 ? 'warn' : 'down'}" id="protChip">${lvl >= 80 ? 'Высокая' : lvl >= 55 ? 'Средняя' : 'Низкая'}</span></div>
-    ${PROT_ROWS.map(r => `<div class="prot-row ${swState(r[0]) ? 'on' : ''}" data-prot="${r[0]}"><span class="ic">${ico(r[1])}</span><div class="tx"><b>${r[2]}</b><span>${r[3]}</span></div>${swHtml(r[0], swState(r[0]))}</div>`).join('')}
-    <div class="meter"><span style="font-size:12.5px;color:var(--text-2)">Уровень защиты</span><div class="pbar"><i id="protBar" style="--w:${lvl}%;transition:width .7s var(--ease)"></i></div><b class="num" id="protVal">${lvl}%</b></div>`;
+  return `<div class="card-h"><h3>${ico('shield-check')}Защита</h3><span class="chip down">Не подключена</span></div>
+    <div role="status" class="muted" style="font-size:12px;line-height:1.6;padding:8px 0 2px">Блокировка трекеров, HTTPS-only, DoH и анти-отпечаток не реализованы. SHELTER не измеряет и не оценивает защиту этой сессии.</div>`;
 }
-DASH.protUpdate = () => {
-  if (!$('#protChip')) return;
-  $$('.prot-row').forEach(r => r.classList.toggle('on', swState(r.dataset.prot)));
-  const lvl = protLevel(), chip = $('#protChip');
-  chip.className = 'chip ' + (lvl >= 80 ? 'up' : lvl >= 55 ? 'warn' : 'down'); chip.textContent = lvl >= 80 ? 'Высокая' : lvl >= 55 ? 'Средняя' : 'Низкая';
-  $('#protBar').style.width = lvl + '%'; $('#protVal').textContent = lvl + '%';
-};
+DASH.protUpdate = () => {};
 DASH.animate = () => {
   const c = $('#dashChart'); if (c) c.classList.add('in');
   countUp($('#page'));
-  $$('.donut .seg2').forEach((s, i) => setTimeout(() => { s.style.strokeDasharray = s.dataset.len + ' 400'; }, 120 + i * 110));
   $$('.dots').forEach(d => { const n = +d.dataset.on; $$('i', d).forEach((x, i) => x.classList.toggle('on', i < n)); });
 };
 DASH.update = all => {
   const P = S.ui.dashPeriod, M = S.ui.dashMetric;
   $('#dashStats').innerHTML = statsBody(dashData(P, M));
-  if (all) { $('#dashTop').innerHTML = topSitesHtml(P); $('#dashDonut').innerHTML = donutHtml(P); $('#dashTime').innerHTML = timeTableHtml(P); $('#dashSub').textContent = 'Приватность и активность · ' + periodLabel(P); }
+  if (all) { $('#dashTop').innerHTML = topSitesHtml(P); $('#dashFilter').innerHTML = filteringStatusHtml(); $('#dashTime').innerHTML = timeTableHtml(P); $('#dashSub').textContent = 'Активность просмотра · ' + periodLabel(P); }
   raf(() => raf(DASH.animate));
 };
 RENDER.dashboard = () => {
   const P = S.ui.dashPeriod, M = S.ui.dashMetric;
   return `<div class="page">
     <div class="page-h">
-      <div class="ttl"><div class="page-title">Дашборд</div><div class="page-sub" id="dashSub">Приватность и активность · ${periodLabel(P)}</div></div>
+      <div class="ttl"><div class="page-title">Дашборд</div><div class="page-sub" id="dashSub">Активность просмотра · ${periodLabel(P)}</div></div>
       <div class="page-actions">${segHtml('dashPeriod', [['day', 'Сегодня'], ['week', 'Неделя'], ['month', 'Месяц']], P)}<button class="btn" data-act="dashExport">${ico('upload')}Экспорт</button></div>
     </div>
     <div class="dash-top">
       <div class="card stats rise" style="--i:0">
-        <div class="card-h"><h3>${ico('chart')}Общая статистика</h3>${segHtml('dashMetric', [['trackers', 'Блокировки'], ['time', 'Время'], ['visits', 'Визиты']], M, 'sm')}</div>
+        <div class="card-h"><h3>${ico('chart')}Активность</h3>${segHtml('dashMetric', [['time', 'Время'], ['visits', 'Визиты']], M, 'sm')}</div>
         <div class="stats-body" id="dashStats">${statsBody(dashData(P, M))}</div>
       </div>
       <div class="dash-right">
         <div class="card pad rise" style="--i:1" id="dashTop">${topSitesHtml(P)}</div>
-        <div class="card pad rise" style="--i:2" id="dashDonut">${donutHtml(P)}</div>
+        <div class="card pad rise" style="--i:2" id="dashFilter">${filteringStatusHtml()}</div>
       </div>
     </div>
     <div class="dash-bottom">
@@ -6053,8 +6057,8 @@ AFTER.dashboard = () => raf(() => raf(DASH.animate));
 SEG.dashPeriod = v => { S.ui.dashPeriod = v; persist(); DASH.update(true); };
 SEG.dashMetric = v => { S.ui.dashMetric = v; persist(); DASH.update(false); };
 function dashExport() {
-  const P = S.ui.dashPeriod, r = periodRange(P), b = sumBlocks(r.from, r.to);
-  const data = { app: 'SHELTER ' + VERSION, period: P, generated: new Date().toISOString(), blocked: b, visits: S.visits.filter(v => v.at >= r.from).length, spaces: Object.keys(S.spaces).length };
+  const P = S.ui.dashPeriod, r = periodRange(P);
+  const data = { app: 'SHELTER ' + VERSION, period: P, generated: new Date().toISOString(), visits: S.visits.filter(v => !v.demo && v.at >= r.from && v.at <= r.to).length, spaces: Object.keys(S.spaces).length };
   downloadFile('shelter-dashboard-' + dayKey(Date.now()) + '.json', JSON.stringify(data, null, 2));
 }
 
@@ -6209,9 +6213,9 @@ const CBD_ITEMS = [
   { k: 'history', l: 'История просмотра' },
   { k: 'downloads', l: 'Загрузки' },
   { k: 'cookies', l: 'Файлы cookie' },
-  { k: 'saved', l: 'Сохранённые данные (включая расширения)' },
+  { k: 'saved', l: 'Сохранённые данные сайтов' },
   { k: 'cache', l: 'Кэш' },
-  { k: 'passwords', l: 'Пароли (включая пароль синхронизации)' },
+  { k: 'passwords', l: 'Старые записи менеджера паролей' },
   { k: 'autofill', l: 'Данные автозаполнения форм' },
   { k: 'appcache', l: 'Кэш приложений' },
   { k: 'siteset', l: 'Настройки сайтов' }
@@ -6294,9 +6298,9 @@ async function runBrowsingClear(sel, durMs, rangeLabel) {
   }
   const fulls = [];
   if (sel.has('passwords')) {
-    const n = (S.passwords || []).length; S.passwords = [];
-    rows.push({ k: 'Пароли (включая пароль синхронизации)', v: n ? `${fmtN(n)} ${plural(n, ['пароль', 'пароля', 'паролей'])}` : 'нет записей' });
-    fulls.push('пароли');
+    const n = storedPrototypePasswordCount(); S.passwords = []; S.__pwBlob = '';
+    rows.push({ k: 'Старые записи менеджера паролей', v: n ? `${fmtN(n)} ${plural(n, ['запись', 'записи', 'записей'])}` : 'нет записей' });
+    fulls.push('старые записи паролей');
   }
   if (sel.has('autofill')) {
     const n = (S.addresses || []).length; S.addresses = [];
@@ -6327,7 +6331,7 @@ async function runBrowsingClear(sel, durMs, rangeLabel) {
   const miss = 'недоступно';
   if (sel.has('cookies')) rows.push({ k: 'Файлы cookie', v: S0 ? (all ? fmtN(S0.cookiesRemoved) : `${fmtN(S0.cookiesRemoved)} из ${fmtN(S0.cookies)}`) : miss });
   if (sel.has('cache')) rows.push({ k: 'Кэш', v: S0 ? (S0.cacheBytes > 0 ? '≈ ' + fmtBytes(S0.cacheBytes) : 'очищено') : miss });
-  if (sel.has('saved')) rows.push({ k: 'Сохранённые данные (включая расширения)', v: S0 ? (S0.savedBytes > 0 ? '≈ ' + fmtBytes(S0.savedBytes) : 'очищено') : miss });
+  if (sel.has('saved')) rows.push({ k: 'Сохранённые данные сайтов', v: S0 ? (S0.savedBytes > 0 ? '≈ ' + fmtBytes(S0.savedBytes) : 'очищено') : miss });
   if (sel.has('appcache')) rows.push({ k: 'Кэш приложений', v: S0 ? (S0.appCacheBytes > 0 ? '≈ ' + fmtBytes(S0.appCacheBytes) : 'очищено') : miss });
   const noRange = [];
   if (sel.has('cache')) noRange.push('кэш');
@@ -7415,7 +7419,7 @@ function dlRow(d, i) {
 }
 const dlRows = () => S.downloads.length ? S.downloads.slice().sort((a, b) => (a.state === 'done') - (b.state === 'done') || b.at - a.at).map(dlRow).join('') : emptyState('inbox', 'Загрузок нет', 'Скачанные файлы появятся здесь');
 RENDER.downloads = () => { clearTimeout(dlPanelT); const dlf = $('#dlFloat'); if (dlf) dlf.hidden = true; S.ui.dlSeen = Date.now(); persist(); renderBadges(); return `<div class="page narrow">
-  <div class="page-h"><div class="ttl"><div class="page-title">Загрузки</div><div class="page-sub">~/Downloads · файлы проверяются перед открытием</div></div>
+  <div class="page-h"><div class="ttl"><div class="page-title">Загрузки</div><div class="page-sub">Папка загрузок · SHELTER не проверяет файлы на вирусы</div></div>
   <div class="page-actions"><button class="btn" data-act="dlClear">${ico('trash')}Очистить список</button></div></div>
   <div class="rows" id="dlRows">${dlRows()}</div></div>`; };
 AFTER.downloads = () => pageTimer(() => {
@@ -7444,7 +7448,7 @@ function dlPanelRefresh() {
 function dlReveal(d) {
   if (!d) return;
   if (d.path && window.shelterNative && typeof window.shelterNative.showInFolder === 'function') window.shelterNative.showInFolder(d.path);
-  else toast('Показано в Finder: ' + d.name, { icon: 'folder' });
+  else toast('Открытие папки с файлом в этой сборке не подключено', { icon: 'info' });
 }
 let noteT = 0;
 function noteShow(title, body, ms) {
@@ -7553,15 +7557,13 @@ function pwRows(q = '') {
   if (!list.length) return emptyState('key', q ? 'Ничего не найдено' : 'Паролей пока нет', q ? 'Попробуйте другой запрос' : 'Сохраните первый пароль');
   return list.map((p, i) => `<div class="lrow" style="--i:${i}">${favFor('https://' + p.site, 'lg')}<div class="tx"><b>${esc(siteInfo(p.site).t)}</b><small>${esc(p.site)} · ${esc(p.login)}</small></div><span class="pw hide-sm" data-pw="${p.id}">••••••••••••</span><span class="chip ${p.strength >= 3 ? 'up' : p.strength === 2 ? 'warn' : 'down'}">${p.strength >= 3 ? 'Надёжный' : p.strength === 2 ? 'Средний' : 'Слабый'}</span><div class="acts"><button class="icon-btn" data-act="pwShow" data-id="${p.id}" aria-label="Показать">${ico('eye')}</button><button class="icon-btn" data-act="pwCopy" data-id="${p.id}" aria-label="Копировать">${ico('copy')}</button><button class="icon-btn" data-act="pwDel" data-id="${p.id}" aria-label="Удалить">${ico('trash')}</button></div></div>`).join('');
 }
-RENDER.passwords = () => {
-  const weak = S.passwords.filter(p => p.strength < 2).length;
-  return `<div class="page narrow">
-  <div class="page-h"><div class="ttl"><div class="page-title">Пароли</div><div class="page-sub">${S.passwords.length} ${plural(S.passwords.length, ['запись', 'записи', 'записей'])} · зашифровано ключом Secure Enclave</div></div>
-  <div class="page-actions"><label class="search-in">${ico('search')}<input class="input" id="pwQ" placeholder="Поиск" autocomplete="off"></label><button class="btn" data-act="pwGen">${ico('sparkles')}Генератор</button><button class="btn primary" data-act="pwAdd">${ico('plus')}Добавить</button></div></div>
-  <div class="banner rise"${weak ? ' style="background:linear-gradient(135deg,rgb(var(--warn)/.1),transparent 70%),var(--card);border-color:rgb(var(--warn)/.22)"' : ''}><span class="ic"${weak ? ' style="background:rgb(var(--warn)/.14);color:rgb(var(--warn))"' : ''}>${ico(weak ? 'info' : 'shield-check')}</span><div class="tx"><b>${weak ? weak + ' ' + plural(weak, ['слабый пароль', 'слабых пароля', 'слабых паролей']) : 'Все пароли надёжные'}</b><span>Проверка утечек: 0 скомпрометированных · сегодня в ${hm(Date.now() - 36e5)}</span></div>${weak ? '<button class="btn sm" data-act="pwFix">Усилить</button>' : ''}</div>
-  <div class="rows" id="pwRows">${pwRows()}</div></div>`;
-};
-AFTER.passwords = () => { const q = $('#pwQ'); if (q) q.addEventListener('input', () => { $('#pwRows').innerHTML = pwRows(q.value); }); };
+const storedPrototypePasswordCount = () => (S.passwords || []).length + (S.__pwBlob ? 1 : 0);
+RENDER.passwords = () => `<div class="page narrow">
+  <div class="page-h"><div class="ttl"><div class="page-title">Менеджер паролей</div><div class="page-sub">Не подключён · хранение не защищено</div></div></div>
+  <div role="alert" class="set-card" style="padding:16px;line-height:1.6"><b style="color:#C48A22">Не вводите сюда реальные пароли.</b><br>Ранний прототип мог сохранять записи локально без шифрования. В этом профиле найдено записей/блоков: <b>${storedPrototypePasswordCount()}</b>${S.__pwBlob ? ' (в том числе старые данные, которые нельзя прочитать безопасно)' : ''}. Удалите их ниже, если они вам не нужны.</div>
+  <div style="margin-top:14px"><button class="btn danger" data-act="pwClearPrototype" ${storedPrototypePasswordCount() ? '' : 'disabled'}>${ico('trash')}Удалить локальные записи прототипа</button></div>
+</div>`;
+AFTER.passwords = () => {};
 function pwGenModal(target) {
   let len = 20, sym = true, val = genPassword(len, sym);
   const m = openModal({ width: 460, html: `<div class="modal-h"><div class="mi-ic">${ico('sparkles')}</div><h3>Генератор паролей</h3></div>
@@ -7593,50 +7595,10 @@ function pwAddModal() {
   setTimeout(() => $('#paS', root).focus(), 50);
 }
 
-function extCard(e, i) {
-  const x = EXT_CATALOG[e.id];
-  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${x.c}">${esc(x.l)}</span><div class="tx"><b>${esc(x.name)}</b><small>v${esc(x.ver)}</small></div>${swHtml('ext:' + e.id, e.on)}</div><p>${esc(x.desc)}</p><div class="ft"><span>В «Призраке»</span><button class="sw-t ${e.ghost ? 'on' : ''}" data-sw="extg:${e.id}" role="switch" style="--w:34px;transform:scale(.85)"></button><span class="sp"></span><button class="btn sm ghost" data-act="extRemove" data-id="${e.id}">Удалить</button></div></div>`;
-}
-function storeCard(k, i) {
-  const x = EXT_CATALOG[k], R = rng(hashStr(k));
-  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${x.c}">${esc(x.l)}</span><div class="tx"><b>${esc(x.name)}</b><small>v${esc(x.ver)} · ★ 4,${1 + (R() * 8 | 0)}</small></div></div><p>${esc(x.desc)}</p><div class="ft"><span style="white-space:nowrap">${Math.round(20 + R() * 900)} тыс. пользователей</span><span class="sp"></span><button class="btn sm primary" data-act="extInstall" data-id="${k}">Установить</button></div></div>`;
-}
-RENDER.extensions = () => {
-  const inst = S.ext.filter(e => EXT_CATALOG[e.id]), avail = Object.keys(EXT_CATALOG).filter(k => !inst.find(e => e.id === k));
-  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div><div class="page-sub">Совместимы с Chrome Web Store · работают отдельно в каждом пространстве</div></div><div class="page-actions"><button class="btn" data-act="extDev">${ico('code')}Загрузить распакованное</button></div></div>
-  <div class="sec-t">Установленные <small>${inst.length}</small></div>
-  <div class="ext-grid">${inst.length ? inst.map(extCard).join('') : emptyState('puzzle', 'Нет расширений', 'Установите что-нибудь из магазина ниже')}</div>
-  <div class="sec-t">Магазин SHELTER <small>каждое расширение проверено вручную</small></div>
-  <div class="ext-grid">${avail.length ? avail.map(storeCard).join('') : emptyState('check', 'Всё установлено', 'Новые расширения скоро появятся')}</div></div>`;
-};
-function extInstall(btn) {
-  const id = btn.dataset.id; btn.disabled = true; btn.innerHTML = '<span class="think"><i></i><i></i><i></i></span>';
-  setTimeout(() => { if (!S.ext.find(e => e.id === id)) S.ext.push({ id, on: true, ghost: false }); persist(); renderExtBar(); refreshPage('extensions'); toast('Установлено: ' + EXT_CATALOG[id].name, { icon: 'puzzle' }); }, 900);
-}
-function extPop(anchor) {
-  const e = S.ext.find(x => x.id === anchor.dataset.id); if (!e) return; const x = EXT_CATALOG[e.id], m = urlMeta(curTab().url);
-  openMenu(anchor, null, { place: 'bottom-end', cls: 'pop', html: `<div class="pop-h"><span class="fav lg" style="background:${x.c}">${esc(x.l)}</span><div><b>${esc(x.name)}</b><span>v${esc(x.ver)}</span></div></div>
-    ${e.id === 'ublock' ? `<div class="kv"><span>Заблокировано на странице</span><b class="num">${curTab().blocked || 0}</b></div>` : ''}
-    <div class="kv"><span>Доступ к ${esc(m.kind === 'site' ? m.host : 'этой странице')}</span><b>${m.kind === 'internal' ? 'Нет' : 'При клике'}</b></div>
-    <div class="kv"><span>В «Призраке»</span><b>${e.ghost ? 'Разрешено' : 'Запрещено'}</b></div>
-    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm" style="flex:1" data-act="page" data-page="extensions">Управлять</button></div>` });
-}
-
-RENDER.certs = () => {
-  const P = S.prefs, row = (k, t, s) => `<div class="set-row"><div class="tx"><b>${t}</b><span>${s}</span></div>${swHtml(k, P[k])}</div>`;
-  return `<div class="page narrow">
-  <div class="page-h"><div class="ttl"><div class="page-title">Сертификаты РФ</div><div class="page-sub">Национальный удостоверяющий центр Минцифры — только для сайтов из списка</div></div></div>
-  <div class="sec-t">Цепочка доверия <small>для gosuslugi.ru</small></div>
-  <div class="chain">
-    <div class="cert rise" style="--i:0"><span class="ic">${ico('award')}</span><div class="tx"><b>Russian Trusted Root CA</b><small>Корневой · Минцифры России · действителен до 2032 г.</small></div><span class="chip up">${ico('check')}Доверенный</span></div>
-    <div class="cert rise" style="--i:1"><span class="ic">${ico('shield')}</span><div class="tx"><b>Russian Trusted Sub CA</b><small>Выпускающий · действителен до 2027 г.</small></div><span class="chip up">${ico('check')}Доверенный</span></div>
-    <div class="cert rise" style="--i:2"><span class="ic">${ico('lock')}</span><div class="tx"><b>*.gosuslugi.ru</b><small>Конечный · TLS 1.3 · ГОСТ Р 34.10-2012</small></div><span class="chip info">ГОСТ</span></div>
-  </div>
-  <div class="sec-t">Параметры</div>
-  <div class="set-card">${row('ruca', 'Доверять НУЦ Минцифры', 'Сертификаты принимаются только для доменов из списка ниже')}${row('rucaupd', 'Автообновление списка', 'Проверка раз в 7 дней с подписью разработчика')}${row('gostbadge', 'Значок «ГОСТ» в адресной строке', 'Показывать, когда соединение использует российскую криптографию')}${row('strict', 'Строгий режим', 'Блокировать страницу при любой ошибке цепочки')}</div>
-  <div class="sec-t">Разрешённые домены <small>${RU_CA.length}</small></div>
-  <div class="rows">${RU_CA.map((h, i) => `<div class="lrow" style="--i:${i}">${favFor('https://' + h, 'md')}<div class="tx"><b>${esc(siteInfo(h).t)}</b><small>${h}</small></div><button class="btn sm ghost" data-act="open" data-url="https://${h}">Открыть${ico('arrow-ur')}</button></div>`).join('')}</div></div>`;
-};
+// These pages previously rendered mock store/catalog entries. Keep the routes, but
+// show a clear status instead of presenting demo certificates or extensions as real.
+RENDER.extensions = () => `<div class="page narrow"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div><div class="page-sub">Каталог и выполнение расширений не подключены</div></div></div></div>`;
+RENDER.certs = () => `<div class="page narrow"><div class="page-h"><div class="ttl"><div class="page-title">Сертификаты</div><div class="page-sub">Отдельный менеджер сертификатов не подключён</div></div></div><div class="set-card" style="padding:16px;line-height:1.6">Обычная проверка TLS-сертификатов выполняется Chromium. Дополнительные корневые сертификаты SHELTER, список доменов и отдельный экран цепочки в этой сборке отсутствуют.</div></div>`;
 
 /* =========================================================
    Сайт, поиск, AI-ассистент — оболочки
@@ -7721,7 +7683,7 @@ const PROFILE_PRIVACY_PROTECTIONS = [
 const PROFILE_ACHIEVEMENTS = [
   { id: 'gosuslugi', group: 'useful', icon: 'building', rgb: '88 145 255', rarity: 'ПОЛЕЗНАЯ', title: 'Государственные дела', desc: 'Бюрократический дракон повержен: загляните на Госуслуги хотя бы раз.', metric: 'gosuslugi' },
   { id: 'study10h', group: 'useful', icon: 'book', rgb: '154 125 255', rarity: 'РЕДКАЯ', title: 'Я сегодня учусь', desc: 'Каникулы отменяются: проведите 10 часов на образовательных сайтах.', metric: 'study10h' },
-  { id: 'privacy4', group: 'useful', icon: 'shield-check', rgb: '63 198 157', rarity: 'ЭПИЧЕСКАЯ', title: 'Параноик', desc: 'Четыре щита: трекеры, HTTPS-only, защита от отпечатка и строгий режим.', metric: 'privacy4' },
+  { id: 'privacy4', group: 'useful', icon: 'shield-check', rgb: '63 198 157', rarity: 'ЭПИЧЕСКАЯ', title: 'Параноик', desc: 'Отключено в этой сборке: фильтрация, HTTPS-only, анти-отпечаток и строгий режим не реализованы.', metric: 'privacy4' },
   { id: 'cookies1000', group: 'useful', icon: 'cookie', rgb: '238 171 82', rarity: 'ЛЕГЕНДАРНАЯ', title: 'Генеральная уборка', desc: 'Цифровую крошку — вон: удалите не меньше 1 000 cookies.', metric: 'cookies1000' },
   { id: 'countries20', group: 'useful', icon: 'globe', rgb: '52 190 211', rarity: 'ЭПИЧЕСКАЯ', title: 'Обошёл полмира', desc: 'Двадцать стран без чемодана: посетите сайты из 20 разных стран.', metric: 'countries20' },
   { id: 'firstPayment', group: 'useful', icon: 'wallet', rgb: '238 180 79', rarity: 'ПОЛЕЗНАЯ', title: 'Первая оплата', desc: 'Круг по кассе завершён: вернитесь из тестового платёжного шлюза.', metric: 'firstPayment' },
@@ -7738,7 +7700,7 @@ const PROFILE_ACHIEVEMENTS = [
   { id: 'tabs500', group: 'fun', icon: 'copy', rgb: '255 107 98', rarity: 'ЛЕГЕНДАРНАЯ', title: 'Компьютер, прости', desc: 'Пятьсот вкладок. Компьютер уже всё понял.', metric: 'tabs500' },
   { id: 'week', group: 'fun', icon: 'calendar', rgb: '110 137 255', rarity: 'ЛЕГЕНДАРНАЯ', title: 'Работаем', desc: 'Семь дней в строю — ни одного выхода из браузера.', metric: 'week' },
   { id: 'speed20', group: 'fun', icon: 'zap', rgb: '255 174 75', rarity: 'ЭПИЧЕСКАЯ', title: 'Быстрый как интернет', desc: '20 сайтов за минуту. Моргнёте после финиша.', metric: 'speed20' },
-  { id: 'incognito', group: 'secret', icon: 'ghost', rgb: '168 126 255', rarity: 'СЕКРЕТНАЯ', title: 'Инкогнито активирован', desc: 'Теперь меня никто не увидит.', metric: 'incognito', secret: true },
+  { id: 'incognito', group: 'secret', icon: 'ghost', rgb: '168 126 255', rarity: 'СЕКРЕТНАЯ', title: 'Скрытая локальная история', desc: 'Режим «Призрак» скрывает просмотры из истории SHELTER, но не обеспечивает анонимность и не очищает данные сайтов.', metric: 'incognito', secret: true },
   { id: 'tabRestore3', group: 'secret', icon: 'undo', rgb: '137 159 255', rarity: 'СЕКРЕТНАЯ', title: 'Привет, деменция', desc: 'Трижды верните закрытую вкладку. Память подвела — SHELTER выручил.', metric: 'tabRestores', secret: true },
   { id: 'caesarMix', group: 'secret', icon: 'trophy', rgb: '229 174 83', rarity: 'СЕКРЕТНАЯ', title: 'Гай Юлий', desc: 'Три легиона в строю: видео, музыка и чтение одновременно.', metric: 'contentMix', secret: true },
   { id: 'threeSpaces', group: 'secret', icon: 'columns', rgb: '104 174 190', rarity: 'СЕКРЕТНАЯ', title: 'Мастер пространств', desc: 'Три мира, один повелитель. Оставьте вкладки в каждом пространстве.', metric: 'activeSpaces', secret: true },
@@ -7800,15 +7762,15 @@ function profileActivity(raw = false) {
   const tabs = userTabs.length;
   const kinds = new Set(userTabs.map(t => profileTabKind(t.url)).filter(Boolean));
   const activeSpaces = spaces.filter(space => (space.tabs || []).some(t => t && !t.demo)).length;
-  const privacyChecks = PROFILE_PRIVACY_PROTECTIONS.map(item => ({ ...item, enabled: S.prefs[item.key] === true }));
-  const privacy = privacyChecks.filter(item => item.enabled).length;
+  const privacyChecks = PROFILE_PRIVACY_PROTECTIONS.map(item => ({ ...item, enabled: false }));
+  const privacy = 0;
   const customBookmarks = (S.bookmarks || []).filter(b => b && !/^b[1-6]$/.test(String(b.id || ''))).length;
   const knownSearchEngines = profileKnownSearchEngines();
   const profilePaymentReturned = !!S.ui.profilePaymentReturned || (S.ghost && !!T.profilePaymentReturned);
   const metric = {
     gosuslugi: { value: visits.filter(v => profileDomainMatch(hostOf(v.url), ['gosuslugi.ru'])).length, target: 1, unit: 'визит' },
     study10h: { value: minutesOn(education), target: 600, time: true },
-    privacy4: { value: privacy, target: PROFILE_PRIVACY_PROTECTIONS.length, unit: 'защиты', checks: privacyChecks },
+    privacy4: { value: privacy, target: PROFILE_PRIVACY_PROTECTIONS.length, unit: 'защиты', unavailable: 'Защитные модули в этой сборке не подключены.', checks: privacyChecks },
     cookies1000: { value: 0, target: 1000, unit: 'cookies', unavailable: 'Счётчик cookies не собирается.' },
     countries20: { value: 0, target: 20, unit: 'стран', unavailable: 'География посещений не определяется.' },
     firstPayment: { value: profilePaymentReturned ? 1 : 0, target: 1, unit: 'возврат из демо-шлюза' },
@@ -7861,8 +7823,8 @@ function captureProfileUnlocks(d) {
   return unlocks;
 }
 function profileAchievementStatus(a, m, unlocks = storedProfileUnlocks()) {
-  if (unlocks.has(a.id)) return 'earned';
   if (m.unavailable) return 'locked';
+  if (unlocks.has(a.id)) return 'earned';
   if (m.value >= m.target) return 'earned';
   if (m.value > 0) return 'progress';
   return 'locked';
@@ -7895,6 +7857,7 @@ function scheduleAchievementReconcile() {
   }, 900);
 }
 function profileAchProgress(a, m, earned = false) {
+  if (m.unavailable) return 'Не подключено в этой сборке';
   if (earned || m.value >= m.target) return 'Получено';
   if (a.metric === 'privacy4') return `${fmtN(m.value)} / ${m.target} защиты`;
   if (a.secret && !m.value) return 'Скрытая награда';
@@ -8265,14 +8228,13 @@ function returnFromPaymentGateway() {
 
 function openProfileSettings() {
   const a = S.account, localName = a ? a.name : (S.ui.profileName || 'Вы');
-  const provider = a ? ({ google: 'Google', yandex: 'Яндекс ID' }[a.provider] || 'Аккаунт') : '';
   let avatarDraft = S.ui.profileAvatar || '';
   const initials = a ? (a.initials || initialsOf(localName)) : (S.ui.profileName ? initialsOf(localName) : 'В');
   const modal = openModal({ width: 480, html: `<div class="modal-h account-settings-h"><div class="mi-ic">${ico('user')}</div><h3>Настройки аккаунта</h3><button class="icon-btn" data-account-close aria-label="Закрыть">${ico('x')}</button></div>
     <div class="modal-b account-settings-body">
       <div class="account-avatar-editor"><div data-avatar-preview>${profileAvatarMarkup(localName, 'profile-avatar account-avatar-preview', profileAvatarSource(avatarDraft), initials)}</div><div class="account-avatar-copy"><b>Аватар профиля</b><div class="account-avatar-actions"><button class="btn sm" type="button" data-profile-avatar-pick>${ico('upload')}Выбрать фото</button><button class="btn sm ghost" type="button" data-profile-avatar-reset ${avatarDraft ? '' : 'disabled'}>Сбросить</button></div></div><input type="file" accept="image/png,image/jpeg,image/webp" data-profile-avatar-file hidden></div>
       <label class="account-name-field"><span>Имя профиля</span><input class="input" data-profile-name maxlength="40" value="${esc(localName)}" placeholder="Как к вам обращаться"></label>
-      ${a ? `<div class="account-connection"><span class="account-connection-icon">${ico('shield-check')}</span><div><b>${esc(provider)}</b><small>${esc(a.email || '')}</small></div><span class="account-connection-state">АКТИВЕН</span></div>` : `<div class="account-connect-panel"><b>Вход через сервис</b><div class="account-connect-buttons"><button class="btn" data-profile-login="google"><span class="account-provider-mark google">G</span>Google</button><button class="btn" data-profile-login="yandex"><span class="account-provider-mark yandex">Я</span>Яндекс ID</button></div></div>`}
+      ${a ? `<div class="account-connection"><span class="account-connection-icon">${ico('user')}</span><div><b>Локальный профиль</b><small>Вход и синхронизация не подключены</small></div><span class="account-connection-state">ЛОКАЛЬНО</span></div>` : `<div class="account-connect-panel"><b>Вход через сервис · не подключён</b><div class="account-connect-buttons"><button class="btn" disabled aria-disabled="true"><span class="account-provider-mark google">G</span>Google · недоступно</button><button class="btn" disabled aria-disabled="true"><span class="account-provider-mark yandex">Я</span>Яндекс ID · недоступно</button></div></div>`}
       <div class="account-settings-actions">${a ? `<button class="btn ghost danger" data-profile-logout>${ico('logout')}Выйти</button>` : ''}<span class="account-actions-spacer"></span><button class="btn ghost" data-account-close>Отмена</button><button class="btn primary" data-profile-save>${ico('check')}Сохранить</button></div>
     </div>` });
   const input = modal.scrim.querySelector('[data-profile-name]');
@@ -8349,541 +8311,24 @@ function showAchievementDetail(id) {
 RENDER.site = (m, t) => `<div class="sitepg"><div class="site-card rise" style="--c:${hexTriplet(m.color)}">
   <div class="site-top">${favFor(t.url)}<div style="min-width:0"><h1>${esc(m.title)}</h1><p style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.host)}${esc((m.path || '').slice(0, 70))}</p></div></div>
   <div class="site-stats">
-    <div><small>Заблокировано на странице</small><b class="num" data-count="${t.blocked || 0}">0</b></div>
-    <div><small>Соединение</small><b>${m.ru && S.prefs.gostbadge ? 'ГОСТ TLS' : 'TLS 1.3'}</b></div>
-    <div><small>Cookies</small><b>«${esc(curSpace().name)}»</b></div>
+    <div><small>Фильтрация</small><b>Не подключена</b></div>
+    <div><small>Сведения о TLS</small><b>Проверяются Chromium</b></div>
+    <div><small>Профиль cookies</small><b>Общий для пространств</b></div>
   </div>
   <div class="skel"><i style="width:94%"></i><i style="width:81%"></i><i style="width:88%"></i><i style="width:64%"></i><i style="width:72%"></i></div>
-  <p class="muted" style="margin-top:18px;font-size:12.5px;line-height:1.55;position:relative">Демо-оболочка SHELTER. В приложении страница открывается нативным движком, а здесь показано, что браузер делает до отрисовки: шифрует DNS, режет трекеры и изолирует cookies в пространстве.</p>
+  <p class="muted" style="margin-top:18px;font-size:12.5px;line-height:1.55;position:relative">Резервная демонстрационная карточка, а не веб-сайт. В приложении реальные страницы открываются через CEF; фильтрация трекеров, отдельный профиль пространства и шифрованный DNS пока не реализованы.</p>
   <div class="site-acts"><a class="btn primary" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">${ico('ext')}Открыть сайт</a><button class="btn" data-act="star">${ico('star')}В закладки</button><button class="btn ghost" data-act="cert">${ico('lock')}О соединении</button></div>
 </div></div>`;
 AFTER.site = () => countUp($('#page'));
 RENDER.search = (m, t) => { const E = ENGINES[m.engine]; return `<div class="sitepg"><div class="site-card rise" style="--c:${hexTriplet(E.c)}">
-  <div class="site-top"><span class="fav" style="background:${E.c}">${E.l}</span><div style="min-width:0"><h1>${esc(m.q)}</h1><p>${esc(E.name)} · запрос ушёл без cookies и цифрового отпечатка</p></div></div>
+  <div class="site-top"><span class="fav" style="background:${E.c}">${E.l}</span><div style="min-width:0"><h1>${esc(m.q)}</h1><p>${esc(E.name)} · поисковая система получает запрос; параметры приватности зависят от её сайта и общего профиля CEF</p></div></div>
   <div class="skel" style="margin-top:24px"><i style="width:40%;height:14px"></i><i style="width:92%"></i><i style="width:84%"></i><i style="width:36%;height:14px;margin-top:10px"></i><i style="width:90%"></i><i style="width:70%"></i></div>
-  <div class="site-acts"><a class="btn primary" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">${ico('ext')}Открыть результаты</a><button class="btn" data-act="deepAsk" data-q="${esc(m.q)}">${ico('bulb')}Спросить AI-ассистента</button>${Object.keys(ENGINES).filter(k => k !== m.engine).map(k => `<button class="btn ghost" data-act="searchIn" data-engine="${k}" data-q="${esc(m.q)}">${esc(ENGINES[k].name)}</button>`).join('')}</div>
+  <div class="site-acts"><a class="btn primary" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">${ico('ext')}Открыть результаты</a>${Object.keys(ENGINES).filter(k => k !== m.engine).map(k => `<button class="btn ghost" data-act="searchIn" data-engine="${k}" data-q="${esc(m.q)}">${esc(ENGINES[k].name)}</button>`).join('')}</div>
 </div></div>`; };
 
-/* =========================================================
-   АССИСТЕНТ (deepthink) — полнофункциональная вкладка .dt-app
-   ========================================================= */
-function DT_CLEANUP() {
-  if (T.dt && T.dt.timer) { clearTimeout(T.dt.timer); T.dt.timer = 0; }
-}
-const DT_SUGGESTIONS = [
-  { icon: 'shield-check', title: 'Сводка по защите и вкладкам', sub: 'Сколько трекеров заблокировано сегодня и что открыто в пространствах', q: 'Сделай сводку по защите браузера и моим открытым вкладкам' },
-  { icon: 'tasks', title: 'Разбор моих задач', sub: 'Приоритеты, дедлайны и план действий по текущей доске', q: 'Проанализируй мои открытые задачи и предложи план на сегодня' },
-  { icon: 'key', title: 'Аудит паролей и приватности', sub: 'Проверка включённых щитов и надёжности сохранённых паролей', q: 'Проверь состояние моей приватности и надёжность паролей' },
-  { icon: 'sparkles', title: 'Глубокий разбор вопроса', sub: 'Структурированный ответ с шагами рассуждений и выводами', q: 'Как организовать идеальное рабочее пространство в приватном браузере?' }
-];
-function dtSeedThreads() {
-  const now = Date.now();
-  return [
-    {
-      id: 'dt-welcome',
-      title: 'Обзор возможностей SHELTER AI',
-      pinned: true,
-      at: now - 1800000,
-      messages: [
-        {
-          id: 'm1',
-          role: 'user',
-          text: 'Что умеет встроенный Ассистент SHELTER?',
-          at: now - 1800000
-        },
-        {
-          id: 'm2',
-          role: 'assistant',
-          mode: 'SHELTER Local AI',
-          at: now - 1795000,
-          steps: [
-            'Проверяю локальный контур приватности и доступные модули браузера',
-            'Сопоставляю контекст пространств, задач, закладок и защиты от трекеров',
-            'Формирую краткую памятку без отправки данных во внешние облака'
-          ],
-          paragraphs: [
-            'Я работаю прямо внутри SHELTER: помогаю разбирать задачи на доске, анализировать статистику блокировок, проверять гигиену паролей и быстро находить ответы по вашим рабочим материалам.',
-            'Вы можете общаться со мной в локальном режиме (0 байт уходит в сеть) или подключить собственный совместимый API-ключ (OpenAI / OpenRouter / локальная Ollama) через кнопку «Подключить API».'
-          ],
-          kpis: [
-            { label: 'Приватность', val: '100% Local', sub: 'Ключи и чаты на устройстве' },
-            { label: 'Контекст', val: 'Вкладки + Задачи', sub: 'Понимает состояние браузера' },
-            { label: 'Режимы', val: 'Local / API', sub: 'Гибкое подключение моделей' }
-          ],
-          actions: [
-            { label: 'Открыть Задачи', icon: 'tasks', act: 'page', page: 'tasks' },
-            { label: 'Дашборд защиты', icon: 'grid', act: 'page', page: 'dashboard' },
-            { label: 'Подключить свой API', icon: 'sparkles', act: 'agentApi' }
-          ],
-          follow: [
-            'Сделай сводку по защите браузера и моим открытым вкладкам',
-            'Проанализируй мои открытые задачи и предложи план на сегодня',
-            'Проверь состояние моей приватности и надёжность паролей'
-          ]
-        }
-      ]
-    }
-  ];
-}
-function dtState() {
-  if (!Array.isArray(S.ui.dtThreads) || !S.ui.dtThreads.length) {
-    S.ui.dtThreads = dtSeedThreads();
-  }
-  if (!T.dt) {
-    T.dt = {
-      activeId: S.ui.dtThreads[0].id,
-      q: '',
-      railCollapsed: !!S.ui.dtRailCollapsed,
-      railOpen: false,
-      fs: S.ui.dtFs || 'm',
-      deepMode: true,
-      timer: 0,
-      lastHandledQuery: ''
-    };
-  }
-  if (!S.ui.dtThreads.some(x => x.id === T.dt.activeId)) {
-    T.dt.activeId = S.ui.dtThreads[0] ? S.ui.dtThreads[0].id : '';
-  }
-  return T.dt;
-}
-function dtActiveThread() {
-  const st = dtState();
-  return (S.ui.dtThreads || []).find(x => x.id === st.activeId) || null;
-}
-function dtBuildLocalReply(promptText) {
-  const q = String(promptText || '').trim();
-  const ql = q.toLowerCase();
-  ensureBoard();
-  const openTasks = workTasks().filter(t => t.status !== 'Готово');
-  const urgentTasks = openTasks.filter(t => t.prio === 'Критично' || t.prio === 'Срочно');
-  const blockedToday = todayBlocked();
-  const totalTabs = Object.values(S.spaces || {}).reduce((acc, sp) => acc + ((sp.tabs || []).length), 0);
-  const weakPw = (S.passwords || []).filter(p => p.strength < 2).length;
-  const shieldsOn = PROFILE_PRIVACY_PROTECTIONS.filter(p => S.prefs[p.key] === true).length;
-
-  if (/задач|план|дедлайн|проект|todo/i.test(ql)) {
-    const topList = openTasks.slice(0, 4).map(t => `• «${t.title}» (${t.project || 'Личное'}, приоритет: ${t.prio.toLowerCase()}, срок: ${t.deadline || 'без срока'})`).join('\n');
-    return {
-      mode: T.dt && T.dt.deepMode ? 'Глубокий разбор · Local' : 'Быстрый ответ · Local',
-      steps: [
-        `Загружаю активную доску «${(S.board && S.board.name) || 'Моя доска'}»`,
-        `Найдено открытых задач: ${openTasks.length} (из них приоритетных: ${urgentTasks.length})`,
-        'Ранжирую задачи по срочности и формирую сфокусированный план'
-      ],
-      paragraphs: [
-        openTasks.length
-          ? `Сейчас у вас в работе ${openTasks.length} ${plural(openTasks.length, ['задача', 'задачи', 'задач'])}, из них ${urgentTasks.length} требуют приоритетного внимания.`
-          : 'Все задачи на текущей доске закрыты — отличный темп! Вы можете добавить новую задачу или переключиться на матрицу Эйзенхауэра.',
-        topList ? `Рекомендую начать со следующих пунктов:\n${topList}` : 'Совет: начните с 25-минутной фокус-сессии Помодоро в разделе «Виджеты».'
-      ],
-      kpis: [
-        { label: 'В работе', val: String(openTasks.length), sub: 'Активных задач на доске' },
-        { label: 'Приоритетных', val: String(urgentTasks.length), sub: 'Критично и срочно' },
-        { label: 'Выполнено', val: String(workTasks().length - openTasks.length), sub: 'Закрыто на доске' }
-      ],
-      actions: [
-        { label: 'Открыть доску задач', icon: 'tasks', act: 'page', page: 'tasks' },
-        { label: 'Запустить Помодоро', icon: 'timer', act: 'page', page: 'widgets' }
-      ],
-      follow: [
-        'Сделай сводку по защите браузера и моим открытым вкладкам',
-        'Проверь состояние моей приватности и надёжности паролей'
-      ]
-    };
-  }
-
-  if (/парол|приватн|щит|безопасн|утеч|cookie|трекер|защит/i.test(ql) && !/вкладк/i.test(ql)) {
-    return {
-      mode: T.dt && T.dt.deepMode ? 'Аудит защиты · Local' : 'Быстрый ответ · Local',
-      steps: [
-        'Проверяю активные контуры защиты SHELTER (трекеры, HTTPS, анти-отпечаток, строгий режим)',
-        `Анализирую хранилище паролей (${S.passwords.length} записей) на предмет слабых комбинаций`,
-        'Формирую рекомендации по усилению безопасности'
-      ],
-      paragraphs: [
-        `Контур приватности активен на ${shieldsOn} из ${PROFILE_PRIVACY_PROTECTIONS.length} щитов. Сегодня заблокировано ${fmtN(blockedToday)} рекламных и трекинговых запросов, DNS работает через шифрованный канал (${dnsLabel()}).`,
-        weakPw > 0
-          ? `В менеджере паролей обнаружено ${weakPw} ${plural(weakPw, ['слабый пароль', 'слабых пароля', 'слабых паролей'])}. Рекомендую перейти в «Пароли» и нажать «Усилить», чтобы заменить их криптостойкими ключами.`
-          : `Все ${S.passwords.length} сохранённых паролей имеют высокую криптостойкость — уязвимых записей не найдено.`
-      ],
-      kpis: [
-        { label: 'Щиты приватности', val: `${shieldsOn}/${PROFILE_PRIVACY_PROTECTIONS.length}`, sub: S.ghost ? 'Режим «Призрак» включён' : 'Стандартный контур' },
-        { label: 'Блокировок сегодня', val: fmtN(blockedToday), sub: 'Трекеры и фингерпринтинг' },
-        { label: 'Слабые пароли', val: String(weakPw), sub: `Из ${S.passwords.length} сохранённых` }
-      ],
-      actions: [
-        { label: 'Открыть Пароли', icon: 'key', act: 'page', page: 'passwords' },
-        { label: 'Сертификаты РФ', icon: 'award', act: 'page', page: 'certs' }
-      ],
-      follow: [
-        'Проанализируй мои открытые задачи и предложи план на сегодня',
-        'Сделай сводку по защите браузера и моим открытым вкладкам'
-      ]
-    };
-  }
-
-  if (/сводк|браузер|вкладк|пространств|статистик/i.test(ql)) {
-    const spNames = Object.values(S.spaces || {}).map(s => `${s.name} (${(s.tabs || []).length})`).join(', ');
-    return {
-      mode: T.dt && T.dt.deepMode ? 'Глубокий разбор · Local' : 'Быстрый ответ · Local',
-      steps: [
-        'Собираю статистику по открытым пространствам и вкладкам',
-        'Сверяю дневной журнал блокировок трекеров и телеметрии',
-        'Подготавливаю сводную панель состояния браузера'
-      ],
-      paragraphs: [
-        `Сейчас в SHELTER открыто ${totalTabs} ${plural(totalTabs, ['вкладка', 'вкладки', 'вкладок'])} в пространствах: ${spNames}. Активное пространство — «${curSpace().name}».`,
-        `За сегодняшний день фильтр отсёк ${fmtN(blockedToday)} трекеров. В закладках сохранено ${S.bookmarks.length} быстрых переходов, а в задачах открыто ${openTasks.length} ${plural(openTasks.length, ['пункт', 'пункта', 'пунктов'])}.`
-      ],
-      kpis: [
-        { label: 'Открыто вкладок', val: String(totalTabs), sub: `Пространство «${curSpace().name}»` },
-        { label: 'Отражено трекеров', val: fmtN(blockedToday), sub: 'За сегодняшний день' },
-        { label: 'Закладки', val: String(S.bookmarks.length), sub: 'В коллекции SHELTER' }
-      ],
-      actions: [
-        { label: 'Открыть Дашборд', icon: 'grid', act: 'page', page: 'dashboard' },
-        { label: 'Все вкладки', icon: 'layers', act: 'page', page: 'tabs' }
-      ],
-      follow: [
-        'Проанализируй мои открытые задачи и предложи план на сегодня',
-        'Проверь состояние моей приватности и надёжности паролей'
-      ]
-    };
-  }
-
-  return {
-    mode: T.dt && T.dt.deepMode ? 'Глубокий разбор · Local' : 'Быстрый ответ · Local',
-    steps: [
-      `Анализирую запрос «${q.slice(0, 70)}${q.length > 70 ? '…' : ''}»`,
-      'Проверяю локальный контекст браузера (вкладки, закладки, история, задачи)',
-      'Формулирую структурированный ответ и быстрые действия'
-    ],
-    paragraphs: [
-      `По вашему запросу «${q}»: в локальном контуре SHELTER я подготовил ключевую выжимку и сопоставил её с вашим текущим рабочим окружением (${totalTabs} открытых вкладок, ${openTasks.length} активных задач в работе).`,
-      `Если вам нужен живой веб-поиск без трекеров — нажмите кнопку поиска в ${ENGINES[S.engine].name} ниже, либо подключите внешний LLM API (OpenAI, Claude, DeepSeek или локальную модель Ollama) кнопкой «Подключить API» для генерации развёрнутых ответов по любым внешним знаниям.`
-    ],
-    kpis: [
-      { label: 'Режим ответа', val: S.ai && S.ai.baseUrl ? (S.ai.model || 'API') : 'Local AI', sub: 'Нулевая телеметрия' },
-      { label: 'Контекст сессии', val: `${totalTabs} вкл.`, sub: `Пространство «${curSpace().name}»` },
-      { label: 'Поисковый шлюз', val: ENGINES[S.engine].name, sub: 'Без cookies и отпечатка' }
-    ],
-    actions: [
-      { label: 'Искать в ' + ENGINES[S.engine].name, icon: 'search', act: 'searchIn', engine: S.engine, q },
-      { label: 'Подключить API', icon: 'sparkles', act: 'agentApi' }
-    ],
-    follow: [
-      'Сделай сводку по защите браузера и моим открытым вкладкам',
-      'Проанализируй мои открытые задачи и предложи план на сегодня'
-    ]
-  };
-}
-function dtThreadItemHtml(th, activeId) {
-  const act = th.id === activeId;
-  const last = (th.messages && th.messages[th.messages.length - 1]) || null;
-  const sub = last ? (last.role === 'user' ? 'Вы: ' + last.text : (last.paragraphs && last.paragraphs[0]) || last.text || 'Ответ готов') : 'Пустой диалог';
-  return `<div class="dt-thread-wrap ${act ? 'active' : ''}">
-    <button type="button" class="dt-thread ${act ? 'active' : ''}" data-act="dtOpen" data-id="${esc(th.id)}">
-      <span class="dt-thread-ico">${ico(th.pinned ? 'pin' : 'chat')}</span>
-      <span class="dt-thread-text"><b>${esc(th.title || 'Новый диалог')}</b><small>${esc(sub)}</small></span>
-      <span class="dt-thread-dot"></span>
-    </button>
-    <button type="button" class="dt-thread-menu" data-act="dtThreadMenu" data-id="${esc(th.id)}" aria-label="Меню диалога">${ico('dots')}</button>
-  </div>`;
-}
-function dtThreadsHtml() {
-  const st = dtState();
-  const q = (st.q || '').trim().toLowerCase();
-  const all = (S.ui.dtThreads || []).filter(th => {
-    if (!q) return true;
-    if ((th.title || '').toLowerCase().includes(q)) return true;
-    return (th.messages || []).some(m => String(m.text || (m.paragraphs || []).join(' ')).toLowerCase().includes(q));
-  });
-  if (!all.length) {
-    return `<div class="dt-rail-empty">${ico('search')}<span>Диалоги не найдены</span></div>`;
-  }
-  const pinned = all.filter(x => x.pinned);
-  const rest = all.filter(x => !x.pinned);
-  let out = '';
-  if (pinned.length) {
-    out += `<div class="dt-group-label">Закреплённые</div>` + pinned.map(x => dtThreadItemHtml(x, st.activeId)).join('');
-  }
-  if (rest.length) {
-    out += `<div class="dt-group-label">${pinned.length ? 'Недавние' : 'Диалоги'}</div>` + rest.map(x => dtThreadItemHtml(x, st.activeId)).join('');
-  }
-  return out;
-}
-function dtMessageHtml(msg) {
-  if (msg.role === 'user') {
-    return `<div class="dt-user-row"><div class="dt-user-bubble">${esc(msg.text)}</div></div>`;
-  }
-  if (msg.thinking) {
-    return `<div class="dt-answer rise">
-      <div class="dt-answer-head"><span class="dt-ai-mark">${ico('sparkles')}</span><b>SHELTER AI</b><span class="dt-answer-mode">Думает…</span><time>${hm(msg.at || Date.now())}</time></div>
-      <div class="dt-answer-body" style="padding:10px 0 4px"><div class="think"><i></i><i></i><i></i><span class="muted" style="margin-left:10px;font-size:12.5px">Анализирую запрос…</span></div></div>
-    </div>`;
-  }
-  const stepsHtml = (msg.steps && msg.steps.length)
-    ? `<details class="dt-steps"><summary>${ico('chev-r')}<span>Ход рассуждений (${msg.steps.length} ${plural(msg.steps.length, ['шаг', 'шага', 'шагов'])})</span></summary><ol>${msg.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></details>`
-    : '';
-  const paras = (msg.paragraphs && msg.paragraphs.length ? msg.paragraphs : String(msg.text || '').split(/\n{2,}/)).filter(Boolean);
-  const bodyHtml = paras.map(p => `<p class="dt-answer-p">${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
-  const kpisHtml = (msg.kpis && msg.kpis.length)
-    ? `<div class="dt-kpis">${msg.kpis.map(k => `<div class="dt-kpi"><small>${esc(k.label)}</small><b>${esc(k.val)}</b><span>${esc(k.sub || '')}</span></div>`).join('')}</div>`
-    : '';
-  const actsHtml = (msg.actions && msg.actions.length)
-    ? `<div class="dt-actions">${msg.actions.map(a => `<button type="button" class="btn sm" data-act="${esc(a.act)}" ${a.page ? `data-page="${esc(a.page)}"` : ''} ${a.engine ? `data-engine="${esc(a.engine)}"` : ''} ${a.q ? `data-q="${esc(a.q)}"` : ''}>${ico(a.icon || 'arrow-ur')}<span>${esc(a.label)}</span></button>`).join('')}</div>`
-    : '';
-  const followHtml = (msg.follow && msg.follow.length)
-    ? `<div class="dt-follow">${msg.follow.map(f => `<button type="button" data-act="dtPrompt" data-q="${esc(f)}">${ico('sparkles')}<span>${esc(f)}</span></button>`).join('')}</div>`
-    : '';
-  const copyPayload = paras.join('\n\n');
-  return `<div class="dt-answer rise" data-msg-id="${esc(msg.id)}">
-    <div class="dt-answer-head">
-      <span class="dt-ai-mark">${ico('sparkles')}</span>
-      <b>SHELTER AI</b>
-      <span class="dt-answer-mode">${esc(msg.mode || 'Local')}</span>
-      <time>${hm(msg.at || Date.now())}</time>
-    </div>
-    ${stepsHtml}
-    <div class="dt-answer-body">${bodyHtml}${kpisHtml}${actsHtml}</div>
-    ${followHtml}
-    <div class="dt-answer-tools">
-      <button type="button" class="dt-mini" data-act="dtCopy" data-text="${esc(copyPayload)}" data-tip="Скопировать ответ" aria-label="Скопировать ответ">${ico('copy')}</button>
-      <button type="button" class="dt-mini" data-act="dtRetry" data-id="${esc(msg.id)}" data-tip="Сгенерировать заново" aria-label="Сгенерировать заново">${ico('ref')}</button>
-      <button type="button" class="dt-mini" data-act="searchIn" data-engine="${S.engine}" data-q="${esc(msg.prompt || paras[0] || '')}" data-tip="Искать в ${esc(ENGINES[S.engine].name)}" aria-label="Искать в поисковике">${ico('search')}</button>
-    </div>
-  </div>`;
-}
-function dtConversationHtml() {
-  const th = dtActiveThread();
-  if (!th || !th.messages || !th.messages.length) {
-    return `<div class="dt-welcome rise">
-      <div class="dt-welcome-mark">${ico('sparkles')}</div>
-      <div class="dt-eyebrow">SHELTER INTELLIGENCE</div>
-      <h1>Чем помочь сегодня?</h1>
-      <p>Локальный AI-ассистент браузера: разбирает задачи, вкладки и защиту без передачи данных на внешние серверы.</p>
-    </div>`;
-  }
-  return `<div class="dt-message-list" id="dtMsgList">${th.messages.map(dtMessageHtml).join('')}</div>`;
-}
-RENDER.deepthink = m => {
-  const st = dtState();
-  const th = dtActiveThread();
-  const apiConnected = !!(S.ai && S.ai.baseUrl);
-  const modelLabel = apiConnected ? (S.ai.model || 'API подключён') : 'Локальный движок SHELTER';
-  const fsCls = st.fs === 's' ? 'dt-fs-s' : st.fs === 'l' ? 'dt-fs-l' : '';
-  return `<div class="dt-app ${st.railCollapsed ? 'rail-collapsed' : ''} ${st.railOpen ? 'rail-open' : ''}" id="dtApp">
-    <aside class="dt-rail" aria-label="Диалоги Ассистента">
-      <div class="dt-rail-brand">
-        <span class="dt-brand-mark">${ico('sparkles')}</span>
-        <span><b>Ассистент</b><small>${esc(modelLabel)}</small></span>
-        <span class="dt-private" data-tip="Локальная защита контекста">${ico('shield-check')}</span>
-        <button type="button" class="icon-btn dt-rail-min" data-act="dtRailCollapse" data-tip="${st.railCollapsed ? 'Развернуть панель' : 'Свернуть панель'}" aria-label="Свернуть или развернуть панель диалогов">
-          <span class="rn-min">${ico('sidebar')}</span>
-          <span class="rn-max">${ico('sidebar')}</span>
-        </button>
-      </div>
-      <button type="button" class="dt-new" data-act="dtNew" data-tip="Новый диалог">
-        ${ico('plus')}
-        <span>Новый диалог</span>
-        <span class="kbd">${kb('⌘N')}</span>
-      </button>
-      <label class="dt-thread-search">
-        ${ico('search')}
-        <input id="dtThreadQ" type="text" placeholder="Поиск диалогов…" value="${esc(st.q || '')}" autocomplete="off">
-      </label>
-      <div class="dt-thread-scroll" id="dtThreadList">${dtThreadsHtml()}</div>
-      <div class="dt-rail-foot">
-        <span class="dt-local-dot"></span>
-        <span>${apiConnected ? esc(S.ai.model || 'Внешний API') : 'Локально · без облака'}</span>
-        <button type="button" class="icon-btn" data-act="agentApi" data-tip="Настроить API" aria-label="Настроить API">${ico('gear')}</button>
-      </div>
-    </aside>
-    <div class="dt-rail-scrim" data-act="dtRailClose"></div>
-    <section class="dt-main">
-      <header class="dt-topbar">
-        <button type="button" class="dt-mobile-menu" data-act="dtRailOpen" aria-label="Открыть список диалогов">${ico('list')}</button>
-        <div class="dt-top-title">
-          <span class="dt-top-orb">${ico('chat')}</span>
-          <div>
-            <b id="dtTopTitle">${esc(th ? th.title : 'Новый диалог')}</b>
-            <small id="dtTopSub">${apiConnected ? 'Подключён по API · ключи на устройстве' : 'Локальный контур SHELTER · 0 байт во внешнюю сеть'}</small>
-          </div>
-        </div>
-        <div class="dt-top-actions">
-          <span class="dt-privacy-pill">${ico('shield-check')}<span>Приватный контур</span></span>
-          <button type="button" class="dt-mini dt-fs-btn" data-act="dtFontSize" data-tip="Размер текста ответа" aria-label="Размер текста">Аа</button>
-          <button type="button" class="btn sm" data-act="agentApi">${ico('sparkles')}<span>${apiConnected ? 'API настройки' : 'Подключить API'}</span></button>
-        </div>
-      </header>
-      <div class="dt-conversation ${fsCls}" id="dtConv">${dtConversationHtml()}</div>
-      <div class="dt-composer-area">
-        <div class="dt-composer-inner">
-          <div class="dt-omni-wrap">
-            <div class="omni dt-omni">
-              <div class="omni-body">
-                <textarea id="dtInput" rows="1" placeholder="Спросите Ассистента о задачах, вкладках, защите или любой теме…" spellcheck="false" aria-label="Сообщение Ассистенту"></textarea>
-                <div class="omni-row">
-                  <button type="button" class="opill ${st.deepMode ? 'lit' : ''}" id="dtModeBtn" data-act="dtModePill">${ico('bulb')}<span class="lb">${st.deepMode ? 'Глубокий разбор' : 'Быстрый ответ'}</span></button>
-                  <button type="button" class="opill ${apiConnected ? 'lit' : ''}" data-act="agentApi">${ico('sparkles')}<span class="lb">${esc(apiConnected ? (S.ai.model || 'API подключён') : 'SHELTER Local AI')}</span>${ico('chev', 'chev')}</button>
-                  <span class="dt-local-label">LOCAL SHIELD</span>
-                  <span class="sp"></span>
-                  <button type="button" class="send" data-act="dtSend" aria-label="Отправить">${ico('send')}</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="dt-composer-foot">
-            <span>${ico('shield-check')}Переписка и ключи хранятся исключительно на вашем устройстве</span>
-            <span>Enter — отправить · Shift+Enter — перенос строки</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>`;
-};
-function dtRefreshUI(scrollBottom = true) {
-  const list = $('#dtThreadList'), conv = $('#dtConv'), ttl = $('#dtTopTitle'), app = $('#dtApp');
-  const st = dtState(), th = dtActiveThread();
-  if (app) {
-    app.classList.toggle('rail-collapsed', !!st.railCollapsed);
-    app.classList.toggle('rail-open', !!st.railOpen);
-  }
-  if (list) list.innerHTML = dtThreadsHtml();
-  if (ttl && th) ttl.textContent = th.title || 'Новый диалог';
-  if (conv) {
-    conv.classList.toggle('dt-fs-s', st.fs === 's');
-    conv.classList.toggle('dt-fs-l', st.fs === 'l');
-    conv.innerHTML = dtConversationHtml();
-    if (scrollBottom) conv.scrollTop = conv.scrollHeight;
-  }
-}
-function dtSubmitPrompt(text) {
-  const q = String(text || '').trim();
-  if (!q) { const inp = $('#dtInput'); if (inp) inp.focus(); return; }
-  const st = dtState();
-  let th = dtActiveThread();
-  if (!th) {
-    th = { id: uid('dt'), title: q.slice(0, 48), pinned: false, at: Date.now(), messages: [] };
-    S.ui.dtThreads.unshift(th);
-    st.activeId = th.id;
-  }
-  if (!th.messages.length || th.title === 'Новый диалог') {
-    th.title = q.length > 48 ? q.slice(0, 48) + '…' : q;
-  }
-  th.at = Date.now();
-  const userMsg = { id: uid('dtm'), role: 'user', text: q, at: Date.now() };
-  const pendingId = uid('dtm');
-  const pendingMsg = { id: pendingId, role: 'assistant', thinking: true, prompt: q, at: Date.now() };
-  th.messages.push(userMsg, pendingMsg);
-  const inp = $('#dtInput');
-  if (inp) { inp.value = ''; autoGrow(inp); }
-  dtRefreshUI(true);
-  persist();
-
-  DT_CLEANUP();
-  const finishWith = payload => {
-    const idx = th.messages.findIndex(x => x.id === pendingId);
-    const ans = Object.assign({ id: pendingId, role: 'assistant', prompt: q, at: Date.now() }, payload);
-    if (idx >= 0) th.messages[idx] = ans;
-    else th.messages.push(ans);
-    persist();
-    dtRefreshUI(true);
-  };
-
-  if (S.ai && S.ai.baseUrl && NAT && typeof NAT.agentChat === 'function') {
-    Promise.resolve(NAT.agentChat(S.ai, q)).then(r => {
-      if (r && r.ok && r.text) {
-        finishWith({
-          mode: S.ai.model || 'API',
-          paragraphs: String(r.text).split(/\n{2,}/).filter(Boolean),
-          actions: [{ label: 'Искать в ' + ENGINES[S.engine].name, icon: 'search', act: 'searchIn', engine: S.engine, q }]
-        });
-      } else {
-        const local = dtBuildLocalReply(q);
-        local.paragraphs.unshift('Внешний API вернул ошибку (' + ((r && r.error) || 'нет ответа') + '), поэтому ответ сформирован локальным движком SHELTER AI:');
-        finishWith(local);
-      }
-    }).catch(() => {
-      const local = dtBuildLocalReply(q);
-      finishWith(local);
-    });
-    return;
-  }
-
-  st.timer = setTimeout(() => {
-    st.timer = 0;
-    finishWith(dtBuildLocalReply(q));
-  }, REDUCED() ? 60 : 340);
-}
-function dtNewThread(initialPrompt = '') {
-  const st = dtState();
-  const existingEmpty = (S.ui.dtThreads || []).find(t => !t.messages || !t.messages.length);
-  if (existingEmpty && !initialPrompt) {
-    st.activeId = existingEmpty.id;
-    st.railOpen = false;
-    dtRefreshUI(true);
-    const inp = $('#dtInput'); if (inp) inp.focus();
-    return;
-  }
-  const th = { id: uid('dt'), title: initialPrompt ? initialPrompt.slice(0, 48) : 'Новый диалог', pinned: false, at: Date.now(), messages: [] };
-  S.ui.dtThreads.unshift(th);
-  st.activeId = th.id;
-  st.railOpen = false;
-  persist();
-  dtRefreshUI(true);
-  if (initialPrompt) dtSubmitPrompt(initialPrompt);
-  else { const inp = $('#dtInput'); if (inp) inp.focus(); }
-}
-function dtThreadMenu(anchor) {
-  const id = anchor.dataset.id;
-  const th = (S.ui.dtThreads || []).find(x => x.id === id);
-  if (!th) return;
-  openMenu(anchor, [
-    { label: th.pinned ? 'Открепить диалог' : 'Закрепить диалог', icon: 'pin', run: () => { th.pinned = !th.pinned; persist(); dtRefreshUI(false); } },
-    { label: 'Переименовать…', icon: 'pencil', run: async () => {
-      const v = await promptDlg({ title: 'Переименовать диалог', value: th.title || '', ok: 'Сохранить' });
-      if (v && v.trim()) { th.title = v.trim(); persist(); dtRefreshUI(false); }
-    } },
-    { label: 'Очистить сообщения', icon: 'undo', run: () => { th.messages = []; persist(); dtRefreshUI(true); } },
-    '-',
-    { label: 'Удалить диалог', icon: 'trash', danger: true, run: () => {
-      S.ui.dtThreads = (S.ui.dtThreads || []).filter(x => x.id !== id);
-      if (!S.ui.dtThreads.length) S.ui.dtThreads = dtSeedThreads();
-      const st = dtState();
-      if (st.activeId === id) st.activeId = S.ui.dtThreads[0].id;
-      persist();
-      dtRefreshUI(true);
-    } }
-  ], { place: 'bottom-end' });
-}
-AFTER.deepthink = m => {
-  const st = dtState();
-  const qIn = $('#dtThreadQ');
-  if (qIn) qIn.addEventListener('input', e => {
-    st.q = e.target.value;
-    const list = $('#dtThreadList');
-    if (list) list.innerHTML = dtThreadsHtml();
-  });
-  const ta = $('#dtInput');
-  if (ta) {
-    ta.addEventListener('input', () => autoGrow(ta));
-    ta.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-        e.preventDefault();
-        dtSubmitPrompt(ta.value);
-      }
-    });
-  }
-  const incomingQ = String((m && m.q) || '').trim();
-  if (incomingQ && st.lastHandledQuery !== incomingQ) {
-    st.lastHandledQuery = incomingQ;
-    dtNewThread(incomingQ);
-  } else {
-    const conv = $('#dtConv');
-    if (conv) conv.scrollTop = conv.scrollHeight;
-  }
-};
+// AI is intentionally unavailable in this build: no prompts are collected or sent.
+RENDER.deepthink = () => `<div class="page narrow"><div class="page-h"><div class="ttl"><div class="page-title">AI-ассистент</div><div class="page-sub">Функция пока не подключена</div></div></div><div class="set-card" style="padding:16px;line-height:1.6">AI-сервис не подключён. Запросы с этой страницы не отправляются, ответы не генерируются.</div></div>`;
+AFTER.deepthink = () => {};
 
 /* =========================================================
    НАСТРОЙКИ
@@ -8902,11 +8347,12 @@ function openSettings(sec) {
     <nav class="set-nav"><h3>Настройки</h3><label class="search-in">${ico('search')}<input class="input" id="setQ" placeholder="Поиск настроек" autocomplete="off"></label>${SET_SECTIONS.map((s, i) => `<button data-sec="${s[0]}" class="${i === 0 ? 'on' : ''}">${ico(s[2])}${s[1]}</button>`).join('')}</nav>
     <div class="set-pane"><header class="set-head" aria-hidden="true"></header>
     <div class="set-body" id="setBody">
+      <div role="status" class="set-card" style="margin:0 0 16px;padding:14px 16px;border:1px solid color-mix(in srgb,#E5A93D 42%,var(--line));background:color-mix(in srgb,#E5A93D 8%,var(--card));font-size:12px;line-height:1.6"><b style="color:#C48A22">Статус функций этой сборки</b><br>Подключены реальные сайты, вкладки, адрес/поиск, навигация, история, закладки и загрузки. Многие другие переключатели и разделы ниже пока являются макетами. Не работают как защита или системные функции: блокировка рекламы и трекеров, отдельный приватный профиль, принудительный HTTPS/DoH, анти-отпечаток, менеджер паролей, расширения, AI, синхронизация и дополнительные сертификаты. Также в текущей сборке отключён Chromium sandbox — это прототип, который не следует использовать для чувствительных данных.</div>
       <section class="set-sec" id="set-general"><h4>Общие</h4><div class="set-card">
-        ${row('Браузер по умолчанию', 'Открывать ссылки из других приложений в SHELTER', btn('default', 'Назначить'))}
+        ${row('Браузер по умолчанию · не подключено', 'Назначение SHELTER браузером по умолчанию пока недоступно', btn('default', 'Недоступно'))}
         ${row('При запуске', 'Что показывать при открытии окна', segHtml('startup', [['ntp', 'Экспресс-панель'], ['restore', 'Прошлые вкладки']], P.startup, 'sm'))}
-        ${row('Спрашивать, куда сохранять файлы', '', sw('askDownload'))}
-        ${row('Проверять обновления', 'Версия ' + VERSION + ' · ' + PLAT_NAME, sw('checkUpdates'))}
+        ${row('Спрашивать, куда сохранять файлы', 'В этой сборке всегда показывается подтверждение загрузки', sw('askDownload'))}
+        ${row('Проверять обновления · демо', 'Автоматический поиск обновлений не подключён · ' + VERSION + ' · ' + PLAT_NAME, sw('checkUpdates'))}
       </div></section>
       <section class="set-sec" id="set-look"><h4>Внешний вид</h4>
         <div class="theme-cards">${THEME_ORDER.map(k => { const t = THEMES[k]; return `<button class="tcard ${k === S.theme ? 'on' : ''}" data-act="theme" data-theme="${k}" style="--p-bg:${t.sw[0]};--p-a:${t.sw[1]};--p-b:${t.sw[2]};--p-bar:${t.bar}"><div class="tprev"><i></i></div><b>${t.name}</b><small>${t.kind}</small></button>`; }).join('')}</div>
@@ -8940,7 +8386,7 @@ function openSettings(sec) {
         ${row('Чистый серфинг', 'Голый браузер: пространства, вкладки, закладки и защита — без украшений и допов; остаётся выбор тем', sw('cleanSurf'))}
         <div class="set-row"><div class="tx"><b>Профиль интерфейса</b><span id="persHint">Готовый набор элементов — или всё вручную ниже</span></div><select class="select" id="persSelect" aria-label="Профиль интерфейса">${persOptionsHtml()}</select></div>
         <div class="set-row"><div class="tx"><b>Свой пресет</b><span>Сохранить текущие переключатели под своим именем</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="input" id="persName" placeholder="Название пресета" maxlength="40" hidden style="height:30px;width:180px;border-radius:9px;font-size:12px;padding:0 10px"><button class="btn sm" data-set="pers-save" id="persSaveBtn">Сохранить…</button><button class="btn sm ghost" data-set="pers-del" id="persDelBtn" hidden>Удалить</button></div></div>
-        ${row('Адаптация в меню «...»', 'Эмуляция экрана: ПК / Планшет / Мобильная', sw('menuAdapt'))}
+        ${row('Размер области просмотра', 'Меняет ширину интерфейса, но не User-Agent и не профиль мобильного устройства', sw('menuAdapt'))}
         ${row('Инструменты разработчика в меню «...»', `Пункт DevTools ${kb('⌥⌘I')} в меню`, sw('menuDev'))}
         ${row('Масштаб страницы в меню «...»', 'Ползунок масштаба и сброс к 100 %', sw('menuZoom'))}
         ${row('Кнопка «Анимации и вкладки»', 'Панель инструментов слева от меню «...»', sw('tbQuick'))}
@@ -8956,37 +8402,37 @@ function openSettings(sec) {
       </div></section>
       <section class="set-sec" id="set-search"><h4>Поиск</h4><div class="set-card">
         ${row('Поисковая система', '', segHtml('engineSet', Object.keys(ENGINES).map(k => [k, ENGINES[k].name]), S.engine, 'sm'))}
-        ${row('AI-ассистент по умолчанию', 'Запросы из строки уходят AI-ассистенту', sw('deep'))}
+        ${row('AI-режим · не подключён', 'AI-сервис и отправка запросов недоступны в этой сборке', sw('deep'))}
         ${row('Подсказки из истории и закладок', '', sw('suggestHistory'))}
-        ${row('AI-ассистент', 'Подключение по API — ключ хранится только на устройстве', btn('agent', S.ai ? 'Изменить…' : 'Подключить…'))}
+        ${row('AI-ассистент · не подключён', 'AI-сервис и отправка запросов недоступны', '<button class="btn sm" disabled aria-disabled="true">Не подключено</button>')}
       </div></section>
       <section class="set-sec" id="set-privacy"><h4>Приватность</h4><div class="set-card">
-        ${row('Режим «Призрак»', kb('Сессия только в оперативной памяти · ⌘⇧P'), sw('ghost'))}
-        ${row('Блокировка трекеров и рекламы', 'EasyList, EasyPrivacy, CNAME-клоакинг', sw('trackers'))}
-        ${row('HTTPS-only + DNS-over-HTTPS', 'Незашифрованные сайты открываются по запросу', sw('https'))}
-        ${row('Защита от цифрового отпечатка', 'Шум Canvas, WebGL, AudioContext', sw('fp'))}
-        ${row('Строгий режим', 'Сторонние скрипты — только по разрешению', sw('strict'))}
-        ${row('Удалить сессии', 'История, cookies, кэш и вкладки', btn('fire', ico('flame') + 'Удалить', 'danger'))}
+        ${row('Режим «Призрак» · прототип', 'Скрывает просмотры из локальной истории SHELTER, но не изолирует cookies и сессии сайтов', sw('ghost'))}
+        ${row('Блокировка трекеров и рекламы · не подключено', 'Фильтрация сетевых запросов не реализована', sw('trackers'))}
+        ${row('HTTPS-only + DNS-over-HTTPS · не подключено', 'Автоматический HTTPS и шифрованный DNS не реализованы', sw('https'))}
+        ${row('Защита от цифрового отпечатка · не подключено', 'Canvas, WebGL и параметры браузера не изменяются', sw('fp'))}
+        ${row('Строгий режим · не подключено', 'Разрешения на сторонние скрипты не управляются', sw('strict'))}
+        ${row('Очистить данные SHELTER', 'Очищает локальную историю и закрывает незакреплённые вкладки; cookies и кэш сохраняются', btn('fire', ico('flame') + 'Очистить', 'danger'))}
       </div></section>
-      <section class="set-sec" id="set-ruca"><h4>Сертификаты РФ</h4><div class="set-card">
-        ${row('Доверять НУЦ Минцифры', 'Только для доменов из списка', sw('ruca'))}
-        ${row('Автообновление списка', 'Раз в 7 дней, с подписью', sw('rucaupd'))}
-        ${row('Значок «ГОСТ»', 'В адресной строке и сведениях о соединении', sw('gostbadge'))}
-        ${row('Цепочка и домены', RU_CA.length + ' доменов', btn('certs', 'Открыть'))}
+      <section class="set-sec" id="set-ruca"><h4>Сертификаты РФ · демо</h4><div class="set-card">
+        ${row('Доверие к сертификатам · не подключено', 'Не меняет системное хранилище доверия', sw('ruca'))}
+        ${row('Автообновление списка · не подключено', 'Загрузка и проверка списка не реализованы', sw('rucaupd'))}
+        ${row('Значок «ГОСТ» · демо', 'Не является проверкой сертификата соединения', sw('gostbadge'))}
+        ${row('Цепочка и домены · демо', RU_CA.length + ' примеров · не используется для проверки соединения', btn('certs', 'Открыть'))}
       </div></section>
-      <section class="set-sec" id="set-ext"><h4>Расширения</h4><div class="set-card">
-        ${row('Установлено', S.ext.length + ' ' + plural(S.ext.length, ['расширение', 'расширения', 'расширений']) + ' · включено ' + S.ext.filter(e => e.on).length, btn('exts', 'Управлять'))}
+      <section class="set-sec" id="set-ext"><h4>Расширения · демо</h4><div class="set-card">
+        ${row('Каталог расширений не подключён', 'Переключатели не устанавливают и не запускают расширения', btn('exts', 'Открыть макет'))}
       </div></section>
       <section class="set-sec" id="set-net"><h4>Сеть</h4><div class="set-card">
-        ${row('DNS-over-HTTPS', 'Провайдер шифрованного DNS', `<select class="select" id="setDns"><option value="cf" ${P.dns === 'cf' ? 'selected' : ''}>Cloudflare · 1.1.1.1</option><option value="google" ${P.dns === 'google' ? 'selected' : ''}>Google · 8.8.8.8</option><option value="quad9" ${P.dns === 'quad9' ? 'selected' : ''}>Quad9 · 9.9.9.9</option><option value="sys" ${P.dns === 'sys' ? 'selected' : ''}>Системный</option></select>`)}
-        ${row('Прокси', IS_MAC ? 'Системные настройки macOS' : 'Системные настройки Windows', btn('proxy', 'Открыть'))}
+        ${row('DNS-over-HTTPS · не подключено', 'Выбор ниже меняет только подпись в интерфейсе', `<select class="select" id="setDns"><option value="cf" ${P.dns === 'cf' ? 'selected' : ''}>Cloudflare · 1.1.1.1</option><option value="google" ${P.dns === 'google' ? 'selected' : ''}>Google · 8.8.8.8</option><option value="quad9" ${P.dns === 'quad9' ? 'selected' : ''}>Quad9 · 9.9.9.9</option><option value="sys" ${P.dns === 'sys' ? 'selected' : ''}>Системный</option></select>`)}
+        ${row('Прокси · не подключено', 'Эта кнопка не открывает системные настройки', btn('proxy', 'Недоступно'))}
       </div></section>
       <section class="set-sec" id="set-lang"><h4>Язык</h4><div class="set-card">
         ${row('Язык интерфейса', 'Проверка орфографии: русский, английский', segHtml('lang', [['ru', 'Русский'], ['en', 'English']], P.lang, 'sm'))}
       </div></section>
       <section class="set-sec" id="set-data"><h4>Данные</h4><div class="set-card">
         ${row('Экспорт данных', 'Пространства, закладки, история и задачи в JSON', btn('export', ico('upload') + 'Экспорт'))}
-        ${row('Демо-данные', 'Помечены отдельно и не смешиваются с вашими', btn('demo-reset', 'Обновить') + btn('demo-clear', 'Удалить', 'ghost'))}
+        ${row('Демо-данные · отключены', 'Синтетические визиты, загрузки и записи не создаются', '<span class="chip down">Отключено</span>')}
         ${row('Сбросить SHELTER', 'Вернуть настройки и данные к исходным', btn('reset', 'Сбросить…', 'danger'))}
       </div></section>
       <section class="set-sec" id="set-keys"><h4>Горячие клавиши</h4><div class="set-card" style="padding:4px 16px 8px">${kbdGrid()}</div></section>
@@ -9006,21 +8452,19 @@ function openSettings(sec) {
     if (a === 'close') closeModal(m);
     else if (a === 'zoom-') setZoom(S.ui.zoom - 10);
     else if (a === 'zoom+') setZoom(S.ui.zoom + 10);
-    else if (a === 'default') toast('SHELTER — браузер по умолчанию', { icon: 'check' });
-    else if (a === 'agent') { agentDlg().then(() => { b.textContent = S.ai ? 'Изменить…' : 'Подключить…'; }); }
-    else if (a === 'proxy') toast('Откройте «Системные настройки → Сеть → Прокси»', { icon: 'wifi' });
+    else if (a === 'default') toast('Назначение браузером по умолчанию не подключено', { icon: 'info' });
+    else if (a === 'agent') toast('Подключение AI-сервиса не реализовано. Не вводите здесь API-ключи.', { icon: 'info' });
+    else if (a === 'proxy') toast('Настройка прокси не подключена в этой сборке', { icon: 'info' });
     else if (a === 'fire') { closeModal(m); fire(); }
     else if (a === 'certs') { closeModal(m); openPage('certs'); }
     else if (a === 'exts') { closeModal(m); openPage('extensions'); }
     else if (a === 'export') downloadFile('shelter-backup-' + dayKey(Date.now()) + '.json', JSON.stringify({ app: 'SHELTER', version: VERSION, spaces: S.spaces, bookmarks: S.bookmarks, visits: S.visits, board: S.board, prefs: S.prefs }, null, 2));
-    else if (a === 'demo-reset') { clearDemo(); seedDemo(); saveNow(); renderAll(); toast('Демо-данные обновлены', { icon: 'ref' }); }
-    else if (a === 'demo-clear') { clearDemo(); saveNow(); renderAll(); toast('Демо-данные удалены', { icon: 'trash' }); }
     else if (a === 'reset') { if (await confirmDlg({ title: 'Сбросить SHELTER?', text: 'Все пространства, вкладки, история и настройки вернутся к исходным.', ok: 'Сбросить', danger: true, icon: 'undo' })) { ['theme', 'ghost', 'searchEngine', 'spaces', 'currentSpace', 'activeTabId', 'bookmarks', 'visits', 'board', 'boards', 'ext', 'lux', 'ai'].forEach(k => store.del('shelter:' + k)); location.reload(); } }
     else if (a === 'pers-save') persSave();
     else if (a === 'pers-del') persDel();
-    else if (a === 'update') { b.disabled = true; b.innerHTML = '<span class="think"><i></i><i></i><i></i></span>'; setTimeout(() => { b.disabled = false; b.textContent = 'Проверить обновления'; toast('У вас последняя версия — ' + VERSION, { icon: 'check' }); }, 1300); }
+    else if (a === 'update') toast('Проверка обновлений не подключена', { icon: 'info' });
   });
-  $('#setDns', root).addEventListener('change', e => { S.prefs.dns = e.target.value; persist(); renderHeroFoot(); toast('DoH: ' + dnsLabel(), { icon: 'server' }); });
+  $('#setDns', root).addEventListener('change', e => { S.prefs.dns = e.target.value; persist(); renderHeroFoot(); toast('Подпись DNS изменена: ' + dnsLabel() + ' · DNS-over-HTTPS не подключён', { icon: 'server' }); });
   const pSelEl = $('#persSelect', root);
   if (pSelEl) { pSelEl.value = persDetect(); pSelEl.addEventListener('change', e => persPick(e.target.value)); persSyncUi(); }
   const pNameEl = $('#persName', root);
@@ -9209,7 +8653,7 @@ const COMMANDS = () => [
   { icon: 'ghost', label: S.ghost ? 'Выключить «Призрак»' : 'Включить «Призрак»', kbd: '⌘⇧P', kw: 'инкогнито приват ghost', run: () => toggleGhost() },
   { icon: 'flame', label: 'Удалить сессии', kw: 'очистить сжечь fire', run: fire },
   { icon: 'grid', label: 'Дашборд', kw: 'статистика', run: () => openPage('dashboard') },
-  { icon: 'chat', label: 'Ассистент', kw: 'ai ии чат deepthink помощник', run: () => openPage('deepthink') },
+  { icon: 'chat', label: 'AI-ассистент · не подключён', kw: 'ai ии чат deepthink помощник', run: () => openPage('deepthink') },
   { icon: 'history', label: 'История', kbd: '⌘Y', run: () => openPage('history') },
   { icon: 'bookmark', label: 'Закладки', run: () => openPage('bookmarks') },
   { icon: 'timer', label: 'Виджеты', kw: 'виджеты помодоро вк телемост', run: () => openPage('widgets') },
@@ -9230,7 +8674,6 @@ function paletteItems(q) {
   const ql = q.toLowerCase(), out = [], match = (...s) => !ql || s.some(x => String(x || '').toLowerCase().includes(ql));
   if (q) {
     out.push({ g: 'Перейти', icon: isUrl(q) ? 'globe' : 'search', label: isUrl(q) ? 'Открыть ' + q : 'Искать «' + q + '»', hint: isUrl(q) ? '' : ENGINES[S.engine].name, run: () => navigate(q) });
-    if (!isUrl(q)) out.push({ g: 'Перейти', icon: 'bulb', label: 'Спросить AI-ассистента', hint: q, run: () => navigate('shelter.dev/deepthink?q=' + encodeURIComponent(q)) });
   }
   let n = 0;
   (q ? Object.keys(S.spaces) : [S.currentSpace]).forEach(k => S.spaces[k].tabs.forEach(t => { if (n < 7 && match(t.title, t.url)) { n++; out.push({ g: 'Вкладки', lead: favHtml(t, 'md'), label: t.title, hint: S.spaces[k].name, run: () => { if (k !== S.currentSpace) { S.currentSpace = k; renderSpaceRow(); } activateTab(t.id); } }); } }));
@@ -9300,6 +8743,10 @@ function tabFind(id) {
 /* 1.0.144: панель DevTools — настоящий Chromium DevTools через main (setDevToolsWebContents);
    в вебе/демо — заглушка внутренней страницы (webviewForTab/IPC недоступны). */
 function toggleDevtools(force, opts) {
+  if (window.shelterCef && window.shelterCef.isCef) {
+    toast('Встроенные инструменты разработчика пока не подключены', { icon: 'info' });
+    return;
+  }
   const st = $('#stage'), open = typeof force === 'boolean' ? force : !st.classList.contains('dt-open');
   const winMode = !!(opts && opts.window);
   if (open) DT.ownerTab = S.activeTabId;
@@ -9412,6 +8859,7 @@ function dtPanelClose() {
 }
 function setDevice(v) {
   S.ui.device = v; persist();
+  if (v !== 'desktop') toast('Меняется размер области просмотра, но не User-Agent и не профиль мобильного устройства', { icon: 'info' });
   const st = $('#stage'); if (v === 'desktop') st.removeAttribute('data-device'); else st.setAttribute('data-device', v);
   $('#emuLabel').innerHTML = v === 'desktop' ? '' : `${ico(v === 'tablet' ? 'tablet' : 'phone-d')}${v === 'tablet' ? 'Планшет · 820 px' : 'Телефон · 390 px'}<button class="icon-btn" data-act="deviceOff" style="width:22px;height:22px" aria-label="Выключить эмуляцию">${ico('x')}</button>`;
   try { $$('[data-seg="device"]').forEach(g => setSegValue(g, v)); } catch (_) {}
@@ -9435,24 +8883,22 @@ function setZoom(z) {
    ========================================================= */
 function certPop(anchor) {
   const t = curTab(), m = urlMeta(t.url); let html;
-  if (m.kind === 'internal') html = `<div class="pop-h"><span class="ic" style="background:var(--card-3);color:var(--text)">${ico('shield-check')}</span><div><b>Страница SHELTER</b><span>shelter://${esc(m.page)} · локально</span></div></div><div class="kv"><span>Сеть</span><b>Не используется</b></div><div class="kv"><span>Данные</span><b>Только на устройстве</b></div><div class="kv"><span>Пространство</span><b>${esc(curSpace().name)}</b></div>`;
-  else if (m.kind === 'search') html = `<div class="pop-h"><span class="ic">${ico('search')}</span><div><b>Приватный поиск</b><span>${esc(ENGINES[m.engine].name)}</span></div></div><div class="kv"><span>Cookies поисковика</span><b>Не передаются</b></div><div class="kv"><span>Отпечаток</span><b>${S.prefs.fp ? 'Зашумлён' : 'Открыт'}</b></div><div class="kv"><span>DNS</span><b>DoH · ${dnsLabel()}</b></div>`;
-  else html = `<div class="pop-h"><span class="ic"${m.ru ? ' style="background:rgb(var(--info)/.12);color:rgb(var(--info))"' : ''}>${ico('lock')}</span><div><b>Соединение защищено</b><span>${esc(m.host)}</span></div></div>
-    <div class="kv"><span>Протокол</span><b>${m.ru && S.prefs.gostbadge ? 'TLS 1.3 · ГОСТ' : 'TLS 1.3 · X25519'}</b></div>
-    <div class="kv"><span>Сертификат</span><b>${m.ru ? 'Russian Trusted Sub CA' : 'Let’s Encrypt R11'}</b></div>
-    <div class="kv"><span>DNS</span><b>DoH · ${dnsLabel()}</b></div>
-    <div class="kv"><span>Трекеры</span><b class="num">${t.blocked || 0} заблокировано</b></div>
-    <div class="kv"><span>Cookies</span><b>«${esc(curSpace().name)}»</b></div>
+  if (m.kind === 'internal') html = `<div class="pop-h"><span class="ic" style="background:var(--card-3);color:var(--text)">${ico('shield-check')}</span><div><b>Страница SHELTER</b><span>shelter://${esc(m.page)} · локальный интерфейс</span></div></div><div class="kv"><span>Подключение</span><b>Локальная страница приложения</b></div><div class="kv"><span>Хранение интерфейса</span><b>В локальном профиле браузера</b></div>`;
+  else if (m.kind === 'search') html = `<div class="pop-h"><span class="ic">${ico('search')}</span><div><b>Веб-поиск</b><span>${esc(ENGINES[m.engine].name)} · внешний сайт</span></div></div><div class="kv"><span>Адрес</span><b>Запрос отправляется выбранной поисковой системе</b></div><div class="kv"><span>Защита SHELTER</span><b>Фильтрация не подключена</b></div>`;
+  else html = `<div class="pop-h"><span class="ic">${ico('lock')}</span><div><b>${/^https:/i.test(t.url) ? 'HTTPS-адрес' : 'Незашифрованный HTTP'}</b><span>${esc(m.host)}</span></div></div>
+    <div class="kv"><span>Проверка TLS</span><b>Выполняется Chromium; детали здесь не показаны</b></div>
+    <div class="kv"><span>Защита от трекеров</span><b>Не подключена</b></div>
+    <div class="kv"><span>DNS-over-HTTPS</span><b>Не подключён</b></div>
+    <div class="kv"><span>Профиль cookies</span><b>Общий профиль CEF · не разделён по пространствам</b></div>
     <div class="mh" style="padding:12px 2px 4px">Разрешения сайта</div>
-    ${[['camera', 'Камера'], ['mic', 'Микрофон'], ['map-pin', 'Геопозиция'], ['bell', 'Уведомления']].map(p => `<div class="kv"><span style="display:flex;align-items:center;gap:8px">${ico(p[0])}${p[1]}</span><b>Спрашивать</b></div>`).join('')}
-    ${m.ru ? `<button class="btn sm" style="width:100%;margin-top:10px" data-act="page" data-page="certs">${ico('award')}Цепочка сертификатов</button>` : ''}`;
+    <div class="kv"><span>Камера, микрофон и местоположение</span><b>Настройки Chromium</b></div>`;
   openMenu(anchor, null, { place: 'bottom-start', cls: 'pop', html });
 }
 function shieldPop(anchor) {
-  const t = curTab(), m = urlMeta(t.url), today = bsum(blocksDay(dayKey(Date.now())));
-  const html = `<div class="pop-h"><span class="ic">${ico('shield-check')}</span><div><b>Защита SHELTER</b><span>${m.kind === 'site' ? esc(m.host) : 'Все пространства'}</span></div></div>
-    <div style="display:flex;align-items:flex-end;gap:14px;padding:2px 2px 12px"><div><div class="big-n num">${fmtN(today)}</div><small class="muted">заблокировано сегодня</small></div><div style="margin-left:auto;text-align:right"><div style="font:600 18px var(--font-d)" class="num">${t.blocked || 0}</div><small class="muted">на этой странице</small></div></div>
-    ${[['trackers', 'shield', 'Трекеры и реклама'], ['https', 'lock', 'HTTPS-only + DoH'], ['fp', 'finger', 'Анти-отпечаток'], ['ghost', 'ghost', 'Призрак']].map(r => `<div class="kv"><span style="display:flex;align-items:center;gap:8px;color:var(--text-2)">${ico(r[1])}${r[2]}</span>${swHtml(r[0], swState(r[0]))}</div>`).join('')}
+  const t = curTab(), m = urlMeta(t.url);
+  const html = `<div class="pop-h"><span class="ic">${ico('shield-check')}</span><div><b>Статус приватности</b><span>${m.kind === 'site' ? esc(m.host) : 'Профиль CEF'}</span></div></div>
+    <div role="status" style="margin:2px 0 12px;padding:9px 10px;border:1px solid color-mix(in srgb,#E5A93D 35%,var(--line));border-radius:10px;background:color-mix(in srgb,#E5A93D 8%,var(--card));font-size:11px;line-height:1.45">Фильтрация запросов и раздельные профили сайтов не подключены. Число блокировок не собирается.</div>
+    ${[['trackers', 'shield', 'Блокировка трекеров · не подключена'], ['https', 'lock', 'HTTPS/DoH · не подключены'], ['fp', 'finger', 'Анти-отпечаток · не подключён'], ['ghost', 'ghost', 'Призрак · скрывает только историю SHELTER']].map(r => `<div class="kv"><span style="display:flex;align-items:center;gap:8px;color:var(--text-2)">${ico(r[1])}${r[2]}</span>${swHtml(r[0], swState(r[0]))}</div>`).join('')}
     <button class="btn sm" style="width:100%;margin-top:12px" data-act="page" data-page="dashboard">${ico('grid')}Открыть дашборд</button>`;
   openMenu(anchor, null, { place: 'bottom-end', cls: 'pop', html });
 }
@@ -9586,31 +9032,8 @@ function moreMenu(anchor) {
   ], { place: 'bottom-end' });
   if (el) el.addEventListener('click', e => { const z = e.target.closest('[data-z]'); if (z) setZoom(S.ui.zoom + +z.dataset.z); });
 }
-const AUTH_PROVIDERS = {
-  google: { label: 'Google', start: 'https://accounts.google.com/signin', email: 'ven.everick@gmail.com' },
-  yandex: { label: 'Яндекс ID', start: 'https://passport.yandex.ru/auth?retpath=https%3A%2F%2Fid.yandex.ru', email: 'ven.everick@yandex.ru' }
-};
-function accountSignedIn(provider, P) {
-  S.account = { provider, name: 'Ven Everick', email: P.email, initials: 'VE' };
-  acceptInvitesForAccount(); persist(); renderUser();
-  toast('Вы вошли в SHELTER ID через ' + P.label, { icon: 'check' });
-}
-function login(provider) {
-  const P = AUTH_PROVIDERS[provider];
-  if (!P) return;
-  const nat = window.shelterNative;
-  if (!nat || typeof nat.authWindow !== 'function') {
-    toast('Открывается окно браузера — вход через ' + P.label + '…', { icon: 'user' });
-    setTimeout(() => accountSignedIn(provider, P), 900);
-    return;
-  }
-  toast('Открывается окно браузера — вход и регистрация через ' + P.label, { icon: 'user' });
-  Promise.resolve(nat.authWindow({ url: P.start, partition: 'persist:space-work', provider }))
-    .then(r => {
-      if (r && r.ok && r.authed) accountSignedIn(provider, P);
-      else toast('Вход отменён', { icon: 'x' });
-    })
-    .catch(() => toast('Не удалось открыть окно входа', { icon: 'x' }));
+function login() {
+  toast('Вход через сторонние сервисы не подключён; профиль хранится только локально.', { icon: 'info' });
 }
 function focusOmni() { if (!$('#hero').hidden) { const h = $('#heroInput'); h.focus(); h.select(); } else $('#omniInput').focus(); }
 
@@ -9623,7 +9046,15 @@ const ACT = {
   spaceMenu: el => spaceMenu(el), theme: el => setTheme(el.dataset.theme, el), themeMenu: el => themeMenu(el), settings: el => openSettings(el.dataset.sec), account: () => openPage('profile'), toggleSidebar: () => toggleSidebar(), toggleRail: () => toggleRail(), toggleBm: () => toggleBm(),
   back: () => { if (!navArmed()) return; (window.navBack || goStackBack)(); },
   fwd: () => { if (!navArmed()) return; (window.navForward || goStackFwd)(); },
-  reload: () => { progress(); const i = $('#btnRef .i'); if (i && !REDUCED()) i.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: 700, easing: 'cubic-bezier(.22,1,.36,1)' }); renderView(false); },
+  reload: () => {
+    progress();
+    const i = $('#btnRef .i');
+    if (i && !REDUCED()) i.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: 700, easing: 'cubic-bezier(.22,1,.36,1)' });
+    const t = curTab();
+    if (t && window.shelterCef && window.shelterCef.isCef && urlMeta(t.url).kind !== 'internal') {
+      window.shelterCef.send('tab:reload', { tabId: t.id });
+    } else renderView(false);
+  },
   stop: () => { try { if (window.shelterStopLoad) window.shelterStopLoad(); } catch (_) {} setStopUI(false); },
   cert: el => certPop(el), star: () => toggleBookmarkCurrent(), shield: el => shieldPop(el), more: el => moreMenu(el), quick: el => quickPanel(el), ghost: () => toggleGhost(), fire: () => fire(),
   heroMode: el => heroModeMenu(el), heroEngine: el => engineMenu(el), heroSend: () => heroSubmit(),
@@ -9667,28 +9098,25 @@ const ACT = {
   profileSettings: () => openProfileSettings(), premiumDialog: () => openPremiumDialog(),
   achDetail: el => showAchievementDetail(el.dataset.achId),
   achPin: (el, e) => { if (e) e.stopPropagation(); toggleAchievementPin(el.dataset.achId); },
-  pwShow: el => { const p = S.passwords.find(x => x.id === el.dataset.id), s = $(`[data-pw="${el.dataset.id}"]`); if (!p || !s) return; const on = s.dataset.on !== '1'; s.dataset.on = on ? '1' : ''; s.textContent = on ? pwFor(p) : '••••••••••••'; el.innerHTML = ico(on ? 'eye-off' : 'eye'); },
-  pwCopy: el => { const p = S.passwords.find(x => x.id === el.dataset.id); if (p) { copySecret(pwFor(p)); toast('Пароль скопирован · очистится через 60 с', { icon: 'copy' }); } },
-  pwDel: async el => { const p = S.passwords.find(x => x.id === el.dataset.id); if (!p) return; if (await confirmDlg({ title: 'Удалить пароль для ' + p.site + '?', ok: 'Удалить', danger: true, icon: 'key' })) { S.passwords = S.passwords.filter(x => x !== p); persist(); refreshPage('passwords'); } },
-  pwGen: () => pwGenModal(), pwAdd: () => pwAddModal(),
-  pwFix: () => { let n = 0; S.passwords.forEach(p => { if (p.strength < 2) { p.pass = genPassword(18); p.strength = 3; n++; } }); persist(); refreshPage('passwords'); toast('Усилено паролей: ' + n + ' · обновите их на сайтах', { icon: 'shield-check' }); },
-  extInstall: el => extInstall(el), extPop: el => extPop(el), extDev: () => toast('Перетащите папку с manifest.json в это окно', { icon: 'code' }),
-  extRemove: async el => { const x = EXT_CATALOG[el.dataset.id]; if (await confirmDlg({ title: 'Удалить «' + x.name + '»?', ok: 'Удалить', danger: true, icon: 'puzzle' })) { S.ext = S.ext.filter(e => e.id !== el.dataset.id); persist(); renderExtBar(); refreshPage('extensions'); } },
-  deepAsk: el => navigate('shelter.dev/deepthink?q=' + encodeURIComponent(el.dataset.q)),
-  aiModel: async () => { const r = await agentDlg(); if (r) renderHeroBits(); },
-  agentApi: async () => { const r = await agentDlg(); if (r) { renderHeroBits(); refreshPage('deepthink'); } },
-  dtNew: () => dtNewThread(),
-  dtOpen: el => { const st = dtState(); st.activeId = el.dataset.id; st.railOpen = false; dtRefreshUI(true); },
-  dtSend: () => { const inp = $('#dtInput'); dtSubmitPrompt(inp ? inp.value : ''); },
-  dtPrompt: el => dtSubmitPrompt(el.dataset.q || ''),
-  dtThreadMenu: el => dtThreadMenu(el),
-  dtRailCollapse: () => { const st = dtState(); st.railCollapsed = !st.railCollapsed; S.ui.dtRailCollapsed = st.railCollapsed; persist(); dtRefreshUI(false); },
-  dtRailOpen: () => { const st = dtState(); st.railOpen = !st.railOpen; dtRefreshUI(false); },
-  dtRailClose: () => { const st = dtState(); st.railOpen = false; dtRefreshUI(false); },
-  dtFontSize: () => { const st = dtState(); const order = ['s', 'm', 'l']; st.fs = order[(order.indexOf(st.fs || 'm') + 1) % order.length]; S.ui.dtFs = st.fs; persist(); dtRefreshUI(false); toast('Размер текста: ' + ({ s: 'компактный', m: 'стандартный', l: 'крупный' })[st.fs], { icon: 'sliders' }); },
-  dtModePill: () => { const st = dtState(); st.deepMode = !st.deepMode; const btn = $('#dtModeBtn'); if (btn) { btn.classList.toggle('lit', st.deepMode); btn.innerHTML = `${ico('bulb')}<span class="lb">${st.deepMode ? 'Глубокий разбор' : 'Быстрый ответ'}</span>`; } },
-  dtCopy: el => { copyText(el.dataset.text || ''); toast('Ответ скопирован', { icon: 'copy' }); },
-  dtRetry: el => { const th = dtActiveThread(); if (!th) return; const msg = (th.messages || []).find(x => x.id === el.dataset.id); const q = msg && msg.prompt; if (q) { th.messages = th.messages.filter(x => x.id !== el.dataset.id); dtSubmitPrompt(q); } },
+  pwShow: () => toast('Менеджер паролей не подключён', { icon: 'info' }),
+  pwCopy: () => toast('Менеджер паролей не подключён', { icon: 'info' }),
+  pwDel: () => toast('Менеджер паролей не подключён', { icon: 'info' }),
+  pwGen: () => toast('Генератор паролей пока не подключён', { icon: 'info' }),
+  pwAdd: () => toast('Сохранение паролей отключено: хранилище не защищено', { icon: 'info' }),
+  pwFix: () => toast('Проверка и усиление паролей не подключены', { icon: 'info' }),
+  pwClearPrototype: async () => {
+    const count = storedPrototypePasswordCount();
+    if (!count) return;
+    if (await confirmDlg({ title: 'Удалить локальные записи паролей?', text: 'Записи прототипа могли храниться в локальном профиле без защищённого хранилища. Удалить их без возможности восстановления?', ok: 'Удалить все', danger: true, icon: 'trash' })) {
+      S.passwords = []; S.__pwBlob = ''; persist(); refreshPage('passwords'); toast('Локальные записи прототипа удалены', { icon: 'trash' });
+    }
+  },
+  extInstall: () => toast('Установка расширений пока не подключена', { icon: 'info' }),
+  extPop: () => toast('Расширения не установлены в этой сборке', { icon: 'info' }),
+  extDev: () => toast('Загрузка распакованных расширений не подключена', { icon: 'info' }),
+  extRemove: () => toast('Каталог расширений не подключён', { icon: 'info' }),
+  aiModel: () => toast('Подключение AI-сервиса пока не реализовано', { icon: 'info' }),
+  agentApi: () => toast('Подключение AI-сервиса не реализовано. Не вводите API-ключи.', { icon: 'info' }),
   uizM: () => { S.prefs.uiScale = clamp((+(S.prefs.uiScale) || 100) - 5, 50, 200); persist(); applyFontScale(); },
   uizP: () => { S.prefs.uiScale = clamp((+(S.prefs.uiScale) || 100) + 5, 50, 200); persist(); applyFontScale(); },
   fsDef: el => {
@@ -9802,12 +9230,23 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) Hero.
 /* =========================================================
    Мост для нативной оболочки (совместимость с 1.0.51)
    ========================================================= */
-window.shelterRecordVisit = (url, title) => { const t = curTab(); recordVisit(url, title || urlMeta(url).title, t && t.id); };
+window.shelterRecordVisit = (url, title, tabId) => {
+  const all = Object.values(S.spaces).reduce((r, space) => r.concat(space.tabs || []), []);
+  const tab = tabId ? all.find(t => t.id === tabId) : curTab();
+  recordVisit(url, title || urlMeta(url).title, (tab && tab.id) || tabId || S.activeTabId);
+};
 window.shelterUpdateTitle = (a, b) => {
   const all = Object.values(S.spaces).reduce((r, s) => r.concat(s.tabs), []);
   let tab = curTab(), title = a;
   if (b !== undefined) { const byId = all.find(t => t.id === a); if (byId) { tab = byId; title = b; } }
-  if (tab && title) { tab.title = String(title); persist(); renderTabs(); }
+  if (tab && title) {
+    tab.title = String(title);
+    for (let i = S.visits.length - 1; i >= 0; i--) {
+      const visit = S.visits[i];
+      if (visit.tab === tab.id && histNorm(visit.url) === histNorm(tab.url)) { visit.title = String(title); break; }
+    }
+    persist(); renderTabs();
+  }
 };
 window.getSpaceTabs = () => curSpace().tabs.map(t => ({ id: t.id, title: t.title, url: t.url, pinned: !!t.pinned }));
 function cycleTab(dir) {
@@ -9841,7 +9280,7 @@ window.toggleDevtools = () => toggleDevtools();
 window.pushTabHist = pushTabHist;
 window.navBack = goStackBack;
 window.navForward = goStackFwd;
-window.navRefresh = () => { const t = curTab(); if (t) loadUrl(t, t.url, { push: false }); };
+window.navRefresh = () => { if (ACT.reload) ACT.reload(); };
 window.shelter = { version: VERSION, theme: k => setTheme(k), ghost: () => toggleGhost(), navigate: v => navigate(v), openPage: p => openPage(p) };
 
 /* =========================================================
@@ -9858,16 +9297,18 @@ function init() {
   renderSwatches(); renderControls(); renderSpaceRow(); renderTabs(); renderUser(); renderBadges();
   initTabDnD(); initOmnibox(); initHeroInput(); initFind(); initWinLights();
   applyTabPos(); applyBmPos(); applyPers();
+  observeSidebarScroll();
   $('#tabList').addEventListener('scroll', tabsScrollSync, { passive: true });
   if (S.ui.device && S.ui.device !== 'desktop') setDevice(S.ui.device);
   if (S.ui.zoom !== 100) setZoom(S.ui.zoom);
   renderView(true);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { initSegs(); positionNavInd(); syncThemeUI(); Hero.relayout(); });
-  window.addEventListener('resize', debounce(() => { positionNavInd(); syncThemeUI(); initSegs(); tabsScrollSync(); }, 120));
+  window.addEventListener('resize', debounce(() => { positionNavInd(); syncThemeUI(); initSegs(); tabsScrollSync(); syncSidebarScrollState(); }, 120));
   setInterval(() => { if (!document.hidden && !$('#hero').hidden) { const g = $('#greet'); const t = greeting(); if (g && g.textContent !== t) g.textContent = t; } }, 60000);
   /* baseline достижений сеанса: что получено ДО старта — не уведомляем */
   try { T.profileAchievementSnapshot = profileAchievementStatuses(profileActivity(), storedProfileUnlocks()); } catch (_) {}
   syncWebScheme(); saveNow();
+  if (legacyAiPrototypeDataRemoved) setTimeout(() => toast('Настройки и локальные диалоги AI-прототипа удалены; AI-сервис не подключён', { icon: 'info', ms: 6500 }), 700);
 }
 init();
 })();

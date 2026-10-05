@@ -1,7 +1,7 @@
 # CEF
 
-Pinned initial distribution: `154.0.32+g682c378+chromium-154.0.8037.58`, from `https://cef-builds.spotifycdn.com/`. It is downloaded externally by `scripts/bootstrap-cef.sh` and never committed. The next phase adds subprocess dispatch, CEF Views clients and packaging resources.
+Pinned initial distribution: `154.0.32+g682c378+chromium-154.0.8037.58`, from `https://cef-builds.spotifycdn.com/`. It is downloaded externally by `scripts/bootstrap-cef.sh` and never committed.
 
 ## Phase 2
 
-The application now dispatches CEF subprocesses, initializes CEF, creates a CEF Views top-level window, creates a first browser view and loads `https://example.com`, then runs and shuts down the CEF message loop.
+The application dispatches CEF subprocesses, initializes CEF, registers the local `shelter://ui` scheme, and opens the first browser view at `shelter://ui/index.html`. UI files are served from the app's packaged resources (`Resources/ui` on Windows and `Contents/Resources/ui` inside the macOS bundle); development builds stage the same files beside the executable. This avoids relying on the launcher's working directory and keeps the initial window on the bundled SHELTER interface instead of an external page.

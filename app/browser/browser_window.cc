@@ -7,9 +7,11 @@
 #include "include/cef_frame.h"
 #include "include/cef_parser.h"
 #include "include/cef_values.h"
+#include "include/base/cef_callback.h"
 #include "include/views/cef_box_layout.h"
 #include "include/views/cef_browser_view_delegate.h"
 #include "include/views/cef_window_delegate.h"
+#include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 
 #include <algorithm>
@@ -506,10 +508,24 @@ bool BrowserWindow::HandleBridgeCommand(
       Log(LogLevel::Info,
           "SHELTER_WEB_SMOKE_NAVIGATE tab=" + tab_id + " url=" + url);
     }
-    if (tab_id.empty() || !IsWebUrl(url) || !EnsureWebTab(tab_id, url)) return false;
-    active_tab_id_ = tab_id;
-    content_visible_ = true;
-    UpdateWebTabBoundsAndVisibility();
+    if (tab_id.empty() || !IsWebUrl(url)) return false;
+
+    // Creating/attaching a BrowserView can synchronously trigger CEF load
+    // callbacks. Defer it until the bridge query has returned to the renderer;
+    // dispatching JavaScript back to that renderer while it is waiting on this
+    // query can deadlock inside AddOverlayView.
+    CefRefPtr<BrowserWindow> self(this);
+    if (!CefPostTask(
+            TID_UI,
+            base::BindOnce(&BrowserWindow::NavigateWebTab, self, tab_id, url))) {
+      Log(LogLevel::Error, "Failed to queue native browser navigation");
+      return false;
+    }
+    if (std::getenv("SHELTER_WEB_SMOKE_URL")) {
+      Log(LogLevel::Info,
+          "SHELTER_WEB_SMOKE_NAVIGATION_QUEUED tab=" + tab_id +
+              " url=" + url);
+    }
     response = "{\"ok\":true}";
     return true;
   }
@@ -593,6 +609,18 @@ bool BrowserWindow::HandleBridgeCommand(
   }
 
   return true;
+}
+
+void BrowserWindow::NavigateWebTab(std::string tab_id, std::string url) {
+  CEF_REQUIRE_UI_THREAD();
+  if (window_destroyed_ || !window_ || !window_->IsValid()) return;
+  if (!EnsureWebTab(tab_id, url)) {
+    Log(LogLevel::Error, "Failed to create native web tab " + tab_id);
+    return;
+  }
+  active_tab_id_ = std::move(tab_id);
+  content_visible_ = true;
+  UpdateWebTabBoundsAndVisibility();
 }
 
 bool BrowserWindow::EnsureWebTab(const std::string& tab_id,

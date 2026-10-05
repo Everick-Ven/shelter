@@ -60,6 +60,7 @@ class BrowserWindow final : public CefBaseRefCounted {
   };
 
   bool EnsureWebTab(const std::string& tab_id, const std::string& url);
+  void NavigateWebTab(std::string tab_id, std::string url);
   void SetWebContentVisible(bool visible);
   void UpdateWebTabBoundsAndVisibility();
   void CloseWebTab(const std::string& tab_id);

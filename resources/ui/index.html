@@ -301,6 +301,21 @@ body.is-fullscreen .lights{display:none}
 .lights.live i:nth-child(1)::after{content:"×"}
 .lights.live i:nth-child(2)::after{content:"–"}
 .lights.live i:nth-child(3)::after{content:"⤢";font-size:8px}
+/* Оконные кнопки Windows: место прежнее — справа в первом ряду, как привычно
+   пользователям Windows (свернуть, растянуть, закрыть), но внешний вид —
+   круглые «светофоры» в стиле Mac с глифами на hover. */
+.wctl{display:flex;align-items:center;gap:8px;flex:none;margin-left:10px;padding:0 2px}
+.wctl .wc{position:relative;width:12px;height:12px;border-radius:50%;border:0;padding:0;cursor:pointer;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.28);transition:transform .15s,filter .15s;-webkit-app-region:no-drag}
+.wctl .wc:hover{filter:brightness(1.1);transform:scale(1.08)}
+.wctl .wc:active{transform:scale(.92)}
+.wctl .wc-min{background:#FEBC2E}
+.wctl .wc-max{background:#28C840}
+.wctl .wc-close{background:#FF5F57}
+.wctl .wc::after{position:absolute;inset:0;display:grid;place-items:center;font:700 9px/1 system-ui,sans-serif;color:rgba(0,0,0,.55);opacity:0;transition:opacity .12s}
+.wctl:hover .wc::after{opacity:1}
+.wctl .wc-min::after{content:"–"}
+.wctl .wc-max::after{content:"⤢";font-size:8px}
+.wctl .wc-close::after{content:"×"}
 .brand{display:flex;align-items:center;gap:12px;padding:0 6px;flex:none}
 .logo{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;position:relative;color:#fff;
   background:linear-gradient(155deg,var(--logo-a),var(--logo-b));
@@ -492,6 +507,7 @@ body.no-badges .badge{display:none!important}
 .tab-mount .tab.drop-before::after{left:-4px;top:5px;bottom:5px;right:auto;width:2px;height:auto;border-radius:2px}
 .tab-mount .tab.new{display:flex;width:auto;min-width:0;max-width:none;padding-right:10px}
 .tab-mount .tabs .icon-btn{flex:none}
+.tab-mount>.wctl{margin-left:auto}
 .tab-mount>.tab-plus{position:relative;flex:none;z-index:3;background:var(--bg)}
 .tab-mount>.tab-plus:hover{background:var(--hover);color:var(--text)}
 .tabs-scroll{position:absolute;left:0;right:0;bottom:0;height:2px;border-radius:99px;background:var(--line);pointer-events:none}
@@ -3233,6 +3249,11 @@ html[data-theme="graphite"] .badge.hot{
         <button class="tb-btn" id="quickBtn" data-act="quick" data-tip="Оформление и вкладки" aria-label="Оформление и вкладки"><svg class="i"><use href="#i-sliders"/></svg></button>
         <button class="tb-btn" id="settingsBtn" data-act="settings" data-tip="Настройки  ⌘," aria-label="Настройки"><svg class="i"><use href="#i-gear"/></svg></button>
         <button class="tb-btn" id="moreBtn" data-act="more" data-tip="Меню" aria-label="Меню"><svg class="i"><use href="#i-dots"/></svg></button>
+        <div class="wctl" id="winCtl" hidden role="group" aria-label="Управление окном">
+          <button class="wc wc-min" data-w="minimize" data-tip="Свернуть" aria-label="Свернуть окно"></button>
+          <button class="wc wc-max" data-w="maximize" data-tip="Растянуть" aria-label="Растянуть окно"></button>
+          <button class="wc wc-close" data-w="close" data-tip="Закрыть" aria-label="Закрыть окно"></button>
+        </div>
       </div>
     </header>
 
@@ -5050,6 +5071,13 @@ function applyTabPos() {
     if (target && sr && tl && tl.parentElement !== target) { target.appendChild(sr); target.appendChild(tl); }
     Object.entries(mounts).forEach(([k, el]) => { if (el) el.hidden = k !== pos; });
     if (mounts.right) { mounts.right.classList.toggle('is-collapsed', !!S.ui.railCollapsed); syncRailToggle(); }
+    /* оконные кнопки Windows — всегда в правом верхнем углу ПЕРВОГО ряда:
+       вкладки сверху → ряд вкладок; иначе → тулбар (он первый ряд) */
+    const ctl = document.getElementById('winCtl');
+    if (ctl) {
+      if (pos === 'top') { const tm = document.getElementById('tabTop'); if (tm && ctl.parentElement !== tm) tm.appendChild(ctl); }
+      else { const cg = document.getElementById('ctlGrid'); const home = cg && cg.parentElement; if (home && ctl.parentElement !== home) home.appendChild(ctl); }
+    }
     renderSpaceRow(); renderTabs();
   } catch (e) { try { console.warn('applyTabPos failed:', e); } catch (_) {} }
 }
@@ -5161,18 +5189,19 @@ function initWinLights() {
     }
     return;
   }
-  /* Windows / Linux (frameless CEF): вместо прямоугольных кнопок справа —
-     те же круглые «светофоры», что и на Mac: одинаковый вид на всех платформах. */
-  if (lights) {
-    lights.classList.add('live');
-    lights.setAttribute('aria-hidden', 'false');
-    const dots = lights.querySelectorAll('i');
-    const labels = ['Закрыть окно', 'Свернуть окно', 'Растянуть окно'];
-    dots.forEach((dot, i) => dot.setAttribute('aria-label', labels[i] || ''));
-    if (dots[0]) dots[0].addEventListener('click', e => { e.stopPropagation(); try { n.close(); } catch (_) {} });
-    if (dots[1]) dots[1].addEventListener('click', e => { e.stopPropagation(); try { n.minimize(); } catch (_) {} });
-    if (dots[2]) dots[2].addEventListener('click', e => { e.stopPropagation(); doMax(); });
-  }
+  /* Windows / Linux (frameless CEF): место кнопок прежнее — справа в первом
+     ряду (привычная раскладка Windows), изменился только внешний вид:
+     круглые «светофоры» в стиле Mac. Левые lights остаются только на Mac. */
+  if (lights) lights.hidden = true;
+  const ctl = document.getElementById('winCtl');
+  if (!ctl) return;
+  ctl.hidden = false;
+  ctl.addEventListener('click', e => {
+    const b = e.target.closest('[data-w]'); if (!b) return;
+    if (b.dataset.w === 'close') n.close();
+    else if (b.dataset.w === 'minimize') n.minimize();
+    else doMax();
+  });
 }
 function toggleSidebar() {
   const app = $('#app');

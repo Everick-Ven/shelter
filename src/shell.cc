@@ -24,6 +24,7 @@
 #include "include/cef_auth_callback.h"
 #include "include/cef_command_line.h"
 #include "include/cef_parser.h"
+#include "include/cef_request_context_handler.h"
 #include "include/cef_stream.h"
 #include "include/cef_urlrequest.h"
 #include "include/cef_zip_reader.h"
@@ -43,6 +44,24 @@ namespace fs = std::filesystem;
 namespace shelter {
 
 namespace {
+
+// Chrome initialises disk-based profiles asynchronously. Browsers must only
+// be attached to a request context after that completes (CEF delivers the
+// notification through CefRequestContextHandler::OnRequestContextInitialized).
+class ShellContextHandler : public CefRequestContextHandler {
+ public:
+  explicit ShellContextHandler(std::string partition)
+      : partition_(std::move(partition)) {}
+  void OnRequestContextInitialized(
+      CefRefPtr<CefRequestContext> /*context*/) override {
+    CEF_REQUIRE_UI_THREAD();
+    Shell::Get().OnContextReady(partition_);
+  }
+
+ private:
+  std::string partition_;
+  IMPLEMENT_REFCOUNTING(ShellContextHandler);
+};
 
 // fs::path::u8string() yields std::u8string (char8_t) in C++20, which does
 // not convert to std::string implicitly. Centralise the conversion.
@@ -707,6 +726,8 @@ void Shell::PrepareForShutdown() {
   active_downloads_.clear();
   tabs_.clear();
   contexts_.clear();
+  context_ready_.clear();
+  context_waiters_.clear();
   popup_windows_.clear();
 }
 
@@ -795,9 +816,63 @@ CefRefPtr<CefRequestContext> Shell::ContextFor(const std::string& partition) {
     // Unsafe/unavailable paths deliberately fall back to an in-memory context.
   }
   // temp:* и прочее — cache_path пуст: контекст только в памяти (без следов на диске).
-  CefRefPtr<CefRequestContext> ctx = CefRequestContext::CreateContext(rs, nullptr);
+  // Хэндлер сообщает, когда контекст (и его профиль) проинициализирован:
+  // до этого привязывать к нему браузеры нельзя.
+  CefRefPtr<CefRequestContext> ctx =
+      CefRequestContext::CreateContext(rs, new ShellContextHandler(partition));
   contexts_[partition] = ctx;
+  context_ready_[partition] = false;
   return ctx;
+}
+
+bool Shell::ContextReady(const std::string& partition) const {
+  const auto it = context_ready_.find(partition);
+  return it != context_ready_.end() && it->second;
+}
+
+void Shell::OnContextReady(const std::string& partition) {
+  CEF_REQUIRE_UI_THREAD();
+  auto ready = context_ready_.find(partition);
+  if (ready == context_ready_.end()) return;  // контекст уже выброшен
+  ready->second = true;
+  auto waiters = context_waiters_.find(partition);
+  if (waiters == context_waiters_.end()) return;
+  std::vector<std::string> ids = std::move(waiters->second);
+  context_waiters_.erase(waiters);
+  for (const std::string& id : ids) {
+    Tab* t = FindTab(id);
+    if (t && t->awaiting_context) FinishTabBrowser(t);
+  }
+}
+
+void Shell::FinishTabBrowser(Tab* t) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!t || t->view || !window_) return;
+  auto ctx = contexts_.find(t->partition);
+  if (ctx == contexts_.end()) return;
+  t->awaiting_context = false;
+
+  CefBrowserSettings settings;
+  settings.background_color = CefColorSetARGB(255, 255, 255, 255);
+  t->view = CefBrowserView::CreateBrowserView(
+      t->client, t->requested_url, settings, nullptr, ctx->second,
+      new ShellBrowserViewDelegate());
+  const bool can_activate =
+      !CefCommandLine::GetGlobalCommandLine()->HasSwitch("tab-no-activate");
+  t->overlay = window_->AddOverlayView(t->view, CEF_DOCKING_MODE_CUSTOM,
+                                       can_activate);
+  t->overlay->SetVisible(false);
+  if (t->has_pending_layout) {
+    const CefRect rect = t->pending_rect;
+    const bool visible = t->pending_visible;
+    t->has_pending_layout = false;
+    LayoutTab(t, rect, visible);
+  }
+  if (t->pending_focus && active_tab_ == t->id) t->view->RequestFocus();
+  t->pending_focus = false;
+  if (CefRefPtr<CefBrowser> b = t->view->GetBrowser()) {
+    OnTabCreated(b, t->id);
+  }
 }
 
 void Shell::ReleaseContextIfUnused(const std::string& partition) {
@@ -806,6 +881,7 @@ void Shell::ReleaseContextIfUnused(const std::string& partition) {
     if (kv.second.partition == partition) return;
   }
   contexts_.erase(partition);
+  context_ready_.erase(partition);
 }
 
 void Shell::QueueWipe(const std::string& partition) {
@@ -945,22 +1021,19 @@ Tab* Shell::CreateTab(const std::string& id, const std::string& partition,
   tab.partition = partition;
   tab.requested_url = url;
   tab.client = new TabClient(id);
-
-  CefBrowserSettings settings;
-  settings.background_color = CefColorSetARGB(255, 255, 255, 255);
-  tab.view = CefBrowserView::CreateBrowserView(
-      tab.client, url, settings, nullptr, ContextFor(partition),
-      new ShellBrowserViewDelegate());
-  const bool can_activate =
-      !CefCommandLine::GetGlobalCommandLine()->HasSwitch("tab-no-activate");
-  tab.overlay = window_->AddOverlayView(tab.view, CEF_DOCKING_MODE_CUSTOM,
-                                        can_activate);
-  tab.overlay->SetVisible(false);
   zoom_ = zoom;
+
+  // Создание контекста может запустить асинхронное создание профиля Chrome.
+  ContextFor(partition);
   tabs_[id] = std::move(tab);
   Tab* t = &tabs_[id];
-  if (CefRefPtr<CefBrowser> b = t->view->GetBrowser()) {
-    OnTabCreated(b, id);
+  if (ContextReady(partition)) {
+    FinishTabBrowser(t);
+  } else {
+    // Браузер будет создан из OnContextReady; до тех пор запоминаем запросы
+    // геометрии/фокуса из моста.
+    t->awaiting_context = true;
+    context_waiters_[partition].push_back(id);
   }
   return t;
 }
@@ -982,6 +1055,12 @@ void Shell::DestroyTab(const std::string& id) {
   if (it == tabs_.end()) return;
   Tab tab = std::move(it->second);
   tabs_.erase(it);
+  auto w = context_waiters_.find(tab.partition);
+  if (w != context_waiters_.end()) {
+    auto& ids = w->second;
+    ids.erase(std::remove(ids.begin(), ids.end(), id), ids.end());
+    if (ids.empty()) context_waiters_.erase(w);
+  }
   if (active_tab_ == id) active_tab_.clear();
   if (tab.snap_registration) tab.snap_registration = nullptr;
   if (tab.overlay && tab.overlay->IsValid()) tab.overlay->Destroy();
@@ -1002,7 +1081,17 @@ void Shell::HideAllTabs() {
 }
 
 void Shell::LayoutTab(Tab* tab, const CefRect& rect, bool visible) {
-  if (!tab || !tab->overlay || !tab->overlay->IsValid()) return;
+  if (!tab) return;
+  if (!tab->view || !tab->overlay || !tab->overlay->IsValid()) {
+    // Браузер ещё создаётся (ждём профиль): геометрия придёт снова из моста,
+    // но сохраним последнюю, чтобы применить сразу после создания.
+    if (!tab->view && rect.width > 0 && rect.height > 0) {
+      tab->pending_rect = rect;
+      tab->pending_visible = visible;
+      tab->has_pending_layout = true;
+    }
+    return;
+  }
   const CefRect prev = last_rect_;
   if (rect.width > 0 && rect.height > 0) {
     tab->overlay->SetBounds(rect);

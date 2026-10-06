@@ -57,6 +57,12 @@ struct Tab {
   std::string pending_url;  // если браузер ещё не создан
   CefRefPtr<CefDevToolsMessageObserver> snap_observer;
   CefRefPtr<CefRegistration> snap_registration;
+  // Вкладка ждёт инициализации дискового профиля (контекст ещё не готов).
+  bool awaiting_context = false;
+  CefRect pending_rect;
+  bool has_pending_layout = false;
+  bool pending_visible = false;
+  bool pending_focus = false;
 };
 
 struct PendingDownload {
@@ -81,6 +87,10 @@ class Shell {
   void OnBrowserCreated();      // счётчик живых браузеров (все клиенты)
   void OnBrowserClosed();
   bool closing() const { return closing_; }
+  // Chrome создаёт дисковый профиль асинхронно; браузер вкладки можно
+  // привязывать к контексту только после его инициализации. Вызывается
+  // хэндлером контекста (публичный, т.к. хэндлер живёт вне класса).
+  void OnContextReady(const std::string& partition);
 
   // ---- окно ----
   bool CanCloseWindow();
@@ -162,6 +172,9 @@ class Shell {
                  const std::string& url,
                  double zoom);
   void DestroyTab(const std::string& id);
+  // Создаёт browser view вкладки, когда её контекст уже инициализирован.
+  void FinishTabBrowser(Tab* t);
+  bool ContextReady(const std::string& partition) const;
   void HideAllTabs();
   void LayoutTab(Tab* tab, const CefRect& rect, bool visible);
   CefRefPtr<CefBrowser> ActiveBrowser();
@@ -204,6 +217,9 @@ class Shell {
   double clip_radii_[4] = {0, 0, 0, 0};
   std::vector<std::array<int, 4>> clip_holes_;
   std::map<std::string, CefRefPtr<CefRequestContext>> contexts_;
+  std::map<std::string, bool> context_ready_;
+  // partition -> id вкладок, ждущих инициализации контекста.
+  std::map<std::string, std::vector<std::string>> context_waiters_;
   std::map<std::string, PendingDownload> pending_downloads_;
   // Downloads are surfaced only after the user accepts the confirmation prompt.
   // The accepted map also retains the CEF-suggested filename as a safe fallback.

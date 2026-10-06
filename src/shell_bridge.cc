@@ -250,7 +250,13 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
       }
     }
     LayoutTab(t, RectOf(a), Flag(a, "visible", true));
-    if (Flag(a, "focus", true) && t->view) t->view->RequestFocus();
+    if (Flag(a, "focus", true)) {
+      if (t->view) {
+        t->view->RequestFocus();
+      } else {
+        t->pending_focus = true;  // профиль ещё инициализируется
+      }
+    }
     std::ostringstream os;
     os << "{\"created\":" << (created ? "true" : "false") << ",\"navigated\":"
        << (navigated ? "true" : "false") << ",\"loading\":"

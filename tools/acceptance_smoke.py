@@ -13,8 +13,10 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -26,6 +28,85 @@ except ImportError as exc:  # pragma: no cover - exercised by CI setup
 
 class AcceptanceError(RuntimeError):
     pass
+
+
+class LongPageHandler(BaseHTTPRequestHandler):
+    """Deterministic long native pages for scroll/overlay regression coverage."""
+
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, _format: str, *_args: Any) -> None:
+        pass
+
+    def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        path = self.path.split("?", 1)[0]
+        if path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
+            return
+        variant = path.rsplit("/", 1)[-1]
+        palettes = {
+            "a": ("#ffffff", "#152033", "#1264d8"),
+            "b": ("#111827", "#f3f4f6", "#2dd4bf"),
+            "c": ("#f7e5d5", "#38202b", "#a33251"),
+            "loading": ("#f4f7fb", "#14233a", "#4b54dc"),
+        }
+        if variant not in palettes:
+            self.send_error(404)
+            return
+        background, foreground, accent = palettes[variant]
+        sections = "".join(
+            "<section id='section-{0}'><small>{1} · SECTION {0:03d}</small>"
+            "<h2>Scrollable native document {0}</h2><p>"
+            "This deterministic long page checks compositor isolation while "
+            "the browser UI opens and closes its menus. The content remains "
+            "available throughout rapid scrolling and navigation.</p></section>".format(
+                index, variant.upper()
+            )
+            for index in range(1, 91)
+        )
+        document = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SHELTER long-page {variant}</title>
+<style>
+*{{box-sizing:border-box}}html,body{{margin:0;scroll-behavior:auto}}
+body{{background:{background};color:{foreground};font:16px/1.6 system-ui,sans-serif}}
+header{{position:sticky;top:0;z-index:1;padding:16px 24px;background:{accent};color:#fff;font-weight:700}}
+main{{max-width:980px;margin:0 auto;padding:0 20px}}
+section{{min-height:520px;padding:54px 28px;border-bottom:1px solid currentColor;opacity:.98}}
+section small{{color:{accent};font-weight:800;letter-spacing:.14em}}
+h2{{font-size:clamp(24px,4vw,42px);line-height:1.15}}
+p{{max-width:60ch}}
+</style></head><body><header>Long native page · {variant.upper()}</header>
+<main>{sections}</main></body></html>""".encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(document)))
+        self.end_headers()
+        try:
+            if variant == "loading":
+                split = document.find(b"<main>")
+                if split < 0:
+                    split = len(document) // 4
+                self.wfile.write(document[:split])
+                self.wfile.flush()
+                time.sleep(2.0)
+                self.wfile.write(document[split:])
+            else:
+                self.wfile.write(document)
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+
+def start_long_page_server() -> Tuple[ThreadingHTTPServer, threading.Thread, str]:
+    server = ThreadingHTTPServer(("127.0.0.1", 0), LongPageHandler)
+    server.daemon_threads = True
+    thread = threading.Thread(target=server.serve_forever, name="acceptance-long-pages", daemon=True)
+    thread.start()
+    return server, thread, f"http://127.0.0.1:{server.server_address[1]}"
 
 
 def reserve_port() -> int:
@@ -325,6 +406,8 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         await frame();
         const menu = document.querySelector('.menu:not(.closing)');
         if (!menu) return null;
+        const dashboardFallbackDisabled = !document.body.classList.contains('native-content-visible') &&
+          !getComputedStyle(menu).getPropertyValue('--native-popup-opacity').trim();
         const labels = Array.from(menu.querySelectorAll('.mi .lb')).map(el => el.innerText.trim());
         const forbidden = ['Новая вкладка', 'Новое пространство', 'Режим «Призрак»',
           'Выключить «Призрак»', 'История', 'Загрузки', 'Пароли', 'Сертификаты РФ', 'Настройки'];
@@ -357,6 +440,7 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         await frame();
         return JSON.stringify({
           viewportWidth: innerWidth,
+          dashboardFallbackDisabled: dashboardFallbackDisabled,
           toolbar: toolbar,
           menuLabels: labels,
           visibleForbidden: visibleForbidden,
@@ -531,7 +615,330 @@ def quick_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
         raise AcceptanceError("Quick-menu theme probe returned no result")
     return json.loads(raw)
 
+def bridge_state(ui: Cdp) -> Dict[str, Any]:
+    raw = ui.evaluate(
+        "JSON.stringify((function(){const b=window.__shBridgeState?window.__shBridgeState():{};"
+        "const p=window.__shPerf||{};return Object.assign({},b,{clipFrames:p.clipFrames||0,"
+        "layoutRequests:p.layoutRequests||0,overlayChecks:p.overlayChecks||0,"
+        "snap:!!document.getElementById('shSnap'),"
+        "snapWait:document.documentElement.classList.contains('sh-snap-wait'),"
+        "overlayNodes:document.querySelectorAll('.menu,.scrim,.tip,.call,.toast,.findbar:not([hidden]),.dl-float:not([hidden]),.suggest:not([hidden])').length});})())"
+    )
+    return json.loads(raw) if raw else {}
+
+
+def wait_native_overlay_idle(ui: Cdp, process: subprocess.Popen, timeout: float = 12) -> Dict[str, Any]:
+    def idle():
+        state = bridge_state(ui)
+        if not state:
+            return False
+        return (
+            state.get("visible") is True
+            and state.get("nativeContentVisible") is True
+            and state.get("busy") is False
+            and state.get("frozen") is False
+            and state.get("clipActive") is False
+            and state.get("trackedPopups") == 0
+            and state.get("overlayNodes") == 0
+            and state.get("snap") is False
+            and state.get("snapWait") is False
+        )
+
+    wait_until(idle, "native overlay teardown", process, timeout, interval=0.15)
+    return bridge_state(ui)
+
+
+def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
+    """Check actual popup paint styles through Visual → Balance → Speed → Visual."""
+    ui.evaluate(
+        "(function(){const b=document.getElementById('moreBtn');if(!b)throw new Error('menu button missing');b.click();return true;})()"
+    )
+    wait_until(
+        lambda: ui.evaluate("!!document.querySelector('.menu:not(.closing)')") is True,
+        "overflow menu over a native website",
+        process,
+        timeout=10,
+    )
+    wait_until(
+        lambda: (lambda s: bool(s and s.get("visible") and s.get("frozen") and not s.get("busy")))(bridge_state(ui)),
+        "native page freeze for popup",
+        process,
+        timeout=15,
+    )
+    expression = r"""
+      (async function() {
+        const test = window.shelterTest;
+        const original = test.state().prefs.gfx || 'balance';
+        const frame = () => new Promise(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        );
+        const alphaOf = value => {
+          const color = String(value || '').trim();
+          const slash = color.match(/\/\s*([0-9.]+)(%)?\s*\)$/);
+          if (slash) return slash[2] ? Number(slash[1]) / 100 : Number(slash[1]);
+          if (/^rgba\(/i.test(color)) {
+            const parts = color.slice(color.indexOf('(') + 1, -1).split(',');
+            return parts.length > 3 ? Number(parts[3]) : null;
+          }
+          if (/^rgb\(/i.test(color)) return 1;
+          return null;
+        };
+        const checked = [];
+        for (const mode of ['beauty', 'balance', 'perf', 'beauty']) {
+          test.setGfxMode(mode, {persist:false, notify:false});
+          await frame();
+          const menu = document.querySelector('.menu:not(.closing)');
+          if (!menu) throw new Error('popup disappeared while switching graphics mode');
+          const css = getComputedStyle(menu);
+          const ambient = document.querySelector('.ambient i');
+          checked.push({
+            mode:mode,
+            nativeContentVisible:document.body.classList.contains('native-content-visible'),
+            backgroundColor:css.backgroundColor,
+            backgroundAlpha:alphaOf(css.backgroundColor),
+            backdropFilter:css.backdropFilter || css.webkitBackdropFilter || 'none',
+            animationName:css.animationName,
+            animationDuration:css.animationDuration,
+            boxShadow:css.boxShadow,
+            glowToken:getComputedStyle(document.body).getPropertyValue('--glow-soft').trim(),
+            glowOff:document.body.classList.contains('glow-off'),
+            reduceMotion:document.documentElement.classList.contains('reduce-motion'),
+            ambientPlayState:ambient ? getComputedStyle(ambient).animationPlayState : 'missing',
+            fallbackOpacity:getComputedStyle(document.body).getPropertyValue('--native-popup-opacity').trim()
+          });
+        }
+        test.setGfxMode(original, {persist:false, notify:false});
+        await frame();
+        return JSON.stringify({checked:checked, original:original});
+      })()
+    """
+    raw = ui.evaluate(expression, timeout=20)
+    if not raw:
+        raise AcceptanceError("Native popup fallback probe returned no result")
+    result = json.loads(raw)
+    checked = result.get("checked", [])
+    if len(checked) != 4 or [item.get("mode") for item in checked] != ["beauty", "balance", "perf", "beauty"]:
+        raise AcceptanceError(f"Native popup probe did not complete the mode sequence: {result}")
+    for item in checked:
+        mode = item["mode"]
+        if not item.get("nativeContentVisible"):
+            raise AcceptanceError(f"Native-content fallback class missing in {mode}: {item}")
+        alpha = item.get("backgroundAlpha")
+        if not isinstance(alpha, (int, float)):
+            raise AcceptanceError(f"Could not read popup background alpha in {mode}: {item}")
+        if mode == "perf":
+            if alpha < 0.999:
+                raise AcceptanceError(f"Speed popup is not opaque over a native page: {item}")
+            if item.get("backdropFilter") != "none" or item.get("animationName") != "none":
+                raise AcceptanceError(f"Speed left a popup effect active: {item}")
+            if item.get("boxShadow") != "none":
+                raise AcceptanceError(f"Speed left a popup glow/shadow: {item}")
+            if not item.get("glowOff") or not item.get("reduceMotion"):
+                raise AcceptanceError(f"Speed mode flags are incomplete: {item}")
+            if item.get("glowToken") != "none":
+                raise AcceptanceError(f"Speed retained a glow token: {item}")
+        else:
+            if alpha < 0.939:
+                raise AcceptanceError(f"Popup fallback is too transparent for arbitrary web content: {item}")
+            if item.get("animationName") == "none" or item.get("animationDuration") in ("0s", "0.0s"):
+                raise AcceptanceError(f"Visual/Balance lost ordinary popup animation: {item}")
+            if item.get("glowOff") != (mode != "beauty"):
+                raise AcceptanceError(f"Popup glow state does not match {mode}: {item}")
+            if (item.get("glowToken") == "none") != (mode != "beauty"):
+                raise AcceptanceError(f"Popup glow token does not match {mode}: {item}")
+            if item.get("reduceMotion"):
+                raise AcceptanceError(f"Reduced-motion state leaked into {mode}: {item}")
+            if item.get("ambientPlayState") != "paused":
+                raise AcceptanceError(f"Ambient animation is not paused while native content is visible: {item}")
+            if mode == "beauty" and "blur(" not in item.get("backdropFilter", ""):
+                raise AcceptanceError(f"Visual popup lost backdrop blur: {item}")
+            if mode == "balance" and item.get("backdropFilter") != "none":
+                raise AcceptanceError(f"Balance popup retained backdrop blur: {item}")
+    ui.evaluate("document.getElementById('moreBtn').click()")
+    wait_native_overlay_idle(ui, process)
+    return result
+
+
+def start_scroll_sweep(page: Cdp, frames: int = 48) -> Dict[str, Any]:
+    expression = r"""
+      (function(frames) {
+        const scroller = document.scrollingElement || document.documentElement;
+        const maxScroll = Math.max(0, scroller.scrollHeight - innerHeight);
+        if (maxScroll < 10000) throw new Error('long-page fixture is not scrollable: ' + maxScroll);
+        const started = performance.now();
+        let frame = 0, minY = scrollY, maxY = scrollY;
+        window.__shelterScrollProbe = new Promise(resolve => {
+          function tick() {
+            const target = Math.round(maxScroll * Math.min(1, (frame + 1) / frames));
+            window.scrollTo(0, target);
+            minY = Math.min(minY, scrollY); maxY = Math.max(maxY, scrollY);
+            frame++;
+            if (frame < frames) requestAnimationFrame(tick);
+            else requestAnimationFrame(() => {
+              window.scrollTo(0, maxScroll);
+              resolve({frames:frame, maxScroll:maxScroll, finalY:scrollY,
+                minY:minY, maxY:maxY, elapsedMs:Math.round(performance.now()-started)});
+            });
+          }
+          requestAnimationFrame(tick);
+        });
+        return JSON.stringify({started:true, maxScroll:maxScroll, frames:frames});
+      })(""" + str(int(frames)) + ")"
+    raw = page.evaluate(expression)
+    if not raw:
+        raise AcceptanceError("Could not start long-page scroll sweep")
+    return json.loads(raw)
+
+
+def finish_scroll_sweep(page: Cdp) -> Dict[str, Any]:
+    raw = page.evaluate("(async()=>JSON.stringify(await window.__shelterScrollProbe))()", timeout=20)
+    if not raw:
+        raise AcceptanceError("Long-page scroll sweep did not finish")
+    return json.loads(raw)
+
+
+def fast_scroll_probe(
+    ui: Cdp,
+    page: Cdp,
+    process: subprocess.Popen,
+    route: str,
+    popup_during_scroll: bool,
+) -> Dict[str, Any]:
+    start = start_scroll_sweep(page)
+    before = bridge_state(ui)
+    if popup_during_scroll:
+        time.sleep(0.08)
+        ui.evaluate("document.getElementById('moreBtn').click()")
+        wait_until(
+            lambda: (lambda s: bool(s and s.get("frozen") and not s.get("busy")))(bridge_state(ui)),
+            "menu opening during rapid page scrolling",
+            process,
+            timeout=15,
+        )
+        menu_style = ui.evaluate(
+            "(function(){var m=document.querySelector('.menu:not(.closing)');if(!m)return null;"
+            "var c=getComputedStyle(m);return JSON.stringify({background:c.backgroundColor,blur:c.backdropFilter,"
+            "alpha:(function(v){var m=String(v).match(/\\/\\s*([0-9.]+)(%)?\\s*\\)$/);"
+            "if(m)return m[2]?+m[1]/100:+m[1];if(/^rgba\\(/.test(v))return +v.slice(0,-1).split(',').pop();return 1;})(c.backgroundColor)});})()"
+        )
+        if not menu_style:
+            raise AcceptanceError(f"Popup vanished during the scroll probe for {route}")
+        menu_style = json.loads(menu_style)
+        if menu_style.get("alpha", 0) < 0.939:
+            raise AcceptanceError(f"Popup lost its opaque fallback during fast scrolling: {menu_style}")
+        ui.evaluate("document.getElementById('moreBtn').click()")
+        wait_native_overlay_idle(ui, process)
+    scroll = finish_scroll_sweep(page)
+    after = bridge_state(ui)
+    if scroll.get("maxScroll", 0) < 10000 or scroll.get("finalY", 0) < scroll.get("maxScroll", 0) - 3:
+        raise AcceptanceError(f"Fast scroll did not reach the end of {route}: {scroll}")
+    layout_delta = int(after.get("layoutRequests", 0)) - int(before.get("layoutRequests", 0))
+    if layout_delta > 1:
+        raise AcceptanceError(
+            f"Native page scrolling caused unnecessary viewport layouts on {route}: "
+            f"delta={layout_delta}, before={before}, after={after}"
+        )
+    return {
+        "route":route, "scroll":scroll, "popupDuringScroll":popup_during_scroll,
+        "layoutRequestDelta":layout_delta, "menu":menu_style if popup_during_scroll else None
+    }
+
+
+def long_native_pages_probe(
+    ui: Cdp,
+    port: int,
+    base_url: str,
+    process: subprocess.Popen,
+    site_pages: List[Cdp],
+) -> List[Dict[str, Any]]:
+    host = base_url.split("//", 1)[1]
+    results = []
+    for route in ("a", "b", "c"):
+        url = f"{base_url}/long/{route}"
+        ui.evaluate("window.newTab(" + json.dumps(url) + ")")
+        _target, page, state = wait_for_site(
+            port, host, process, timeout=30, path_contains=f"/long/{route}"
+        )
+        site_pages.append(page)
+        if state.get("title") != f"SHELTER long-page {route}":
+            raise AcceptanceError(f"Long-page fixture did not load {route}: {state}")
+        results.append(
+            fast_scroll_probe(
+                ui, page, process, f"/long/{route}", popup_during_scroll=True
+            )
+        )
+    return results
+
+
+def loading_popup_probe(
+    ui: Cdp,
+    port: int,
+    base_url: str,
+    process: subprocess.Popen,
+    site_pages: List[Cdp],
+) -> Dict[str, Any]:
+    host = base_url.split("//", 1)[1]
+    url = f"{base_url}/long/loading"
+    ui.evaluate("window.newTab(" + json.dumps(url) + ")")
+    target = wait_until(
+        lambda: find_site_page(port, host, path_contains="/long/loading"),
+        "delayed native page target",
+        process,
+        timeout=15,
+    )
+    page = Cdp(target["webSocketDebuggerUrl"])
+    page.call("Runtime.enable")
+    page.call("Page.enable")
+    site_pages.append(page)
+
+    def still_loading():
+        state = page_state(page)
+        return state if "/long/loading" in state.get("url", "") and state.get("readyState") != "complete" else False
+
+    loading_state = wait_until(
+        still_loading, "native document still loading", process, timeout=5, interval=0.05
+    )
+    ui.evaluate("document.getElementById('moreBtn').click()")
+    ui.evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))")
+    menu_style = ui.evaluate(
+        r"""(function(){
+          var menu=document.querySelector('.menu:not(.closing)');
+          if(!menu)return null;
+          var color=getComputedStyle(menu).backgroundColor;
+          var slash=color.match(/\/\s*([0-9.]+)(%)?\s*\)$/);
+          var alpha=slash?(slash[2]?Number(slash[1])/100:Number(slash[1])):
+            (/^rgba\(/i.test(color)?Number(color.slice(0,-1).split(',').pop()):1);
+          return JSON.stringify({backgroundColor:color,alpha:alpha});
+        })()"""
+    )
+    if not menu_style:
+        raise AcceptanceError("Popup did not remain open over the still-loading native page")
+    menu_style = json.loads(menu_style)
+    if menu_style.get("alpha", 0) < 0.939:
+        raise AcceptanceError(f"Popup fallback is too transparent during native loading: {menu_style}")
+    loading_during_popup = page_state(page)
+    if loading_during_popup.get("readyState") == "complete":
+        raise AcceptanceError("The delayed fixture finished before the loading-popup probe ran")
+    ui.evaluate("document.getElementById('moreBtn').click()")
+    wait_native_overlay_idle(ui, process)
+
+    def loaded_page():
+        state = page_state(page)
+        return state if state.get("readyState") == "complete" else False
+
+    state = wait_until(loaded_page, "delayed native page completion", process, timeout=20)
+    if "scrollable native document" not in state.get("text", "").lower():
+        raise AcceptanceError(f"Page content is incomplete after popup open/close: {state}")
+    return {
+        "url":state.get("url"), "loadingState":loading_state.get("readyState"),
+        "loadingDuringPopup":loading_during_popup.get("readyState"),
+        "popup":menu_style, "title":state.get("title"), "target_id":target.get("id"),
+        "bridge":bridge_state(ui)
+    }
+
+
 def page_state(page: Cdp) -> Dict[str, Any]:
+
     raw = page.evaluate(
         "JSON.stringify({url:location.href,title:document.title,"
         "readyState:document.readyState,"
@@ -540,11 +947,15 @@ def page_state(page: Cdp) -> Dict[str, Any]:
     return json.loads(raw) if raw else {}
 
 
-def find_site_page(port: int, host: str) -> Optional[Dict[str, Any]]:
+def find_site_page(
+    port: int, host: str, path_contains: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
     for target in get_targets(port):
+        url = target.get("url", "").lower()
         if (
             target.get("type") == "page"
-            and host in target.get("url", "").lower()
+            and host.lower() in url
+            and (not path_contains or path_contains.lower() in url)
             and target.get("webSocketDebuggerUrl")
         ):
             return target
@@ -556,10 +967,12 @@ def wait_for_site(
     host: str,
     process: subprocess.Popen,
     timeout: float = 45,
+    path_contains: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], Cdp, Dict[str, Any]]:
     target = wait_until(
-        lambda: find_site_page(port, host),
-        f"native CEF page for {host}",
+        lambda: find_site_page(port, host, path_contains),
+        f"native CEF page for {host}{path_contains or ''}",
+
         process,
         timeout,
     )
@@ -624,8 +1037,13 @@ def main() -> int:
     process = None
     ui = None
     site_pages: List[Cdp] = []
+    long_page_server: Optional[ThreadingHTTPServer] = None
+    long_page_thread: Optional[threading.Thread] = None
+    long_page_base = ""
+    original_gfx = "balance"
 
     try:
+        long_page_server, long_page_thread, long_page_base = start_long_page_server()
         print(f"SHELTER_ACCEPTANCE_VERSION expected=1.0.165", flush=True)
         print(f"SHELTER_ACCEPTANCE_EXECUTABLE {executable}", flush=True)
         with log_path.open("w", encoding="utf-8") as app_log:
@@ -670,6 +1088,9 @@ def main() -> int:
                     f"Packaged UI version mismatch: expected 1.0.165, got {version!r}"
                 )
             print(f"SHELTER_ACCEPTANCE_UI_READY version={version}", flush=True)
+            original_gfx = ui.evaluate("window.shelterTest.state().prefs.gfx || 'balance'")
+            if original_gfx not in ("beauty", "balance", "perf"):
+                original_gfx = "balance"
 
             ui.evaluate("window.openPage('dashboard')")
             wait_until(
@@ -788,6 +1209,10 @@ def main() -> int:
                     + json.dumps(toolbar_menu, ensure_ascii=False),
                     flush=True,
                 )
+                if not toolbar_menu.get("dashboardFallbackDisabled"):
+                    raise AcceptanceError(
+                        f"Native-page popup fallback leaked onto the Express/dashboard UI: {toolbar_menu}"
+                    )
                 if not all(toolbar_menu["toolbar"].values()):
                     raise AcceptanceError(
                         f"Toolbar buttons are misplaced at {width}px: {toolbar_menu}"
@@ -819,6 +1244,8 @@ def main() -> int:
             mode_probe = performance_mode_probe(ui)
             print("SHELTER_ACCEPTANCE_PERFORMANCE " + json.dumps(mode_probe, ensure_ascii=False), flush=True)
             print("SHELTER_ACCEPTANCE_PERFORMANCE_PASS", flush=True)
+            # Clear toasts generated by the acceptance-only segmented-control clicks.
+            ui.evaluate("document.querySelectorAll('#toasts>.toast').forEach(el=>el.remove())")
 
             ui.evaluate("window.newTab('https://example.com/')")
             target, page, state = wait_for_site(port, "example.com", process)
@@ -843,6 +1270,10 @@ def main() -> int:
                 ),
                 flush=True,
             )
+
+            popup_probe = popup_fallback_probe(ui, process)
+            print("SHELTER_ACCEPTANCE_NATIVE_POPUP " + json.dumps(popup_probe, ensure_ascii=False), flush=True)
+            print("SHELTER_ACCEPTANCE_NATIVE_POPUP_PASS", flush=True)
 
             ui.evaluate("window.navigate('https://example.org/')")
             target, page, state = wait_for_site(port, "example.org", process)
@@ -878,6 +1309,26 @@ def main() -> int:
                 flush=True,
             )
 
+            # Exercise the real native BrowserView on three long, differently
+            # colored pages while Visual mode remains enabled.
+            ui.evaluate("window.shelterTest.setGfxMode('beauty',{persist:false,notify:false})")
+            ui.evaluate("document.querySelectorAll('#toasts>.toast').forEach(el=>el.remove())")
+            loading_probe = loading_popup_probe(
+                ui, port, long_page_base, process, site_pages
+            )
+            print("SHELTER_ACCEPTANCE_LOADING_POPUP " + json.dumps(loading_probe, ensure_ascii=False), flush=True)
+            print("SHELTER_ACCEPTANCE_LOADING_POPUP_PASS", flush=True)
+
+            scroll_probes = long_native_pages_probe(
+                ui, port, long_page_base, process, site_pages
+            )
+            print("SHELTER_ACCEPTANCE_LONG_SCROLL " + json.dumps(scroll_probes, ensure_ascii=False), flush=True)
+            print("SHELTER_ACCEPTANCE_LONG_SCROLL_PASS", flush=True)
+            ui.evaluate(
+                "window.shelterTest.setGfxMode(" + json.dumps(original_gfx) +
+                ",{persist:false,notify:false})"
+            )
+
             print("SHELTER_ACCEPTANCE_PASS", flush=True)
         return 0
     except Exception as exc:
@@ -904,6 +1355,11 @@ def main() -> int:
             page.close()
         if process is not None:
             stop_process(process)
+        if long_page_server is not None:
+            long_page_server.shutdown()
+            long_page_server.server_close()
+        if long_page_thread is not None:
+            long_page_thread.join(timeout=2)
 
 
 if __name__ == "__main__":

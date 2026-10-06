@@ -187,9 +187,15 @@
     busy: false,
     snapFor: '',
     snapUrl: '',
-    lastRect: ''
+    lastRect: '',
+    epoch: 0                 // invalidates in-flight freeze/thaw across tab/view changes
   };
   var cbs = { dlprompt: null, ctxclose: null };
+
+  function setNativeContentClass() {
+    var body = document.body;
+    if (body) body.classList.toggle('native-content-visible', !!st.visible);
+  }
 
   function byId(id) { return document.getElementById(id); }
   function vpRect() {
@@ -247,7 +253,12 @@
   var OVERLAY_SEL = USE_HOLES ? FREEZE_BASE : FREEZE_BASE + ',' + HOLE_SEL;
 
   /* ---------- замеры ---------- */
-  var perf = window.__shPerf = { freezes: 0, thaws: 0, snapMs: [], snapKB: [], freezeMs: [], thawMs: [], holes: 0, clips: 0, longTasks: 0, longMax: 0 };
+  var perf = window.__shPerf = {
+    freezes: 0, thaws: 0, snapMs: [], snapKB: [], freezeMs: [], thawMs: [],
+    holes: 0, clips: 0, clipFrames: 0, clipActive: false,
+    layoutChecks: 0, layoutRequests: 0, overlayChecks: 0, observerWakeups: 0,
+    longTasks: 0, longMax: 0
+  };
   function pushPerf(arr, v) { arr.push(Math.round(v)); if (arr.length > 20) arr.shift(); }
   try {
     new PerformanceObserver(function (l) {
@@ -256,6 +267,7 @@
   } catch (_) {}
 
   function overlayOverViewport() {
+    perf.overlayChecks++;
     var vp = vpRect();
     if (!vp) return false;
     var list = document.querySelectorAll(OVERLAY_SEL);
@@ -282,35 +294,100 @@
   }
 
   function freeze() {
+    if (st.busy || st.frozen || !st.visible || !st.tabId) return;
     st.busy = true;
-    var id = st.tabId, t0 = performance.now(), t1 = 0;
+    var id = st.tabId, epoch = st.epoch, t0 = performance.now(), hideSent = false;
     root.classList.add('sh-snap-wait');
-    qSnap(id, 58, 900).then(function (url) {
-      t1 = performance.now();
-      pushPerf(perf.snapMs, t1 - t0); pushPerf(perf.snapKB, (url || '').length / 1024);
-      if (url && st.tabId === id) { st.snapUrl = url; st.snapFor = id; showSnap(url); }
-      return nextFrames(2);
-    }).then(function () {
-      st.frozen = true;
-      return q('view.hide');
-    }).then(function () {
-      perf.freezes++; pushPerf(perf.freezeMs, performance.now() - t0);
+    function stillCurrent() {
+      return st.visible && st.tabId === id && st.epoch === epoch && overlayOverViewport();
+    }
+    function finish() {
       st.busy = false;
       root.classList.remove('sh-snap-wait');
       evaluate();
+    }
+    function recoverStaleHide() {
+      st.frozen = false;
+      dropSnap();
+      if (!st.visible) return q('view.hide').then(finish);
+      return q('view.show', { rect: vpRect(), focus: !editableFocused() })
+        .then(function () { return nextFrames(1); })
+        .then(function () { st.clipKey = ''; finish(); });
+    }
+
+    qSnap(id, 58, 900).then(function (url) {
+      pushPerf(perf.snapMs, performance.now() - t0);
+      pushPerf(perf.snapKB, (url || '').length / 1024);
+      if (!stillCurrent()) return false;
+      if (url) { st.snapUrl = url; st.snapFor = id; showSnap(url); }
+      return nextFrames(2).then(stillCurrent);
+    }).then(function (shouldHide) {
+      if (!shouldHide || !stillCurrent()) {
+        st.frozen = false;
+        finish();
+        return false;
+      }
+      st.frozen = true;
+      hideSent = true;
+      return q('view.hide').then(function (result) { return result !== null; });
+    }).then(function (hidden) {
+      if (!hideSent) return;
+      if (!hidden) {
+        st.frozen = false;
+        dropSnap();
+        finish();
+        return;
+      }
+      if (!st.visible || st.tabId !== id || st.epoch !== epoch) {
+        recoverStaleHide();
+        return;
+      }
+      perf.freezes++;
+      pushPerf(perf.freezeMs, performance.now() - t0);
+      finish();
+    }).catch(function () {
+      // Always release the temporary hidden-menu state, even if a bridge call
+      // fails during shutdown or a tab is replaced while a snapshot is pending.
+      if (hideSent) recoverStaleHide();
+      else { st.frozen = false; finish(); }
     });
   }
   function thaw() {
+    if (st.busy || !st.frozen || !st.visible) return;
     st.busy = true;
-    var r = vpRect(), tt0 = performance.now();
-    q('view.show', { rect: r, focus: !editableFocused() }).then(function () { return nextFrames(2); }).then(function () {
-      st.frozen = false;
-      dropSnap();
-      perf.thaws++; pushPerf(perf.thawMs, performance.now() - tt0);
+    var id = st.tabId, epoch = st.epoch, tt0 = performance.now();
+    function finish() {
       st.busy = false;
       st.clipKey = '';
       evaluate();
-    });
+    }
+    q('view.show', { rect: vpRect(), focus: !editableFocused() })
+      .then(function () { return nextFrames(2); })
+      .then(function () {
+        st.frozen = false;
+        perf.thaws++;
+        pushPerf(perf.thawMs, performance.now() - tt0);
+        if (!st.visible) {
+          dropSnap();
+          return q('view.hide').then(finish);
+        }
+        var changed = st.epoch !== epoch || st.tabId !== id;
+        var covered = overlayOverViewport();
+        if (!covered) dropSnap();
+        if (changed) {
+          // view.open may have been queued while the old snapshot was still
+          // frozen. Re-apply the current viewport after it, not the stale one.
+          return q('view.show', { rect: vpRect(), focus: !editableFocused() })
+            .then(function () { return nextFrames(1); })
+            .then(finish);
+        }
+        finish();
+      })
+      .catch(function () {
+        st.frozen = false;
+        dropSnap();
+        finish();
+      });
   }
 
   /* ---------- скругление углов и «дыры» ---------- */
@@ -369,17 +446,39 @@
     }
     return holes.length;
   }
-  var clipLoop = false, clipCalm = 0;
-  function clipTick() {
-    var n = syncClip();
-    if (n > 0) clipCalm = 3; else clipCalm--;
-    if (clipCalm > 0) requestAnimationFrame(clipTick); else clipLoop = false;
+  var clipLoop = false, clipCalm = 0, clipUntil = 0;
+  function stopClipLoop() {
+    clipLoop = false;
+    clipCalm = 0;
+    clipUntil = 0;
+    perf.clipActive = false;
   }
-  function kickClip() {
+  function clipTick() {
+    if (!USE_HOLES || !st.visible || st.frozen || st.busy) { stopClipLoop(); return; }
+    perf.clipFrames++;
+    syncClip();
+    if (clipCalm > 0) clipCalm--;
+    if (clipCalm > 0 || performance.now() < clipUntil) requestAnimationFrame(clipTick);
+    else stopClipLoop();
+  }
+  function kickClip(settleMs) {
+    if (!USE_HOLES || !st.visible || st.frozen || st.busy) return;
     clipCalm = Math.max(clipCalm, 3);
-    if (!clipLoop) { clipLoop = true; requestAnimationFrame(clipTick); }
+    clipUntil = Math.max(clipUntil, performance.now() + Math.max(0, +settleMs || 0));
+    if (!clipLoop) {
+      clipLoop = true;
+      perf.clipActive = true;
+      requestAnimationFrame(clipTick);
+    }
   }
   window.__shClip = function () { return st.clipKey || ''; };
+  window.__shBridgeState = function () {
+    return {
+      visible: st.visible, frozen: st.frozen, busy: st.busy,
+      nativeContentVisible: !!(document.body && document.body.classList.contains('native-content-visible')),
+      clipActive: clipLoop, trackedPopups: popupObservers.size, snapFor: st.snapFor
+    };
+  };
 
   function evaluate() {
     if (st.busy) return;
@@ -387,19 +486,22 @@
     if (need && !st.frozen) freeze();
     else if (!need && st.frozen && st.visible) thaw();
     else if (!st.visible && st.frozen) { st.frozen = false; dropSnap(); }
-    /* Клип-петля нужна только пока нативный вид реально показан и не заморожен
-       снимком — иначе rAF-тик продолжается без дела после каждой мутации. */
-    if (st.visible && !st.frozen) kickClip();
+    /* Holes are measured only for their short entrance/exit motion or viewport
+       geometry changes; a stationary toast/tooltip no longer owns a permanent rAF. */
+    if (st.visible && !st.frozen && !st.busy) kickClip();
   }
   var evalQueued = false;
   function scheduleEval() {
+    if (!st.visible && !st.frozen && !st.busy) return;
     if (evalQueued) return;
     evalQueued = true;
     requestAnimationFrame(function () { evalQueued = false; evaluate(); });
   }
 
   /* ---------- раскладка ---------- */
+  var layoutQueued = false;
   function relayout() {
+    perf.layoutChecks++;
     if (!st.visible || st.frozen || st.busy) return;
     var r = vpRect();
     var k = rectKey(r);
@@ -407,7 +509,13 @@
     st.lastRect = k;
     st.clipKey = '';
     kickClip();
+    perf.layoutRequests++;
     q('view.layout', { rect: r, visible: true });
+  }
+  function scheduleRelayout() {
+    if (layoutQueued) return;
+    layoutQueued = true;
+    requestAnimationFrame(function () { layoutQueued = false; relayout(); });
   }
 
   /* ---------- хуки, которых ждёт вёрстка ---------- */
@@ -418,10 +526,12 @@
     var info = tabInfo(id);
     var partition = (info.ghost ? 'temp:ghost-' : 'persist:space-') + info.space;
     var changed = st.urls[id] !== url;
+    var contextChanged = st.tabId !== id || changed || !st.visible;
     st.urls[id] = url;
-    if (st.tabId !== id) { dropSnap(); }
+    if (contextChanged) { st.epoch++; dropSnap(); }
     st.tabId = id;
     st.visible = true;
+    setNativeContentClass();
     var focus = true;
     if (editableFocused()) {
       if (changed) { try { document.activeElement.blur(); } catch (_) {} }
@@ -437,9 +547,13 @@
     return true;
   };
   window.shelterShowChrome = function () {
-    if (!st.visible && !st.frozen) return;
+    if (!st.visible && !st.frozen && !st.busy) { setNativeContentClass(); return; }
+    st.epoch++;
     st.visible = false;
     st.frozen = false;
+    setNativeContentClass();
+    root.classList.remove('sh-snap-wait');
+    stopClipLoop();
     dropSnap();
     q('view.hide');
   };
@@ -475,7 +589,8 @@
   function syncTabs() {
     var ids = [];
     try { if (typeof window.getAllTabIds === 'function') ids = window.getAllTabIds() || []; } catch (_) {}
-    if (ids.length) q('view.sync', { ids: ids });
+    // Send empty lists too, so closing the final UI tab destroys stale native views.
+    q('view.sync', { ids: ids });
   }
   function scheduleSync() { clearTimeout(syncTimer); syncTimer = setTimeout(syncTabs, 350); }
 
@@ -636,24 +751,100 @@
       st.lastRect = '';
       if (fb.hidden) q('find', { id: st.tabId, act: 'stop' });
       else if (st.visible) { var i = byId('findInput'); if (i && i.value.trim()) nativeFind(false, true); }
-      relayout();
+      scheduleEval();
+      scheduleRelayout();
     }).observe(fb, { attributes: true, attributeFilter: ['hidden'] });
   }
 
   /* ---------- наблюдатели ---------- */
+  var POPUP_ROOTS = '.menu,.scrim,.tip,.call';
+  var HOLE_ROOTS = '.tip,.toast,.suggest,#dlFloat';
+  var popupObservers = new Map();
+  function isElement(node) { return !!node && node.nodeType === 1 && typeof node.matches === 'function'; }
+  function hasHole(node) {
+    return isElement(node) && (node.matches(HOLE_ROOTS) ||
+      (node.querySelector && !!node.querySelector(HOLE_ROOTS)));
+  }
+  function watchPopupNode(node) {
+    if (!isElement(node) || !node.matches(POPUP_ROOTS) || popupObservers.has(node)) return false;
+    var observer = new MutationObserver(function () {
+      perf.observerWakeups++;
+      if (!st.visible) return;
+      scheduleEval();
+      if (USE_HOLES && hasHole(node)) kickClip(420);
+    });
+    observer.observe(node, { attributes: true, attributeFilter: ['class', 'hidden'] });
+    popupObservers.set(node, observer);
+    return true;
+  }
+  function unwatchPopupNode(node) {
+    var observer = popupObservers.get(node);
+    if (!observer) return;
+    observer.disconnect();
+    popupObservers.delete(node);
+  }
+  function watchBodyPopups(records) {
+    var changed = false, holeChanged = false;
+    records.forEach(function (record) {
+      if (record.type !== 'childList') return;
+      Array.prototype.forEach.call(record.addedNodes, function (node) {
+        if (watchPopupNode(node)) { changed = true; if (hasHole(node)) holeChanged = true; }
+      });
+      Array.prototype.forEach.call(record.removedNodes, function (node) {
+        if (isElement(node) && node.matches(POPUP_ROOTS)) {
+          if (hasHole(node)) holeChanged = true;
+          unwatchPopupNode(node);
+          changed = true;
+        }
+      });
+    });
+    if (!changed) return;
+    perf.observerWakeups++;
+    if (!st.visible) return;
+    scheduleEval();
+    if (USE_HOLES && holeChanged) kickClip(420);
+  }
+  function watchOverlayRoot(node, subtree) {
+    if (!node) return;
+    new MutationObserver(function (records) {
+      if (!records.length) return;
+      perf.observerWakeups++;
+      if (!st.visible) return;
+      scheduleEval();
+      if (USE_HOLES) kickClip(420);
+    }).observe(node, {
+      childList: true, subtree: !!subtree, attributes: true,
+      attributeFilter: ['class', 'hidden']
+    });
+  }
+  function viewportMotion(event) {
+    var vp = byId('viewport'), stage = byId('stage'), app = byId('app'), main = vp && vp.closest('.main');
+    var target = event.target;
+    if (target !== vp && target !== stage && target !== app && target !== main) return;
+    scheduleRelayout();
+    if (target === vp) {
+      if (event.type === 'transitionrun') kickClip(560);
+      else kickClip(60);
+    }
+  }
   function startObservers() {
     watchFindbar();
-    var vp = byId('viewport');
-    if (window.ResizeObserver && vp) new ResizeObserver(relayout).observe(vp);
-    window.addEventListener('resize', relayout);
-    document.addEventListener('transitionend', relayout, true);
-    document.addEventListener('animationend', relayout, true);
-    new MutationObserver(function () { scheduleEval(); relayout(); }).observe(document.body, {
-      childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'class']
+    var vp = byId('viewport'), stage = byId('stage'), app = byId('app'), main = vp && vp.closest('.main');
+    if (window.ResizeObserver && vp) new ResizeObserver(scheduleRelayout).observe(vp);
+    window.addEventListener('resize', scheduleRelayout, { passive: true });
+    [vp, stage, app, main].forEach(function (node) {
+      if (!node) return;
+      node.addEventListener('transitionrun', viewportMotion);
+      node.addEventListener('transitionend', viewportMotion);
+      node.addEventListener('animationend', viewportMotion);
     });
+    if (document.body) new MutationObserver(watchBodyPopups).observe(document.body, { childList: true });
+    watchOverlayRoot(byId('toasts'), true);
+    watchOverlayRoot(byId('heroSuggest'), false);
+    watchOverlayRoot(byId('tbSuggest'), false);
     var tl = byId('tabList');
     if (tl) new MutationObserver(scheduleSync).observe(tl, { childList: true, subtree: true });
-    setInterval(syncTabs, 4000);
+    scheduleSync();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startObservers);
   else startObservers();

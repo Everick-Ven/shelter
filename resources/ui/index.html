@@ -2910,6 +2910,34 @@ body[data-gfx="perf"] .bm-mount .hero-links{
 #setGlowModeRow.is-disabled,#glowCustomRow.is-disabled,#setGlowIntRow.is-disabled,#setGlowSatRow.is-disabled{opacity:.42;pointer-events:none;user-select:none;filter:grayscale(.85);transition:opacity .2s var(--ease)}
 #glassOpRange:disabled,.sw-t:disabled,.sw-t.is-disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 
+/* Native CEF pages are a separate compositor surface. A UI backdrop-filter
+   cannot always sample that surface (notably through macOS holes), so keep a
+   near-opaque themed fill under every popup while a native page is visible.
+   Visual still applies its blur/glow/animation; Balance keeps transparency
+   without blur; Speed already supplies fully opaque surfaces and no effects. */
+body.native-content-visible:not([data-gfx="perf"]){
+  --native-popup-opacity:clamp(94%,calc(var(--glass-op) * 1%),100%);
+  --native-popup-menu:color-mix(in srgb,var(--menu) var(--native-popup-opacity),transparent);
+  --native-popup-card:color-mix(in srgb,var(--card) var(--native-popup-opacity),transparent);
+}
+body.native-content-visible:not([data-gfx="perf"]) .menu,
+body.native-content-visible:not([data-gfx="perf"]) .palette,
+body.native-content-visible:not([data-gfx="perf"]) .suggest,
+body.native-content-visible:not([data-gfx="perf"]) .findbar,
+body.native-content-visible:not([data-gfx="perf"]) .toast,
+body.native-content-visible:not([data-gfx="perf"]) .tip,
+body.native-content-visible:not([data-gfx="perf"]) .dl-float{
+  background-color:var(--native-popup-menu);
+}
+body.native-content-visible:not([data-gfx="perf"]) .modal,
+body.native-content-visible:not([data-gfx="perf"]) .settings,
+body.native-content-visible:not([data-gfx="perf"]) .devtools{
+  background-color:var(--native-popup-card);
+}
+/* Ambient decoration is static while the native page owns the content area;
+   resuming the CSS animation when returning to the dashboard is automatic. */
+body.native-content-visible .ambient i{animation-play-state:paused}
+
 /* --- Контраст в теме «Графит» (светло-серебристые акценты --ga/--gc требуют тёмного текста вместо белого) --- */
 html[data-theme="graphite"] .btn.accent,
 html[data-theme="graphite"] .btn.accent:hover,

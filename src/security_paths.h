@@ -31,6 +31,38 @@ inline bool IsSafeProfileId(const std::string& id) {
   return true;
 }
 
+// Persistent profiles live directly under the CEF user-data directory
+// (Chrome only accepts profile paths that are immediate children of it).
+// Names owned by Chrome/CEF itself must never be reused as profile ids; the
+// comparison is case-insensitive because Windows/macOS paths are.
+inline bool IsReservedProfileName(const std::string& id) {
+  std::string lower(id);
+  for (char& c : lower) {
+    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+  }
+  static const char* const kReserved[] = {
+      "default",
+      "system_profile",
+      "systemprofile",
+      "crashpad",
+      "shadercache",
+      "grshadercache",
+      "subresource_filter",
+      "subresourcefilter",
+      "certificate_transparency",
+      "certificatetransparency",
+      "trust_tokens",
+      "trusttokens",
+      "lastactivetabs",
+      "local_state",
+      "pending_wipe",
+  };
+  for (const char* name : kReserved) {
+    if (lower == name) return true;
+  }
+  return false;
+}
+
 inline bool IsReservedWindowsDeviceName(const std::string& component) {
   const std::size_t dot = component.find('.');
   std::string stem = component.substr(0, dot);

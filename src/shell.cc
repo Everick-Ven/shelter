@@ -781,12 +781,13 @@ CefRefPtr<CefRequestContext> Shell::ContextFor(const std::string& partition) {
   if (partition.rfind("persist:", 0) == 0) {
     const std::string id = SanitizeForPath(partition.substr(8));
     const fs::path user_data = fs::u8path(platform::UserDataDir());
-    const fs::path profiles = user_data / "Profiles";
-    const fs::path profile = profiles / id;
+    // Chrome accepts a disk profile only when its path is a direct child of
+    // the user-data directory (root_cache_path), so keep profiles flat.
+    const fs::path profile = user_data / id;
     if (security::IsSafeProfileId(id) &&
+        !security::IsReservedProfileName(id) &&
         security::EnsureDirectoryWithoutLink(user_data) &&
-        security::EnsureDirectoryWithoutLink(profiles) &&
-        security::IsPathWithin(profiles, profile) &&
+        security::IsPathWithin(user_data, profile) &&
         security::EnsureDirectoryWithoutLink(profile)) {
       CefString(&rs.cache_path) = PathToUtf8(profile);
       rs.persist_session_cookies = true;
@@ -810,16 +811,16 @@ void Shell::ReleaseContextIfUnused(const std::string& partition) {
 void Shell::QueueWipe(const std::string& partition) {
   if (partition.rfind("persist:", 0) != 0) return;
   const std::string id = SanitizeForPath(partition.substr(8));
-  if (!security::IsSafeProfileId(id)) return;
-
-  const fs::path user_data = fs::u8path(platform::UserDataDir());
-  const fs::path profiles = user_data / "Profiles";
-  if (!security::EnsureDirectoryWithoutLink(user_data) ||
-      !security::EnsureDirectoryWithoutLink(profiles)) {
+  if (!security::IsSafeProfileId(id) || security::IsReservedProfileName(id)) {
     return;
   }
-  const fs::path profile = profiles / id;
-  if (!security::IsPathWithin(profiles, profile) ||
+
+  const fs::path user_data = fs::u8path(platform::UserDataDir());
+  if (!security::EnsureDirectoryWithoutLink(user_data)) {
+    return;
+  }
+  const fs::path profile = user_data / id;
+  if (!security::IsPathWithin(user_data, profile) ||
       !security::EnsureDirectoryWithoutLink(profile)) {
     return;
   }
@@ -869,14 +870,24 @@ void Shell::QueueWipe(const std::string& partition) {
 // а не повторная запись поверх файла.
 void Shell::ApplyPendingWipes() {
   const fs::path user_data = fs::u8path(platform::UserDataDir());
-  const fs::path profiles = user_data / "Profiles";
   const fs::path list = user_data / "pending-wipe.txt";
-  if (!security::IsDirectoryWithoutLink(user_data) ||
-      !security::IsRegularFileWithoutLink(list)) {
-    return;
+  if (!security::IsDirectoryWithoutLink(user_data)) return;
+
+  // Pre-1.0.166 builds nested profiles under Profiles/. Chrome only accepts
+  // profiles that are direct children of the user-data directory and rejected
+  // those paths, so wipe the legacy container wholesale on upgrade.
+  std::error_code ec;
+  const fs::path legacy_profiles = user_data / "Profiles";
+  const fs::file_status legacy_status = fs::symlink_status(legacy_profiles, ec);
+  const bool legacy_missing =
+      ec == std::errc::no_such_file_or_directory ||
+      (!ec && legacy_status.type() == fs::file_type::not_found);
+  if (!ec && !legacy_missing) {
+    security::RemoveTreeWithoutFollowingLinks(user_data, legacy_profiles);
   }
 
-  std::error_code ec;
+  if (!security::IsRegularFileWithoutLink(list)) return;
+
   const std::uintmax_t list_size = fs::file_size(list, ec);
   if (ec || list_size > kMaxPendingWipeListBytes) return;
 
@@ -888,6 +899,7 @@ void Shell::ApplyPendingWipes() {
   while (std::getline(f, line)) {
     if (++lines > kMaxPendingWipeEntries) return;
     if (security::IsSafeProfileId(line) &&
+        !security::IsReservedProfileName(line) &&
         std::find(ids.begin(), ids.end(), line) == ids.end()) {
       ids.push_back(line);
     }
@@ -895,22 +907,12 @@ void Shell::ApplyPendingWipes() {
   if (!f.eof()) return;
   f.close();
 
-  const fs::file_status profiles_status = fs::symlink_status(profiles, ec);
-  const bool profiles_missing =
-      ec == std::errc::no_such_file_or_directory ||
-      (!ec && profiles_status.type() == fs::file_type::not_found);
-  if (ec && !profiles_missing) return;
-  if (!profiles_missing && !security::IsDirectoryWithoutLink(profiles)) return;
-
   bool all_removed = true;
-  if (!profiles_missing) {
-    for (const std::string& id : ids) {
-      if (!security::IsSafeProfileId(id)) continue;
-      const fs::path profile = profiles / id;
-      if (!security::IsPathWithin(profiles, profile) ||
-          !security::RemoveTreeWithoutFollowingLinks(profiles, profile)) {
-        all_removed = false;
-      }
+  for (const std::string& id : ids) {
+    const fs::path profile = user_data / id;
+    if (!security::IsPathWithin(user_data, profile) ||
+        !security::RemoveTreeWithoutFollowingLinks(user_data, profile)) {
+      all_removed = false;
     }
   }
   if (!all_removed) return;  // Keep the bounded list for a later retry.

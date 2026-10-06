@@ -565,13 +565,13 @@ try:
                 if m_.encode() in data or m_.encode("utf-16le") in data:
                     hits[m_].append(os.path.relpath(fp, udir))
     log("files scanned:", nfiles, "in", udir)
-    for base_ in (os.path.join(udir, "Profiles"), udir):
-        for d_ in sorted(os.listdir(base_)) if os.path.isdir(base_) else []:
-            fp_ = os.path.join(base_, d_)
-            if os.path.isdir(fp_) and (base_ != udir or d_ in ("Default", "Profiles")):
-                log("  dir", os.path.relpath(fp_, udir), [x for x in sorted(os.listdir(fp_))][:30])
+    # Профили лежат прямо в корне user-data (Chrome принимает только такие пути).
+    for d_ in sorted(os.listdir(udir)) if os.path.isdir(udir) else []:
+        fp_ = os.path.join(udir, d_)
+        if os.path.isdir(fp_) and (d_ in ("Default", "Profiles") or d_.startswith("space-")):
+            log("  dir", os.path.relpath(fp_, udir), [x for x in sorted(os.listdir(fp_))][:30])
     for sub_ in ("Cache", "Local Storage", "Session Storage", "Network"):
-        for root_, dirs_, files_ in os.walk(os.path.join(udir, "Profiles", "space-main", sub_)):
+        for root_, dirs_, files_ in os.walk(os.path.join(udir, "space-main", sub_)):
             log("  ", os.path.relpath(root_, udir), len(files_), "files", sum(os.path.getsize(os.path.join(root_, f)) for f in files_))
     log("CONTROL (persistent space) marker found in:", hits[mp][:10] or "NOT FOUND")
     log("GHOST marker found on disk in:", hits[mg][:10] or "nothing (OK)")

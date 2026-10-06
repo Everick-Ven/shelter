@@ -767,13 +767,17 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
         );
         const alphaOf = value => {
           const color = String(value || '').trim();
+          if (!color || color === 'none') return null;
+          if (color === 'transparent') return 0;
           const slash = color.match(/\/\s*([0-9.]+)(%)?\s*\)$/);
           if (slash) return slash[2] ? Number(slash[1]) / 100 : Number(slash[1]);
           if (/^rgba\(/i.test(color)) {
             const parts = color.slice(color.indexOf('(') + 1, -1).split(',');
-            return parts.length > 3 ? Number(parts[3]) : null;
+            return parts.length > 3 ? Number(parts[3]) : 1;
           }
-          if (/^rgb\(/i.test(color)) return 1;
+          // Color functions without an alpha component are fully opaque
+          // ("rgb(...)" legacy form, "color(srgb r g b)" modern serialization).
+          if (/^(rgb|hsl|lab|lch|oklab|oklch|color)\(/i.test(color)) return 1;
           return null;
         };
         const checked = [];
@@ -915,13 +919,17 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
         };
         const alphaOf = value => {
           const color = String(value || '').trim();
+          if (!color || color === 'none') return null;
+          if (color === 'transparent') return 0;
           const slash = color.match(/\/\s*([0-9.]+)(%)?\s*\)$/);
           if (slash) return slash[2] ? Number(slash[1]) / 100 : Number(slash[1]);
           if (/^rgba\(/i.test(color)) {
             const parts = color.slice(color.indexOf('(') + 1, -1).split(',');
-            return parts.length > 3 ? Number(parts[3]) : null;
+            return parts.length > 3 ? Number(parts[3]) : 1;
           }
-          if (/^rgb\(/i.test(color)) return 1;
+          // Color functions without an alpha component are fully opaque
+          // ("rgb(...)" legacy form, "color(srgb r g b)" modern serialization).
+          if (/^(rgb|hsl|lab|lch|oklab|oklch|color)\(/i.test(color)) return 1;
           return null;
         };
         const quick = document.getElementById('quickBtn');

@@ -50,6 +50,12 @@ def summarize(lines: list[str]) -> str:
 
 
 def main() -> int:
+    # Logs routinely contain non-ASCII text; never crash on console encodings.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     emitted = False
     chunks: list[str] = []
     for raw_path in sys.argv[1:]:

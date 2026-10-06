@@ -1943,6 +1943,13 @@ body[data-gfx="balance"] *::after{
   -webkit-backdrop-filter:none !important;
   backdrop-filter:none !important;
 }
+/* Прогрев blur-шейдера: пока «Визуал» выключен, крошечный невидимый слой держит
+   фильтр скомпилированным, и вход в «Визуал» не подмораживает окно на слабых ПК.
+   Переживает balance/perf-запрет через более специфичный селектор. */
+#blurWarm{position:fixed;right:10px;bottom:10px;width:44px;height:44px;border-radius:12px;opacity:.012;pointer-events:none;z-index:1;backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%)}
+body[data-gfx="balance"] #blurWarm,
+body[data-gfx="perf"] #blurWarm{backdrop-filter:blur(22px) saturate(170%) !important;-webkit-backdrop-filter:blur(22px) saturate(170%) !important}
+body[data-gfx="beauty"] #blurWarm{display:none}
 body[data-gfx="perf"]{
   --bf-glass:none !important;
   --bf-menu:none !important;
@@ -3035,6 +3042,7 @@ html[data-theme="graphite"] .badge.hot{
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><i></i><i></i></div>
+<div id="blurWarm" aria-hidden="true"></div>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
 <defs>
@@ -9958,7 +9966,7 @@ SEG.sidebar = v => { if ((v === 'rail') !== $('#app').classList.contains('collap
 /* без notify: сам переключатель — достаточная обратная связь, лишний тост
    поверх открытого меню воспринимается как дёргание */
 SEG.motion = v => setGfxMode(v, { notify: false });
-function applyGfx() {
+function applyGfx(deferHeavy) {
   const gfx = ['beauty', 'balance', 'perf'].includes(S.prefs.gfx) ? S.prefs.gfx : 'balance';
   S.prefs.gfx = gfx;
   S.prefs.motion = gfx === 'perf' ? 'off' : 'full';
@@ -9978,8 +9986,21 @@ function applyGfx() {
     syncRangeFill(gr);
   }
   if (gs) gs.classList.toggle('is-disabled', isPerf);
-  try { syncSwitches(); } catch (_) {}
-  if (typeof applyGlowPrefs === 'function') applyGlowPrefs();
+  /* Тяжёлая часть (переключатели, переменные свечения, перерасчёт hero-канвы)
+     уходит на следующий кадр: кадр клика остаётся лёгким, и переключение
+     режимов не ощущается как фриз. Приёмочные пробы читают состояние после
+     двух requestAnimationFrame — отложенная часть к этому моменту готова. */
+  const heavy = () => {
+    try { syncSwitches(); } catch (_) {}
+    if (typeof applyGlowPrefs === 'function') applyGlowPrefs();
+    if (S.prefs.glow !== false && S.prefs.gfx !== 'perf') {
+      try { Hero.relayout(); } catch (_) {}
+    } else {
+      try { Hero.clear(); } catch (_) {}
+    }
+  };
+  if (deferHeavy) requestAnimationFrame(heavy);
+  else heavy();
 }
 function setGfxMode(value, options = {}) {
   const gfx = ['beauty', 'balance', 'perf'].includes(value) ? value : 'balance';
@@ -9999,12 +10020,7 @@ function setGfxMode(value, options = {}) {
   try { if (typeof window.shelterClearGlowSpot === 'function') window.shelterClearGlowSpot(); } catch (_) {}
   S.prefs.gfx = gfx;
   S.prefs.motion = gfx === 'perf' ? 'off' : 'full';
-  applyGfx();
-  if (S.prefs.glow !== false && gfx !== 'perf') {
-    try { Hero.relayout(); } catch (_) {}
-  } else {
-    try { Hero.clear(); } catch (_) {}
-  }
+  applyGfx(true);
   if (save) persist();
   if (notify) toast('Режим: ' + ({ beauty: 'Визуал', balance: 'Баланс', perf: 'Скорость (для слабых ПК)' })[gfx], { icon: 'sparkles' });
   return gfx;

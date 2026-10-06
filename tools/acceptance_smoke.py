@@ -704,6 +704,8 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             glowOff:document.body.classList.contains('glow-off'),
             reduceMotion:document.documentElement.classList.contains('reduce-motion'),
             ambientPlayState:ambient ? getComputedStyle(ambient).animationPlayState : 'missing',
+            ambientAnimationName:ambient ? getComputedStyle(ambient).animationName : 'missing',
+            ambientDisplay:ambient ? getComputedStyle(ambient.parentElement).display : 'missing',
             fallbackOpacity:getComputedStyle(document.body).getPropertyValue('--native-popup-opacity').trim()
           });
         }
@@ -748,8 +750,14 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
                 raise AcceptanceError(f"Popup glow token does not match {mode}: {item}")
             if item.get("reduceMotion"):
                 raise AcceptanceError(f"Reduced-motion state leaked into {mode}: {item}")
-            if item.get("ambientPlayState") != "paused":
-                raise AcceptanceError(f"Ambient animation is not paused while native content is visible: {item}")
+            if mode == "beauty" and item.get("ambientPlayState") != "paused":
+                raise AcceptanceError(f"Visual ambient animation is not paused over native content: {item}")
+            if mode == "balance" and (
+                item.get("ambientDisplay") != "none"
+                and item.get("ambientAnimationName") != "none"
+                and item.get("ambientPlayState") != "paused"
+            ):
+                raise AcceptanceError(f"Balance left a decorative ambient animation running: {item}")
             if mode == "beauty" and "blur(" not in item.get("backdropFilter", ""):
                 raise AcceptanceError(f"Visual popup lost backdrop blur: {item}")
             if mode == "balance" and item.get("backdropFilter") != "none":

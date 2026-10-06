@@ -17,6 +17,8 @@ jobs:
   windows:
     name: Windows x64
     runs-on: windows-latest
+    permissions:
+      contents: write  # push failure logs to the ci-logs-windows branch
     steps:
       - uses: actions/checkout@v4
 
@@ -97,10 +99,17 @@ jobs:
           Start-Sleep -Seconds 2
           if (Test-Path $exe) { throw "SHELTER executable remains after uninstall: $exe" }
 
-      - name: Report Windows acceptance diagnostics
+      - name: Report Windows failure diagnostics
         if: failure()
         shell: pwsh
-        run: python tools/report_ci_failure.py install.log smoke-run.log acceptance-app.log
+        run: python tools/report_ci_failure.py configure.log build.log package.log install.log geometry.log smoke-run.log acceptance-app.log
+
+      - name: Push Windows logs to ci-logs branch
+        if: failure()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tools/push_log.sh windows configure.log build.log package.log install.log geometry.log smoke-run.log acceptance-app.log || true
 
       - name: Portable zip
         shell: pwsh
@@ -147,6 +156,8 @@ jobs:
   macos:
     name: macOS Intel (x86_64)
     runs-on: macos-15-intel
+    permissions:
+      contents: write  # push failure logs to the ci-logs-macos branch
     steps:
       - uses: actions/checkout@v4
 
@@ -208,9 +219,16 @@ jobs:
           ls -la /Applications/SHELTER.app/Contents/Resources
           python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee smoke-run.log
 
-      - name: Report macOS acceptance diagnostics
+      - name: Report macOS failure diagnostics
         if: failure()
-        run: python3 tools/report_ci_failure.py package.log geometry.log smoke-run.log acceptance-app.log
+        run: python3 tools/report_ci_failure.py configure.log build.log package.log geometry.log smoke-run.log acceptance-app.log
+
+      - name: Push macOS logs to ci-logs branch
+        if: failure()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tools/push_log.sh macos configure.log build.log package.log geometry.log smoke-run.log acceptance-app.log || true
 
       - uses: actions/upload-artifact@v4
         with:

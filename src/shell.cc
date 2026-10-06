@@ -44,6 +44,17 @@ namespace shelter {
 
 namespace {
 
+// fs::path::u8string() yields std::u8string (char8_t) in C++20, which does
+// not convert to std::string implicitly. Centralise the conversion.
+std::string PathToUtf8(const fs::path& path) {
+  const auto value = path.u8string();
+#if defined(__cpp_char8_t)
+  return std::string(reinterpret_cast<const char*>(value.data()), value.size());
+#else
+  return value;
+#endif
+}
+
 constexpr int kMinWidth = 960;
 constexpr int kMinHeight = 620;
 constexpr size_t kMaxExtensionArchiveBytes = 64u * 1024u * 1024u;
@@ -259,7 +270,7 @@ void LoadExtFromDir(const fs::path& dir) {
   if (!v || v->GetType() != VTYPE_DICTIONARY) return;
   CefRefPtr<CefDictionaryValue> d = v->GetDictionary();
   ExtEntry e;
-  e.path = dir.u8string();
+  e.path = PathToUtf8(dir);
   e.id = extension_id;
   if (d->HasKey("name") && d->GetType("name") == VTYPE_STRING)
     e.name = d->GetString("name").ToString();
@@ -777,7 +788,7 @@ CefRefPtr<CefRequestContext> Shell::ContextFor(const std::string& partition) {
         security::EnsureDirectoryWithoutLink(profiles) &&
         security::IsPathWithin(profiles, profile) &&
         security::EnsureDirectoryWithoutLink(profile)) {
-      CefString(&rs.cache_path) = profile.u8string();
+      CefString(&rs.cache_path) = PathToUtf8(profile);
       rs.persist_session_cookies = true;
     }
     // Unsafe/unavailable paths deliberately fall back to an in-memory context.
@@ -1220,15 +1231,6 @@ std::string HostOf(const std::string& url) {
   CefURLParts parts;
   if (CefParseURL(url, parts)) return CefString(&parts.host).ToString();
   return std::string();
-}
-
-std::string PathToUtf8(const fs::path& path) {
-  const auto value = path.u8string();
-#if defined(__cpp_char8_t)
-  return std::string(reinterpret_cast<const char*>(value.data()), value.size());
-#else
-  return value;
-#endif
 }
 
 std::string UniquePath(const std::string& dir, const std::string& name) {

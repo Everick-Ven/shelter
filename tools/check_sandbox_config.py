@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Fail a platform build if CEF silently configures without its sandbox."""
+"""Fail a platform build if CEF silently configures without its sandbox.
+
+The expected compile definitions differ per platform:
+- Windows (CEF M138+): the sandbox ships as CEF's signed bootstrap.exe that
+  loads the client DLL; the distribution defines CEF_USE_BOOTSTRAP only.
+- macOS: helpers/main load libcef_sandbox.dylib; the distribution defines
+  CEF_USE_SANDBOX.
+"""
 
 from __future__ import annotations
 
@@ -21,13 +28,18 @@ def main() -> int:
     defines = "\n".join(
         line for line in log.splitlines() if "Compile defines" in line
     )
-    if "CEF_USE_SANDBOX" not in defines:
-        errors.append("CEF_USE_SANDBOX is missing from the target compile definitions")
-    if platform == "windows" and "CEF_USE_BOOTSTRAP" not in defines:
-        errors.append("CEF_USE_BOOTSTRAP is missing; the Windows bootstrap DLL model is not active")
+    if platform == "windows":
+        if "CEF_USE_BOOTSTRAP" not in defines:
+            errors.append(
+                "CEF_USE_BOOTSTRAP is missing; the Windows bootstrap DLL model is not active"
+            )
+    else:
+        if "CEF_USE_SANDBOX" not in defines:
+            errors.append("CEF_USE_SANDBOX is missing from the target compile definitions")
 
     if errors:
         for error in errors:
+            print(f"::error title=SHELTER sandbox configuration::{error}")
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
     print(f"SHELTER_CEF_SANDBOX_CONFIG_PASS platform={platform}")

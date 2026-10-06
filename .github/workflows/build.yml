@@ -102,14 +102,14 @@ jobs:
       - name: Report Windows failure diagnostics
         if: failure()
         shell: pwsh
-        run: python tools/report_ci_failure.py configure.log build.log package.log install.log geometry.log smoke-run.log acceptance-app.log
+        run: python tools/report_ci_failure.py configure.log build.log package.log install.log geometry.log geometry-app.log smoke-run.log acceptance-app.log
 
       - name: Push Windows logs to ci-logs branch
         if: failure()
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash tools/push_log.sh windows configure.log build.log package.log install.log geometry.log smoke-run.log acceptance-app.log || true
+        run: bash tools/push_log.sh windows configure.log build.log package.log install.log geometry.log geometry-app.log smoke-run.log acceptance-app.log || true
 
       - name: Portable zip
         shell: pwsh
@@ -221,14 +221,14 @@ jobs:
 
       - name: Report macOS failure diagnostics
         if: failure()
-        run: python3 tools/report_ci_failure.py configure.log build.log package.log geometry.log smoke-run.log acceptance-app.log
+        run: python3 tools/report_ci_failure.py configure.log build.log package.log geometry.log geometry-app.log smoke-run.log acceptance-app.log
 
       - name: Push macOS logs to ci-logs branch
         if: failure()
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash tools/push_log.sh macos configure.log build.log package.log geometry.log smoke-run.log acceptance-app.log || true
+        run: bash tools/push_log.sh macos configure.log build.log package.log geometry.log geometry-app.log smoke-run.log acceptance-app.log || true
 
       - uses: actions/upload-artifact@v4
         with:

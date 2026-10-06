@@ -8467,7 +8467,7 @@ function extCard(e, i) {
 RENDER.extensions = () => {
   const inst = S.ext.filter(e => e && e.id && e.name);
   return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div><div class="page-sub">Настоящие расширения Chromium: Chrome Web Store или файл .crx</div></div>
-  <div class="page-actions"><button class="btn" data-act="extPick">${ico('file')}Из файла…</button><button class="btn primary" data-act="extStore">${ico('globe')}Chrome Web Store</button></div></div>
+  <div class="page-actions"><button class="btn" data-act="extPick">${ico('file')}Из файла…</button></div></div>
   <div class="sec-t">Установленные <small>${inst.length}</small></div>
   <div class="ext-grid">${inst.length ? inst.map(extCard).join('') : emptyState('puzzle', 'Нет расширений', 'Откройте Chrome Web Store и установите расширение по ID или выберите файл .crx')}</div>
   <div class="sec-t">Магазин <small>Chrome Web Store — официальный магазин расширений Chromium</small></div>

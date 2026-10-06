@@ -215,7 +215,8 @@ class Shell {
   CefRect last_rect_;
   double zoom_ = 1.0;
   double clip_radii_[4] = {0, 0, 0, 0};
-  std::vector<std::array<int, 4>> clip_holes_;
+  // Дырки: {x, y, w, h, радиус скругления} в DIP вида вкладки.
+  std::vector<std::array<int, 5>> clip_holes_;
   std::map<std::string, CefRefPtr<CefRequestContext>> contexts_;
   std::map<std::string, bool> context_ready_;
   // partition -> id вкладок, ждущих инициализации контекста.
@@ -225,6 +226,10 @@ class Shell {
   // The accepted map also retains the CEF-suggested filename as a safe fallback.
   std::map<std::string, std::string> accepted_downloads_;
   std::map<std::string, ActiveDownload> active_downloads_;
+  // id -> {временный путь («не подтверждено», *.crdownload), итоговый путь}.
+  // Пока загрузка идёт, файл виден в папке под временным именем и получает
+  // окончательное имя только после полного завершения.
+  std::map<std::string, std::pair<std::string, std::string>> temp_downloads_;
   std::string last_ctx_tab_;
 
   int browser_count_ = 0;

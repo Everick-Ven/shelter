@@ -724,6 +724,7 @@ void Shell::PrepareForShutdown() {
   pending_downloads_.clear();
   accepted_downloads_.clear();
   active_downloads_.clear();
+  temp_downloads_.clear();
   tabs_.clear();
   contexts_.clear();
   context_ready_.clear();
@@ -1343,6 +1344,12 @@ std::string UniquePath(const std::string& dir, const std::string& name) {
   return PathToUtf8(base);
 }
 
+// Суффикс «не подтверждённого» файла, как в современных браузерах
+// (Chrome — *.crdownload, Safari — *.download): пока загрузка идёт, в папке
+// назначения виден временный файл, который становится окончательным только
+// после полного завершения.
+constexpr char kPartialSuffix[] = ".crdownload";
+
 }  // namespace
 
 void Shell::OnTabDownloadBefore(CefRefPtr<CefBrowser> browser,
@@ -1412,12 +1419,22 @@ bool Shell::DownloadDecision(const std::string& id, const std::string& action,
                                ? std::string()
                                : UniquePath(directory, pd.filename);
   accepted_downloads_[id] = pd.filename;
+  std::string pass_path = path;
+  if (!show_dialog && !path.empty()) {
+    // Прямое сохранение: файл скачивается под временным именем
+    // <имя>.crdownload и переименовывается в итоговое после завершения
+    // (см. OnTabDownloadUpdated). При «Сохранить как…» путь выбирает
+    // системный диалог — там временное имя не задаём.
+    pass_path = path + kPartialSuffix;
+    temp_downloads_[id] = {pass_path, path};
+  }
   Log("download decision id=" + id + " action=save dialog=" +
       (show_dialog ? "1" : "0") + " path=" + path +
+      (pass_path != path ? " partial=" + pass_path : std::string()) +
       (ec ? " mkdir_error=" + ec.message() : std::string()));
   // With the Save As preference enabled, CEF opens its native chooser while
   // keeping the suggested filename/path as the initial value.
-  pd.callback->Continue(path, show_dialog);
+  pd.callback->Continue(pass_path, show_dialog);
   return true;
 }
 
@@ -1754,7 +1771,27 @@ void Shell::OnTabDownloadUpdated(
     // CEF's percent is intentionally rough; reserve 100% for IsComplete().
     percent = 99;
   }
-  const std::string path = item->GetFullPath().ToString();
+  std::string path = item->GetFullPath().ToString();
+  auto temp = temp_downloads_.find(id);
+  if (temp != temp_downloads_.end()) {
+    if (state == "completed") {
+      // Загрузка полностью завершена: «не подтверждённый» временный файл
+      // становится итоговым (как в современных браузерах).
+      std::error_code rec;
+      fs::rename(fs::u8path(temp->second.first), fs::u8path(temp->second.second), rec);
+      if (!rec) {
+        path = temp->second.second;
+        Log("download finalized id=" + id + " path=" + path);
+      } else {
+        Log("download rename failed id=" + id + " error=" + rec.message() +
+            " temp=" + temp->second.first);
+      }
+    } else if (state == "cancelled" || state == "interrupted") {
+      // Прерванная или отменённая загрузка не оставляет «не подтверждённый» файл.
+      std::error_code rec;
+      fs::remove(fs::u8path(temp->second.first), rec);
+    }
+  }
   std::string name = item->GetSuggestedFileName().ToString();
   if (name.empty() && !path.empty())
     name = PathToUtf8(fs::u8path(path).filename());
@@ -1779,6 +1816,7 @@ void Shell::OnTabDownloadUpdated(
   if (terminal) {
     accepted_downloads_.erase(id);
     active_downloads_.erase(id);
+    temp_downloads_.erase(id);
   }
 }
 

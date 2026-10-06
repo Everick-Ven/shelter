@@ -286,8 +286,8 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
         if (l->GetType(i) != VTYPE_LIST) continue;
         CefRefPtr<CefListValue> r = l->GetList(i);
         if (r->GetSize() < 4) continue;
-        std::array<int, 4> h{};
-        for (size_t k = 0; k < 4; ++k) {
+        std::array<int, 5> h{};
+        for (size_t k = 0; k < r->GetSize() && k < 5; ++k) {
           const int ty = r->GetType(k);
           h[k] = static_cast<int>(std::lround(ty == VTYPE_DOUBLE ? r->GetDouble(k) : ty == VTYPE_INT ? r->GetInt(k) : 0));
         }
@@ -427,7 +427,7 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     if (t && t->browser) {
       // сбросить область на прежнем окне
       double zr[4] = {0, 0, 0, 0};
-      std::vector<std::array<int, 4>> none;
+      std::vector<std::array<int, 5>> none;
       platform::ApplyViewClip(reinterpret_cast<void*>(t->browser->GetHost()->GetWindowHandle()), zr, none,
                               std::max(1, last_rect_.width), std::max(1, last_rect_.height));
       if (a->HasKey("level")) platform::SetClipLevel(static_cast<int>(Num(a, "level", -1)));

@@ -413,12 +413,17 @@
   function holeRects(vp) {
     var out = [], list = document.querySelectorAll(HOLE_SEL), i, j;
     for (i = 0; i < list.length; i++) {
-      var r = list[i].getBoundingClientRect();
+      var el = list[i];
+      var r = el.getBoundingClientRect();
       if (r.width < 1 || r.height < 1) continue;
+      // Радиус скругления самого попапа: дырка в нативном виде повторяет его,
+      // иначе на фоне страницы попап выглядит квадратным.
+      var cs = getComputedStyle(el), rr = 0, corners = ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius'];
+      for (j = 0; j < 4; j++) rr = Math.max(rr, px(cs[corners[j]]));
       var x0 = Math.max(Math.floor(r.left) - 2, vp.x), y0 = Math.max(Math.floor(r.top) - 2, vp.y);
       var x1 = Math.min(Math.ceil(r.right) + 2, vp.x + vp.w), y1 = Math.min(Math.ceil(r.bottom) + 2, vp.y + vp.h);
       if (x1 <= x0 || y1 <= y0) continue;
-      out.push([x0, y0, x1, y1]);
+      out.push([x0, y0, x1, y1, Math.round(rr)]);
     }
     /* объединяем пересекающиеся прямоугольники (иначе even-odd вырежет «пересечение» обратно) */
     var merged = true;
@@ -427,12 +432,12 @@
       for (i = 0; i < out.length && !merged; i++) for (j = i + 1; j < out.length && !merged; j++) {
         var a = out[i], b = out[j];
         if (a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]) {
-          out[i] = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
+          out[i] = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3]), Math.max(a[4] || 0, b[4] || 0)];
           out.splice(j, 1); merged = true;
         }
       }
     }
-    return out.map(function (a) { return [Math.round(a[0] - vp.x), Math.round(a[1] - vp.y), Math.round(a[2] - a[0]), Math.round(a[3] - a[1])]; });
+    return out.map(function (a) { return [Math.round(a[0] - vp.x), Math.round(a[1] - vp.y), Math.round(a[2] - a[0]), Math.round(a[3] - a[1]), a[4] || 0]; });
   }
   function syncClip() {
     if (!USE_HOLES || !st.visible || st.frozen || st.busy) return 0;

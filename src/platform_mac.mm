@@ -2,6 +2,7 @@
 #import <QuartzCore/QuartzCore.h>
 #import <Security/Security.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdarg>
@@ -328,7 +329,7 @@ static int g_forced_key = 0;
 static int g_redirected = 0;
 static bool g_redirecting = false;
 static NSWindow* g_overlay_win = nil;  // окно вида вкладки (не retain)
-static std::vector<std::array<int, 4>> g_holes;
+static std::vector<std::array<int, 5>> g_holes;  // {x, y, w, h, радиус}
 static int g_hole_view_w = 0, g_hole_view_h = 0;
 
 static bool InHole(NSEvent* e) {
@@ -416,7 +417,7 @@ void InstallInputFixes() {
 }
 
 void ApplyViewClip(void* handle, const double radii[4],
-                   const std::vector<std::array<int, 4>>& holes, int view_w, int view_h) {
+                   const std::vector<std::array<int, 5>>& holes, int view_w, int view_h) {
   NSView* v = (NSView*)handle;
   NSWindow* win = v ? v.window : nil;
   if (!win || !win.contentView) return;
@@ -451,7 +452,19 @@ void ApplyViewClip(void* handle, const double radii[4],
   if (tl > 0) CGPathAddArc(p, nullptr, tl, tl, tl, M_PI, 3 * M_PI_2, false);
   CGPathCloseSubpath(p);
   for (const auto& h : holes) {
-    CGPathAddRect(p, nullptr, CGRectMake(h[0] * sx, h[1] * sy, h[2] * sx, h[3] * sy));
+    // Дырка повторяет форму скруглённого попапа, иначе вокруг него видна
+    // «квадратная» рамка подложки окна на фоне страницы.
+    const CGRect rect =
+        CGRectMake(h[0] * sx, h[1] * sy, h[2] * sx, h[3] * sy);
+    const CGFloat hr = static_cast<CGFloat>(h[4]) * sx;
+    const CGFloat r =
+        std::max<CGFloat>(0, std::min<CGFloat>(hr, std::min(CGRectGetWidth(rect),
+                                                             CGRectGetHeight(rect)) / 2));
+    if (r > 0.5) {
+      CGPathAddRoundedRect(p, nullptr, rect, r, r);
+    } else {
+      CGPathAddRect(p, nullptr, rect);
+    }
   }
   CGAffineTransform flip = CGAffineTransformMake(1, 0, 0, -1, 0, H);
   CGPathRef flipped = CGPathCreateCopyByTransformingPath(p, &flip);

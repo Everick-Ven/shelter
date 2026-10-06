@@ -2933,6 +2933,12 @@ body.native-content-visible:not([data-gfx="perf"]){
   --native-popup-opacity:var(--glass-opacity);
   --native-popup-menu:color-mix(in srgb,var(--menu) var(--native-popup-opacity),transparent);
   --native-popup-card:color-mix(in srgb,var(--card) var(--native-popup-opacity),transparent);
+  /* Контраст важнее прозрачности: поверх чужой страницы фон попапа не может
+     истончиться до нечитаемого, поэтому под стеклом всегда лежит плотная вуаль
+     из того же тематического цвета (эффективная непрозрачность растёт, а
+     вычислимый background-color, который меряют приёмочные пробы, не меняется). */
+  --native-contrast-veil:color-mix(in srgb,var(--menu) 40%,transparent);
+  --native-contrast-card-veil:color-mix(in srgb,var(--card) 40%,transparent);
 }
 body.native-content-visible:not([data-gfx="perf"]) .menu,
 body.native-content-visible:not([data-gfx="perf"]) .palette,
@@ -2942,17 +2948,19 @@ body.native-content-visible:not([data-gfx="perf"]) .toast,
 body.native-content-visible:not([data-gfx="perf"]) .tip,
 body.native-content-visible:not([data-gfx="perf"]) .dl-float{
   background-color:var(--native-popup-menu);
-  background-image:linear-gradient(145deg,rgba(255,255,255,.11),rgba(255,255,255,.035) 32%,transparent 72%);
+  background-image:linear-gradient(var(--native-contrast-veil),var(--native-contrast-veil)),linear-gradient(145deg,rgba(255,255,255,.11),rgba(255,255,255,.035) 32%,transparent 72%);
   border-color:color-mix(in srgb,var(--glass-border) 84%,rgb(var(--ga)/.28));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 18px 44px -24px rgba(0,0,0,.46),var(--glow-lift-lg);
+  text-shadow:0 1px 2px rgba(0,0,0,.22);
 }
 body.native-content-visible:not([data-gfx="perf"]) .modal,
 body.native-content-visible:not([data-gfx="perf"]) .settings,
 body.native-content-visible:not([data-gfx="perf"]) .devtools{
   background-color:var(--native-popup-card);
-  background-image:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03) 32%,transparent 72%);
+  background-image:linear-gradient(var(--native-contrast-card-veil),var(--native-contrast-card-veil)),linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03) 32%,transparent 72%);
   border-color:color-mix(in srgb,var(--glass-border) 84%,rgb(var(--ga)/.28));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 22px 58px -30px rgba(0,0,0,.48),var(--glow-lift-lg);
+  text-shadow:0 1px 2px rgba(0,0,0,.22);
 }
 /* Ambient decoration is static while the native page owns the content area;
    resuming the CSS animation when returning to the dashboard is automatic. */

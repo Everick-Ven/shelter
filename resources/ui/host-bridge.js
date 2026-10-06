@@ -618,6 +618,7 @@
     showInFolder: function (p) { return q('shell.show', { path: String(p || '') }); },
     onDownloadPrompt: function (cb) { cbs.dlprompt = cb; },
     downloadDecision: function (o) { return q('dl.decision', o || {}); },
+    downloadControl: function (o) { return q('dl.control', o || {}); },
     secretEnc: function (t) { return Sec.enc(t); },
     secretDec: function (t) { return Sec.dec(t); },
     setFullscreen: function (on) { return q('win.fullscreen', { on: !!on }); },

@@ -13,6 +13,7 @@
 #include <thread>
 
 #include "src/platform.h"
+#include "src/security_paths.h"
 
 namespace shelter {
 namespace platform {
@@ -219,12 +220,7 @@ bool RemoveOwnedUserDataDirectory() {
   if (ec == std::errc::no_such_file_or_directory) return true;
   if (ec) return false;
   if (status.type() == fs::file_type::not_found) return true;
-  fs::remove_all(target, ec);  // a profile-root symlink itself is removed, never followed
-  if (ec) return false;
-  ec.clear();
-  const fs::file_status after = fs::symlink_status(target, ec);
-  return ec == std::errc::no_such_file_or_directory ||
-         (!ec && after.type() == fs::file_type::not_found);
+  return security::RemoveTreeWithoutFollowingLinks(expected.parent_path(), target);
 }
 }  // namespace
 

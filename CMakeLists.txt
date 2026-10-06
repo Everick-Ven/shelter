@@ -10,6 +10,7 @@ set(SHELTER_VERSION "1.0.165")
 # ---- CEF ---------------------------------------------------------------------
 set(CEF_VERSION "154.0.32+g682c378+chromium-154.0.8037.58")
 set(CEF_CHANNEL "minimal")
+option(USE_SANDBOX "Enable CEF's per-process sandbox" ON)
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
   # Целевая платформа — Intel (x86_64).
@@ -28,8 +29,8 @@ DownloadCEF("${CEF_PLATFORM}" "${CEF_CHANNEL}" "${CEF_VERSION}" "${CMAKE_SOURCE_
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CEF_ROOT}/cmake")
 find_package(CEF REQUIRED)
 
-# Без песочницы (MVP): проще сборка/подпись, отдельная библиотека не нужна.
-# (USE_SANDBOX задаётся в командной строке: -DUSE_SANDBOX=OFF)
+# CEF sandbox is enabled by default. Windows uses CEF's bootstrap.exe + Shelter.dll
+# model; macOS helpers load libcef_sandbox.dylib before loading the CEF framework.
 
 # Предупреждения не должны ломать сборку.
 list(REMOVE_ITEM CEF_COMPILER_FLAGS -Werror /WX)
@@ -47,7 +48,7 @@ set(SHELTER_COMMON_SRCS
   src/clients.cc src/clients.h
   src/shell.cc src/shell_bridge.cc src/shell.h
   src/browser_app.cc src/browser_app.h
-  src/platform.h
+  src/platform.h src/security_paths.h
 )
 set(SHELTER_SRCS_WINDOWS src/main_win.cc src/platform_win.cc win/shelter.rc)
 set(SHELTER_SRCS_MAC src/main_mac.mm src/platform_mac.mm)
@@ -60,9 +61,22 @@ SET_CEF_TARGET_OUT_DIR()
 
 # ---- Windows -----------------------------------------------------------------
 if(OS_WINDOWS)
-  add_executable(${CEF_TARGET} WIN32 ${SHELTER_SRCS})
-  SET_EXECUTABLE_TARGET_PROPERTIES(${CEF_TARGET})
-  ADD_WINDOWS_MANIFEST("${CMAKE_CURRENT_SOURCE_DIR}/win" "${CEF_TARGET}" "exe")
+  if(USE_SANDBOX)
+    # CEF M138+ runs the client as a DLL loaded by its signed bootstrap host.
+    add_library(${CEF_TARGET} SHARED ${SHELTER_SRCS})
+    SET_LIBRARY_TARGET_PROPERTIES(${CEF_TARGET})
+    COPY_SINGLE_FILE(${CEF_TARGET} ${CEF_BINARY_DIR}/bootstrap.exe
+                     ${CEF_TARGET_OUT_DIR}/${CEF_TARGET}.exe)
+    if(CMAKE_GENERATOR MATCHES "Visual Studio")
+      set_target_properties(${CEF_TARGET} PROPERTIES
+        VS_DEBUGGER_COMMAND "$<TARGET_FILE_DIR:${CEF_TARGET}>/${CEF_TARGET}.exe")
+    endif()
+  else()
+    add_executable(${CEF_TARGET} WIN32 ${SHELTER_SRCS})
+    SET_EXECUTABLE_TARGET_PROPERTIES(${CEF_TARGET})
+    ADD_WINDOWS_MANIFEST("${CMAKE_CURRENT_SOURCE_DIR}/win" "${CEF_TARGET}" "exe")
+  endif()
+
   ADD_LOGICAL_TARGET("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
   add_dependencies(${CEF_TARGET} libcef_dll_wrapper)
   target_link_libraries(${CEF_TARGET} libcef_lib libcef_dll_wrapper ${CEF_STANDARD_LIBS}
@@ -73,6 +87,9 @@ if(OS_WINDOWS)
   add_custom_command(TARGET ${CEF_TARGET} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${SHELTER_UI_DIR}" "${CEF_TARGET_OUT_DIR}/ui"
     VERBATIM)
+  if(USE_SANDBOX)
+    SET_LPAC_ACLS("${CEF_TARGET}")
+  endif()
 endif()
 
 # ---- macOS -------------------------------------------------------------------

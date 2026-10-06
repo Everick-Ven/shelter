@@ -50,4 +50,6 @@ Name: "{autoprograms}\SHELTER"; Filename: "{app}\Shelter.exe"
 Name: "{autodesktop}\SHELTER"; Filename: "{app}\Shelter.exe"; Tasks: desktopicon
 
 [Run]
+; LPAC sandboxed CEF renderers need read/execute access to the installed bundle.
+Filename: "{sys}\icacls.exe"; Parameters: """{app}"" /grant *S-1-15-2-2:(OI)(CI)(RX) /T"; StatusMsg: "Подготовка песочницы Chromium..."; Flags: runhidden waituntilterminated
 Filename: "{app}\Shelter.exe"; Description: "{cm:LaunchProgram,SHELTER}"; Flags: nowait postinstall skipifsilent

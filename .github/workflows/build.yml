@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CEF_VERSION_KEY: cef-154.0.32
@@ -35,13 +35,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_SANDBOX=OFF -DUSE_ATL=OFF 2>&1 | tee configure.log
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_SANDBOX=ON -DUSE_ATL=OFF 2>&1 | tee configure.log
+
+      - name: Verify CEF sandbox configuration
+        shell: pwsh
+        run: python tools/check_sandbox_config.py configure.log windows
 
       - name: Build
         shell: bash
         run: |
           set -euo pipefail
           cmake --build build --target Shelter --parallel 2 2>&1 | tee build.log
+
+      - name: Verify sandbox bootstrap files
+        shell: pwsh
+        run: |
+          if (-not (Test-Path build/Release/Shelter.exe) -or -not (Test-Path build/Release/Shelter.dll)) {
+            throw "CEF sandbox build must contain bootstrap Shelter.exe and client Shelter.dll"
+          }
 
       - name: Geometry acceptance (strict)
         shell: bash
@@ -99,12 +110,23 @@ jobs:
           Compress-Archive -Path dist/SHELTER -DestinationPath dist/SHELTER-windows-x64-portable.zip
           Remove-Item -Recurse -Force dist/SHELTER
 
+      - name: Create package checksums
+        shell: pwsh
+        run: |
+          $files = @("dist/SHELTER-Setup-x64.exe", "dist/SHELTER-windows-x64-portable.zip")
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash -Path $file -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $([IO.Path]::GetFileName($file))"
+          }
+          $lines | Set-Content -Path dist/SHA256SUMS.txt -Encoding ascii
+
       - uses: actions/upload-artifact@v4
         with:
           name: SHELTER-windows-x64
           path: |
             dist/SHELTER-Setup-x64.exe
             dist/SHELTER-windows-x64-portable.zip
+            dist/SHA256SUMS.txt
           if-no-files-found: error
 
       - name: Upload Windows diagnostics
@@ -137,12 +159,19 @@ jobs:
       - name: Configure
         run: |
           set -euo pipefail
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPROJECT_ARCH=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DUSE_SANDBOX=OFF 2>&1 | tee configure.log
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPROJECT_ARCH=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DUSE_SANDBOX=ON 2>&1 | tee configure.log
+
+      - name: Verify CEF sandbox configuration
+        run: python3 tools/check_sandbox_config.py configure.log macos
 
       - name: Build
         run: |
           set -euo pipefail
           cmake --build build --target Shelter --parallel 2 2>&1 | tee build.log
+
+      - name: Verify macOS sandbox library
+        run: |
+          test -f "build/Release/SHELTER.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libcef_sandbox.dylib"
 
       - name: Geometry acceptance (strict)
         run: |
@@ -154,6 +183,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           tools/make_dmg.sh build/Release/SHELTER.app dist/SHELTER-macos-x64.dmg 1.0.165 2>&1 | tee package.log
+          (cd dist && shasum -a 256 SHELTER-macos-x64.dmg > SHA256SUMS.txt)
 
       - name: Install and test packaged DMG (strict)
         timeout-minutes: 8
@@ -185,7 +215,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: SHELTER-macos-x64
-          path: dist/SHELTER-macos-x64.dmg
+          path: |
+            dist/SHELTER-macos-x64.dmg
+            dist/SHA256SUMS.txt
           if-no-files-found: error
 
       - name: Upload macOS diagnostics
@@ -202,15 +234,45 @@ jobs:
             acceptance-app.log
           if-no-files-found: ignore
 
+  security-unit:
+    name: UI and security regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download UI regression test
+        run: node tests/download_ui_test.js
+      - name: Compile and run path/archive safety tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/security_paths_test.cc -o security-paths-test
+          ./security-paths-test
+
   release:
     name: Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, macos]
+    needs: [windows, macos, security-unit]
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: assets
+      - name: Generate release SHA-256 checksums
+        run: |
+          set -euo pipefail
+          cd assets
+          files=(
+            SHELTER-windows-x64/SHELTER-Setup-x64.exe
+            SHELTER-windows-x64/SHELTER-windows-x64-portable.zip
+            SHELTER-macos-x64/SHELTER-macos-x64.dmg
+          )
+          : > SHA256SUMS.txt
+          for file in "${files[@]}"; do
+            hash="$(sha256sum "$file" | cut -d ' ' -f1)"
+            echo "$hash  ${file##*/}" >> SHA256SUMS.txt
+          done
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -219,7 +281,8 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --title "SHELTER ${GITHUB_REF_NAME#v}" \
-            --notes "Установщики: SHELTER-Setup-x64.exe (Windows x64), SHELTER-macos-x64.dmg (macOS Intel). Также portable zip для Windows. macOS: сборка без подписи Developer ID — при первом запуске ПКМ → Открыть." \
+            --notes "Установщики: SHELTER-Setup-x64.exe (Windows x64), SHELTER-macos-x64.dmg (macOS Intel). Также portable zip для Windows. SHA256SUMS.txt содержит контрольные суммы. macOS: ad-hoc подпись без Developer ID и нотаризации; при первом запуске Gatekeeper может потребовать «Открыть»." \
             assets/SHELTER-windows-x64/SHELTER-Setup-x64.exe \
             assets/SHELTER-windows-x64/SHELTER-windows-x64-portable.zip \
-            assets/SHELTER-macos-x64/SHELTER-macos-x64.dmg
+            assets/SHELTER-macos-x64/SHELTER-macos-x64.dmg \
+            assets/SHA256SUMS.txt

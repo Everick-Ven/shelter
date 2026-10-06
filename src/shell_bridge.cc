@@ -389,9 +389,17 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
-  if (m == "dl.decision") {
-    DownloadDecision(Str(a, "id"), Str(a, "action"));
-    cb->Success("{}");
+  if (m == "dl.decision" || m == "dl.control") {
+    if (!browser || !IsUiBrowser(browser)) {
+      cb->Failure(403, "download operations are restricted to the SHELTER UI");
+      return true;
+    }
+    const std::string id = Str(a, "id");
+    const std::string action = Str(a, "action");
+    const bool ok = m == "dl.decision"
+                        ? DownloadDecision(id, action, Flag(a, "showDialog", false))
+                        : DownloadControl(id, action);
+    cb->Success(ok ? "{\"ok\":true}" : "{\"ok\":false}");
     return true;
   }
   if (m == "privacy.clear") {

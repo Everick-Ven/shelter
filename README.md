@@ -18,21 +18,29 @@
 
 ## Сборка
 
-Локально ничего ставить не нужно — собирает GitHub Actions (`.github/workflows/build.yml`),
-артефакты: `SHELTER-windows-x64.zip`, `SHELTER-macos-x64.zip/.dmg`.
+Локально ничего ставить не нужно — сборки запускает GitHub Actions (`.github/workflows/build.yml`).
+Финальные файлы в Releases: `SHELTER-Setup-x64.exe` и `SHELTER-windows-x64-portable.zip`
+для Windows, `SHELTER-macos-x64.dmg` для macOS. Рядом публикуется `SHA256SUMS.txt`.
+
+Артефакты вкладки Actions — это ZIP-обёртки GitHub: `SHELTER-windows-x64.zip` содержит
+Windows-файлы сборки, а `SHELTER-macos-x64.zip` содержит DMG и контрольную сумму. На macOS
+извлекайте и проверяйте `.dmg`; отдельный macOS ZIP-пакет проект не выпускает.
 
 Вручную (нужны CMake ≥ 3.21 и VS 2022 / Xcode CLT):
 
 ```bash
 # Windows
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DUSE_SANDBOX=OFF
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DUSE_SANDBOX=ON
 cmake --build build --config Release --target Shelter
 # macOS (Intel)
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPROJECT_ARCH=x86_64 -DUSE_SANDBOX=OFF
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPROJECT_ARCH=x86_64 -DUSE_SANDBOX=ON
 cmake --build build --target Shelter
 ```
 
 CEF скачивается автоматически (`cmake/DownloadCEF.cmake`, минимальный дистрибутив).
+Релизные сборки должны оставаться с `USE_SANDBOX=ON`: Windows использует CEF bootstrap
+(`Shelter.exe` + `Shelter.dll`), macOS — `libcef_sandbox.dylib` и sandbox context в helper-процессах.
+Отключение sandbox допустимо только для локальной отладки, не для распространения.
 
 ## Установка
 

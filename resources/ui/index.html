@@ -733,7 +733,7 @@ html[data-theme="ivory"] .omni,html[data-theme="porcelain"] .omni,html[data-them
 .sg .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--card-2);color:var(--text-2);flex:none}
 .sg .ic .i{width:14px;height:14px}
 .hero-links{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:22px;max-width:100%;
-  padding:6px 10px;border-radius:18px;background:color-mix(in srgb,var(--card) 62%,transparent);
+  padding:6px 10px;border-radius:18px;background:var(--glass-1);
   -webkit-backdrop-filter:blur(8px) saturate(1.15);backdrop-filter:blur(8px) saturate(1.15);
   border:1px solid color-mix(in srgb,var(--line-2) 80%,transparent);
   box-shadow:0 10px 30px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05)}
@@ -1059,7 +1059,12 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .tbl .site small{display:block;font-size:11.5px;color:var(--text-3)}
 .pbar{height:6px;border-radius:6px;background:var(--line);overflow:hidden;min-width:80px}
 .pbar i{display:block;height:100%;width:var(--w);border-radius:inherit;background:linear-gradient(90deg,rgb(var(--accent)),rgb(var(--gb)));transform-origin:0 50%;animation:growX 1.1s var(--ease) both;animation-delay:calc(var(--i,0) * 60ms + .15s)}
+.pbar.dl-indeterminate i{width:34%!important;animation:dlSweep 1.35s ease-in-out infinite!important;transform:translateX(-120%)}
+.pbar.dl-paused i{animation-play-state:paused!important}
+.pbar.dl-paused.dl-indeterminate i{width:34%!important;animation:none!important;transform:translateX(90%)}
+.pbar.dl-cancelling i{opacity:.55;animation-play-state:paused!important}
 @keyframes growX{from{transform:scaleX(0)}}
+@keyframes dlSweep{0%{transform:translateX(-120%)}100%{transform:translateX(310%)}}
 .prot-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
 .prot-row:first-of-type{border-top:0;padding-top:4px}
 .prot-row .ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--card-2);border:1px solid var(--line);color:var(--text-2);flex:none;transition:color .3s,background .3s,border-color .3s}
@@ -1636,7 +1641,7 @@ html.reduce-motion .ambient i{animation:none!important}
 .ach-medal>.i{width:21px;height:21px;filter:drop-shadow(0 2px 4px rgb(var(--ach-rgb)/.28))}
 .ach-medal>i{position:absolute;right:-5px;bottom:-4px;width:17px;height:17px;display:grid;place-items:center;border:1.5px solid var(--card);border-radius:6px;background:linear-gradient(135deg,rgb(var(--ach-rgb)),color-mix(in srgb,rgb(var(--ach-rgb)) 70%,#fff));color:#fff}
 .ach-medal>i .i{width:9px;height:9px}
-.ach-rarity{margin-top:2px;padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:color-mix(in srgb,var(--card) 82%,transparent);color:var(--text-4);font-size:7px;font-weight:750;letter-spacing:.08em;white-space:nowrap}
+.ach-rarity{margin-top:2px;padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:var(--glass-1);color:var(--text-4);font-size:7px;font-weight:750;letter-spacing:.08em;white-space:nowrap}
 .ach-card.is-earned .ach-rarity{border-color:rgb(var(--ok)/.2);background:rgb(var(--ok)/.07);color:rgb(var(--ok-ink,var(--ok)))}
 .ach-card.is-secret .ach-rarity{border-color:rgb(var(--gc)/.18);background:rgb(var(--gc)/.08);color:rgb(var(--gc-ink,var(--gc)))}
 .ach-card.is-disabled .ach-rarity{color:var(--text-4)}
@@ -1713,7 +1718,7 @@ html.reduce-motion .ambient i{animation:none!important}
 .ach-copy{margin-top:9px}
 .ach-copy>b{font-size:11.5px}
 .ach-copy>p{min-height:0;margin-top:4px;font-size:9px;line-height:1.38;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.ach-status-tag{max-width:118px;overflow:hidden;text-overflow:ellipsis;padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:color-mix(in srgb,var(--card) 85%,transparent);color:var(--text-4);font-size:7px;font-weight:750;letter-spacing:.06em;text-align:center;white-space:nowrap}
+.ach-status-tag{max-width:118px;overflow:hidden;text-overflow:ellipsis;padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:var(--glass-1);color:var(--text-4);font-size:7px;font-weight:750;letter-spacing:.06em;text-align:center;white-space:nowrap}
 .ach-card.is-earned .ach-status-tag{border-color:rgb(var(--ok)/.2);background:rgb(var(--ok)/.07);color:rgb(var(--ok-ink,var(--ok)))}
 .ach-card.is-progress .ach-status-tag{border-color:rgb(var(--gc)/.24);background:rgb(var(--gc)/.08);color:rgb(var(--gc-ink,var(--gc)))}
 .ach-card.is-locked.is-secret .ach-status-tag{border-color:rgb(var(--gc)/.2);background:rgb(var(--gc)/.07);color:rgb(var(--gc-ink,var(--gc)))}
@@ -1839,7 +1844,7 @@ html.reduce-motion .ambient i{animation:none!important}
 .ach-focus-track{height:4px;overflow:hidden;border-radius:99px;background:var(--line-2)}
 .ach-focus-track>i{display:block;width:var(--ach-progress,0%);height:100%;border-radius:inherit;background:linear-gradient(90deg,rgb(var(--gc)),rgb(var(--ga)));box-shadow:0 0 8px rgb(var(--gc)/.45)}
 .ach-progress-focus>.i{width:13px;height:13px;color:var(--text-4)}
-.ach-hint-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px 10px;margin:0 0 9px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--card-2) 80%,transparent)}
+.ach-hint-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px 10px;margin:0 0 9px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--glass-2)}
 .ach-hint-question{color:var(--text-2);font-size:9px;font-weight:600;letter-spacing:-.005em}
 
 .ach-hint-button{min-height:27px;display:inline-flex;align-items:center;gap:5px;padding:0 8px;border:1px solid rgb(var(--gc)/.2);border-radius:8px;background:rgb(var(--gc)/.07);color:rgb(var(--gc-ink,var(--gc)));font-size:8.5px;font-weight:650;white-space:nowrap}
@@ -1902,14 +1907,15 @@ html.reduce-motion .ambient i{animation:none!important}
 
 /* ---------- 0 · Токены стекла и премиальных теней ---------- */
 :root{
-  --glass-op: 82; /* регулируется ползунком «Прозрачность интерфейса» в панели «Анимации и вкладки» */
-  --glass-1: color-mix(in srgb, var(--card) calc(var(--glass-op) * 1%), transparent);
-  --glass-2: color-mix(in srgb, var(--card-2) calc(var(--glass-op) * 0.95 * 1%), transparent);
-  --glass-3: color-mix(in srgb, var(--card-3) calc(var(--glass-op) * 0.9 * 1%), transparent);
-  --glass-solid: color-mix(in srgb, var(--card) calc(var(--glass-op) * 1.16 * 1%), transparent);
-  --glass-menu: color-mix(in srgb, var(--menu) calc(var(--glass-op) * 1.05 * 1%), transparent);
-  --glass-sb: color-mix(in srgb, var(--surface) calc(var(--glass-op) * 0.85 * 1%), transparent);
-  --glass-surface: color-mix(in srgb, var(--surface) calc(var(--glass-op) * 1.1 * 1%), transparent);
+  --glass-op: 82; /* проценты непрозрачности; 100% = полностью непрозрачная поверхность */
+  --glass-opacity: clamp(40%, calc(var(--glass-op) * 1%), 100%);
+  --glass-1: color-mix(in srgb, var(--card) var(--glass-opacity), transparent);
+  --glass-2: color-mix(in srgb, var(--card-2) var(--glass-opacity), transparent);
+  --glass-3: color-mix(in srgb, var(--card-3) var(--glass-opacity), transparent);
+  --glass-solid: color-mix(in srgb, var(--card) var(--glass-opacity), transparent);
+  --glass-menu: color-mix(in srgb, var(--menu) var(--glass-opacity), transparent);
+  --glass-sb: color-mix(in srgb, var(--surface) var(--glass-opacity), transparent);
+  --glass-surface: color-mix(in srgb, var(--surface) var(--glass-opacity), transparent);
   --glass-border: color-mix(in srgb, var(--line-2) 100%, transparent);
   --glass-border-soft: color-mix(in srgb, var(--line) 100%, transparent);
   --glow-ring: 0 0 0 1px rgb(var(--accent)/.16);
@@ -1935,6 +1941,7 @@ body[data-gfx="perf"]{
   --bf-glass:none !important;
   --bf-menu:none !important;
   --glass-op:100 !important;
+  --glass-opacity:100% !important;
   --glass-1:var(--card) !important;
   --glass-2:var(--card-2) !important;
   --glass-3:var(--card-3) !important;
@@ -1975,9 +1982,9 @@ body[data-gfx="balance"] .pdot::after{animation:none !important}
 .sb{
   margin:0;
   border-radius:0;
-  /* фон гаснет до полной прозрачности к правому краю — там, где панель граничит с тулбаром/сценой,
-     цвет должен на 100% совпадать с фоном страницы, иначе виден шов (см. фикс «нет разделения») */
-  background:linear-gradient(in srgb 100deg, var(--glass-2) 0%, var(--glass-sb) 20%, transparent 42%);
+  /* Keep the sidebar's full opacity consistent across the edge; the final stop
+     matches the scene surface so no seam appears at any slider value. */
+  background:linear-gradient(100deg in srgb, var(--glass-2) 0%, var(--glass-sb) 20%, var(--glass-sb) 100%);
   /* backdrop-filter умышленно не ставим на весь блок: даже при alpha=0 фильтр создаёт свой
      композитный слой с чёткой границей ровно по краю панели — сам шов, с которым боремся.
      Блюр остаётся точечно на дочерних элементах (.sb-search, .nav-ind и т.д.) */
@@ -1997,7 +2004,7 @@ body[data-gfx="balance"] .pdot::after{animation:none !important}
 .ni:hover{ background:color-mix(in srgb, var(--hover) 100%, transparent); }
 .nav-ind{
   border-radius:var(--r-s);
-  background:linear-gradient(180deg, color-mix(in srgb, var(--card-2) 88%, transparent), color-mix(in srgb, var(--card) 88%, transparent));
+  background:linear-gradient(180deg, var(--glass-2), var(--glass-1));
   box-shadow:var(--hi), var(--sh-sm), 0 4px 14px -10px rgb(var(--glow-rgb,var(--ga)) / var(--glow-sh-a,.12));
   backdrop-filter:var(--bf-glass);
   transition:transform .5s var(--ease),opacity .3s var(--ease),box-shadow .4s var(--ease);
@@ -2008,7 +2015,7 @@ body[data-gfx="balance"] .pdot::after{animation:none !important}
 .ni.active .i{ color:rgb(var(--glow-rgb,var(--ga))); filter:drop-shadow(0 0 5px rgb(var(--glow-rgb,var(--ga)) / var(--glow-sh-a,.14))); transition:color .3s var(--ease),filter .3s var(--ease); }
 .tab{ border-radius:var(--r-s); }
 .tab.active{
-  background:linear-gradient(180deg, color-mix(in srgb, var(--card-2) 92%, transparent), color-mix(in srgb, var(--card) 92%, transparent));
+  background:linear-gradient(180deg, var(--glass-2), var(--glass-1));
   box-shadow:var(--hi), var(--sh-sm), 0 4px 14px -10px rgb(var(--glow-rgb,var(--ga)) / var(--glow-sh-a,.12));
 }
 .space-btn:hover{ background:var(--glass-2); }
@@ -2057,7 +2064,7 @@ body[data-gfx="balance"] .pdot::after{animation:none !important}
 /* ---------- 3 · Сцена (рамка контента) ---------- */
 .stage{
   border-radius:var(--r-xl);
-  background:linear-gradient(180deg, color-mix(in srgb, var(--surface) 97%, transparent), var(--surface) 60%);
+  background:linear-gradient(180deg, var(--glass-surface), var(--glass-surface));
   border:1px solid var(--glass-border-soft);
   box-shadow:var(--glow-lift-lg);
 }
@@ -2186,7 +2193,7 @@ body[data-gfx="balance"] .pdot::after{animation:none !important}
 /* ---------- 5 · Поверхности: карточки (без blur — их много), модалки/меню (blur — их 0-1 на экране) ---------- */
 .card,.stats,.chart,.set-card,.rows,.tk-list,.eq,.wcol,.site-card,.checkout-card,
 .eisen .eq,.banner,.meter,.dash-top .stats,.hist .card{
-  background:linear-gradient(175deg, var(--glass-1) 0%, color-mix(in srgb, var(--card) 88%, transparent) 100%);
+  background:linear-gradient(175deg, var(--glass-2) 0%, var(--glass-1) 100%);
   border:1px solid var(--glass-border-soft);
   box-shadow:var(--glow-lift);
   border-radius:var(--r-l);
@@ -2203,7 +2210,7 @@ body[data-gfx="balance"] .pdot::after{animation:none !important}
   box-shadow:var(--glow-lift-lg); backdrop-filter:var(--bf-menu);
   border-radius:var(--r-xl);
 }
-.set-nav{ background:color-mix(in srgb, var(--surface) 60%, transparent); }
+.set-nav{ background:var(--glass-surface); }
 .set-nav button.on{ background:var(--glass-2); box-shadow:var(--hi), var(--sh-sm); }
 .set-head{ background:transparent; }
 .menu{
@@ -2234,12 +2241,12 @@ body[data-gfx="balance"] .pdot::after{animation:none !important}
   transition:transform .32s var(--ease),border-color .25s,box-shadow .35s,background .3s;
 }
 .kpi,.tk-stat,.profile-stat{
-  background:linear-gradient(160deg, var(--glass-2), color-mix(in srgb, var(--card) 86%, transparent));
+  background:linear-gradient(160deg, var(--glass-2), var(--glass-1));
   border:1px solid var(--glass-border-soft);
   box-shadow:var(--glow-lift);
 }
 .bm,.ext,.cert{
-  background:linear-gradient(160deg, var(--glass-1), color-mix(in srgb, var(--card) 88%, transparent));
+  background:linear-gradient(160deg, var(--glass-2), var(--glass-1));
   border:1px solid var(--glass-border-soft);
   box-shadow:var(--glow-lift);
 }
@@ -2258,9 +2265,9 @@ body[data-gfx="balance"] .pdot::after{animation:none !important}
 }
 .q-tile.on,.tabs-row.on{ box-shadow:0 0 0 1.5px rgb(var(--glow-rgb,var(--ga))/.75), var(--glow-lift); }
 .q-tile-bar,.tabs-row{ background:var(--glass-2); }
-.q-prev{ background:color-mix(in srgb, var(--card-3) 90%, transparent); }
+.q-prev{ background:var(--glass-3); }
 .day{
-  background:linear-gradient(165deg, var(--glass-1), color-mix(in srgb, var(--card) 90%, transparent));
+  background:linear-gradient(165deg, var(--glass-2), var(--glass-1));
   border:1px solid var(--glass-border-soft); box-shadow:var(--glow-lift);
 }
 .day:hover{
@@ -2521,7 +2528,7 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 .ach-card-top-r{ display:flex; align-items:center; gap:6px; margin-left:auto; }
 .ach-pin-btn{
   width:26px; height:26px; padding:0; border-radius:8px;
-  border:1px solid var(--line); background:color-mix(in srgb, var(--card) 85%, transparent);
+  border:1px solid var(--line); background:var(--glass-1);
   color:var(--text-4); display:grid; place-items:center; flex:none; cursor:pointer;
   transition:color .18s, border-color .18s, background .18s, transform .18s var(--ease);
 }
@@ -2722,7 +2729,7 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 .dt-rail-foot .icon-btn{margin-left:auto;width:26px;height:26px}
 .dt-rail-foot .icon-btn .i{width:14px;height:14px}
 .dt-main{position:relative;display:grid;grid-template-rows:59px minmax(0,1fr) auto;min-width:0;min-height:0;background:var(--surface)}
-.dt-topbar{height:59px;display:flex;align-items:center;gap:12px;padding:0 25px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surface) 92%,transparent);z-index:1}
+.dt-topbar{height:59px;display:flex;align-items:center;gap:12px;padding:0 25px;border-bottom:1px solid var(--line);background:var(--glass-surface);z-index:1}
 .dt-top-title{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
 .dt-top-orb{width:29px;height:29px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,rgb(var(--ga)/.16),rgb(var(--gc)/.17));color:rgb(var(--gc));flex:none}
 .dt-top-orb .i{width:16px;height:16px}
@@ -2919,11 +2926,11 @@ body[data-gfx="perf"] .bm-mount .hero-links{
 #qGlowRow.is-disabled .sw-t:disabled,#setGlowRow.is-disabled .sw-t:disabled{opacity:1}
 
 /* Native CEF pages are a separate compositor surface. Backdrop-filter may not
-   sample that surface directly, so the fallback keeps enough tinted translucency
-   for contrast while a restrained highlight, rim and live backdrop preserve the
-   glass appearance. Visual blurs; Balance keeps the same transparency without blur. */
+   sample that surface directly, so the fallback applies the same 40–100% opacity
+   as the slider, with a restrained highlight and rim. 100% is fully opaque.
+   Visual blurs; Balance keeps the same opacity without blur. */
 body.native-content-visible:not([data-gfx="perf"]){
-  --native-popup-opacity:clamp(76%,calc(var(--glass-op) * .85 * 1% + 14%),90%);
+  --native-popup-opacity:var(--glass-opacity);
   --native-popup-menu:color-mix(in srgb,var(--menu) var(--native-popup-opacity),transparent);
   --native-popup-card:color-mix(in srgb,var(--card) var(--native-popup-opacity),transparent);
 }
@@ -4196,7 +4203,7 @@ function load() {
   const rawMessages = blobFromStore('__messagesBlob', lux.messages, {});
   S.chats = Array.isArray(rawChats) ? rawChats : [];
   S.messages = (rawMessages && typeof rawMessages === 'object' && !Array.isArray(rawMessages)) ? rawMessages : {};
-  S.downloads = lux.downloads || []; S.passwords = pwFromStore(lux.passwords); S.blocks = lux.blocks || {};
+  S.downloads = normalizeDownloadHistory(lux.downloads); S.passwords = pwFromStore(lux.passwords); S.blocks = lux.blocks || {};
   if (Array.isArray(ext)) S.ext = ext.filter(e => e && e.id && e.name);
   if (!Array.isArray(S.bookmarks)) S.bookmarks = DEFAULT_BOOKMARKS.slice();
   /* Миграция модели «Отобразить в баре»: раньше бралось !hide + лимит bmShow */
@@ -5107,7 +5114,7 @@ function renderBadges() {
   $('#bdgBm').textContent = S.bookmarks.length;
   const bm = $('#bdgMsg'); if (bm) bm.hidden = true;
   const open = workTasks().filter(t => t.status !== 'Готово').length, bt = $('#bdgTasks'); bt.hidden = !open; bt.textContent = open;
-  const runs = S.downloads.filter(d => d.state === 'run').length;
+  const runs = S.downloads.filter(d => !d.demo && ['run', 'pause', 'cancelling'].includes(d.state)).length;
   const fresh = S.downloads.filter(d => d.state === 'done' && !d.demo && d.at > (+S.ui.dlSeen || 0)).length;
   const n = runs || fresh, bd = $('#bdgDl');
   bd.hidden = !n; bd.textContent = n; bd.classList.toggle('hot', !runs && fresh > 0);
@@ -7993,16 +8000,94 @@ function taskMoreMenu(anchor) {
    ЗАГРУЗКИ, ПАРОЛИ, РАСШИРЕНИЯ, СЕРТИФИКАТЫ
    ========================================================= */
 const fmtSize = mb => mb >= 1000 ? (mb / 1024).toFixed(1).replace('.', ',') + ' ГБ' : mb >= 1 ? mb.toFixed(1).replace('.', ',') + ' МБ' : Math.max(1, Math.round(mb * 1024)) + ' КБ';
+function fmtDownloadBytes(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return '';
+  const units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
+  let n = bytes, unit = 0;
+  while (n >= 1024 && unit < units.length - 1) { n /= 1024; unit++; }
+  const digits = unit === 0 || n >= 10 ? 0 : 1;
+  return `${n.toFixed(digits).replace('.', ',')} ${units[unit]}`;
+}
+function dlTotalBytes(d) {
+  const exact = Number(d && d.totalBytes);
+  if (Number.isFinite(exact) && exact > 0) return exact;
+  const legacyMb = Number(d && d.size);
+  return Number.isFinite(legacyMb) && legacyMb > 0 ? legacyMb * 1048576 : 0;
+}
+function normalizeDownloadHistory(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(d => d && typeof d === 'object' && !d.demo).map(d => {
+    const row = Object.assign({}, d);
+    if (['run', 'pause', 'cancelling'].includes(row.state)) {
+      row.state = 'interrupted';
+      row.p = null;
+      row.speedBytesPerSecond = 0;
+    }
+    return row;
+  });
+}
+function dlPercent(d) {
+  if (d && d.state === 'done') return 100;
+  if (!d || d.p === null || d.p === undefined || d.p === '') return null;
+  const p = Number(d.p);
+  return Number.isFinite(p) && p >= 0 ? Math.min(100, Math.round(p)) : null;
+}
+function dlReceivedBytes(d) {
+  const exact = Number(d && d.bytesReceived);
+  if (d && d.bytesReceived !== undefined && Number.isFinite(exact) && exact >= 0) return exact;
+  const total = dlTotalBytes(d), percent = dlPercent(d);
+  return total > 0 && percent !== null ? total * percent / 100 : 0;
+}
+function dlTransferText(d) {
+  const received = dlReceivedBytes(d), total = dlTotalBytes(d);
+  if (total > 0) return `${fmtDownloadBytes(received)} из ${fmtDownloadBytes(total)}`;
+  return received > 0 ? `${fmtDownloadBytes(received)} · размер неизвестен` : 'Размер неизвестен';
+}
+function dlProgressText(d) {
+  if (d.state === 'cancelling') return 'Отмена…';
+  const percent = dlPercent(d), transfer = dlTransferText(d);
+  const speed = Number(d.speedBytesPerSecond) > 0
+    ? ` · ${fmtDownloadBytes(d.speedBytesPerSecond)}/с` : '';
+  if (d.state === 'pause') return `Пауза${percent === null ? '' : ` · ${percent}%`} · ${transfer}`;
+  return `${percent === null ? '' : `${percent}% · `}${transfer}${speed}`;
+}
+function dlProgressBar(d) {
+  const percent = dlPercent(d);
+  const classes = ['pbar'];
+  if (percent === null) classes.push('dl-indeterminate');
+  if (d.state === 'pause') classes.push('dl-paused');
+  if (d.state === 'cancelling') classes.push('dl-cancelling');
+  const width = percent === null ? '' : ` style="width:${percent}%;animation:none;transition:width .25s ease"`;
+  const aria = percent === null
+    ? 'aria-valuetext="Размер файла неизвестен"'
+    : `aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"`;
+  return `<div class="${classes.join(' ')}" role="progressbar" ${aria}><i data-dlbar${width}></i></div>`;
+}
 function dlRow(d, i) {
-  const ext = (d.name.split('.').pop() || '').toUpperCase().slice(0, 4);
+  const name = String(d.name || 'download');
+  const ext = (name.split('.').pop() || '').toUpperCase().slice(0, 4);
   const col = { DMG: '#6E7BF2', ZIP: '#B68A3E', PDF: '#D2615F', JPG: '#3DAE8A', PNG: '#3DAE8A', JSON: '#4E9BD8' }[ext] || '#7D8794';
-  const info = d.state === 'run' ? `<span class="num" data-dlp>${d.p}% · ${fmtSize(d.size * d.p / 100)} из ${fmtSize(d.size)}</span>` : d.state === 'pause' ? `Пауза · ${d.p}%` : `${fmtSize(d.size)} · ${relDay(d.at)}, ${hm(d.at)}`;
-  const act = d.state === 'run' ? `<button class="icon-btn" data-act="dlPause" data-id="${d.id}" aria-label="Пауза">${ico('pause')}</button>` : d.state === 'pause' ? `<button class="icon-btn" data-act="dlPause" data-id="${d.id}" aria-label="Продолжить">${ico('play')}</button>` : `<button class="icon-btn" data-act="dlShow" data-id="${d.id}" aria-label="Показать в Finder">${ico('folder')}</button>`;
-  return `<div class="lrow" style="--i:${i}" data-dl="${d.id}"><span class="file-ic" style="background:${col}">${esc(ext)}</span><div class="tx"><b>${esc(d.name)}</b><small>${info}</small>${d.state !== 'done' ? `<div class="pbar"><i data-dlbar style="width:${d.p}%;animation:none;transition:width .6s var(--ease)"></i></div>` : ''}</div><div class="acts">${act}<button class="icon-btn" data-act="dlDel" data-id="${d.id}" aria-label="Убрать">${ico('x')}</button></div></div>`;
+  const active = ['run', 'pause', 'cancelling'].includes(d.state);
+  const info = active ? `<span class="num" data-dlp>${esc(dlProgressText(d))}</span>`
+    : d.state === 'done' ? `${esc(fmtDownloadBytes(dlTotalBytes(d) || dlReceivedBytes(d)) || 'Размер неизвестен')} · ${relDay(d.at)}, ${hm(d.at)}`
+    : `${esc(d.state === 'interrupted' ? 'Скачивание прервано' : 'Загрузка')} · ${esc(fmtDownloadBytes(dlReceivedBytes(d)) || 'Размер неизвестен')}`;
+  const act = d.state === 'run'
+    ? `<button class="icon-btn" data-act="dlPause" data-id="${d.id}" aria-label="Приостановить скачивание">${ico('pause')}</button>`
+    : d.state === 'pause'
+      ? `<button class="icon-btn" data-act="dlPause" data-id="${d.id}" aria-label="Продолжить скачивание">${ico('play')}</button>`
+      : d.state === 'cancelling' ? ''
+        : `<button class="icon-btn" data-act="dlShow" data-id="${d.id}" aria-label="Показать в папке">${ico('folder')}</button>`;
+  const cancel = active && d.state !== 'cancelling'
+    ? `<button class="icon-btn" data-act="dlCancel" data-id="${d.id}" aria-label="Отменить скачивание">${ico('x')}</button>` : '';
+  const remove = active ? ''
+    : `<button class="icon-btn" data-act="dlDel" data-id="${d.id}" aria-label="Убрать из списка">${ico('trash')}</button>`;
+  const bar = active && d.state !== 'cancelling' ? dlProgressBar(d) : '';
+  return `<div class="lrow" style="--i:${i}" data-dl="${d.id}"><span class="file-ic" style="background:${col}">${esc(ext)}</span><div class="tx"><b>${esc(name)}</b><small>${info}</small>${bar}</div><div class="acts">${act}${cancel}${remove}</div></div>`;
 }
 const dlRows = () => S.downloads.length ? S.downloads.slice().sort((a, b) => (a.state === 'done') - (b.state === 'done') || b.at - a.at).map(dlRow).join('') : emptyState('inbox', 'Загрузок нет', 'Скачанные файлы появятся здесь');
 RENDER.downloads = () => { clearTimeout(dlPanelT); const dlf = $('#dlFloat'); if (dlf) dlf.hidden = true; S.ui.dlSeen = Date.now(); persist(); renderBadges(); return `<div class="page narrow">
-  <div class="page-h"><div class="ttl"><div class="page-title">Загрузки</div><div class="page-sub">~/Downloads · файлы проверяются перед открытием</div></div>
+  <div class="page-h"><div class="ttl"><div class="page-title">Загрузки</div><div class="page-sub">История файлов, скачанных через SHELTER</div></div>
   <div class="page-actions"><button class="btn" data-act="dlClear">${ico('trash')}Очистить список</button></div></div>
   <div class="rows" id="dlRows">${dlRows()}</div></div>`; };
 AFTER.downloads = () => pageTimer(() => {
@@ -8020,18 +8105,18 @@ let dlPanelOff = false, dlPanelT = 0;
 function dlPanelRefresh() {
   const f = $('#dlFloat'); if (!f || dlPanelOff) return false;
   if (urlMeta(curTab().url).page === 'downloads') { f.hidden = true; return false; }
-  const runs = S.downloads.filter(d => d.state === 'run').slice(0, 3);
-  if (!runs.length) return false;
+  const runs = S.downloads.filter(d => !d.demo && ['run', 'pause', 'cancelling'].includes(d.state)).slice(0, 3);
+  if (!runs.length) { f.hidden = true; return false; }
   clearTimeout(dlPanelT);
-  $('#dlfTitle').textContent = 'Скачивание';
-  $('#dlfBody').innerHTML = runs.map(d => `<div class="dlf-row"><div class="dlf-name">${esc(d.name)}</div><div class="pbar"><i style="width:${Math.min(100, d.p)}%"></i></div><div class="dlf-meta">${d.p}%${d.size ? ' · ' + fmtSize(d.size * d.p / 100) + ' из ' + fmtSize(d.size) : ''}</div></div>`).join('');
+  $('#dlfTitle').textContent = runs.every(d => d.state === 'pause') ? 'Загрузка приостановлена' : 'Скачивание';
+  $('#dlfBody').innerHTML = runs.map(d => `<div class="dlf-row"><div class="dlf-name">${esc(d.name || 'download')}</div>${d.state === 'cancelling' ? '' : dlProgressBar(d)}<div class="dlf-meta">${esc(dlProgressText(d))}</div></div>`).join('');
   f.hidden = false;
   return true;
 }
 function dlReveal(d) {
   if (!d) return;
   if (d.path && window.shelterNative && typeof window.shelterNative.showInFolder === 'function') window.shelterNative.showInFolder(d.path);
-  else toast('Показано в Finder: ' + d.name, { icon: 'folder' });
+  else toast('Путь к файлу недоступен: ' + (d.name || 'download'), { icon: 'folder' });
 }
 let noteT = 0;
 function noteShow(title, body, ms) {
@@ -8053,23 +8138,41 @@ function dlAskNext() {
   dlAskBusy = true;
   const info = dlAskQ.shift();
   let answered = false;
-  const decide = (a) => { if (answered) return; answered = true; try { native.downloadDecision({ id: info.id, action: a }); } catch (_) {} };
+  const decide = (action) => {
+    if (answered) return;
+    answered = true;
+    const showDialog = action === 'save' && !!S.prefs.askDownload;
+    try {
+      Promise.resolve(native.downloadDecision({ id: info.id, action, showDialog })).then(result => {
+        if (action === 'save' && (!result || result.ok !== true))
+          toast('Не удалось начать скачивание файла', { icon: 'x' });
+      }).catch(() => {
+        if (action === 'save') toast('Не удалось начать скачивание файла', { icon: 'x' });
+      });
+    } catch (_) {
+      if (action === 'save') toast('Не удалось начать скачивание файла', { icon: 'x' });
+    }
+  };
   const fname = String(info.filename || 'файл');
   const dot = fname.lastIndexOf('.');
   const ext = dot > 0 ? fname.slice(dot + 1, dot + 5).toUpperCase() : 'FILE';
-  const size = (+info.size > 0) ? fmtSize(+info.size / 1048576) : '';
+  const size = (+info.size > 0) ? fmtDownloadBytes(+info.size) : '';
   let host = info.host || '';
   if (!host) { try { host = hostOf(info.url || ''); } catch (_) {} }
+  const instruction = S.prefs.askDownload
+    ? 'После нажатия «Скачать» выберите имя и папку в системном окне.'
+    : 'Файл будет сохранён в папку «Загрузки».';
   const m = openModal({
     cls: 'dl-ask', width: 460,
     onClose: () => { if (!answered) decide('cancel'); dlAskBusy = false; setTimeout(dlAskNext, 60); },
-    html: `<div class="modal-h"><div class="mi-ic">${ico('download')}</div><h3>Скачивать файл?</h3></div>
-      <div class="modal-b"><div class="dl-ask-f"><span class="file-ic" style="background:#7D8794">${esc(ext)}</span><div class="tx"><b>${esc(fname)}</b><small>${esc(host)}${size ? ' · ' + esc(size) : ''}</small></div></div><p class="dl-ask-d">Файл будет сохранён в папку «Загрузки».</p></div>
-      <div class="modal-f"><button class="btn ghost" data-dlp="cancel">Отмена</button><button class="btn ghost" data-dlp="saveAs">Сохранить как…</button><button class="btn primary" data-dlp="save">Скачать</button></div>`
+    html: `<div class="modal-h"><div class="mi-ic">${ico('download')}</div><h3>Скачать файл?</h3></div>
+      <div class="modal-b"><div class="dl-ask-f"><span class="file-ic" style="background:#7D8794">${esc(ext)}</span><div class="tx"><b>${esc(fname)}</b><small>${esc(host)}${size ? ' · ' + esc(size) : ''}</small></div></div><p class="dl-ask-d">${esc(instruction)}</p></div>
+      <div class="modal-f"><button class="btn ghost" data-dlp="cancel">Отмена</button><button class="btn primary" data-dlp="save">Скачать</button></div>`
   });
   m.scrim.addEventListener('click', e => {
     const b = e.target.closest('[data-dlp]'); if (!b) return;
-    decide(b.dataset.dlp === 'save' ? 'save' : b.dataset.dlp === 'saveAs' ? 'saveAs' : 'cancel');
+    if (b.dataset.dlp !== 'cancel' && b.dataset.dlp !== 'save') return;
+    decide(b.dataset.dlp);
     closeModal(m);
   });
 }
@@ -8080,6 +8183,7 @@ try {
   }
 } catch (_) {}
 function dlPanelDone(d) {
+  if (d && d.demo) return;
   const f = $('#dlFloat'); if (!f || dlPanelOff) return;
   if (urlMeta(curTab().url).page === 'downloads') return;
   if (dlPanelRefresh()) return;
@@ -8089,49 +8193,122 @@ function dlPanelDone(d) {
   $('#dlfBody').innerHTML = `<div class="dlf-ok"><svg class="i"><use href="#i-check"/></svg><span>Скачивание завершено${d && d.name ? ': ' + esc(d.name) : ''}</span>${go}</div>`;
   f.hidden = false;
 }
+function dlFilenameFromPath(path) {
+  return String(path || '').replace(/\\/g, '/').split('/').pop() || '';
+}
+function dlRenderChanged(d) {
+  persist(); renderBadges();
+  const rows = $('#dlRows');
+  if (rows) {
+    const row = Array.from(rows.querySelectorAll('[data-dl]')).find(el => el.dataset.dl === d.id);
+    if (row) row.outerHTML = dlRow(d, 0);
+    else rows.innerHTML = dlRows();
+  }
+  dlPanelRefresh();
+}
+function dlNativeControl(d, action) {
+  if (!d) return;
+  if (d.demo) {
+    if (action === 'pause') d.state = 'pause';
+    else if (action === 'resume') d.state = 'run';
+    else if (action === 'cancel') S.downloads = S.downloads.filter(x => x !== d);
+    dlRenderChanged(d);
+    return;
+  }
+  const native = window.shelterNative;
+  if (!d.mid || !native || typeof native.downloadControl !== 'function') {
+    toast('Не удалось управлять скачиванием', { icon: 'x' });
+    return;
+  }
+  Promise.resolve(native.downloadControl({ id: d.mid, action })).then(result => {
+    if (!result || result.ok !== true) {
+      toast('Не удалось управлять скачиванием', { icon: 'x' });
+      return;
+    }
+    if (action === 'pause') d.state = 'pause';
+    else if (action === 'resume') d.state = 'run';
+    else if (action === 'cancel') d.state = 'cancelling';
+    dlRenderChanged(d);
+  }).catch(() => toast('Не удалось управлять скачиванием', { icon: 'x' }));
+}
 window.shelterDownload = function (p) {
-  if (!p || !p.filename) return;
+  if (!p || !p.id) return;
   const now = Date.now();
-  /* матчинг: стабильный id из main (1.0.107), иначе путь (совместимость) */
-  let d = p.id ? (S.downloads.find(x => x.mid === p.id) || null) : null;
-  if (!d && p.path) d = S.downloads.find(x => x.path && x.path === p.path) || null;
-  const bytes = +p.bytes || 0, total = +p.total || 0;
+  const id = String(p.id);
+  let d = S.downloads.find(x => x.mid === id) || null;
+  const finiteNonnegative = value => {
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+  const bytes = finiteNonnegative(p.bytes);
+  const reportedTotal = finiteNonnegative(p.total);
+  const speed = finiteNonnegative(p.speed);
+  const path = String(p.path || '');
+  const pathName = dlFilenameFromPath(path);
+  const filename = pathName || String(p.filename || (d && d.name) || 'download');
+
   if (p.state === 'completed') {
-    const fin = String(p.path || '');
-    if (!d) { d = { id: uid('dl'), mid: p.id || '', name: p.filename, size: 0, p: 100, state: 'done', at: now, path: fin }; S.downloads.unshift(d); }
+    if (!d) {
+      d = { id: uid('dl'), mid: id, name: filename, size: 0, totalBytes: 0,
+        bytesReceived: 0, speedBytesPerSecond: 0, p: 100, state: 'done', at: now, path };
+      S.downloads.unshift(d);
+    }
+    const finalBytes = bytes > 0 ? bytes : Math.max(reportedTotal, dlTotalBytes(d));
     d.state = 'done'; d.p = 100; d.at = now; d.demo = false;
-    if (p.id) d.mid = p.id;
-    if (fin) d.path = fin;                     /* save-as: путь известен по факту */
-    if (p.filename) d.name = p.filename;       /* имя мог измениться в системном окне */
-    if (total || bytes) d.size = (total || bytes) / 1048576;
+    d.mid = id; d.name = filename;
+    d.bytesReceived = finalBytes;
+    d.totalBytes = finalBytes;
+    d.size = finalBytes / 1048576;
+    d.speedBytesPerSecond = 0;
+    if (path) d.path = path;
     try { const ip = internalPage(curTab() && curTab().url); if (ip && ip.page === 'downloads') S.ui.dlSeen = Date.now(); } catch (_) {}
     persist(); renderBadges();
     const rows = $('#dlRows'); if (rows) rows.innerHTML = dlRows();
     dlPanelDone(d);
     return;
   }
-  if (p.state === 'progressing') {
-    if (!d) { d = { id: uid('dl'), mid: p.id || '', name: p.filename, size: total ? total / 1048576 : 0, p: 0, state: 'run', at: now, path: p.path || '' }; S.downloads.unshift(d); dlPanelOff = false; }
-    d.state = 'run'; d.demo = false;
-    if (p.id) d.mid = p.id;
-    if (p.path) d.path = p.path;
-    if (p.filename) d.name = p.filename;
-    if (total) { d.size = total / 1048576; d.p = Math.max(d.p || 0, Math.min(99, Math.round(bytes / total * 100))); }
-    persist(); renderBadges();
-    const row = $(`[data-dl="${d.id}"]`);
-    if (row) row.outerHTML = dlRow(d, 0);
-    else { const rows = $('#dlRows'); if (rows) rows.innerHTML = dlRows(); }
-    dlPanelRefresh();
+
+  if (p.state === 'progressing' || p.state === 'paused') {
+    if (!d) {
+      d = { id: uid('dl'), mid: id, name: filename, size: 0, totalBytes: 0,
+        bytesReceived: 0, speedBytesPerSecond: 0, p: null, state: 'run', at: now, path };
+      S.downloads.unshift(d);
+      dlPanelOff = false;
+    }
+    d.mid = id; d.demo = false;
+    d.state = p.state === 'paused' ? 'pause' : 'run';
+    if (path) d.path = path;
+    if (filename) d.name = filename;
+    d.bytesReceived = bytes;
+    d.speedBytesPerSecond = speed;
+    if (reportedTotal > 0) {
+      d.totalBytes = reportedTotal;
+      d.size = reportedTotal / 1048576;
+    }
+    const total = dlTotalBytes(d);
+    const rawPercent = Number(p.percent);
+    const hasPercent = p.percent !== null && p.percent !== undefined && Number.isFinite(rawPercent) && rawPercent >= 0;
+    let percent = hasPercent
+      ? Math.min(99, Math.round(rawPercent))
+      : total > 0 ? Math.min(99, Math.round(bytes / total * 100)) : null;
+    if (d.state === 'pause' && percent === null && dlPercent(d) !== null) percent = dlPercent(d);
+    d.p = percent;
+    dlRenderChanged(d);
     return;
   }
-  /* cancelled / interrupted: убрать строку и не оставлять зависшую панель прогресса (1.0.107) */
-  if (d) { S.downloads = S.downloads.filter(x => x !== d); persist(); renderBadges(); const rows = $('#dlRows'); if (rows) rows.innerHTML = dlRows(); }
-  if (!S.downloads.some(x => x.state === 'run')) {
-    const f = $('#dlFloat');
-    if (f && !f.hidden && $('#dlfTitle').textContent === 'Скачивание') f.hidden = true;
+
+  if (p.state === 'interrupted' || p.state === 'cancelled') {
+    if (d) S.downloads = S.downloads.filter(x => x !== d);
+    persist(); renderBadges();
+    const rows = $('#dlRows'); if (rows) rows.innerHTML = dlRows();
+    if (!S.downloads.some(x => ['run', 'pause', 'cancelling'].includes(x.state))) {
+      const f = $('#dlFloat'); if (f) f.hidden = true;
+    } else {
+      dlPanelRefresh();
+    }
+    if (p.state === 'interrupted') toast(`Скачивание прервано: ${filename}`, { icon: 'download' });
+    else if (d) toast(`Скачивание отменено: ${filename}`, { icon: 'download' });
   }
-  if (p.state === 'interrupted') toast('Скачивание прервано: ' + p.filename, { icon: 'download' });
-  else if (p.state === 'cancelled') toast('Скачивание отменено: ' + p.filename, { icon: 'download' });
 };
 const pwFor = p => { if (p.pass) return p.pass; const R = rng(hashStr(p.id + p.site)), C = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*'; let s = ''; const n = p.strength >= 3 ? 16 : p.strength === 2 ? 11 : 8; for (let i = 0; i < n; i++) s += C[R() * C.length | 0]; return s; };
 function genPassword(n = 20, sym = true) { const C = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789' + (sym ? '!@#$%&*-_+=?' : ''), a = new Uint32Array(n); try { crypto.getRandomValues(a); } catch (e) { for (let i = 0; i < n; i++) a[i] = Math.random() * 1e9; } return Array.from(a, x => C[x % C.length]).join(''); }
@@ -10318,9 +10495,10 @@ const ACT = {
   msgAttach: () => { const inp = document.createElement('input'); inp.type = 'file'; inp.onchange = () => { const f = inp.files && inp.files[0], M = M0(); if (f && M.active) { msgPush(M.active, { me: true, text: '📎 ' + f.name + ' · ' + fmtSize(f.size / 1048576), at: Date.now() }); autoReply(M.active); } }; inp.click(); },
   msgCircle: () => { const M = M0(); if (!M.active) return; msgPush(M.active, { me: true, type: 'circle', dur: '0:' + pad2(8 + (Math.random() * 40 | 0)), at: Date.now() }); toast('Видеосообщение отправлено', { icon: 'circle-dot' }); autoReply(M.active); },
   taskNew: () => taskNewFlow(), taskEdit: el => taskModal(el.dataset.id), taskToggle: el => taskToggle(el.dataset.id), taskMenu: el => taskMenu(el), taskDicts: () => taskDicts(), taskExport: () => taskExport(), taskInvite: el => projectInvite(el.dataset.pid || ''), taskMore: el => taskMoreMenu(el),
-  dlPause: el => { const d = S.downloads.find(x => x.id === el.dataset.id); if (!d) return; d.state = d.state === 'run' ? 'pause' : 'run'; persist(); const r = $(`[data-dl="${d.id}"]`); if (r) r.outerHTML = dlRow(d, 0); renderBadges(); },
+  dlPause: el => { const d = S.downloads.find(x => x.id === el.dataset.id); if (d) dlNativeControl(d, d.state === 'pause' ? 'resume' : 'pause'); },
+  dlCancel: el => { const d = S.downloads.find(x => x.id === el.dataset.id); if (d) dlNativeControl(d, 'cancel'); },
   dlShow: el => { const d = S.downloads.find(x => x.id === el.dataset.id); if (d) dlReveal(d); },
-  dlDel: el => { S.downloads = S.downloads.filter(x => x.id !== el.dataset.id); persist(); $('#dlRows').innerHTML = dlRows(); renderBadges(); },
+  dlDel: el => { const d = S.downloads.find(x => x.id === el.dataset.id); if (!d) return; if (['run', 'pause', 'cancelling'].includes(d.state)) { dlNativeControl(d, 'cancel'); return; } S.downloads = S.downloads.filter(x => x !== d); persist(); $('#dlRows').innerHTML = dlRows(); renderBadges(); },
   dlHide: () => { dlPanelOff = true; clearTimeout(dlPanelT); const f = $('#dlFloat'); if (f) f.hidden = true; },
   noteHide: () => noteHide(), noteUndo: () => { noteHide(); undoClose(); },
   histClosedToggle: () => { S.ui.hcOpen = !(S.ui.hcOpen !== false); persist(); histClosedRerender(); },

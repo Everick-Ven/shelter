@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <sstream>
 #include <vector>
 
@@ -34,6 +35,7 @@
 #include "src/common.h"
 #include "src/key_map.h"
 #include "src/platform.h"
+#include "src/security_paths.h"
 #include "src/ui_scheme.h"
 
 namespace fs = std::filesystem;
@@ -44,6 +46,17 @@ namespace {
 
 constexpr int kMinWidth = 960;
 constexpr int kMinHeight = 620;
+constexpr size_t kMaxExtensionArchiveBytes = 64u * 1024u * 1024u;
+constexpr size_t kMaxExtensionFileBytes = 64u * 1024u * 1024u;
+constexpr size_t kMaxExtensionExpandedBytes = 256u * 1024u * 1024u;
+constexpr size_t kMaxExtensionEntries = 20000;
+constexpr size_t kMaxExtensionManifestBytes = 1u * 1024u * 1024u;
+constexpr size_t kMaxExtensionRuntimeBytes = 64u * 1024u * 1024u;
+constexpr size_t kMaxExtensionContentScripts = 128;
+constexpr size_t kMaxExtensionMatchPatterns = 64;
+constexpr size_t kMaxInstalledExtensions = 256;
+constexpr std::uintmax_t kMaxPendingWipeListBytes = 64u * 1024u;
+constexpr size_t kMaxPendingWipeEntries = 1024;
 
 CefRefPtr<CefImage> LoadWindowIcon() {
   std::ifstream f(platform::UiResourceDir() + "/icon-256.png", std::ios::binary);
@@ -165,12 +178,25 @@ struct ExtEntry {
 std::map<std::string, ExtEntry> g_exts;
 bool g_exts_scanned = false;
 
-std::string ReadFileStr(const fs::path& p) {
-  std::ifstream f(p, std::ios::binary);
-  if (!f) return std::string();
-  std::ostringstream ss;
-  ss << f.rdbuf();
-  return ss.str();
+bool ReadFileStr(const fs::path& path, size_t max_bytes, std::string* out) {
+  if (!out || !security::IsRegularFileWithoutLink(path)) return false;
+  std::error_code ec;
+  const std::uintmax_t links = fs::hard_link_count(path, ec);
+  if (ec || links != 1) return false;
+  const std::uintmax_t size = fs::file_size(path, ec);
+  if (ec || size > max_bytes) return false;
+
+  std::ifstream file(path, std::ios::binary);
+  if (!file) return false;
+  out->resize(static_cast<size_t>(size));
+  if (size != 0) {
+    file.read(out->data(), static_cast<std::streamsize>(size));
+    if (static_cast<std::uintmax_t>(file.gcount()) != size) {
+      out->clear();
+      return false;
+    }
+  }
+  return true;
 }
 
 // match-pattern (<scheme>://<host>/<path>, <all_urls>) -> regex.
@@ -220,22 +246,32 @@ bool ExtScriptApplies(const ExtContentScript& cs, const std::string& url) {
 }
 
 void LoadExtFromDir(const fs::path& dir) {
-  const std::string manifest = ReadFileStr(dir / "manifest.json");
-  if (manifest.empty()) return;
+  if (!security::IsDirectoryWithoutLink(dir)) return;
+  const std::string extension_id = dir.filename().string();
+  if (!security::IsSafeProfileId(extension_id)) return;
+
+  std::string manifest;
+  if (!ReadFileStr(dir / "manifest.json", kMaxExtensionManifestBytes,
+                   &manifest)) {
+    return;
+  }
   CefRefPtr<CefValue> v = CefParseJSON(manifest, JSON_PARSER_RFC);
   if (!v || v->GetType() != VTYPE_DICTIONARY) return;
   CefRefPtr<CefDictionaryValue> d = v->GetDictionary();
   ExtEntry e;
-  e.path = dir.string();
-  e.id = dir.filename().string();
+  e.path = dir.u8string();
+  e.id = extension_id;
   if (d->HasKey("name") && d->GetType("name") == VTYPE_STRING)
     e.name = d->GetString("name").ToString();
   if (e.name.empty()) e.name = e.id;
   if (d->HasKey("version") && d->GetType("version") == VTYPE_STRING)
     e.ver = d->GetString("version").ToString();
+
   if (d->HasKey("content_scripts") &&
       d->GetType("content_scripts") == VTYPE_LIST) {
     CefRefPtr<CefListValue> list = d->GetList("content_scripts");
+    if (list->GetSize() > kMaxExtensionContentScripts) return;
+    size_t runtime_bytes = 0;
     for (size_t i = 0; i < list->GetSize(); ++i) {
       if (list->GetType(i) != VTYPE_DICTIONARY) continue;
       CefRefPtr<CefDictionaryValue> cs = list->GetDictionary(i);
@@ -243,30 +279,55 @@ void LoadExtFromDir(const fs::path& dir) {
       if (cs->HasKey("run_at") && cs->GetType("run_at") == VTYPE_STRING)
         out.at_start = cs->GetString("run_at").ToString() == "document_start";
       if (cs->HasKey("matches") && cs->GetType("matches") == VTYPE_LIST) {
-        CefRefPtr<CefListValue> mm = cs->GetList("matches");
-        for (size_t k = 0; k < mm->GetSize(); ++k)
-          out.matches.push_back(mm->GetString(k).ToString());
+        CefRefPtr<CefListValue> matches = cs->GetList("matches");
+        if (matches->GetSize() > kMaxExtensionMatchPatterns) continue;
+        for (size_t k = 0; k < matches->GetSize(); ++k) {
+          if (matches->GetType(k) != VTYPE_STRING) continue;
+          const std::string pattern = matches->GetString(k).ToString();
+          if (!pattern.empty() && pattern.size() <= 2048)
+            out.matches.push_back(pattern);
+        }
       }
+      if (out.matches.empty()) continue;
+
+      bool over_budget = false;
       const auto append_files = [&](const char* key, bool is_js) {
         if (!cs->HasKey(key) || cs->GetType(key) != VTYPE_LIST) return;
-        CefRefPtr<CefListValue> fl = cs->GetList(key);
-        for (size_t k = 0; k < fl->GetSize(); ++k) {
-          const std::string rel = fl->GetString(k).ToString();
-          if (rel.empty() || rel[0] == '/' || rel.find("..") != std::string::npos)
-            continue;
-          const std::string src = ReadFileStr(dir / rel);
+        CefRefPtr<CefListValue> files = cs->GetList(key);
+        if (files->GetSize() > kMaxExtensionEntries) {
+          over_budget = true;
+          return;
+        }
+        for (size_t k = 0; k < files->GetSize(); ++k) {
+          if (files->GetType(k) != VTYPE_STRING) continue;
+          std::string rel = files->GetString(k).ToString();
+          if (!security::NormalizeSafeZipEntryName(&rel)) continue;
+          const fs::path source = (dir / fs::u8path(rel)).lexically_normal();
+          if (!security::IsPathWithin(dir, source)) continue;
+          std::string content;
+          if (!ReadFileStr(source, kMaxExtensionFileBytes, &content)) continue;
+          if (content.size() > kMaxExtensionRuntimeBytes - runtime_bytes) {
+            over_budget = true;
+            return;
+          }
+          runtime_bytes += content.size();
           if (is_js) {
-            if (!out.js.empty()) out.js += "\n;\n";
-            out.js += src;
+            if (!out.js.empty()) {
+              out.js.push_back(static_cast<char>(10));
+              out.js.push_back(';');
+              out.js.push_back(static_cast<char>(10));
+            }
+            out.js += content;
           } else {
-            if (!out.css.empty()) out.css += "\n";
-            out.css += src;
+            if (!out.css.empty()) out.css.push_back(static_cast<char>(10));
+            out.css += content;
           }
         }
       };
       append_files("js", true);
-      append_files("css", false);
-      if (!out.matches.empty() && (!out.js.empty() || !out.css.empty()))
+      if (!over_budget) append_files("css", false);
+      if (over_budget) return;
+      if (!out.js.empty() || !out.css.empty())
         e.scripts.push_back(std::move(out));
     }
   }
@@ -285,13 +346,23 @@ void ExtEnsureScanned() {
   if (g_exts_scanned) return;
   g_exts_scanned = true;
   const fs::path root = ExtRootDir();
-  if (root.empty()) return;
+  if (root.empty() || !security::IsDirectoryWithoutLink(root)) return;
   std::error_code ec;
-  if (!fs::is_directory(root, ec)) return;
-  for (const auto& entry : fs::directory_iterator(root, ec)) {
-    if (!entry.is_directory()) continue;
-    if (entry.path().filename().string().rfind("_tmp", 0) == 0) continue;
-    LoadExtFromDir(entry.path());
+  fs::directory_iterator it(root, ec);
+  const fs::directory_iterator end;
+  if (ec) return;
+  size_t scanned = 0;
+  while (it != end) {
+    const fs::path dir = it->path();
+    const std::string id = dir.filename().string();
+    if (id.rfind("_tmp", 0) != 0 && security::IsSafeProfileId(id) &&
+        security::IsDirectoryWithoutLink(dir)) {
+      if (scanned >= kMaxInstalledExtensions) break;
+      ++scanned;
+      LoadExtFromDir(dir);
+    }
+    it.increment(ec);
+    if (ec) return;
   }
 }
 
@@ -347,7 +418,9 @@ class CrxDownload : public CefURLRequestClient {
   }
 
   void OnRequestComplete(CefRefPtr<CefURLRequest> request) override {
-    if (request->GetRequestStatus() == UR_SUCCESS && !buf_.empty()) {
+    if (too_large_) {
+      Shell::Get().ExtToast("Архив расширения превышает лимит 64 МиБ", true);
+    } else if (request->GetRequestStatus() == UR_SUCCESS && !buf_.empty()) {
       Shell::Get().ExtInstallBytes(std::move(buf_), origin_);
     } else {
       Shell::Get().ExtToast(
@@ -357,8 +430,15 @@ class CrxDownload : public CefURLRequestClient {
   }
   void OnUploadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
   void OnDownloadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
-  void OnDownloadData(CefRefPtr<CefURLRequest>, const void* data,
+  void OnDownloadData(CefRefPtr<CefURLRequest> request, const void* data,
                       size_t data_length) override {
+    if (too_large_) return;
+    if (data_length > kMaxExtensionArchiveBytes - buf_.size()) {
+      too_large_ = true;
+      buf_.clear();
+      if (request) request->Cancel();
+      return;
+    }
     buf_.append(static_cast<const char*>(data), data_length);
   }
   bool GetAuthCredentials(bool, const CefString&, int, const CefString&,
@@ -370,6 +450,7 @@ class CrxDownload : public CefURLRequestClient {
  private:
   std::string origin_;
   std::string buf_;
+  bool too_large_ = false;
   IMPLEMENT_REFCOUNTING(CrxDownload);
   DISALLOW_COPY_AND_ASSIGN(CrxDownload);
 };
@@ -396,53 +477,91 @@ size_t CrxZipOffset(const std::string& b) {
   return b.size();
 }
 
-bool SafeZipName(const std::string& name) {
-  if (name.empty() || name[0] == '/') return false;
-  size_t start = 0;
-  while (start <= name.size()) {
-    size_t slash = name.find('/', start);
-    const std::string part = name.substr(
-        start, slash == std::string::npos ? std::string::npos : slash - start);
-    if (part == "..") return false;
-    if (slash == std::string::npos) break;
-    start = slash + 1;
-  }
-  return true;
-}
-
 bool UnzipBytesTo(const std::string& bytes, const fs::path& dir) {
-  if (bytes.empty()) return false;
+  if (bytes.empty() || bytes.size() > kMaxExtensionArchiveBytes ||
+      !security::IsDirectoryWithoutLink(dir)) {
+    return false;
+  }
+  std::error_code ec;
+  const fs::path root = fs::absolute(dir, ec).lexically_normal();
+  if (ec) return false;
+
   CefRefPtr<CefStreamReader> sr = CefStreamReader::CreateForData(
       const_cast<char*>(bytes.data()), bytes.size());
   if (!sr) return false;
   CefRefPtr<CefZipReader> zr = CefZipReader::Create(sr);
   if (!zr || !zr->MoveToFirstFile()) return false;
+
   bool any = false;
+  size_t entries = 0;
+  size_t expanded_bytes = 0;
   do {
+    if (++entries > kMaxExtensionEntries) return false;
     std::string name = zr->GetFileName().ToString();
-    for (auto& ch : name) {
-      if (ch == '\\') ch = '/';
-    }
-    if (!SafeZipName(name)) continue;
-    fs::path fp = dir / name;
-    std::error_code ec;
+    if (!security::NormalizeSafeZipEntryName(&name)) return false;
+
+    const fs::path fp = (root / fs::u8path(name)).lexically_normal();
+    if (!security::IsPathWithin(root, fp)) return false;
     if (name.back() == '/') {
+      ec.clear();
       fs::create_directories(fp, ec);
+      if (ec || !security::IsDirectoryWithoutLink(fp)) return false;
       continue;
     }
+
+    ec.clear();
     fs::create_directories(fp.parent_path(), ec);
-    if (zr->OpenFile(CefString())) {
-      std::ofstream out(fp, std::ios::binary | std::ios::trunc);
-      char chunk[65536];
-      size_t n = 0;
-      while ((n = zr->ReadFile(chunk, sizeof(chunk))) > 0)
-        out.write(chunk, static_cast<std::streamsize>(n));
-      out.close();
+    if (ec || !security::IsDirectoryWithoutLink(fp.parent_path())) return false;
+    std::error_code status_error;
+    const fs::file_status existing = fs::symlink_status(fp, status_error);
+    if (status_error && status_error != std::errc::no_such_file_or_directory)
+      return false;
+    if (!status_error && existing.type() != fs::file_type::not_found)
+      return false;  // Reject duplicate names and file/directory collisions.
+
+    if (!zr->OpenFile(CefString())) return false;
+    std::ofstream out(fp, std::ios::binary | std::ios::out);
+    if (!out) {
       zr->CloseFile();
-      any = true;
+      return false;
     }
+
+    char chunk[65536];
+    size_t file_bytes = 0;
+    bool limit_exceeded = false;
+    size_t n = 0;
+    while ((n = zr->ReadFile(chunk, sizeof(chunk))) > 0) {
+      if (n > kMaxExtensionFileBytes - file_bytes ||
+          n > kMaxExtensionExpandedBytes - expanded_bytes) {
+        limit_exceeded = true;
+        break;
+      }
+      out.write(chunk, static_cast<std::streamsize>(n));
+      if (!out) {
+        limit_exceeded = true;
+        break;
+      }
+      file_bytes += n;
+      expanded_bytes += n;
+    }
+    out.close();
+    zr->CloseFile();
+    if (limit_exceeded || !out) return false;
+    any = true;
   } while (zr->MoveToNextFile());
   return any;
+}
+
+bool ReadExtensionFileBounded(const fs::path& path, std::string* out) {
+  if (!out || !security::IsRegularFileWithoutLink(path)) return false;
+  std::error_code ec;
+  const std::uintmax_t size = fs::file_size(path, ec);
+  if (ec || size == 0 || size > kMaxExtensionArchiveBytes) return false;
+  std::ifstream file(path, std::ios::binary);
+  if (!file) return false;
+  out->resize(static_cast<size_t>(size));
+  file.read(out->data(), static_cast<std::streamsize>(size));
+  return static_cast<std::uintmax_t>(file.gcount()) == size;
 }
 
 }  // namespace
@@ -573,6 +692,8 @@ void Shell::PrepareForShutdown() {
   // Release persistent request contexts before CefShutdown so SQLite/cache
   // handles are closed before the profile directory is removed.
   pending_downloads_.clear();
+  accepted_downloads_.clear();
+  active_downloads_.clear();
   tabs_.clear();
   contexts_.clear();
   popup_windows_.clear();
@@ -602,13 +723,27 @@ void Shell::UntrackPopupWindow(CefRefPtr<CefWindow> window) {
 
 // ---- UI-браузер ------------------------------------------------------------
 
-void Shell::OnUiCreated(CefRefPtr<CefBrowser> browser) { ui_browser_ = browser; }
+void Shell::OnUiCreated(CefRefPtr<CefBrowser> browser) {
+  CEF_REQUIRE_UI_THREAD();
+  ui_browser_ = browser;
+  ui_browser_id_.store(browser ? browser->GetIdentifier() : -1,
+                       std::memory_order_release);
+}
 
-void Shell::OnUiClosed(CefRefPtr<CefBrowser>) { ui_browser_ = nullptr; }
+void Shell::OnUiClosed(CefRefPtr<CefBrowser> browser) {
+  CEF_REQUIRE_UI_THREAD();
+  if (browser && !IsUiBrowserId(browser->GetIdentifier())) return;
+  ui_browser_id_.store(-1, std::memory_order_release);
+  ui_browser_ = nullptr;
+}
 
 bool Shell::IsUiBrowser(CefRefPtr<CefBrowser> browser) const {
-  return browser && ui_browser_ &&
-         browser->GetIdentifier() == ui_browser_->GetIdentifier();
+  return browser && IsUiBrowserId(browser->GetIdentifier());
+}
+
+bool Shell::IsUiBrowserId(int browser_id) const {
+  return browser_id >= 0 &&
+         ui_browser_id_.load(std::memory_order_acquire) == browser_id;
 }
 
 void Shell::SetDraggableRegions(const std::vector<CefDraggableRegion>& regions) {
@@ -633,10 +768,19 @@ CefRefPtr<CefRequestContext> Shell::ContextFor(const std::string& partition) {
 
   CefRequestContextSettings rs;
   if (partition.rfind("persist:", 0) == 0) {
-    const std::string dir = platform::UserDataDir() + "/Profiles/" +
-                            SanitizeForPath(partition.substr(8));
-    CefString(&rs.cache_path) = dir;
-    rs.persist_session_cookies = true;
+    const std::string id = SanitizeForPath(partition.substr(8));
+    const fs::path user_data = fs::u8path(platform::UserDataDir());
+    const fs::path profiles = user_data / "Profiles";
+    const fs::path profile = profiles / id;
+    if (security::IsSafeProfileId(id) &&
+        security::EnsureDirectoryWithoutLink(user_data) &&
+        security::EnsureDirectoryWithoutLink(profiles) &&
+        security::IsPathWithin(profiles, profile) &&
+        security::EnsureDirectoryWithoutLink(profile)) {
+      CefString(&rs.cache_path) = profile.u8string();
+      rs.persist_session_cookies = true;
+    }
+    // Unsafe/unavailable paths deliberately fall back to an in-memory context.
   }
   // temp:* и прочее — cache_path пуст: контекст только в памяти (без следов на диске).
   CefRefPtr<CefRequestContext> ctx = CefRequestContext::CreateContext(rs, nullptr);
@@ -654,63 +798,116 @@ void Shell::ReleaseContextIfUnused(const std::string& partition) {
 
 void Shell::QueueWipe(const std::string& partition) {
   if (partition.rfind("persist:", 0) != 0) return;
+  const std::string id = SanitizeForPath(partition.substr(8));
+  if (!security::IsSafeProfileId(id)) return;
+
+  const fs::path user_data = fs::u8path(platform::UserDataDir());
+  const fs::path profiles = user_data / "Profiles";
+  if (!security::EnsureDirectoryWithoutLink(user_data) ||
+      !security::EnsureDirectoryWithoutLink(profiles)) {
+    return;
+  }
+  const fs::path profile = profiles / id;
+  if (!security::IsPathWithin(profiles, profile) ||
+      !security::EnsureDirectoryWithoutLink(profile)) {
+    return;
+  }
+
+  const fs::path list = user_data / "pending-wipe.txt";
   std::error_code ec;
-  fs::create_directories(platform::UserDataDir(), ec);
-  std::ofstream f(platform::UserDataDir() + "/pending-wipe.txt", std::ios::app);
-  f << SanitizeForPath(partition.substr(8)) << "\n";
+  const fs::file_status status = fs::symlink_status(list, ec);
+  const bool missing = ec == std::errc::no_such_file_or_directory ||
+                       (!ec && status.type() == fs::file_type::not_found);
+  if (ec && !missing) return;
+  if (!missing) {
+    if (!security::IsRegularFileWithoutLink(list)) return;
+    const std::uintmax_t size = fs::file_size(list, ec);
+    if (ec || size > kMaxPendingWipeListBytes) return;
+    const std::uintmax_t links = fs::hard_link_count(list, ec);
+    if (ec || links != 1) return;  // Never append through an external hard link.
+
+    std::ifstream existing(list, std::ios::binary);
+    if (!existing) return;
+    std::string line;
+    size_t lines = 0;
+    while (std::getline(existing, line)) {
+      if (line == id) return;
+      if (++lines >= kMaxPendingWipeEntries ||
+          size + id.size() + 1 > kMaxPendingWipeListBytes) {
+        return;
+      }
+    }
+    if (!existing.eof()) return;
+  } else if (id.size() + 1 > kMaxPendingWipeListBytes) {
+    return;
+  }
+
+  std::ofstream out(list, std::ios::binary | std::ios::app);
+  if (!out) return;
+  out << id << '\n';
+  out.close();
+#if !defined(OS_WIN)
+  ::chmod(list.c_str(), 0600);
+#endif
 }
 
-// Профили, помеченные «сжечь», удаляются при следующем старте (пока они не открыты).
-// Перед unlink — однопроходное затирание содержимого (best effort):
-//  - реально помогает на HDD/внешних флешках и против простого file-carving;
-//  - на SSD/APFS физическую гарантию даёт TRIM + FileVault (CoW-журнал и
-//    wear-leveling переживают перезапись) — поэтому бюджет затирания ограничен,
-//    чтобы не накручивать износ и не тормозить старт: файлы >32 МБ (кэши
-//    страниц) только удаляются, чувствительные БД/хранилища (Cookies, History,
-//    Local Storage, Logins) всегда мельше порога.
+// Профили, помеченные «сжечь», удаляются при следующем старте. Все имена —
+// один компонент из allowlist; ссылки/reparse points не обходятся, а hard-link
+// файлы не перезаписываются (их данные могут принадлежать файлу вне профиля).
+// Затирание — best effort; на APFS/SSD физическую гарантию дают FileVault/TRIM,
+// а не повторная запись поверх файла.
 void Shell::ApplyPendingWipes() {
-  const std::string list = platform::UserDataDir() + "/pending-wipe.txt";
-  std::ifstream f(list);
-  if (!f) return;
-  std::string line;
-  std::error_code ec;
-  constexpr std::uintmax_t kMaxOverwriteBytes = 32ull * 1024 * 1024;
-  auto overwrite_file = [&](const fs::path& p) {
-    std::error_code tec;
-    const std::uintmax_t sz = fs::file_size(p, tec);
-    if (tec || sz == 0 || sz > kMaxOverwriteBytes) return;
-    std::fstream out(p, std::ios::in | std::ios::out | std::ios::binary);
-    if (!out) return;
-    const std::size_t kChunk = 64 * 1024;
-    std::vector<char> zeros(kChunk, 0);
-    std::uintmax_t left = sz;
-    out.seekp(0);
-    while (left > 0 && out) {
-      const std::size_t n = static_cast<std::size_t>(left < kChunk ? left : kChunk);
-      out.write(zeros.data(), static_cast<std::streamsize>(n));
-      left -= n;
-    }
-    out.flush();
-  };
-  auto secure_remove = [&](const fs::path& root) {
-    std::error_code ec2;
-    if (!fs::exists(root, ec2)) return;
-    fs::recursive_directory_iterator it(root, fs::directory_options::skip_permission_denied, ec2);
-    const fs::recursive_directory_iterator end;
-    while (!ec2 && it != end) {
-      std::error_code tec;
-      if (it->is_regular_file(tec) && !it->is_symlink(tec)) overwrite_file(it->path());
-      it.increment(ec2);
-    }
-    fs::remove_all(root, ec2);
-  };
-  while (std::getline(f, line)) {
-    if (line.empty()) continue;
-    secure_remove(fs::path(platform::UserDataDir()) / "Profiles" / line);
+  const fs::path user_data = fs::u8path(platform::UserDataDir());
+  const fs::path profiles = user_data / "Profiles";
+  const fs::path list = user_data / "pending-wipe.txt";
+  if (!security::IsDirectoryWithoutLink(user_data) ||
+      !security::IsRegularFileWithoutLink(list)) {
+    return;
   }
+
+  std::error_code ec;
+  const std::uintmax_t list_size = fs::file_size(list, ec);
+  if (ec || list_size > kMaxPendingWipeListBytes) return;
+
+  std::ifstream f(list, std::ios::binary);
+  if (!f) return;
+  std::vector<std::string> ids;
+  std::string line;
+  size_t lines = 0;
+  while (std::getline(f, line)) {
+    if (++lines > kMaxPendingWipeEntries) return;
+    if (security::IsSafeProfileId(line) &&
+        std::find(ids.begin(), ids.end(), line) == ids.end()) {
+      ids.push_back(line);
+    }
+  }
+  if (!f.eof()) return;
   f.close();
-  // сам список тоже не оставляем с открытыми именами
-  overwrite_file(fs::path(list));
+
+  const fs::file_status profiles_status = fs::symlink_status(profiles, ec);
+  const bool profiles_missing =
+      ec == std::errc::no_such_file_or_directory ||
+      (!ec && profiles_status.type() == fs::file_type::not_found);
+  if (ec && !profiles_missing) return;
+  if (!profiles_missing && !security::IsDirectoryWithoutLink(profiles)) return;
+
+  bool all_removed = true;
+  if (!profiles_missing) {
+    for (const std::string& id : ids) {
+      if (!security::IsSafeProfileId(id)) continue;
+      const fs::path profile = profiles / id;
+      if (!security::IsPathWithin(profiles, profile) ||
+          !security::RemoveTreeWithoutFollowingLinks(profiles, profile)) {
+        all_removed = false;
+      }
+    }
+  }
+  if (!all_removed) return;  // Keep the bounded list for a later retry.
+
+  // Scrub/remove only the regular list file itself; a replaced symlink is never followed.
+  if (!security::IsRegularFileWithoutLink(list)) return;
+  security::OverwriteFileIfUnshared(list);
+  ec.clear();
   fs::remove(list, ec);
 }
 
@@ -1025,16 +1222,32 @@ std::string HostOf(const std::string& url) {
   return std::string();
 }
 
+std::string PathToUtf8(const fs::path& path) {
+  const auto value = path.u8string();
+#if defined(__cpp_char8_t)
+  return std::string(reinterpret_cast<const char*>(value.data()), value.size());
+#else
+  return value;
+#endif
+}
+
 std::string UniquePath(const std::string& dir, const std::string& name) {
-  fs::path base = fs::path(dir) / fs::path(name).filename();
-  if (!fs::exists(base)) return base.string();
-  const std::string stem = base.stem().string();
-  const std::string ext = base.extension().string();
+  const fs::path directory = fs::u8path(dir);
+  fs::path leaf = fs::u8path(name).filename();
+  if (leaf.empty() || leaf == "." || leaf == "..") leaf = fs::u8path("download");
+  const fs::path base = directory / leaf;
+  std::error_code ec;
+  if (!fs::exists(base, ec) && !ec) return PathToUtf8(base);
+
+  const std::string stem = PathToUtf8(base.stem());
+  const std::string ext = PathToUtf8(base.extension());
   for (int i = 1; i < 1000; ++i) {
-    fs::path p = fs::path(dir) / (stem + " (" + std::to_string(i) + ")" + ext);
-    if (!fs::exists(p)) return p.string();
+    const fs::path candidate =
+        directory / fs::u8path(stem + " (" + std::to_string(i) + ")" + ext);
+    ec.clear();
+    if (!fs::exists(candidate, ec) && !ec) return PathToUtf8(candidate);
   }
-  return base.string();
+  return PathToUtf8(base);
 }
 
 }  // namespace
@@ -1043,43 +1256,97 @@ void Shell::OnTabDownloadBefore(CefRefPtr<CefBrowser> browser,
                                 CefRefPtr<CefDownloadItem> item,
                                 const std::string& suggested_name,
                                 CefRefPtr<CefBeforeDownloadCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!item || !item->IsValid() || !callback) return;
+
   const std::string id = "dl" + std::to_string(item->GetId());
-  std::string name = suggested_name.empty() ? "download" : suggested_name;
+  std::string name = suggested_name;
+  if (name.empty()) name = item->GetSuggestedFileName().ToString();
+  if (name.empty()) name = "download";
   pending_downloads_[id] = {callback, name};
-  Log("download before id=" + id + " name=" + name + " url=" + item->GetURL().ToString() +
-      " size=" + std::to_string(item->GetTotalBytes()));
+
+  const std::string url = item->GetURL().ToString();
+  const std::int64_t reported_size = item->GetTotalBytes();
+  const std::int64_t size = reported_size > 0 ? reported_size : 0;
+  Log("download before id=" + id + " host=" + HostOf(url) +
+      " size=" + std::to_string(size));
 
   // Навигация по ссылке-загрузке не меняет страницу: возвращаем UI реальный адрес вкладки.
-  if (Tab* t = FindTabByBrowser(browser->GetIdentifier())) {
-    if (!t->current_url.empty() && !SameUrl(t->current_url, t->requested_url)) {
-      t->requested_url = t->current_url;
-      UiEvent("nav", "{\"id\":" + JsString(t->id) + ",\"url\":" +
-                         JsString(t->current_url) + "}");
+  if (browser) {
+    if (Tab* t = FindTabByBrowser(browser->GetIdentifier())) {
+      if (!t->current_url.empty() && !SameUrl(t->current_url, t->requested_url)) {
+        t->requested_url = t->current_url;
+        UiEvent("nav", "{\"id\":" + JsString(t->id) + ",\"url\":" +
+                           JsString(t->current_url) + "}");
+      }
     }
   }
 
   std::ostringstream os;
   os << "{\"id\":" << JsString(id) << ",\"filename\":" << JsString(name)
-     << ",\"size\":" << item->GetTotalBytes()
-     << ",\"url\":" << JsString(item->GetURL().ToString())
-     << ",\"host\":" << JsString(HostOf(item->GetURL().ToString())) << "}";
+     << ",\"size\":" << size
+     << ",\"url\":" << JsString(url)
+     << ",\"host\":" << JsString(HostOf(url))
+     << ",\"mimeType\":" << JsString(item->GetMimeType().ToString()) << "}";
   UiEvent("dlprompt", os.str());
 }
 
-void Shell::DownloadDecision(const std::string& id, const std::string& action) {
+bool Shell::DownloadDecision(const std::string& id, const std::string& action,
+                             bool show_dialog) {
+  CEF_REQUIRE_UI_THREAD();
   auto it = pending_downloads_.find(id);
-  if (it == pending_downloads_.end()) return;
+  if (it == pending_downloads_.end()) return false;
+
   PendingDownload pd = it->second;
   pending_downloads_.erase(it);
-  if (action == "save" || action == "saveAs") {
-    std::error_code ec;
-    fs::create_directories(platform::DownloadsDir(), ec);
-    const std::string path = UniquePath(platform::DownloadsDir(), pd.filename);
-    Log("download decision id=" + id + " action=" + action + " path=" + path +
-        (ec ? " mkdir_error=" + ec.message() : std::string()));
-    pd.callback->Continue(path, action == "saveAs");
+  if (action == "cancel") {
+    Log("download decision id=" + id + " action=cancel");
+    // Releasing the uncontinued CEF callback cancels the pending download.
+    return true;
   }
-  // "cancel": callback освобождается без Continue — загрузка отменяется.
+  if (action != "save" || !pd.callback) return false;
+
+  std::error_code ec;
+  const std::string directory = platform::DownloadsDir();
+  fs::create_directories(fs::u8path(directory), ec);
+  if (ec && !show_dialog) {
+    Log("download decision id=" + id + " action=save mkdir_error=" +
+        ec.message());
+    return false;
+  }
+
+  const std::string path = ec && show_dialog
+                               ? std::string()
+                               : UniquePath(directory, pd.filename);
+  accepted_downloads_[id] = pd.filename;
+  Log("download decision id=" + id + " action=save dialog=" +
+      (show_dialog ? "1" : "0") + " path=" + path +
+      (ec ? " mkdir_error=" + ec.message() : std::string()));
+  // With the Save As preference enabled, CEF opens its native chooser while
+  // keeping the suggested filename/path as the initial value.
+  pd.callback->Continue(path, show_dialog);
+  return true;
+}
+
+bool Shell::DownloadControl(const std::string& id,
+                            const std::string& action) {
+  CEF_REQUIRE_UI_THREAD();
+  auto it = active_downloads_.find(id);
+  if (it == active_downloads_.end() || !it->second.callback) return false;
+
+  // Keep a local ref: the callback can synchronously trigger an update that
+  // replaces or removes the map entry.
+  CefRefPtr<CefDownloadItemCallback> callback = it->second.callback;
+  if (action == "pause") {
+    callback->Pause();
+  } else if (action == "resume") {
+    callback->Resume();
+  } else if (action == "cancel") {
+    callback->Cancel();
+  } else {
+    return false;
+  }
+  return true;
 }
 
 // ---- полноэкранный режим контента ------------------------------------------
@@ -1120,10 +1387,15 @@ void Shell::ExtRemove(const std::string& id) {
   CEF_REQUIRE_UI_THREAD();
   ExtEnsureScanned();
   auto it = g_exts.find(id);
-  if (it == g_exts.end()) return;
+  if (it == g_exts.end() || !security::IsSafeProfileId(id)) return;
+  const fs::path root = ExtRootDir();
+  const fs::path target = root / fs::u8path(id);
+  if (root.empty() || !security::IsPathWithin(root, target) ||
+      !security::RemoveTreeWithoutFollowingLinks(root, target)) {
+    ExtToast("Не удалось безопасно удалить расширение", true);
+    return;
+  }
   const std::string name = it->second.name;
-  std::error_code ec;
-  fs::remove_all(it->second.path, ec);
   g_exts.erase(it);
   ExtToast("Расширение удалено: " + name, false);
   ExtPushList();
@@ -1175,14 +1447,12 @@ void Shell::ExtInstall(const std::string& src) {
     path = s;
   }
   if (!path.empty()) {
-    std::ifstream f(path, std::ios::binary);
-    if (!f) {
-      ExtToast("Файл не найден: " + path, true);
+    std::string bytes;
+    if (!ReadExtensionFileBounded(fs::u8path(path), &bytes)) {
+      ExtToast("Файл расширения недоступен или превышает лимит 64 МиБ", true);
       return;
     }
-    std::ostringstream ss;
-    ss << f.rdbuf();
-    ExtInstallBytes(ss.str(), path);
+    ExtInstallBytes(std::move(bytes), "local file");
     return;
   }
 
@@ -1224,37 +1494,51 @@ void Shell::ExtInstall(const std::string& src) {
 
 void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
   CEF_REQUIRE_UI_THREAD();
-  Log("ext install bytes=" + std::to_string(bytes.size()) + " from=" + origin);
+  Log("ext install bytes=" + std::to_string(bytes.size()) +
+      " source=" + (origin == "local file" ? "local" : "remote"));
+  if (bytes.empty() || bytes.size() > kMaxExtensionArchiveBytes) {
+    ExtToast("Архив расширения пуст или превышает лимит 64 МиБ", true);
+    return;
+  }
   const size_t off = CrxZipOffset(bytes);
   if (off >= bytes.size()) {
     ExtToast("Пакет не похож на CRX/ZIP расширения", true);
     return;
   }
   const fs::path root = ExtRootDir();
-  if (root.empty()) {
-    ExtToast("Путь профиля не определён", true);
+  if (root.empty() || !security::EnsureDirectoryWithoutLink(root)) {
+    ExtToast("Каталог расширений недоступен или является ссылкой", true);
     return;
   }
   std::error_code ec;
-  fs::create_directories(root, ec);
-  static int seq = 0;
-  fs::path tmp = root / ("_tmp" + std::to_string(++seq));
-  fs::create_directories(tmp, ec);
+  static unsigned int seq = 0;
+  fs::path tmp;
+  bool tmp_created = false;
+  for (unsigned int attempt = 0; attempt < 100 && !tmp_created; ++attempt) {
+    tmp = root / ("_tmp" + std::to_string(++seq));
+    ec.clear();
+    tmp_created = fs::create_directory(tmp, ec);
+    if (ec) break;
+  }
+  if (!tmp_created || !security::IsDirectoryWithoutLink(tmp)) {
+    ExtToast("Не удалось создать безопасный временный каталог", true);
+    return;
+  }
   const std::string zip(bytes.begin() + static_cast<std::ptrdiff_t>(off), bytes.end());
   if (!UnzipBytesTo(zip, tmp)) {
     ExtToast("Не удалось распаковать архив расширения", true);
-    fs::remove_all(tmp, ec);
+    security::RemoveTreeWithoutFollowingLinks(root, tmp);
     return;
   }
-  std::ifstream mf(tmp / "manifest.json", std::ios::binary);
-  if (!mf) {
-    ExtToast("В архиве нет manifest.json — это не расширение", true);
-    fs::remove_all(tmp, ec);
+  const fs::path manifest_path = tmp / "manifest.json";
+  std::string manifest;
+  if (!ReadFileStr(manifest_path, kMaxExtensionManifestBytes, &manifest) ||
+      manifest.empty()) {
+    ExtToast("В архиве нет допустимого manifest.json", true);
+    security::RemoveTreeWithoutFollowingLinks(root, tmp);
     return;
   }
-  std::ostringstream mss;
-  mss << mf.rdbuf();
-  CefRefPtr<CefValue> v = CefParseJSON(mss.str(), JSON_PARSER_RFC);
+  CefRefPtr<CefValue> v = CefParseJSON(manifest, JSON_PARSER_RFC);
   std::string name, ver;
   if (v && v->GetType() == VTYPE_DICTIONARY) {
     CefRefPtr<CefDictionaryValue> d = v->GetDictionary();
@@ -1264,19 +1548,49 @@ void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
       ver = d->GetString("version").ToString();
   }
   if (name.empty()) name = "extension";
-  std::string slug;
-  for (char c : name) {
-    if (isalnum(static_cast<unsigned char>(c))) slug += static_cast<char>(tolower(static_cast<unsigned char>(c)));
-    else if (!slug.empty() && slug.back() != '-') slug += '-';
+  std::string slug = "ext-";
+  for (unsigned char c : name) {
+    if (slug.size() >= 60) break;
+    if (c >= 'a' && c <= 'z') {
+      slug.push_back(static_cast<char>(c));
+    } else if (c >= 'A' && c <= 'Z') {
+      slug.push_back(static_cast<char>(c - 'A' + 'a'));
+    } else if (c >= '0' && c <= '9') {
+      slug.push_back(static_cast<char>(c));
+    } else if (slug.back() != '-') {
+      slug.push_back('-');
+    }
   }
-  if (slug.empty() || slug.back() == '-') slug += "ext";
-  fs::path dest = root / slug;
-  for (int uniq = 2; fs::exists(dest, ec) && uniq < 50; ++uniq)
-    dest = root / (slug + "-" + std::to_string(uniq));
+  while (!slug.empty() && slug.back() == '-') slug.pop_back();
+  if (slug == "ext") slug += "-default";
+
+  fs::path dest;
+  bool destination_available = false;
+  for (unsigned int suffix = 0; suffix < 1000; ++suffix) {
+    const std::string candidate =
+        suffix == 0 ? slug : slug + "-" + std::to_string(suffix);
+    const fs::path path = root / candidate;
+    ec.clear();
+    const fs::file_status status = fs::symlink_status(path, ec);
+    if (ec == std::errc::no_such_file_or_directory ||
+        (!ec && status.type() == fs::file_type::not_found)) {
+      dest = path;
+      destination_available = true;
+      break;
+    }
+    if (ec) break;
+  }
+  if (!destination_available || !security::IsDirectoryWithoutLink(root) ||
+      !security::IsDirectoryWithoutLink(tmp)) {
+    ExtToast("Не удалось безопасно разместить расширение", true);
+    security::RemoveTreeWithoutFollowingLinks(root, tmp);
+    return;
+  }
+  ec.clear();
   fs::rename(tmp, dest, ec);
   if (ec) {
     ExtToast("Не удалось разместить расширение в профиле", true);
-    fs::remove_all(tmp, ec);
+    security::RemoveTreeWithoutFollowingLinks(root, tmp);
     return;
   }
   LoadExtFromDir(dest);
@@ -1297,32 +1611,82 @@ void Shell::OnTabLoadEnd(CefRefPtr<CefBrowser> browser,
   InjectExtScripts(browser, frame, false);
 }
 
-void Shell::OnTabDownloadUpdated(CefRefPtr<CefDownloadItem> item) {
+void Shell::OnTabDownloadUpdated(
+    CefRefPtr<CefDownloadItem> item,
+    CefRefPtr<CefDownloadItemCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!item || !item->IsValid()) return;
+
   const std::string id = "dl" + std::to_string(item->GetId());
+  auto accepted = accepted_downloads_.find(id);
+  // CEF may send an update before OnBeforeDownload or while the confirmation
+  // dialog is still open. Do not show an unapproved transfer in the UI.
+  if (accepted == accepted_downloads_.end()) return;
+
+  const bool complete = item->IsComplete();
+  const bool canceled = item->IsCanceled();
+  const bool interrupted = item->IsInterrupted();
+  const bool paused = item->IsPaused();
   std::string state = "progressing";
-  if (item->IsComplete()) {
+  if (complete) {
     state = "completed";
-  } else if (item->IsCanceled()) {
+  } else if (canceled) {
     state = "cancelled";
+  } else if (interrupted) {
+    state = "interrupted";
+  } else if (paused) {
+    state = "paused";
   } else if (!item->IsInProgress()) {
     state = "interrupted";
   }
-  std::string name = item->GetSuggestedFileName().ToString();
+  const bool terminal = complete || canceled || interrupted ||
+                        (!paused && !item->IsInProgress());
+
+  if (state == "progressing" || state == "paused") {
+    if (callback) active_downloads_[id] = {callback};
+  }
+
+  const std::int64_t reported_bytes = item->GetReceivedBytes();
+  const std::int64_t bytes = reported_bytes > 0 ? reported_bytes : 0;
+  const std::int64_t reported_total = item->GetTotalBytes();
+  const std::int64_t total = reported_total > 0 ? reported_total : 0;
+  const std::int64_t reported_speed = item->GetCurrentSpeed();
+  const std::int64_t speed = reported_speed > 0 ? reported_speed : 0;
+  int percent = complete ? 100 : item->GetPercentComplete();
+  if (percent < 0 && total > 0) {
+    const long double ratio = static_cast<long double>(bytes) /
+                              static_cast<long double>(total);
+    percent = static_cast<int>(std::min<long double>(99, ratio * 100.0L));
+  } else if (!complete && percent >= 100) {
+    // CEF's percent is intentionally rough; reserve 100% for IsComplete().
+    percent = 99;
+  }
   const std::string path = item->GetFullPath().ToString();
+  std::string name = item->GetSuggestedFileName().ToString();
+  if (name.empty() && !path.empty())
+    name = PathToUtf8(fs::u8path(path).filename());
+  if (name.empty()) name = accepted->second.empty() ? "download" : accepted->second;
+
   if (state != "progressing")
     Log("download update id=" + id + " state=" + state + " bytes=" +
-        std::to_string(item->GetReceivedBytes()) + " reason=" +
-        std::to_string(static_cast<int>(item->GetInterruptReason())) + " path=" + path);
-  if (name.empty() && !path.empty()) name = fs::path(path).filename().string();
-  if (name.empty()) name = "download";
+        std::to_string(bytes) + " total=" + std::to_string(total) +
+        " reason=" + std::to_string(static_cast<int>(item->GetInterruptReason())) +
+        " path=" + path);
 
   std::ostringstream os;
   os << "{\"id\":" << JsString(id) << ",\"filename\":" << JsString(name)
      << ",\"state\":" << JsString(state)
-     << ",\"bytes\":" << item->GetReceivedBytes()
-     << ",\"total\":" << item->GetTotalBytes()
+     << ",\"bytes\":" << bytes
+     << ",\"total\":" << total
+     << ",\"percent\":" << percent
+     << ",\"speed\":" << speed
      << ",\"path\":" << JsString(path) << "}";
   UiEvent("download", os.str());
+
+  if (terminal) {
+    accepted_downloads_.erase(id);
+    active_downloads_.erase(id);
+  }
 }
 
 }  // namespace shelter

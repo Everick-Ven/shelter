@@ -761,6 +761,7 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
         const test = window.shelterTest;
         const original = test.state().prefs.gfx || 'balance';
         const originalGlow = test.state().prefs.glow !== false;
+        const originalGlass = Math.max(40, Math.min(100, +test.state().prefs.glassOp || 82));
         const frame = () => new Promise(resolve =>
           requestAnimationFrame(() => requestAnimationFrame(resolve))
         );
@@ -806,7 +807,7 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
         }
         test.setGfxMode(original, {persist:false, notify:false});
         await frame();
-        return JSON.stringify({checked:checked, original:original, originalGlow:originalGlow});
+        return JSON.stringify({checked:checked, original:original, originalGlow:originalGlow, originalGlass:originalGlass});
       })()
     """
     raw = ui.evaluate(expression, timeout=20)
@@ -819,6 +820,9 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
     original_glow = result.get("originalGlow")
     if not isinstance(original_glow, bool):
         raise AcceptanceError(f"Native popup probe did not capture the saved glow preference: {result}")
+    original_glass = result.get("originalGlass")
+    if not isinstance(original_glass, (int, float)) or not 40 <= original_glass <= 100:
+        raise AcceptanceError(f"Native popup probe did not capture a valid opacity preference: {result}")
     for item in checked:
         mode = item["mode"]
         if not item.get("nativeContentVisible"):
@@ -838,8 +842,11 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             if item.get("glowToken") != "none":
                 raise AcceptanceError(f"Speed retained a glow token: {item}")
         else:
-            if not 0.72 <= alpha < 0.92:
-                raise AcceptanceError(f"Native popup fallback hides the glass or is too faint: {item}")
+            expected_alpha = original_glass / 100.0
+            if abs(alpha - expected_alpha) > 0.015:
+                raise AcceptanceError(
+                    f"Native popup alpha {alpha:.3f} does not match the saved {original_glass}% opacity: {item}"
+                )
             if item.get("backgroundImage") == "none" or item.get("borderColor") == "transparent":
                 raise AcceptanceError(f"Native popup lost its glass highlight/rim: {item}")
             if item.get("boxShadow") == "none":
@@ -867,6 +874,150 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             if mode == "balance" and item.get("backdropFilter") != "none":
                 raise AcceptanceError(f"Balance popup retained backdrop blur: {item}")
     ui.evaluate("document.getElementById('moreBtn').click()")
+    wait_native_overlay_idle(ui, process)
+    return result
+
+
+def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
+    """Check slider range, saved values, and native-popup alpha at both endpoints."""
+    ui.evaluate(
+        "(function(){const b=document.getElementById('quickBtn');"
+        "if(!b)throw new Error('quick-menu button missing');b.click();return true;})()"
+    )
+    wait_until(
+        lambda: ui.evaluate("!!document.querySelector('.menu-quick:not(.closing)')") is True,
+        "quick opacity menu over a native website",
+        process,
+        timeout=10,
+    )
+    wait_until(
+        lambda: (lambda state: bool(state and state.get("visible") and state.get("frozen") and not state.get("busy")))(bridge_state(ui)),
+        "native page freeze for opacity menu",
+        process,
+        timeout=15,
+    )
+    expression = r"""
+      (async function() {
+        const test = window.shelterTest;
+        if (!test || !test.state || !test.setGfxMode)
+          throw new Error('opacity test surface is missing');
+        const originalMode = test.state().prefs.gfx || 'balance';
+        const originalGlass = Math.max(40, Math.min(100, +test.state().prefs.glassOp || 82));
+        const frame = () => new Promise(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        );
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const storedGlass = () => {
+          try {
+            const saved = JSON.parse(localStorage.getItem('shelter:lux') || '{}');
+            return saved && saved.prefs ? +saved.prefs.glassOp : null;
+          } catch (_) { return null; }
+        };
+        const alphaOf = value => {
+          const color = String(value || '').trim();
+          const slash = color.match(/\/\s*([0-9.]+)(%)?\s*\)$/);
+          if (slash) return slash[2] ? Number(slash[1]) / 100 : Number(slash[1]);
+          if (/^rgba\(/i.test(color)) {
+            const parts = color.slice(color.indexOf('(') + 1, -1).split(',');
+            return parts.length > 3 ? Number(parts[3]) : null;
+          }
+          if (/^rgb\(/i.test(color)) return 1;
+          return null;
+        };
+        const quick = document.getElementById('quickBtn');
+        let menu = document.querySelector('.menu-quick:not(.closing)');
+        let range = menu && menu.querySelector('#glassOpRange');
+        const nativeContentVisible = document.body.classList.contains('native-content-visible');
+        if (!menu || !range) throw new Error('quick opacity slider is missing');
+        if (range.min !== '40' || range.max !== '100' || range.step !== '1')
+          throw new Error('opacity slider range must be 40–100 with unit steps');
+        if (range.getAttribute('aria-label') !== 'Прозрачность интерфейса')
+          throw new Error('opacity slider accessible label is missing');
+        if (!nativeContentVisible)
+          throw new Error('native-content fallback is not active behind the popup');
+
+        const checked = [];
+        try {
+          test.setGfxMode('balance', {persist:false, notify:false});
+          await frame();
+          for (const value of [40, 100]) {
+            menu = document.querySelector('.menu-quick:not(.closing)');
+            range = menu && menu.querySelector('#glassOpRange');
+            if (!range || range.disabled) throw new Error('opacity slider is unexpectedly disabled');
+            range.value = String(value);
+            range.dispatchEvent(new Event('input', {bubbles:true}));
+            await frame();
+            await pause(500);
+            const popup = getComputedStyle(menu);
+            const state = test.state();
+            const actualAlpha = alphaOf(popup.backgroundColor);
+            const saved = +state.prefs.glassOp;
+            const label = menu.querySelector('#glassOpVal');
+            checked.push({
+              value:value,
+              saved:saved,
+              persisted:storedGlass(),
+              label:label ? label.textContent : '',
+              popupAlpha:actualAlpha,
+              popupColor:popup.backgroundColor,
+              nativeContentVisible:document.body.classList.contains('native-content-visible'),
+              glassOpacity:getComputedStyle(document.body).getPropertyValue('--glass-opacity').trim(),
+              glassOp:getComputedStyle(document.body).getPropertyValue('--glass-op').trim()
+            });
+          }
+        } finally {
+          menu = document.querySelector('.menu-quick:not(.closing)');
+          range = menu && menu.querySelector('#glassOpRange');
+          if (range) {
+            range.value = String(originalGlass);
+            range.dispatchEvent(new Event('input', {bubbles:true}));
+            await frame();
+            await pause(500);
+          }
+          test.setGfxMode(originalMode, {persist:false, notify:false});
+          await frame();
+          if (menu && document.querySelector('.menu-quick:not(.closing)')) quick.click();
+          await frame();
+        }
+        const restoredState = test.state();
+        return JSON.stringify({
+          checked:checked,
+          originalMode:originalMode,
+          originalGlass:originalGlass,
+          restoredMode:restoredState.prefs.gfx,
+          restoredGlass:+restoredState.prefs.glassOp,
+          restoredPersistedGlass:storedGlass()
+        });
+      })()
+    """
+    raw = ui.evaluate(expression, timeout=20)
+    if not raw:
+        raise AcceptanceError("Glass opacity probe returned no result")
+    result = json.loads(raw)
+    checked = result.get("checked", [])
+    if [item.get("value") for item in checked] != [40, 100]:
+        raise AcceptanceError(f"Glass opacity endpoints were not tested: {result}")
+    for item in checked:
+        expected = item["value"] / 100.0
+        if item.get("saved") != item["value"]:
+            raise AcceptanceError(f"Opacity setting was not saved in memory as {item['value']}%: {item}")
+        if item.get("persisted") != item["value"]:
+            raise AcceptanceError(f"Opacity setting was not persisted as {item['value']}%: {item}")
+        if str(item.get("glassOp", "")).strip() != str(item["value"]):
+            raise AcceptanceError(f"CSS --glass-op does not match {item['value']}%: {item}")
+        if item.get("label") != f"{item['value']}%":
+            raise AcceptanceError(f"Opacity label does not match {item['value']}%: {item}")
+        alpha = item.get("popupAlpha")
+        if not isinstance(alpha, (int, float)) or abs(alpha - expected) > 0.015:
+            raise AcceptanceError(f"Popup alpha does not match {item['value']}% opacity: {item}")
+        if not item.get("nativeContentVisible"):
+            raise AcceptanceError(f"Native popup fallback disappeared at {item['value']}%: {item}")
+    if result.get("restoredGlass") != result.get("originalGlass"):
+        raise AcceptanceError(f"Opacity preference was not restored after the endpoint probe: {result}")
+    if result.get("restoredPersistedGlass") != result.get("originalGlass"):
+        raise AcceptanceError(f"Persisted opacity preference was not restored after the endpoint probe: {result}")
+    if result.get("restoredMode") != result.get("originalMode"):
+        raise AcceptanceError(f"Graphics mode was not restored after the opacity probe: {result}")
     wait_native_overlay_idle(ui, process)
     return result
 
@@ -1413,6 +1564,10 @@ def main() -> int:
             popup_probe = popup_fallback_probe(ui, process)
             print("SHELTER_ACCEPTANCE_NATIVE_POPUP " + json.dumps(popup_probe, ensure_ascii=False), flush=True)
             print("SHELTER_ACCEPTANCE_NATIVE_POPUP_PASS", flush=True)
+
+            opacity_probe = glass_opacity_probe(ui, process)
+            print("SHELTER_ACCEPTANCE_GLASS_OPACITY " + json.dumps(opacity_probe, ensure_ascii=False), flush=True)
+            print("SHELTER_ACCEPTANCE_GLASS_OPACITY_PASS", flush=True)
 
             ui.evaluate("window.navigate('https://example.org/')")
             target, page, state = wait_for_site(port, "example.org", process)

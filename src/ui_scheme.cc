@@ -10,6 +10,7 @@
 #include "include/wrapper/cef_stream_resource_handler.h"
 #include "src/common.h"
 #include "src/platform.h"
+#include "src/shell.h"
 
 namespace shelter {
 
@@ -116,8 +117,14 @@ class UiSchemeHandlerFactory : public CefSchemeHandlerFactory {
                                        CefRefPtr<CefRequest> request) override {
     CEF_REQUIRE_IO_THREAD();
 
-    // UI-страница доступна только из нашего UI-браузера и никогда — из вкладок.
+    // The bridge contains the app secret and native UI resources. Do not serve
+    // it to web tabs, popups, or subframes—even if they request shelter:// URLs.
+    if (!browser || !frame || !frame->IsMain() || !request ||
+        !Shell::Get().IsUiBrowserId(browser->GetIdentifier())) {
+      return NotFound();
+    }
     const std::string url = request->GetURL().ToString();
+    if (url.rfind(kUiOriginPrefix, 0) != 0) return NotFound();
     std::string rel = url.substr(std::string(kUiOriginPrefix).size() - 1);
     size_t cut = rel.find_first_of("?#");
     if (cut != std::string::npos) rel.resize(cut);

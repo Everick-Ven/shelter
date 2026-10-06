@@ -5,6 +5,7 @@
 #include "include/cef_command_line.h"
 #include "include/wrapper/cef_helpers.h"
 #include "src/platform.h"
+#include "src/security_paths.h"
 #include "src/shell.h"
 
 namespace shelter {
@@ -37,14 +38,18 @@ void BrowserApp::OnContextInitialized() {
 
 void FillSettings(CefSettings& settings) {
   const std::string root = platform::UserDataDir();
-  std::error_code ec;
-  std::filesystem::create_directories(root, ec);
-  CefString(&settings.root_cache_path) = root;
-  CefString(&settings.log_file) = root + "/debug.log";
+  const std::filesystem::path root_path = std::filesystem::u8path(root);
+  if (security::EnsureDirectoryWithoutLink(root_path)) {
+    CefString(&settings.root_cache_path) = root;
+    CefString(&settings.log_file) = root + "/debug.log";
+  }
   settings.log_severity = LOGSEVERITY_WARNING;
   CefString(&settings.locale) = "ru";
   CefString(&settings.accept_language_list) = "ru-RU,ru,en-US,en";
+#if !defined(CEF_USE_SANDBOX)
+  // CEF requires this when the sandbox/bootstrap support is not built.
   settings.no_sandbox = true;
+#endif
 }
 
 }  // namespace shelter

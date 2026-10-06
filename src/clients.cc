@@ -211,6 +211,23 @@ bool UiClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
 // TabClient
 // ============================================================================
 
+bool TabClient::OnBeforeBrowse(CefRefPtr<CefBrowser>,
+                                CefRefPtr<CefFrame>,
+                                CefRefPtr<CefRequest> request,
+                                bool,
+                                bool) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!request) return true;
+  CefURLParts parts;
+  if (!CefParseURL(request->GetURL(), parts)) return false;
+  std::string scheme = CefString(&parts.scheme).ToString();
+  for (char& c : scheme) {
+    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+  }
+  // Never let a web tab load the privileged shelter:// UI origin.
+  return scheme == kUiScheme;
+}
+
 bool TabClient::OnBeforePopup(CefRefPtr<CefBrowser> browser,
                               CefRefPtr<CefFrame>, int,
                               const CefString& target_url,
@@ -325,11 +342,11 @@ bool TabClient::OnBeforeDownload(
   return true;  // решение придёт из UI (dl.decision)
 }
 
-void TabClient::OnDownloadUpdated(CefRefPtr<CefBrowser>,
-                                  CefRefPtr<CefDownloadItem> item,
-                                  CefRefPtr<CefDownloadItemCallback>) {
+void TabClient::OnDownloadUpdated(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefDownloadItem> item,
+    CefRefPtr<CefDownloadItemCallback> callback) {
   CEF_REQUIRE_UI_THREAD();
-  Shell::Get().OnTabDownloadUpdated(item);
+  Shell::Get().OnTabDownloadUpdated(item, callback);
 }
 
 void TabClient::OnFindResult(CefRefPtr<CefBrowser> browser, int, int count,

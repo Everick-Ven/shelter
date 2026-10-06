@@ -16,6 +16,7 @@
 #define SHELTER_SHELL_H_
 
 #include <array>
+#include <atomic>
 #include <map>
 #include <set>
 #include <string>
@@ -24,6 +25,7 @@
 #include "include/cef_browser.h"
 #include "include/cef_client.h"
 #include "include/cef_devtools_message_observer.h"
+#include "include/cef_download_handler.h"
 #include "include/cef_registration.h"
 #include "include/cef_request_context.h"
 #include "include/views/cef_browser_view.h"
@@ -62,6 +64,10 @@ struct PendingDownload {
   std::string filename;
 };
 
+struct ActiveDownload {
+  CefRefPtr<CefDownloadItemCallback> callback;
+};
+
 class Shell {
  public:
   static Shell& Get();
@@ -89,6 +95,7 @@ class Shell {
   void OnUiCreated(CefRefPtr<CefBrowser> browser);
   void OnUiClosed(CefRefPtr<CefBrowser> browser);
   bool IsUiBrowser(CefRefPtr<CefBrowser> browser) const;
+  bool IsUiBrowserId(int browser_id) const;
   void SetDraggableRegions(const std::vector<CefDraggableRegion>& regions);
   // Вызвать window.__shelterHost.ev(name, payload).
   void UiEvent(const std::string& name, const std::string& payload_json);
@@ -134,7 +141,9 @@ class Shell {
                            CefRefPtr<CefDownloadItem> item,
                            const std::string& suggested_name,
                            CefRefPtr<CefBeforeDownloadCallback> callback);
-  void OnTabDownloadUpdated(CefRefPtr<CefDownloadItem> item);
+  void OnTabDownloadUpdated(
+      CefRefPtr<CefDownloadItem> item,
+      CefRefPtr<CefDownloadItemCallback> callback);
 
  private:
   Shell() = default;
@@ -177,11 +186,14 @@ class Shell {
                  const std::string& url);
 
  private:
-  void DownloadDecision(const std::string& id, const std::string& action);
+  bool DownloadDecision(const std::string& id, const std::string& action,
+                        bool show_dialog);
+  bool DownloadControl(const std::string& id, const std::string& action);
 
   CefRefPtr<CefWindow> window_;
   CefRefPtr<CefBrowserView> ui_view_;
   CefRefPtr<CefBrowser> ui_browser_;
+  std::atomic<int> ui_browser_id_{-1};  // Published for IO-thread scheme checks.
   std::vector<CefDraggableRegion> drag_regions_;
   std::set<CefRefPtr<CefWindow>> popup_windows_;
 
@@ -193,6 +205,10 @@ class Shell {
   std::vector<std::array<int, 4>> clip_holes_;
   std::map<std::string, CefRefPtr<CefRequestContext>> contexts_;
   std::map<std::string, PendingDownload> pending_downloads_;
+  // Downloads are surfaced only after the user accepts the confirmation prompt.
+  // The accepted map also retains the CEF-suggested filename as a safe fallback.
+  std::map<std::string, std::string> accepted_downloads_;
+  std::map<std::string, ActiveDownload> active_downloads_;
   std::string last_ctx_tab_;
 
   int browser_count_ = 0;

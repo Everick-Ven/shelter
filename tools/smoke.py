@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Дымовой тест SHELTER в CI: запускает приложение, подключается по CDP, проверяет UI,
 мост и открытие вкладки, делает скриншоты (через CDP и, где возможно, экрана ОС)."""
-import base64, json, os, subprocess, sys, time, urllib.request, platform
+import base64, json, os, subprocess, sys, time, urllib.request, platform, uuid
 
 import websocket  # pip install websocket-client
 
@@ -285,16 +285,30 @@ try:
     # функциональный сценарий на локальном сервере: навигация, назад/вперёд, загрузка, зум, закрытие вкладки
     log("--- functional scenario (local server) ---")
     import threading, http.server, socketserver
+    download_token = uuid.uuid4().hex[:12]
+    download_name = "shelter-test-" + download_token + ".bin"
+    download_paths = []
+    ask_download_original = c.eval("window.shelterTest.state().prefs.askDownload")
+    c.eval("window.shelterTest.state().prefs.askDownload=false")
     class H(http.server.BaseHTTPRequestHandler):
         def log_message(self, *a): pass
         def do_GET(self):
             if self.path.startswith("/file.bin"):
-                body = b"S" * 200000
+                body = b"S" * (4 * 1024 * 1024)
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
-                self.send_header("Content-Disposition", 'attachment; filename="shelter-test.bin"')
+                self.send_header("Content-Disposition", f'attachment; filename="{download_name}"')
                 self.send_header("Content-Length", str(len(body)))
-                self.end_headers(); self.wfile.write(body); return
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                try:
+                    chunk_size = 64 * 1024
+                    for offset in range(0, len(body), chunk_size):
+                        self.wfile.write(body[offset:offset + chunk_size]); self.wfile.flush()
+                        time.sleep(0.06)
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+                return
             if self.path.startswith("/mark"):
                 m = self.path.split("m=")[-1].split("&")[0]
                 body = ("<!doctype html><title>Mark</title><h1>%s</h1><script>try{localStorage.setItem('k_%s','1')}catch(e){}</script>" % (m, m)).encode()
@@ -320,6 +334,22 @@ try:
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     def tabs_desc():
         return c.eval("(window.getSpaceTabs()||[]).map(t=>(t.id===window.getActiveTabId()?'*':'')+t.url+' | '+t.title).join(' ;; ')")
+    def inspect_download_prompt():
+        raw = c.eval("""JSON.stringify((function(){var m=document.querySelector('.modal.dl-ask');if(!m)return null;
+          return {buttons:Array.from(m.querySelectorAll('[data-dlp]')).map(function(b){return b.textContent.trim()}),
+            filename:(m.querySelector('.dl-ask-f b')||{}).textContent||'',
+            source:(m.querySelector('.dl-ask-f small')||{}).textContent||''};})())""")
+        return unq(raw)
+    def assert_download_prompt(label, expected_name=None, require_host=True):
+        info = inspect_download_prompt()
+        log(label + " prompt:", json.dumps(info, ensure_ascii=False))
+        if not info or info.get("buttons") != ["Отмена", "Скачать"]:
+            raise RuntimeError(label + ": download prompt must have exactly Отмена and Скачать")
+        if expected_name and info.get("filename") != expected_name:
+            raise RuntimeError(label + ": incorrect suggested filename in download prompt")
+        if require_host and "127.0.0.1" not in info.get("source", ""):
+            raise RuntimeError(label + ": download source host is missing from prompt")
+        return info
     log("newTab p1:", c.eval("window.newTab('http://127.0.0.1:8765/p1')"))
     time.sleep(4)
     log("after p1:", tabs_desc())
@@ -347,16 +377,58 @@ try:
     if pg2:
         log("page devicePixel/zoom check, innerWidth:", Cdp(pg2["webSocketDebuggerUrl"]).eval("window.innerWidth"))
     c.eval("window.shelterSetZoomAll(1)")
-    # загрузка
-    dl_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-    target = os.path.join(dl_dir, "shelter-test.bin")
-    if os.path.exists(target): os.remove(target)
+    # Загрузка: проверяем метаданные prompt, реальный progress, pause/resume и итоговый файл.
     log("navigate download:", c.eval("window.navigate('http://127.0.0.1:8765/file.bin')"))
-    time.sleep(4)
-    log("download prompt shown:", c.eval("!!document.querySelector('[data-dlp=save]')"))
-    c.eval("(function(){var b=document.querySelector('[data-dlp=save]'); if(b) b.click();})()")
-    time.sleep(4)
-    log("download file exists:", os.path.exists(target), os.path.getsize(target) if os.path.exists(target) else -1, "dir:", dl_dir)
+    time.sleep(2)
+    prompt = assert_download_prompt("direct download", download_name)
+    log("download prompt source and filename:", prompt.get("source"), prompt.get("filename"))
+    c.eval("(function(){var b=document.querySelector('.modal.dl-ask [data-dlp=save]'); if(b) b.click();})()")
+    name_js = json.dumps(download_name)
+    record_expr = "JSON.stringify((window.shelterTest.state().downloads||[]).find(function(d){return d.name===" + name_js + "})||null)"
+    deadline = time.time() + 5
+    progress = None
+    while time.time() < deadline:
+        progress = unq(c.eval(record_expr))
+        if progress and progress.get("state") == "run" and (progress.get("bytesReceived") or 0) > 0: break
+        time.sleep(0.1)
+    log("download progress snapshot:", json.dumps(progress, ensure_ascii=False))
+    if not progress or progress.get("state") != "run" or progress.get("totalBytes") != 4 * 1024 * 1024:
+        raise RuntimeError("download did not report a running transfer with the correct total size")
+    if not (0 < (progress.get("p") or 0) < 100) or not (progress.get("bytesReceived") or 0):
+        raise RuntimeError("download progress percentage/received-byte count is incorrect")
+    panel = unq(c.eval("JSON.stringify((function(){var f=document.getElementById('dlFloat'),r=f&&f.querySelector('.dlf-row'),b=r&&r.querySelector('.pbar');return {visible:!!(f&&!f.hidden),text:r&&r.querySelector('.dlf-meta')&&r.querySelector('.dlf-meta').textContent,indeterminate:!!(b&&b.classList.contains('dl-indeterminate')),width:b&&b.querySelector('i')&&b.querySelector('i').style.width}})())"))
+    log("download floating notification:", json.dumps(panel, ensure_ascii=False))
+    if not panel or not panel.get("visible") or panel.get("indeterminate") or not panel.get("width"):
+        raise RuntimeError("download notification is missing determinate progress")
+    c.eval("window.openPage('downloads')")
+    time.sleep(0.35)
+    row_js = json.dumps(str(progress.get("id", "")))
+    visual = unq(c.eval("JSON.stringify((function(){var r=Array.from(document.querySelectorAll('#dlRows [data-dl]')).find(function(x){return x.dataset.dl===" + row_js + "});var b=r&&r.querySelector('.pbar');return {hasRow:!!r,indeterminate:!!(b&&b.classList.contains('dl-indeterminate')),width:b&&b.querySelector('i')&&b.querySelector('i').style.width,text:r&&r.querySelector('[data-dlp]')&&r.querySelector('[data-dlp]').textContent}})())"))
+    log("download progress visualization:", json.dumps(visual, ensure_ascii=False))
+    if not visual or not visual.get("hasRow") or visual.get("indeterminate") or not visual.get("width"):
+        raise RuntimeError("known-size download is not rendered as a determinate progress bar")
+    row_selector_js = json.dumps("#dlRows [data-dl='%s']" % progress.get("id", ""))
+    pause_click = c.eval("(function(){var r=document.querySelector(" + row_selector_js + "),b=r&&r.querySelector('[data-act=dlPause]');if(!b)return 'missing';b.click();return 'clicked'})()")
+    if pause_click != "clicked": raise RuntimeError("download pause control is missing")
+    paused = wait_download_state("pause")
+    if not paused or paused.get("state") != "pause": raise RuntimeError("native download did not enter paused state")
+    paused_visual = c.eval("(function(){var r=document.querySelector(" + row_selector_js + ");return !!(r&&r.querySelector('.pbar.dl-paused'))})()")
+    if paused_visual is not True: raise RuntimeError("paused download progress bar is not shown as paused")
+    c.eval("(function(){var r=document.querySelector(" + row_selector_js + "),b=r&&r.querySelector('[data-act=dlPause]');if(b)b.click()})()")
+    resumed = wait_download_state("run")
+    if not resumed or resumed.get("state") != "run": raise RuntimeError("native download did not resume")
+    deadline = time.time() + 15
+    done = None
+    while time.time() < deadline:
+        done = unq(c.eval(record_expr))
+        if done and done.get("state") == "done": break
+        time.sleep(0.25)
+    if not done or done.get("state") != "done": raise RuntimeError("download did not complete after resume")
+    target = done.get("path", "")
+    if not target or not os.path.isfile(target) or os.path.getsize(target) != 4 * 1024 * 1024:
+        raise RuntimeError("download output path or final file size is incorrect")
+    download_paths.append(target)
+    log("download file verified:", target, os.path.getsize(target))
     log("tabs after download:", tabs_desc())
     # --- масштаб при переходе на другой хост (Chromium хранит зум «по хосту») ---
     log("--- zoom across origins ---")
@@ -419,24 +491,36 @@ try:
     if pgd:
         pd_ = Cdp(pgd["webSocketDebuggerUrl"])
         for lbl, sel in (("file link", "a1"), ("blob link", "a2")):
-            if os.path.exists(target): os.remove(target)
             xy = json.loads(pd_.eval("(function(){var b=document.getElementById('%s').getBoundingClientRect();return JSON.stringify({x:b.x+20,y:b.y+b.height/2})})()" % sel))
             for ty in ("mouseMoved", "mousePressed", "mouseReleased"):
                 pd_.call("Input.dispatchMouseEvent", {"type": ty, "x": xy["x"], "y": xy["y"], "button": "left", "clickCount": 1})
             time.sleep(3)
-            log(f"{lbl}: prompt =", c.eval("!!document.querySelector('[data-dlp=save]')"))
+            info = assert_download_prompt(lbl, download_name if lbl == "file link" else "blob.txt", require_host=lbl == "file link")
+            action = "save" if lbl == "file link" else "cancel"
+            action_label = "Download" if action == "save" else "Cancel"
             if shutil.which("cliclick"):
-                real_click("document.querySelector('[data-dlp=save]')", f"{lbl}: real click on Save")
+                real_click("document.querySelector('.modal.dl-ask [data-dlp=" + action + "]')", f"{lbl}: real click on {action_label}")
             else:
-                c.eval("(function(){var b=document.querySelector('[data-dlp=save]'); if(b) b.click();})()")
-            time.sleep(3)
-            log(f"{lbl}: prompt still open =", c.eval("!!document.querySelector('[data-dlp=save]')"),
-                "| file.bin exists =", os.path.exists(target), "| tabs:", tabs_desc())
-            c.eval("(function(){var b=document.querySelector('[data-dlp=cancel]'); if(b) b.click();})()")
-            time.sleep(1)
+                c.eval("(function(){var b=document.querySelector('.modal.dl-ask [data-dlp=" + action + "]'); if(b) b.click();})()")
+            time.sleep(5 if action == "save" else 1)
+            still_open = c.eval("!!document.querySelector('.modal.dl-ask')")
+            log(f"{lbl}: prompt still open =", still_open, "| buttons =", info.get("buttons"), "| tabs:", tabs_desc())
+            if still_open: raise RuntimeError(lbl + ": download prompt did not close after selection")
+            if lbl == "file link":
+                raw_paths = c.eval("JSON.stringify((window.shelterTest.state().downloads||[]).filter(function(d){return d.state==='done'&&d.path}).map(function(d){return d.path}))")
+                linked_paths = [p for p in (unq(raw_paths) or []) if os.path.basename(str(p)).startswith("shelter-test-" + download_token)]
+                if len(set(linked_paths)) < 2 or not any(os.path.isfile(p) and os.path.getsize(p) == 4 * 1024 * 1024 for p in linked_paths if p not in download_paths):
+                    raise RuntimeError("page-link download did not produce a second verified test file")
+                download_paths.extend(linked_paths)
+                log("page-link download files verified:", linked_paths)
         pd_.ws.close()
     else:
         log("download page target not found")
+    try:
+        c.eval("window.shelterTest.state().prefs.askDownload=" + json.dumps(ask_download_original) + "; window.openPage('downloads')")
+        time.sleep(0.25)
+    except Exception as e:
+        log("download test setting restore failed:", e)
     try:
         sl = os.path.expanduser("~/Library/Application Support/SHELTER/shelter.log") if platform.system() == "Darwin" else os.path.join(os.environ.get("LOCALAPPDATA", ""), "SHELTER", "shelter.log")
         log("--- shelter.log ---"); log(open(sl, encoding="utf-8", errors="replace").read()[-3000:])
@@ -551,8 +635,39 @@ try:
 
     log("SMOKE DONE")
 finally:
+    smoke_download_paths = []
+    try:
+        if 'c' in globals() and 'ask_download_original' in globals():
+            if 'download_token' in globals():
+                raw_paths = c.eval("JSON.stringify((window.shelterTest.state().downloads||[]).filter(function(d){return d.path}).map(function(d){return d.path}))")
+                smoke_download_paths.extend(unq(raw_paths) or [])
+            c.eval("window.shelterTest.state().prefs.askDownload=" + json.dumps(ask_download_original) + "; window.openPage('downloads')")
+            time.sleep(0.25)
+    except Exception as e:
+        log("final download setting restore failed:", e)
     try:
         proc.terminate()
+        proc.wait(timeout=8)
     except Exception:
-        pass
+        try:
+            proc.kill()
+            proc.wait(timeout=3)
+        except Exception:
+            pass
+    if 'download_token' in globals():
+        prefix = "shelter-test-" + download_token
+        all_paths = smoke_download_paths + (download_paths if 'download_paths' in globals() else [])
+        candidates = set(map(str, all_paths))
+        for folder in {os.path.dirname(path) for path in candidates if os.path.dirname(path)}:
+            try:
+                candidates.update(os.path.join(folder, name) for name in os.listdir(folder) if name.startswith(prefix))
+            except OSError:
+                pass
+        for path in candidates:
+            if os.path.basename(path).startswith(prefix) and os.path.isfile(path) and not os.path.islink(path):
+                try:
+                    os.remove(path)
+                    log("removed exact smoke-test download:", path)
+                except OSError as e:
+                    log("smoke-test download cleanup failed:", path, e)
     open(f"{out}/smoke.log", "w", encoding="utf-8").write("\n".join(log_lines))

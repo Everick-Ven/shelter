@@ -1,4 +1,5 @@
 #include "src/platform.h"
+#include "src/security_paths.h"
 
 #include <windows.h>
 #include <shellapi.h>
@@ -92,12 +93,7 @@ bool DeleteUserData() {
   if (ec == std::errc::no_such_file_or_directory) return true;
   if (ec) return false;
   if (status.type() == fs::file_type::not_found) return true;
-  fs::remove_all(target, ec);  // remove_all removes a root symlink itself, never follows it
-  if (ec) return false;
-  ec.clear();
-  const fs::file_status after = fs::symlink_status(target, ec);
-  return ec == std::errc::no_such_file_or_directory ||
-         (!ec && after.type() == fs::file_type::not_found);
+  return security::RemoveTreeWithoutFollowingLinks(expected.parent_path(), target);
 }
 
 void ShowUserDataDeletionFailure() {

@@ -293,13 +293,14 @@ html.theme-anim body{
 .lights.live i:hover{filter:brightness(1.1);transform:scale(1.06)}
 body.is-fullscreen .lights{display:none}
 .lights.live i:active{transform:scale(.92)}
-/* оконные кнопки Windows (1.0.108): справа в топбаре */
-.wctl{display:flex;align-items:stretch;align-self:stretch;flex:none;margin-left:4px}
-.wctl .wc{width:44px;display:grid;place-items:center;color:var(--text-2);border-radius:0;transition:background .12s,color .12s,opacity .12s}
-.wctl .wc svg{width:13px;height:13px;display:block}
-.wctl .wc:hover{background:var(--hover);color:var(--text)}
-.wctl .wc:active{opacity:.65}
-.wctl .wc-x:hover{background:#E81123;color:#fff}
+/* Круглые «светофоры» в стиле Mac — единые оконные кнопки на всех платформах.
+   На hover, как на macOS, проявляются глифы: ✕, –, стрелки. */
+.lights.live i{position:relative}
+.lights.live i::after{position:absolute;inset:0;display:grid;place-items:center;font:700 9px/1 system-ui,sans-serif;color:rgba(0,0,0,.55);opacity:0;transition:opacity .12s}
+.lights.live:hover i::after{opacity:1}
+.lights.live i:nth-child(1)::after{content:"×"}
+.lights.live i:nth-child(2)::after{content:"–"}
+.lights.live i:nth-child(3)::after{content:"⤢";font-size:8px}
 .brand{display:flex;align-items:center;gap:12px;padding:0 6px;flex:none}
 .logo{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;position:relative;color:#fff;
   background:linear-gradient(155deg,var(--logo-a),var(--logo-b));
@@ -491,7 +492,6 @@ body.no-badges .badge{display:none!important}
 .tab-mount .tab.drop-before::after{left:-4px;top:5px;bottom:5px;right:auto;width:2px;height:auto;border-radius:2px}
 .tab-mount .tab.new{display:flex;width:auto;min-width:0;max-width:none;padding-right:10px}
 .tab-mount .tabs .icon-btn{flex:none}
-.tab-mount>.wctl{margin-left:auto}
 .tab-mount>.tab-plus{position:relative;flex:none;z-index:3;background:var(--bg)}
 .tab-mount>.tab-plus:hover{background:var(--hover);color:var(--text)}
 .tabs-scroll{position:absolute;left:0;right:0;bottom:0;height:2px;border-radius:99px;background:var(--line);pointer-events:none}
@@ -912,6 +912,12 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .dlf-x{margin-left:auto;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;color:var(--text-3);background:transparent;border:0;cursor:pointer;transition:background .16s,color .16s}
 .dlf-x:hover{background:var(--hover);color:var(--text)}
 .dlf-row+.dlf-row{margin-top:10px}
+.dlf-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.dlf-top .dlf-name{margin-bottom:0}
+.dlf-acts{display:flex;gap:2px;flex:none;margin-left:auto}
+.dlf-acts .icon-btn{width:24px;height:24px;border-radius:7px}
+.dlf-acts .icon-btn .i{width:13px;height:13px}
+.dl-missing{color:var(--warn)}
 .dlf-name{font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}
 .dlf-meta{font-size:11.5px;color:var(--text-3);margin-top:5px;font-variant-numeric:tabular-nums}
 .dlf-ok{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--text)}
@@ -2965,6 +2971,14 @@ body.native-content-visible:not([data-gfx="perf"]) .devtools{
 /* Ambient decoration is static while the native page owns the content area;
    resuming the CSS animation when returning to the dashboard is automatic. */
 body.native-content-visible .ambient i{animation-play-state:paused}
+/* Свечение не «дёргается» при переключении режимов и выключении: слой ухода/
+   появления работает через class-CSS opacity (без inline-стилей) и гаснет
+   мгновенно только в Speed, где display:none отключает переход. */
+.ambient,#heroFx{transition:opacity .25s ease}
+body.glow-off .ambient,body.glow-off #heroFx{opacity:0}
+@starting-style{
+  body:not(.glow-off) .ambient,body:not(.glow-off) #heroFx{opacity:0}
+}
 
 /* --- Контраст в теме «Графит» (светло-серебристые акценты --ga/--gc требуют тёмного текста вместо белого) --- */
 html[data-theme="graphite"] .btn.accent,
@@ -3211,11 +3225,6 @@ html[data-theme="graphite"] .badge.hot{
         <button class="tb-btn" id="quickBtn" data-act="quick" data-tip="Оформление и вкладки" aria-label="Оформление и вкладки"><svg class="i"><use href="#i-sliders"/></svg></button>
         <button class="tb-btn" id="settingsBtn" data-act="settings" data-tip="Настройки  ⌘," aria-label="Настройки"><svg class="i"><use href="#i-gear"/></svg></button>
         <button class="tb-btn" id="moreBtn" data-act="more" data-tip="Меню" aria-label="Меню"><svg class="i"><use href="#i-dots"/></svg></button>
-        <div class="wctl" id="winCtl" hidden>
-          <button class="wc" data-w="minimize" data-tip="Свернуть" aria-label="Свернуть окно"><svg viewBox="0 0 12 12"><path d="M2 6h8" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg></button>
-          <button class="wc" data-w="maximize" data-tip="Растянуть" aria-label="Растянуть окно"><svg viewBox="0 0 12 12"><rect x="2.4" y="2.4" width="7.2" height="7.2" rx="1.2" stroke="currentColor" stroke-width="1.3" fill="none"/></svg></button>
-          <button class="wc wc-x" data-w="close" data-tip="Закрыть" aria-label="Закрыть окно"><svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg></button>
-        </div>
       </div>
     </header>
 
@@ -5033,13 +5042,6 @@ function applyTabPos() {
     if (target && sr && tl && tl.parentElement !== target) { target.appendChild(sr); target.appendChild(tl); }
     Object.entries(mounts).forEach(([k, el]) => { if (el) el.hidden = k !== pos; });
     if (mounts.right) { mounts.right.classList.toggle('is-collapsed', !!S.ui.railCollapsed); syncRailToggle(); }
-    /* кнопки окна Windows — всегда в правом верхнем углу ПЕРВОГО ряда (1.0.114):
-       вкладки сверху → ряд вкладок; иначе → тулбар (он первый ряд) */
-    const ctl = document.getElementById('winCtl');
-    if (ctl) {
-      if (pos === 'top') { const tm = document.getElementById('tabTop'); if (tm && ctl.parentElement !== tm) tm.appendChild(ctl); }
-      else { const cg = document.getElementById('ctlGrid'); const home = cg && cg.parentElement; if (home && ctl.parentElement !== home) home.appendChild(ctl); }
-    }
     renderSpaceRow(); renderTabs();
   } catch (e) { try { console.warn('applyTabPos failed:', e); } catch (_) {} }
 }
@@ -5151,22 +5153,18 @@ function initWinLights() {
     }
     return;
   }
-  /* Windows / Linux (frameless CEF / native) — своих кнопок нет в рамке: ставим СПРАВА в топбаре */
-  const ctl = document.getElementById('winCtl');
-  if (!ctl) return;
-  if (lights) lights.hidden = true;
-  ctl.hidden = false;
-  const actTip = { close: 'Закрыть окно', minimize: 'Свернуть окно', maximize: 'Растянуть окно' };
-  ctl.querySelectorAll('[data-w]').forEach(el => {
-    el.setAttribute('role', 'button');
-    el.setAttribute('aria-label', actTip[el.dataset.w] || '');
-  });
-  ctl.addEventListener('click', e => {
-    const b = e.target.closest('[data-w]'); if (!b) return;
-    if (b.dataset.w === 'close') n.close();
-    else if (b.dataset.w === 'minimize') n.minimize();
-    else doMax();
-  });
+  /* Windows / Linux (frameless CEF): вместо прямоугольных кнопок справа —
+     те же круглые «светофоры», что и на Mac: одинаковый вид на всех платформах. */
+  if (lights) {
+    lights.classList.add('live');
+    lights.setAttribute('aria-hidden', 'false');
+    const dots = lights.querySelectorAll('i');
+    const labels = ['Закрыть окно', 'Свернуть окно', 'Растянуть окно'];
+    dots.forEach((dot, i) => dot.setAttribute('aria-label', labels[i] || ''));
+    if (dots[0]) dots[0].addEventListener('click', e => { e.stopPropagation(); try { n.close(); } catch (_) {} });
+    if (dots[1]) dots[1].addEventListener('click', e => { e.stopPropagation(); try { n.minimize(); } catch (_) {} });
+    if (dots[2]) dots[2].addEventListener('click', e => { e.stopPropagation(); doMax(); });
+  }
 }
 function toggleSidebar() {
   const app = $('#app');
@@ -8077,28 +8075,31 @@ function dlRow(d, i) {
   const ext = (name.split('.').pop() || '').toUpperCase().slice(0, 4);
   const col = { DMG: '#6E7BF2', ZIP: '#B68A3E', PDF: '#D2615F', JPG: '#3DAE8A', PNG: '#3DAE8A', JSON: '#4E9BD8' }[ext] || '#7D8794';
   const active = ['run', 'pause', 'cancelling'].includes(d.state);
+  const missing = d.state === 'done' && d.missing ? ' · <span class="dl-missing">Файл удалён или перемещён</span>' : '';
   const info = active ? `<span class="num" data-dlp>${esc(dlProgressText(d))}</span>`
-    : d.state === 'done' ? `${esc(fmtDownloadBytes(dlTotalBytes(d) || dlReceivedBytes(d)) || 'Размер неизвестен')} · ${relDay(d.at)}, ${hm(d.at)}`
+    : d.state === 'done' ? `${esc(fmtDownloadBytes(dlTotalBytes(d) || dlReceivedBytes(d)) || 'Размер неизвестен')} · ${relDay(d.at)}, ${hm(d.at)}${missing}`
     : `${esc(d.state === 'interrupted' ? 'Скачивание прервано' : 'Загрузка')} · ${esc(fmtDownloadBytes(dlReceivedBytes(d)) || 'Размер неизвестен')}`;
   const act = d.state === 'run'
     ? `<button class="icon-btn" data-act="dlPause" data-id="${d.id}" aria-label="Приостановить скачивание">${ico('pause')}</button>`
     : d.state === 'pause'
       ? `<button class="icon-btn" data-act="dlPause" data-id="${d.id}" aria-label="Продолжить скачивание">${ico('play')}</button>`
       : d.state === 'cancelling' ? ''
-        : `<button class="icon-btn" data-act="dlShow" data-id="${d.id}" aria-label="Показать в папке">${ico('folder')}</button>`;
+        : `<button class="icon-btn" data-act="dlShow" data-id="${d.id}" aria-label="Показать в папке"${d.missing ? ' disabled' : ''}>${ico('folder')}</button>`;
+  const copy = d.url
+    ? `<button class="icon-btn" data-act="dlCopy" data-id="${d.id}" aria-label="Скопировать ссылку для скачивания" data-tip="Скопировать ссылку для скачивания">${ico('link')}</button>` : '';
   const cancel = active && d.state !== 'cancelling'
     ? `<button class="icon-btn" data-act="dlCancel" data-id="${d.id}" aria-label="Отменить скачивание">${ico('x')}</button>` : '';
   const remove = active ? ''
     : `<button class="icon-btn" data-act="dlDel" data-id="${d.id}" aria-label="Убрать из списка">${ico('trash')}</button>`;
   const bar = active && d.state !== 'cancelling' ? dlProgressBar(d) : '';
-  return `<div class="lrow" style="--i:${i}" data-dl="${d.id}"><span class="file-ic" style="background:${col}">${esc(ext)}</span><div class="tx"><b>${esc(name)}</b><small>${info}</small>${bar}</div><div class="acts">${act}${cancel}${remove}</div></div>`;
+  return `<div class="lrow" style="--i:${i}" data-dl="${d.id}" data-dlstate="${d.state}"><span class="file-ic" style="background:${col}">${esc(ext)}</span><div class="tx"><b>${esc(name)}</b><small>${info}</small>${bar}</div><div class="acts">${act}${copy}${cancel}${remove}</div></div>`;
 }
 const dlRows = () => S.downloads.length ? S.downloads.slice().sort((a, b) => (a.state === 'done') - (b.state === 'done') || b.at - a.at).map(dlRow).join('') : emptyState('inbox', 'Загрузок нет', 'Скачанные файлы появятся здесь');
 RENDER.downloads = () => { clearTimeout(dlPanelT); const dlf = $('#dlFloat'); if (dlf) dlf.hidden = true; S.ui.dlSeen = Date.now(); persist(); renderBadges(); return `<div class="page narrow">
   <div class="page-h"><div class="ttl"><div class="page-title">Загрузки</div><div class="page-sub">История файлов, скачанных через SHELTER</div></div>
   <div class="page-actions"><button class="btn" data-act="dlClear">${ico('trash')}Очистить список</button></div></div>
   <div class="rows" id="dlRows">${dlRows()}</div></div>`; };
-AFTER.downloads = () => pageTimer(() => {
+AFTER.downloads = () => { dlAudit(); pageTimer(() => {
   let ch = false;
   S.downloads.forEach(d => {
     if (d.state !== 'run' || !d.demo) return; ch = true; d.p = Math.min(100, d.p + 1 + (Math.random() * 3 | 0));
@@ -8107,17 +8108,35 @@ AFTER.downloads = () => pageTimer(() => {
     else if (row) { row.querySelector('[data-dlbar]').style.width = d.p + '%'; row.querySelector('[data-dlp]').textContent = `${d.p}% · ${fmtSize(d.size * d.p / 100)} из ${fmtSize(d.size)}`; }
   });
   if (ch) persist();
-}, 650, true);
+}, 650, true); };
 
 let dlPanelOff = false, dlPanelT = 0;
+let dlFloatKey = '';
 function dlPanelRefresh() {
   const f = $('#dlFloat'); if (!f || dlPanelOff) return false;
   if (urlMeta(curTab().url).page === 'downloads') { f.hidden = true; return false; }
   const runs = S.downloads.filter(d => !d.demo && ['run', 'pause', 'cancelling'].includes(d.state)).slice(0, 3);
-  if (!runs.length) { f.hidden = true; return false; }
+  if (!runs.length) { f.hidden = true; dlFloatKey = ''; return false; }
   clearTimeout(dlPanelT);
   $('#dlfTitle').textContent = runs.every(d => d.state === 'pause') ? 'Загрузка приостановлена' : 'Скачивание';
-  $('#dlfBody').innerHTML = runs.map(d => `<div class="dlf-row"><div class="dlf-name">${esc(d.name || 'download')}</div>${d.state === 'cancelling' ? '' : dlProgressBar(d)}<div class="dlf-meta">${esc(dlProgressText(d))}</div></div>`).join('');
+  const key = runs.map(d => d.id + ':' + d.state).join('|');
+  if (key !== dlFloatKey) {
+    /* Состав или состояния строк изменились — пересобираем карточку. */
+    dlFloatKey = key;
+    $('#dlfBody').innerHTML = runs.map(d => {
+      const ctrl = d.state === 'cancelling' ? '' :
+        `<span class="dlf-acts"><button class="icon-btn" data-act="dlPause" data-id="${d.id}" aria-label="${d.state === 'pause' ? 'Продолжить скачивание' : 'Приостановить скачивание'}">${ico(d.state === 'pause' ? 'play' : 'pause')}</button>` +
+        `<button class="icon-btn" data-act="dlCancel" data-id="${d.id}" aria-label="Отменить скачивание">${ico('x')}</button></span>`;
+      return `<div class="dlf-row" data-dlf="${d.id}"><div class="dlf-top"><div class="dlf-name">${esc(d.name || 'download')}</div>${ctrl}</div>${d.state === 'cancelling' ? '' : dlProgressBar(d)}<div class="dlf-meta">${esc(dlProgressText(d))}</div></div>`;
+    }).join('');
+  } else {
+    /* Тики прогресса: точечно, без пересоздания DOM. */
+    runs.forEach(d => {
+      const r = f.querySelector(`[data-dlf="${d.id}"]`); if (!r) return;
+      const bar = r.querySelector('[data-dlbar]'); if (bar) bar.style.width = (dlPercent(d) || 0) + '%';
+      const meta = r.querySelector('.dlf-meta'); if (meta) meta.textContent = dlProgressText(d);
+    });
+  }
   f.hidden = false;
   return true;
 }
@@ -8209,10 +8228,38 @@ function dlRenderChanged(d) {
   const rows = $('#dlRows');
   if (rows) {
     const row = Array.from(rows.querySelectorAll('[data-dl]')).find(el => el.dataset.dl === d.id);
-    if (row) row.outerHTML = dlRow(d, 0);
-    else rows.innerHTML = dlRows();
+    if (row && row.dataset.dlstate === d.state) {
+      // Точечное обновление цифр без пересоздания строки: пересоздание
+      // перезапускало бы входную анимацию, и строка «мигала» на каждый тик.
+      const bar = row.querySelector('[data-dlbar]');
+      if (bar) bar.style.width = (dlPercent(d) || 0) + '%';
+      const txt = row.querySelector('[data-dlp]');
+      if (txt) txt.textContent = dlProgressText(d);
+    } else if (row) {
+      row.outerHTML = dlRow(d, 0);
+    } else {
+      rows.innerHTML = dlRows();
+    }
   }
   dlPanelRefresh();
+}
+/* Разовая проверка скачанных файлов на диске: пропавшие помечаются
+   подписью «Файл удалён или перемещён». */
+let dlAuditSeq = 0;
+function dlAudit() {
+  const n = window.shelterNative;
+  if (!n || typeof n.fileState !== 'function') return;
+  const seq = ++dlAuditSeq;
+  S.downloads.filter(d => !d.demo && d.state === 'done' && d.path).forEach(d => {
+    Promise.resolve(n.fileState(d.path)).then(ex => {
+      if (seq !== dlAuditSeq || ex === null) return;
+      const miss = !ex;
+      if (!!d.missing === miss) return;
+      d.missing = miss; persist();
+      const row = document.querySelector(`[data-dl="${d.id}"]`);
+      if (row) row.outerHTML = dlRow(d, 0);
+    }).catch(() => {});
+  });
 }
 function dlNativeControl(d, action) {
   if (!d) return;
@@ -8258,7 +8305,8 @@ window.shelterDownload = function (p) {
   if (p.state === 'completed') {
     if (!d) {
       d = { id: uid('dl'), mid: id, name: filename, size: 0, totalBytes: 0,
-        bytesReceived: 0, speedBytesPerSecond: 0, p: 100, state: 'done', at: now, path };
+        bytesReceived: 0, speedBytesPerSecond: 0, p: 100, state: 'done', at: now, path,
+        url: String(p.url || '') };
       S.downloads.unshift(d);
     }
     const finalBytes = bytes > 0 ? bytes : Math.max(reportedTotal, dlTotalBytes(d));
@@ -8269,23 +8317,27 @@ window.shelterDownload = function (p) {
     d.size = finalBytes / 1048576;
     d.speedBytesPerSecond = 0;
     if (path) d.path = path;
+    if (p.url) d.url = String(p.url);
     try { const ip = internalPage(curTab() && curTab().url); if (ip && ip.page === 'downloads') S.ui.dlSeen = Date.now(); } catch (_) {}
     persist(); renderBadges();
     const rows = $('#dlRows'); if (rows) rows.innerHTML = dlRows();
     dlPanelDone(d);
+    dlAudit();
     return;
   }
 
   if (p.state === 'progressing' || p.state === 'paused') {
     if (!d) {
       d = { id: uid('dl'), mid: id, name: filename, size: 0, totalBytes: 0,
-        bytesReceived: 0, speedBytesPerSecond: 0, p: null, state: 'run', at: now, path };
+        bytesReceived: 0, speedBytesPerSecond: 0, p: null, state: 'run', at: now, path,
+        url: String(p.url || '') };
       S.downloads.unshift(d);
       dlPanelOff = false;
     }
     d.mid = id; d.demo = false;
     d.state = p.state === 'paused' ? 'pause' : 'run';
     if (path) d.path = path;
+    if (p.url) d.url = String(p.url);
     if (filename) d.name = filename;
     d.bytesReceived = bytes;
     d.speedBytesPerSecond = speed;
@@ -9903,7 +9955,9 @@ function installFontScale() {
 }
 SEG.startup = v => { S.prefs.startup = v; persist(); };
 SEG.sidebar = v => { if ((v === 'rail') !== $('#app').classList.contains('collapsed')) toggleSidebar(); };
-SEG.motion = v => setGfxMode(v);
+/* без notify: сам переключатель — достаточная обратная связь, лишний тост
+   поверх открытого меню воспринимается как дёргание */
+SEG.motion = v => setGfxMode(v, { notify: false });
 function applyGfx() {
   const gfx = ['beauty', 'balance', 'perf'].includes(S.prefs.gfx) ? S.prefs.gfx : 'balance';
   S.prefs.gfx = gfx;
@@ -10506,6 +10560,7 @@ const ACT = {
   dlPause: el => { const d = S.downloads.find(x => x.id === el.dataset.id); if (d) dlNativeControl(d, d.state === 'pause' ? 'resume' : 'pause'); },
   dlCancel: el => { const d = S.downloads.find(x => x.id === el.dataset.id); if (d) dlNativeControl(d, 'cancel'); },
   dlShow: el => { const d = S.downloads.find(x => x.id === el.dataset.id); if (d) dlReveal(d); },
+  dlCopy: el => { const d = S.downloads.find(x => x.id === el.dataset.id); if (!d || !d.url) { toast('Ссылка для скачивания недоступна', { icon: 'link' }); return; } copyText(d.url); toast('Ссылка для скачивания скопирована', { icon: 'link' }); },
   dlDel: el => { const d = S.downloads.find(x => x.id === el.dataset.id); if (!d) return; if (['run', 'pause', 'cancelling'].includes(d.state)) { dlNativeControl(d, 'cancel'); return; } S.downloads = S.downloads.filter(x => x !== d); persist(); $('#dlRows').innerHTML = dlRows(); renderBadges(); },
   dlHide: () => { dlPanelOff = true; clearTimeout(dlPanelT); const f = $('#dlFloat'); if (f) f.hidden = true; },
   noteHide: () => noteHide(), noteUndo: () => { noteHide(); undoClose(); },

@@ -621,6 +621,7 @@
     ctxAct: function (o) { return q('ctx.act', o || {}); },
     openPlainWindow: function (o) { return q('win.openPlain', { url: (o && o.url) || '' }); },
     showInFolder: function (p) { return q('shell.show', { path: String(p || '') }); },
+    fileState: function (p) { return q('shell.filestate', { path: String(p || '') }).then(function (r) { return !!(r && r.exists); }).catch(function () { return null; }); },
     onDownloadPrompt: function (cb) { cbs.dlprompt = cb; },
     downloadDecision: function (o) { return q('dl.decision', o || {}); },
     downloadControl: function (o) { return q('dl.control', o || {}); },

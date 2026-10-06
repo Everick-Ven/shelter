@@ -1810,6 +1810,7 @@ void Shell::OnTabDownloadUpdated(
      << ",\"total\":" << total
      << ",\"percent\":" << percent
      << ",\"speed\":" << speed
+     << ",\"url\":" << JsString(item->GetURL().ToString())
      << ",\"path\":" << JsString(path) << "}";
   UiEvent("download", os.str());
 

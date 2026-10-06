@@ -1,6 +1,7 @@
 // SHELTER — мост UI -> native (window.shelterNative / window.shelter* хуки из host-bridge.js).
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <sstream>
 
 #include "include/cef_cookie.h"
@@ -393,6 +394,23 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   if (m == "shell.show") {
     platform::ShowInFolder(Str(a, "path"));
     cb->Success("{}");
+    return true;
+  }
+  if (m == "shell.filestate") {
+    // Существует ли скачанный файл на диске (для подписи «Файл удалён или
+    // перемещён» во вкладке загрузок). Доступно только UI-браузеру.
+    if (!browser || !IsUiBrowser(browser)) {
+      cb->Failure(403, "file inspection is restricted to the SHELTER UI");
+      return true;
+    }
+    namespace fsb = std::filesystem;
+    const std::string path = Str(a, "path");
+    bool exists = false;
+    if (!path.empty()) {
+      std::error_code ec;
+      exists = fsb::exists(fsb::u8path(path), ec) && !ec;
+    }
+    cb->Success(std::string("{\"exists\":") + (exists ? "true" : "false") + "}");
     return true;
   }
   if (m == "dl.decision" || m == "dl.control") {

@@ -1964,6 +1964,12 @@ body[data-gfx="perf"]{
 body.glow-off .ambient,
 body.glow-off #heroFx{display:none !important;visibility:hidden !important}
 body.glow-off .ambient i{animation:none !important}
+body.glow-off .hero::before,
+body.glow-off .pdot::after{display:none !important;animation:none !important}
+body[data-gfx="balance"] .ambient i,
+body[data-gfx="balance"] .orb.halo>i,
+body[data-gfx="balance"] .orb.core>i,
+body[data-gfx="balance"] .pdot::after{animation:none !important}
 
 /* ---------- 1 · Каркас: боковая панель ---------- */
 .sb{
@@ -2907,16 +2913,17 @@ body[data-gfx="perf"] .bm-mount .hero-links{
   border-color:var(--line-2) !important;
 }
 #glassOpSec.is-disabled,body[data-gfx="perf"] #glassOpSec,
+#qGlowRow.is-disabled,#setGlowRow.is-disabled,
 #setGlowModeRow.is-disabled,#glowCustomRow.is-disabled,#setGlowIntRow.is-disabled,#setGlowSatRow.is-disabled{opacity:.42;pointer-events:none;user-select:none;filter:grayscale(.85);transition:opacity .2s var(--ease)}
 #glassOpRange:disabled,.sw-t:disabled,.sw-t.is-disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+#qGlowRow.is-disabled .sw-t:disabled,#setGlowRow.is-disabled .sw-t:disabled{opacity:1}
 
-/* Native CEF pages are a separate compositor surface. A UI backdrop-filter
-   cannot always sample that surface (notably through macOS holes), so keep a
-   near-opaque themed fill under every popup while a native page is visible.
-   Visual still applies its blur/glow/animation; Balance keeps transparency
-   without blur; Speed already supplies fully opaque surfaces and no effects. */
+/* Native CEF pages are a separate compositor surface. Backdrop-filter may not
+   sample that surface directly, so the fallback keeps enough tinted translucency
+   for contrast while a restrained highlight, rim and live backdrop preserve the
+   glass appearance. Visual blurs; Balance keeps the same transparency without blur. */
 body.native-content-visible:not([data-gfx="perf"]){
-  --native-popup-opacity:clamp(94%,calc(var(--glass-op) * 1%),100%);
+  --native-popup-opacity:clamp(76%,calc(var(--glass-op) * .85 * 1% + 14%),90%);
   --native-popup-menu:color-mix(in srgb,var(--menu) var(--native-popup-opacity),transparent);
   --native-popup-card:color-mix(in srgb,var(--card) var(--native-popup-opacity),transparent);
 }
@@ -2928,11 +2935,17 @@ body.native-content-visible:not([data-gfx="perf"]) .toast,
 body.native-content-visible:not([data-gfx="perf"]) .tip,
 body.native-content-visible:not([data-gfx="perf"]) .dl-float{
   background-color:var(--native-popup-menu);
+  background-image:linear-gradient(145deg,rgba(255,255,255,.11),rgba(255,255,255,.035) 32%,transparent 72%);
+  border-color:color-mix(in srgb,var(--glass-border) 84%,rgb(var(--ga)/.28));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 18px 44px -24px rgba(0,0,0,.46),var(--glow-lift-lg);
 }
 body.native-content-visible:not([data-gfx="perf"]) .modal,
 body.native-content-visible:not([data-gfx="perf"]) .settings,
 body.native-content-visible:not([data-gfx="perf"]) .devtools{
   background-color:var(--native-popup-card);
+  background-image:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03) 32%,transparent 72%);
+  border-color:color-mix(in srgb,var(--glass-border) 84%,rgb(var(--ga)/.28));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 22px 58px -30px rgba(0,0,0,.48),var(--glow-lift-lg);
 }
 /* Ambient decoration is static while the native page owns the content area;
    resuming the CSS animation when returning to the dashboard is automatic. */
@@ -4171,10 +4184,11 @@ function load() {
   const lux = store.json('shelter:lux', {}) || {};
   Object.assign(S.prefs, lux.prefs || {});
   Object.assign(S.ui, lux.ui || {});
-  /* Один источник истины: Visual/Balance сохраняют обычные UI-анимации; Speed выключает их. */
+  /* Режим графики управляет только временными ограничениями эффектов.
+     Пользовательский переключатель свечения хранится отдельно. */
   S.prefs.gfx = ['beauty', 'balance', 'perf'].includes(S.prefs.gfx) ? S.prefs.gfx : 'balance';
   S.prefs.motion = S.prefs.gfx === 'perf' ? 'off' : 'full';
-  S.prefs.glow = S.prefs.gfx === 'beauty';
+  if (typeof S.prefs.glow !== 'boolean') S.prefs.glow = true;
   if (S.ui.dlSeen == null) S.ui.dlSeen = Date.now();
   S.deep = !!lux.deep; S.account = lux.account || null;
   S.ai = aiFromStore(store.json('shelter:ai', null));
@@ -4584,19 +4598,27 @@ function segHtml(name, opts, val, cls = '') {
   return `<div class="seg ${cls}" data-seg="${name}"><span class="seg-th"></span>${opts.map(o => `<button data-v="${o[0]}" class="${o[0] === val ? 'on' : ''}"${o[2] ? ` data-tip="${esc(o[2])}"` : ''}>${o[1]}</button>`).join('')}</div>`;
 }
 function setSegValue(seg, v) { if (!seg) return; $$('button[data-v]', seg).forEach(b => b.classList.toggle('on', b.dataset.v === v)); segSync(seg); }
-const swHtml = (key, on) => `<button class="sw-t ${on ? 'on' : ''}" data-sw="${key}" role="switch" aria-checked="${!!on}"><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></button>`;
-const swState = key => key === 'ghost' ? S.ghost : key === 'deep' ? S.deep : !!S.prefs[key];
+const swDisabled = key => key === 'glow' && S.prefs.gfx === 'perf';
+const swHtml = (key, on, disabled = swDisabled(key)) => `<button class="sw-t ${on ? 'on' : ''}${disabled ? ' is-disabled' : ''}" data-sw="${key}" role="switch" aria-checked="${!!on}"${key === 'glow' ? ' aria-label="Включение или отключение свечения"' : ''}${disabled ? ' disabled aria-disabled="true"' : ''}><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></button>`;
+const swState = key => key === 'ghost' ? S.ghost : key === 'deep' ? S.deep : key === 'glow' ? S.prefs.glow !== false : !!S.prefs[key];
 function syncSwitches() {
   $$('[data-sw]').forEach(b => {
     const k = b.dataset.sw;
     if (/^extg?:/.test(k)) return;
+    const disabled = swDisabled(k);
     const on = swState(k);
     b.classList.toggle('on', on);
-    if (b.classList.contains('sw-t')) b.setAttribute('aria-checked', String(on));
+    b.classList.toggle('is-disabled', disabled);
+    b.disabled = disabled;
+    if (b.classList.contains('sw-t')) {
+      b.setAttribute('aria-checked', String(on));
+      b.setAttribute('aria-disabled', String(disabled));
+    }
   });
   syncControls(); DASH.protUpdate();
 }
 const PREF_TOAST = { trackers: ['Блокировка трекеров включена', 'Блокировка трекеров выключена', 'shield'], https: ['HTTPS-only и DoH включены', 'HTTPS-only выключен', 'lock'], fp: ['Защита от отпечатка включена', 'Защита от отпечатка выключена', 'finger'], strict: ['Строгий режим включён', 'Строгий режим выключен', 'shield-check'],
+  glow: ['Свечение включено', 'Свечение выключено', 'sparkles'],
   menuAdapt: ['«Адаптация» показана в меню «...»', '«Адаптация» скрыта в меню «...»', 'monitor'],
   menuDev: ['DevTools-пункт показан в меню «...»', 'DevTools-пункт скрыт в меню «...»', 'code'],
   menuZoom: ['Масштаб страницы показан в меню «...»', 'Масштаб страницы скрыт в меню «...»', 'search'],
@@ -4605,7 +4627,7 @@ const PREF_TOAST = { trackers: ['Блокировка трекеров вклю�
   showTips: ['Подсказки включены', 'Подсказки выключены', 'info'],
   sbBadges: ['Счётчики в боковом меню включены', 'Счётчики в боковом меню выключены', 'circle-dot'] };
 function toggleSetting(key, el) {
-  if (key === 'glow' || (el && el.disabled)) return;
+  if (swDisabled(key) || (el && el.disabled)) return;
   if (key === 'ghost') { toggleGhost(); return; }
   if (key === 'deep') { setDeep(!S.deep); return; }
 
@@ -4614,11 +4636,11 @@ function toggleSetting(key, el) {
   if (achievementBefore) captureProfileUnlocks(achievementBefore.d);
   S.prefs[key] = !S.prefs[key]; persist();
   /* 1.0.160 «Чистый серфинг»: ручное включение любого допа снимает режим; выключение — включает режим */
-  if (S.prefs.cleanSurf === true && S.prefs[key] && PERS_K.indexOf(key) >= 0) { S.prefs.cleanSurf = false; delete S.prefs.cleanSurfPrev; }
+  if (S.prefs.cleanSurf === true && S.prefs[key] && (key === 'glow' || PERS_K.indexOf(key) >= 0)) { S.prefs.cleanSurf = false; delete S.prefs.cleanSurfPrev; }
   if (key === 'cleanSurf') applyCleanSurf(S.prefs.cleanSurf === true);
   if (achievementBefore) reconcileProfileAchievementChange(achievementBefore);
   syncSwitches();
-  if (key === 'cleanSurf') applyGlowPrefs();
+  if (key === 'glow' || key === 'cleanSurf') applyGlowPrefs();
   const tt = PREF_TOAST[key]; if (tt) toast(S.prefs[key] ? tt[0] : tt[1], { icon: tt[2] });
   if (key === 'dragTabs') renderTabs();
   if (tracksAchievement) { renderHeroFoot(); refreshPage('profile'); }
@@ -5993,7 +6015,7 @@ const Hero = (() => {
     ribbon(octx, path, ox, oy, COL_B, 3.2, t => light(t, offset).bR, 0.42 * g);
     blit(board, ox, oy, 9, 0.88); if (!perfG) blit(board, ox, oy, 3.2, 0.55);
   }
-  function glowOff() { return gfxLvl() !== 'beauty'; }
+  function glowOff() { return gfxLvl() === 'perf' || !S || !S.prefs || S.prefs.glow === false; }
   function gfxLvl() { return (S && S.prefs && S.prefs.gfx) || 'balance'; }
   function clearCanvas() {
     stop();
@@ -6033,7 +6055,7 @@ const Hero = (() => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
-    const still = (typeof REDUCED === 'function' && REDUCED()) || location.hash === '#still';
+    const still = gfxLvl() === 'balance' || (typeof REDUCED === 'function' && REDUCED()) || location.hash === '#still';
     const offset = still ? 0 : ((now - t0) / PERIOD) % 1;
     drawGlow(offset); drawChars(offset); drawRim(offset);
   }
@@ -6052,7 +6074,7 @@ const Hero = (() => {
       const target = glv === 'beauty' ? 32 : 64;
       H.gap = target > H.gap ? target : Math.max(target, H.gap - 8);
     }
-    if (glowOff()) return;
+    if (glowOff() || gfxLvl() === 'balance') return;
     if (typeof REDUCED === 'function' && REDUCED()) return;
     H.raf = requestAnimationFrame(loop);
   }
@@ -6060,6 +6082,7 @@ const Hero = (() => {
     if (!H.visible || H.paused) return;
     if (glowOff()) { clearCanvas(); return; }
     resize();
+    if (gfxLvl() === 'balance') { paint(performance.now()); return; }
     if (!H.raf) H.raf = requestAnimationFrame(loop);
   }
   function stop() { if (H.raf) { cancelAnimationFrame(H.raf); H.raf = 0; } }
@@ -6067,7 +6090,7 @@ const Hero = (() => {
   window.addEventListener('resize', () => {
     if (!H.visible) return;
     pathKey = ''; resize();
-    if (H.paused || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
+    if (H.paused || gfxLvl() === 'balance' || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
     else if (!H.raf) start();
   });
   let ro = null;
@@ -6076,7 +6099,7 @@ const Hero = (() => {
     ro = new ResizeObserver(() => {
       if (!H.visible) return;
       pathKey = ''; resize();
-      if (H.paused || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
+      if (H.paused || gfxLvl() === 'balance' || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
       else if (!H.raf) start();
     });
     const hero = $('#hero'), hc = $('.hero-center'), omni = $('#omni'), bmc = $('#bmCenter');
@@ -6105,7 +6128,7 @@ const Hero = (() => {
       if (H.paused) { paint(performance.now()); return; }
       stop(); start();
     },
-    debug() { return { visible: H.visible, paused: H.paused, raf: H.raf, canvas: !!canvas, canvasVisibility: canvas ? canvas.style.visibility : '', offscreenBuffers: (off ? 1 : 0) + (rimLayer ? 1 : 0) + bloomPool.length, balanceCache: false }; },
+    debug() { return { visible: H.visible, paused: H.paused, raf: H.raf, canvas: !!canvas, canvasVisibility: canvas ? canvas.style.visibility : '', offscreenBuffers: (off ? 1 : 0) + (rimLayer ? 1 : 0) + bloomPool.length, balanceCache: false, glowEnabled: !glowOff(), glowAnimated: !glowOff() && gfxLvl() === 'beauty' }; },
     remask() { pathKey = ''; }
   };
 })();
@@ -9502,6 +9525,7 @@ async function requestUserDataDeletion() {
 function openSettings(sec) {
   if ($('.settings')) return;
   const P = S.prefs, sw = k => swHtml(k, swState(k));
+  const glowOff = P.glow === false || P.gfx === 'perf';
   const row = (t, s, ctl) => `<div class="set-row"><div class="tx"><b>${t}</b>${s ? `<span>${s}</span>` : ''}</div>${ctl}</div>`;
   const btn = (a, l, cls = '') => `<button class="btn sm ${cls}" data-set="${a}">${l}</button>`;
   const html = `<div class="settings" role="dialog" aria-modal="true" aria-label="Настройки">
@@ -9522,11 +9546,12 @@ function openSettings(sec) {
           ${row('Тёмная тема', 'Какая тема применяется в тёмном режиме', segHtml('schemeDark', [['obsidian', 'Обсидиан'], ['amethyst', 'Аметист']], schemeThemeFor('dark'), 'sm'))}
           ${row('Светлая тема', 'Какая тема применяется в светлом режиме', segHtml('schemeLight', [['ivory', 'Слоновая кость'], ['porcelain', 'Фарфор']], schemeThemeFor('light'), 'sm'))}
           ${row('Боковая панель', kb('⌘\\ — свернуть или развернуть'), segHtml('sidebar', [['full', 'Развёрнута'], ['rail', 'Компактная']], $('#app').classList.contains('collapsed') ? 'rail' : 'full', 'sm'))}
-          ${row('Режим графики', 'Визуал — все эффекты; Баланс — без свечения и размытия; Скорость — без анимаций, свечения и прозрачности', segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], P.gfx, 'sm'))}
-          <div class="set-row ${P.gfx !== 'beauty' ? 'is-disabled' : ''}" id="setGlowModeRow"><div class="tx"><b>Параметры свечения</b><span>Свечение включено только в режиме «Визуал»; в «Балансе» и «Скорости» оно выключено</span></div>${segHtml('glowMode', [['theme', 'По теме'], ['custom', 'Свой цвет']], P.glowMode === 'custom' ? 'custom' : 'theme', 'sm')}</div>
-          <div class="set-row ${(P.gfx !== 'beauty') ? 'is-disabled' : ''}" id="glowCustomRow" ${P.glowMode === 'custom' ? '' : 'hidden'}><div class="tx"><b>Палитра свечения</b><span>Деликатные оттенки с защитой от перенасыщения</span></div><div class="glow-palette">${GLOW_PALETTE.map(([hex, lbl]) => `<button type="button" class="glow-sw ${(P.glowColor || '#5E8BFF').toUpperCase() === hex ? 'on' : ''}" data-act="glowSw" data-color="${hex}" style="--gc-sw:${hex}" title="${lbl}" aria-label="${lbl}"></button>`).join('')}<label class="glow-picker-wrap" style="--gc-custom:${esc(P.glowColor || '#5E8BFF')}"><span class="glow-picker-dot" id="glowPickerDot"></span><span>Свой оттенок</span><input type="color" id="glowColorPicker" value="${esc(P.glowColor || '#5E8BFF')}" ${(P.gfx !== 'beauty') ? 'disabled' : ''} aria-label="Выбрать свой цвет свечения"></label></div></div>
-          <div class="set-row ${(P.gfx !== 'beauty') ? 'is-disabled' : ''}" id="setGlowIntRow"><div class="tx"><b>Интенсивность свечения</b><span>Мягкий потолок яркости без пересвета поверхностей</span></div><div class="uiscale"><input type="range" class="fscale-r" id="glowIntRange" min="10" max="100" step="5" value="${clamp(+(P.glowIntensity ?? 45), 10, 100)}" ${(P.gfx !== 'beauty') ? 'disabled' : ''} style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="glowIntVal">${clamp(+(P.glowIntensity ?? 45), 10, 100)} %</span><button class="btn sm" data-act="glowDef" data-gd="int" ${(P.gfx !== 'beauty') ? 'disabled' : ''}>По умолчанию</button></div></div>
-          <div class="set-row ${(P.gfx !== 'beauty') ? 'is-disabled' : ''}" id="setGlowSatRow"><div class="tx"><b>Насыщенность свечения</b><span>Сбалансированная глубина оттенка без кислотных цветов</span></div><div class="uiscale"><input type="range" class="fscale-r" id="glowSatRange" min="20" max="100" step="5" value="${clamp(+(P.glowSat ?? 60), 20, 100)}" ${(P.gfx !== 'beauty') ? 'disabled' : ''} style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="glowSatVal">${clamp(+(P.glowSat ?? 60), 20, 100)} %</span><button class="btn sm" data-act="glowDef" data-gd="sat" ${(P.gfx !== 'beauty') ? 'disabled' : ''}>По умолчанию</button></div></div>
+          ${row('Режим графики', 'Визуал — анимированное свечение и blur; Баланс — статичное свечение без blur; Скорость — эффекты выключены', segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], P.gfx, 'sm'))}
+          <div class="set-row ${P.gfx === 'perf' ? 'is-disabled' : ''}" id="setGlowRow"><div class="tx"><b>Свечение</b><span>В «Визуале» — анимированное, в «Балансе» — статичное. В «Скорости» временно выключается; выбор сохраняется.</span></div>${sw('glow')}</div>
+          <div class="set-row ${glowOff ? 'is-disabled' : ''}" id="setGlowModeRow"><div class="tx"><b>Параметры свечения</b><span>Настраиваются в режимах «Визуал» и «Баланс»</span></div>${segHtml('glowMode', [['theme', 'По теме'], ['custom', 'Свой цвет']], P.glowMode === 'custom' ? 'custom' : 'theme', 'sm')}</div>
+          <div class="set-row ${glowOff ? 'is-disabled' : ''}" id="glowCustomRow" ${P.glowMode === 'custom' ? '' : 'hidden'}><div class="tx"><b>Палитра свечения</b><span>Деликатные оттенки с защитой от перенасыщения</span></div><div class="glow-palette">${GLOW_PALETTE.map(([hex, lbl]) => `<button type="button" class="glow-sw ${(P.glowColor || '#5E8BFF').toUpperCase() === hex ? 'on' : ''}" data-act="glowSw" data-color="${hex}" style="--gc-sw:${hex}" title="${lbl}" aria-label="${lbl}"></button>`).join('')}<label class="glow-picker-wrap" style="--gc-custom:${esc(P.glowColor || '#5E8BFF')}"><span class="glow-picker-dot" id="glowPickerDot"></span><span>Свой оттенок</span><input type="color" id="glowColorPicker" value="${esc(P.glowColor || '#5E8BFF')}" ${glowOff ? 'disabled' : ''} aria-label="Выбрать свой цвет свечения"></label></div></div>
+          <div class="set-row ${glowOff ? 'is-disabled' : ''}" id="setGlowIntRow"><div class="tx"><b>Интенсивность свечения</b><span>Мягкий потолок яркости без пересвета поверхностей</span></div><div class="uiscale"><input type="range" class="fscale-r" id="glowIntRange" min="10" max="100" step="5" value="${clamp(+(P.glowIntensity ?? 45), 10, 100)}" ${glowOff ? 'disabled' : ''} style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="glowIntVal">${clamp(+(P.glowIntensity ?? 45), 10, 100)} %</span><button class="btn sm" data-act="glowDef" data-gd="int" ${glowOff ? 'disabled' : ''}>По умолчанию</button></div></div>
+          <div class="set-row ${glowOff ? 'is-disabled' : ''}" id="setGlowSatRow"><div class="tx"><b>Насыщенность свечения</b><span>Сбалансированная глубина оттенка без кислотных цветов</span></div><div class="uiscale"><input type="range" class="fscale-r" id="glowSatRange" min="20" max="100" step="5" value="${clamp(+(P.glowSat ?? 60), 20, 100)}" ${glowOff ? 'disabled' : ''} style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="glowSatVal">${clamp(+(P.glowSat ?? 60), 20, 100)} %</span><button class="btn sm" data-act="glowDef" data-gd="sat" ${glowOff ? 'disabled' : ''}>По умолчанию</button></div></div>
           ${row('Масштаб страниц', kb('⌘+ / ⌘− / ⌘0'), `<div style="display:flex;align-items:center;gap:6px"><button class="btn sm icon" data-set="zoom-" aria-label="Уменьшить">${ico('minus')}</button><b class="num" id="setZoom" style="min-width:48px;text-align:center">${S.ui.zoom}%</b><button class="btn sm icon" data-set="zoom+" aria-label="Увеличить">${ico('plus')}</button></div>`)}
         </div></section>
       <section class="set-sec" id="set-fonts"><h4>Шрифты</h4>
@@ -9698,13 +9723,11 @@ function applyGfx() {
   const gfx = ['beauty', 'balance', 'perf'].includes(S.prefs.gfx) ? S.prefs.gfx : 'balance';
   S.prefs.gfx = gfx;
   S.prefs.motion = gfx === 'perf' ? 'off' : 'full';
-  S.prefs.glow = gfx === 'beauty';
   const isPerf = gfx === 'perf';
-  const isBeauty = gfx === 'beauty';
   const root = document.documentElement;
   const body = document.body;
   body.dataset.gfx = gfx;
-  body.classList.toggle('glow-off', !isBeauty);
+  // Effective glow is derived from the saved preference plus the temporary mode restriction.
   root.classList.toggle('reduce-motion', isPerf);
   $$('.seg[data-seg="motion"]').forEach(seg => setSegValue(seg, gfx));
   const gr = $('#glassOpRange'), gv = $('#glassOpVal'), gs = $('#glassOpSec');
@@ -9737,9 +9760,8 @@ function setGfxMode(value, options = {}) {
   try { if (typeof window.shelterClearGlowSpot === 'function') window.shelterClearGlowSpot(); } catch (_) {}
   S.prefs.gfx = gfx;
   S.prefs.motion = gfx === 'perf' ? 'off' : 'full';
-  S.prefs.glow = gfx === 'beauty';
   applyGfx();
-  if (gfx === 'beauty') {
+  if (S.prefs.glow !== false && gfx !== 'perf') {
     try { Hero.relayout(); } catch (_) {}
   } else {
     try { Hero.clear(); } catch (_) {}
@@ -9792,9 +9814,13 @@ function hslToRgb(h, s, l) {
 function applyGlowPrefs() {
   const P = S.prefs || PREF_DEFAULTS;
   const isPerf = P.gfx === 'perf';
-  const off = P.gfx !== 'beauty';
-  P.glow = !off;
-  document.body.classList.toggle('glow-off', off);
+  const off = P.glow === false || isPerf;
+  const body = document.body;
+  const wasOff = body.classList.contains('glow-off');
+  body.classList.toggle('glow-off', off);
+  if (off && !wasOff) {
+    try { if (typeof window.shelterClearGlowSpot === 'function') window.shelterClearGlowSpot(); } catch (_) {}
+  }
   const mode = P.glowMode === 'custom' ? 'custom' : 'theme';
   const th = THEMES[S.theme] || THEMES.obsidian;
   const isLight = th.kind === 'Светлая';
@@ -9820,6 +9846,8 @@ function applyGlowPrefs() {
   root.setProperty('--glow-bdr-p', bdrP + '%');
   root.setProperty('--glow-soft', off ? 'none' : `0 18px 42px -22px rgb(${r} ${g} ${b} / .52)`);
   root.setProperty('--glow-ring', off ? 'none' : `0 0 0 1px rgb(${r} ${g} ${b} / .16)`);
+  const qg = $('#qGlowRow'); if (qg) qg.classList.toggle('is-disabled', isPerf);
+  const sg = $('#setGlowRow'); if (sg) sg.classList.toggle('is-disabled', isPerf);
   ['#setGlowModeRow', '#glowCustomRow', '#setGlowIntRow', '#setGlowSatRow'].forEach(sel => {
     const el = $(sel); if (el) el.classList.toggle('is-disabled', off);
   });
@@ -9832,6 +9860,9 @@ function applyGlowPrefs() {
   $$('[data-act="glowDef"]').forEach(btn => { btn.disabled = off; });
   const dot = $('#glowPickerDot'); if (dot) dot.style.background = P.glowColor || '#5E8BFF';
   $$('.glow-sw').forEach(btn => btn.classList.toggle('on', (btn.dataset.color || '').toUpperCase() === String(P.glowColor || '#5E8BFF').toUpperCase()));
+  if (off !== wasOff) {
+    try { if (off) Hero.clear(); else Hero.relayout(); } catch (_) {}
+  }
 }
 SEG.glowMode = v => {
   S.prefs.glowMode = v === 'custom' ? 'custom' : 'theme';
@@ -10150,7 +10181,7 @@ function quickPanelHtml() {
   const bmPos = ['top', 'center', 'bottom'].includes(S.ui.bmPos) ? S.ui.bmPos : 'center';
   const glassOp = clamp(+S.prefs.glassOp || 82, 40, 100);
   const shownOp = isPerf ? 100 : glassOp;
-  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}</div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec q-theme-sec" id="quickThemeSec"><div class="q-h">Цветовая тема</div>${themeSwatchesMarkup()}</div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
+  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}<div class="q-row ${isPerf ? 'is-disabled' : ''}" id="qGlowRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Свечение</div>${swHtml('glow', S.prefs.glow !== false, isPerf)}</div></div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec q-theme-sec" id="quickThemeSec"><div class="q-h">Цветовая тема</div>${themeSwatchesMarkup()}</div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
 }
 function syncQuickPanel(full) {
   const el = OV.menu && OV.menu.el;
@@ -10497,6 +10528,10 @@ window.shelterTest = {
   gfxSnapshot: () => {
     const body = document.body, root = document.documentElement;
     const ambient = document.querySelector('.ambient i');
+    const heroElement = document.querySelector('.hero');
+    const statusDot = heroElement && heroElement.querySelector('.pdot');
+    const heroBefore = heroElement ? getComputedStyle(heroElement, '::before') : null;
+    const dotAfter = statusDot ? getComputedStyle(statusDot, '::after') : null;
     const motionSample = document.querySelector('.tb-btn') || document.querySelector('.btn');
     const probeGlass = document.createElement('div');
     probeGlass.className = 'menu';
@@ -10512,16 +10547,27 @@ window.shelterTest = {
     const hero = typeof Hero !== 'undefined' && Hero.debug ? Hero.debug() : {};
     const snapshot = {
       gfx: S.prefs.gfx, motion: S.prefs.motion, glow: S.prefs.glow,
+      glowActive: S.prefs.glow !== false && S.prefs.gfx !== 'perf',
+      glowAnimated: S.prefs.glow !== false && S.prefs.gfx === 'beauty',
       dataGfx: body.dataset.gfx, glowOff: body.classList.contains('glow-off'),
       reduceMotion: root.classList.contains('reduce-motion'),
       blur: getComputedStyle(body).getPropertyValue('--bf-glass').trim(),
       menuBlur: getComputedStyle(body).getPropertyValue('--bf-menu').trim(),
       glowSoft: getComputedStyle(body).getPropertyValue('--glow-soft').trim(),
+      glowRing: getComputedStyle(body).getPropertyValue('--glow-ring').trim(),
+      glowSpotAlpha: getComputedStyle(body).getPropertyValue('--glow-spot-a').trim(),
+      glowShadowAlpha: getComputedStyle(body).getPropertyValue('--glow-sh-a').trim(),
+      glowBorderPercent: getComputedStyle(body).getPropertyValue('--glow-bdr-p').trim(),
       glassBackdrop: glassCss.backdropFilter,
       glassOpacity: getComputedStyle(body).getPropertyValue('--glass-op').trim(),
       animation: ambient ? getComputedStyle(ambient).animationName : '',
+      runningAnimations: document.getAnimations().filter(animation => animation.playState === 'running' || animation.playState === 'pending').length,
       transition: motionCss ? motionCss.transitionDuration : '',
       shadow: shadowCss ? shadowCss.boxShadow : '',
+      filter: shadowCss ? shadowCss.filter : '',
+      heroBeforeDisplay: heroBefore ? heroBefore.display : '',
+      dotAfterDisplay: dotAfter ? dotAfter.display : '',
+      dotAfterAnimation: dotAfter ? dotAfter.animationName : '',
       spotLights: document.querySelectorAll('.spot-on').length,
       cardBackground: shadowCss ? shadowCss.backgroundColor : '',
       backgroundImage: shadowCss.backgroundImage,
@@ -10598,7 +10644,7 @@ init();
     raf = 0;
     var e = pending; pending = null;
     if (!e) return;
-    if (document.body.dataset.gfx === 'perf' || document.body.classList.contains('glow-off')) {
+    if (document.body.dataset.gfx !== 'beauty' || document.body.classList.contains('glow-off')) {
       clearSpot();
       return;
     }
@@ -10615,7 +10661,7 @@ init();
     last = el;
   }
   function onMove(e){
-    if (document.body.dataset.gfx === 'perf' || document.body.classList.contains('glow-off')) return;
+    if (document.body.dataset.gfx !== 'beauty' || document.body.classList.contains('glow-off')) { clearSpot(); return; }
     pending = e;
     if (!raf) raf = requestAnimationFrame(apply);
   }

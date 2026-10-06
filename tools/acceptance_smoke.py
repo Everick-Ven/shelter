@@ -456,83 +456,170 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
 
 
 def performance_mode_probe(ui: Cdp) -> Dict[str, Any]:
-    """Exercise all six performance-mode transitions, rapid repeats, and both controls."""
+    """Exercise the six ordered mode transitions, preference persistence, and both controls."""
     expression = r"""
       (async function() {
         const test = window.shelterTest;
         if (!test || !test.setGfxMode || !test.gfxSnapshot)
           throw new Error('performance test surface is missing');
         const original = test.state().prefs.gfx || 'balance';
+        const originalGlow = test.state().prefs.glow !== false;
         const frame = () => new Promise(resolve =>
           requestAnimationFrame(() => requestAnimationFrame(resolve))
         );
-        const verify = (expected, snap) => {
+        const quick = document.getElementById('quickBtn');
+        if (!quick) throw new Error('quick-menu button is missing');
+        quick.click(); await frame();
+        let quickMenu = document.querySelector('.menu-quick:not(.closing)');
+        if (!quickMenu) throw new Error('quick menu did not open');
+        const quickGlowButton = () => {
+          quickMenu = document.querySelector('.menu-quick:not(.closing)');
+          return quickMenu && quickMenu.querySelector('[data-sw="glow"]');
+        };
+        const setQuickGlow = async value => {
+          const button = quickGlowButton();
+          if (!button) throw new Error('quick-menu glow toggle is missing');
+          if (button.getAttribute('aria-label') !== 'Включение или отключение свечения')
+            throw new Error('quick-menu glow toggle has no accessible label');
+          if (button.disabled) throw new Error('glow toggle is disabled outside Speed');
+          if ((test.state().prefs.glow !== false) !== value) {
+            button.click(); await frame();
+          }
+          if ((test.state().prefs.glow !== false) !== value)
+            throw new Error('quick-menu glow toggle failed to save preference');
+        };
+        test.setGfxMode('balance', {persist:false, notify:false});
+        await frame();
+        await setQuickGlow(!originalGlow);
+        const testGlow = !originalGlow;
+        const verify = (expected, snap, glowPref) => {
           const issues = [];
           const visual = expected === 'beauty';
           const speed = expected === 'perf';
+          const activeGlow = glowPref && !speed;
+          const animatedGlow = glowPref && visual;
           if (snap.gfx !== expected || snap.dataGfx !== expected) issues.push('mode state mismatch');
           if (snap.motion !== (speed ? 'off' : 'full')) issues.push('animation state mismatch');
-          if (snap.glow !== visual || snap.glowOff === visual) issues.push('glow state mismatch');
+          if (snap.glow !== glowPref) issues.push('saved glow preference changed with mode');
+          if (snap.glowActive !== activeGlow || snap.glowOff === activeGlow) issues.push('effective glow state mismatch');
+          if (snap.glowAnimated !== animatedGlow) issues.push('glow animation state mismatch');
           if (snap.reduceMotion !== speed) issues.push('reduced-motion class mismatch');
           if (visual ? !snap.blur.includes('blur(') : snap.blur !== 'none') issues.push('glass blur mismatch');
           if (visual ? !snap.menuBlur.includes('blur(') : snap.menuBlur !== 'none') issues.push('menu blur mismatch');
           if (visual ? !snap.glassBackdrop.includes('blur(') : snap.glassBackdrop !== 'none') issues.push('surface backdrop-filter mismatch');
-          if (!visual && snap.glowSoft !== 'none') issues.push('glow shadow token survived mode change');
-          if (visual ? snap.animation === 'none' : snap.animation !== 'none') issues.push('ambient animation mismatch');
+          if (activeGlow ? snap.glowSoft === 'none' : snap.glowSoft !== 'none') issues.push('glow shadow token mismatch');
+          if (activeGlow ? snap.glowRing === 'none' : snap.glowRing !== 'none') issues.push('glow ring token mismatch');
+          const glowAlpha = [snap.glowSpotAlpha, snap.glowShadowAlpha, snap.glowBorderPercent].map(parseFloat);
+          if (activeGlow ? glowAlpha.some(value => !(value > 0)) : glowAlpha.some(value => value !== 0))
+            issues.push('glow variables were not updated atomically');
+          if (animatedGlow ? snap.animation === 'none' : snap.animation !== 'none') issues.push('ambient animation mismatch');
+          if (snap.heroBeforeDisplay && (activeGlow ? snap.heroBeforeDisplay === 'none' : snap.heroBeforeDisplay !== 'none'))
+            issues.push('Hero glow pseudo-element does not match the preference');
+          if (snap.dotAfterDisplay && (activeGlow ? snap.dotAfterDisplay === 'none' : snap.dotAfterDisplay !== 'none'))
+            issues.push('status-dot glow pseudo-element does not match the preference');
+          if (snap.dotAfterAnimation && (animatedGlow ? snap.dotAfterAnimation === 'none' : snap.dotAfterAnimation !== 'none'))
+            issues.push('status-dot animation does not match the mode');
           const hasTransition = snap.transition.split(',').some(x => parseFloat(x) > 0);
           if (speed ? hasTransition : !hasTransition) issues.push('ordinary UI transition mismatch');
+          if (speed && snap.runningAnimations) issues.push('Speed still has running or pending UI animations');
           if (speed && snap.shadow !== 'none') issues.push('Speed shadow was not removed');
+          if (speed && snap.filter !== 'none') issues.push('Speed filter was not removed');
           if (speed && snap.backgroundImage !== 'none') issues.push('Speed gradient/glow background remains');
           const alpha = snap.cardBackground.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([0-9.]+)\)/i);
           if (speed && alpha && parseFloat(alpha[1]) < 0.999) issues.push('Speed surface is translucent');
           if (!speed && Math.round(parseFloat(snap.glassOpacity)) !== Math.round(+test.state().prefs.glassOp || 82)) issues.push('glass opacity preference changed');
           if (speed && Math.round(parseFloat(snap.glassOpacity)) !== 100) issues.push('Speed is not opaque');
           if (snap.hero && snap.hero.balanceCache) issues.push('stale cached Hero frame');
-          if (!visual && snap.hero && snap.hero.canvasVisibility !== 'hidden') issues.push('Hero canvas is not cleared');
-          if (!visual && snap.hero && snap.hero.offscreenBuffers !== 0) issues.push('Hero glow cache survived mode change');
-          if (!visual && snap.spotLights) issues.push('cursor glow class survived mode change');
+          if (snap.hero && !activeGlow && snap.hero.canvas && snap.hero.canvasVisibility !== 'hidden') issues.push('disabled Hero glow was not cleared');
+          if (snap.hero && activeGlow && snap.hero.visible && snap.hero.canvasVisibility === 'hidden') issues.push('enabled Hero glow is missing');
+          if (snap.hero && expected === 'balance' && activeGlow && snap.hero.visible && snap.hero.raf) issues.push('Balance glow is not static');
+          if (snap.hero && !activeGlow && snap.hero.offscreenBuffers !== 0) issues.push('Hero glow cache survived mode change');
+          if ((!visual || !glowPref) && snap.spotLights) issues.push('dynamic cursor glow survived static/off mode');
           if (document.documentElement.classList.contains('theme-anim') || document.documentElement.classList.contains('vt-theme')) issues.push('theme transition class leaked');
           const amb = document.querySelector('.ambient'), fx = document.getElementById('heroFx');
           if ((amb && (amb.style.opacity || amb.style.transition)) || (fx && (fx.style.opacity || fx.style.transition))) issues.push('inline glow fade leaked');
           return issues;
         };
         const checked = [];
+        // Explicitly cover all six ordered pairs among Visual, Balance, and Speed.
         const plan = ['beauty', 'balance', 'beauty', 'balance', 'perf', 'balance',
           'beauty', 'perf', 'beauty', 'perf', 'balance', 'perf', 'beauty'];
         for (const mode of plan) {
           test.setGfxMode(mode, {persist:false, notify:false});
           await frame();
           const snap = test.gfxSnapshot();
-          const issues = verify(mode, snap);
+          const issues = verify(mode, snap, testGlow);
           checked.push({mode:mode, issues:issues, snapshot:snap});
           if (issues.length) throw new Error('mode ' + mode + ': ' + issues.join(', '));
         }
-        // Several complete cycles without yielding to rAF catch delayed callbacks
-        // or inline styles that could survive rapid toggles.
+        // Several complete cycles without yielding catch stale classes, variables,
+        // animations, and glow buffers left behind by rapid repeated switching.
         const rapid = ['beauty', 'balance', 'perf', 'beauty', 'perf', 'balance'];
         for (let cycle = 0; cycle < 5; cycle++)
           rapid.forEach(mode => test.setGfxMode(mode, {persist:false, notify:false}));
         await frame();
         let rapidSnap = test.gfxSnapshot();
-        let rapidIssues = verify('balance', rapidSnap);
+        let rapidIssues = verify('balance', rapidSnap, testGlow);
         if (rapidIssues.length) throw new Error('rapid switching: ' + rapidIssues.join(', '));
 
-        // Exercise the quick-menu segmented control itself, not just its setter.
-        const quick = document.getElementById('quickBtn');
+        // The glow row remains present in Quick Menu, and is disabled only in Speed.
         const qTarget = original === 'perf' ? 'beauty' : 'perf';
-        quick.click(); await frame();
-        const quickMenu = document.querySelector('.menu-quick:not(.closing)');
-        const qButton = quickMenu && quickMenu.querySelector('.seg[data-seg="motion"] button[data-v="' + qTarget + '"]');
+        const qButton = quickMenu.querySelector('.seg[data-seg="motion"] button[data-v="' + qTarget + '"]');
         if (!qButton) throw new Error('quick-menu mode buttons are missing');
         qButton.click(); await frame();
         const quickModeOpen = !!document.querySelector('.menu-quick:not(.closing)') && test.state().prefs.gfx === qTarget;
         if (!quickModeOpen) throw new Error('quick-menu mode selection closed the menu or failed');
+        test.setGfxMode('perf', {persist:false, notify:false}); await frame();
+        const speedGlow = quickGlowButton();
+        const speedGlowRow = quickMenu.querySelector('#qGlowRow');
+        if (!speedGlow || !speedGlowRow || !speedGlowRow.getClientRects().length ||
+            getComputedStyle(speedGlowRow).visibility === 'hidden' || !speedGlow.disabled ||
+            speedGlow.getAttribute('aria-disabled') !== 'true')
+          throw new Error('Quick Menu glow toggle is not visible and disabled in Speed');
+        const savedInSpeed = test.state().prefs.glow !== false;
+        speedGlow.click(); await frame();
+        if ((test.state().prefs.glow !== false) !== savedInSpeed) throw new Error('disabled Speed toggle changed saved glow preference');
+        test.setGfxMode('balance', {persist:false, notify:false}); await frame();
+        if (!quickGlowButton() || quickGlowButton().disabled) throw new Error('Quick Menu glow toggle did not re-enable in Balance');
+        test.setGfxMode('beauty', {persist:false, notify:false}); await frame();
+        if (!quickGlowButton() || quickGlowButton().disabled) throw new Error('Quick Menu glow toggle was disabled in Visual');
+        test.setGfxMode('balance', {persist:false, notify:false}); await frame();
+        await setQuickGlow(originalGlow);
+        const quickGlowPreserved = (test.state().prefs.glow !== false) === originalGlow;
         quick.click(); await frame();
 
-        // Exercise the same segmented control in Settings, then verify the real
-        // native-delete API is present without invoking the destructive action.
+        // Repeat the toggle/disabled-state checks in ordinary Settings.
         test.openSettings('look'); await frame();
         const settings = document.querySelector('.settings');
+        const glowRow = settings && settings.querySelector('#setGlowRow');
+        const settingsGlow = glowRow && glowRow.querySelector('[data-sw="glow"]');
+        if (!glowRow || !settingsGlow) throw new Error('Settings glow row is missing');
+        if (settingsGlow.getAttribute('aria-label') !== 'Включение или отключение свечения')
+          throw new Error('Settings glow toggle has no accessible label');
+        if (settingsGlow.disabled) throw new Error('Settings glow toggle is disabled outside Speed');
+        const settingsPref = test.state().prefs.glow !== false;
+        settingsGlow.click(); await frame();
+        if ((test.state().prefs.glow !== false) === settingsPref) throw new Error('Settings glow toggle did not change the saved preference');
+        settingsGlow.click(); await frame();
+        if ((test.state().prefs.glow !== false) !== settingsPref) throw new Error('Settings glow toggle did not restore the saved preference');
+        test.setGfxMode('perf', {persist:false, notify:false}); await frame();
+        const settingsGlowRow = settings.querySelector('#setGlowRow');
+        if (!settingsGlowRow || !settingsGlowRow.getClientRects().length ||
+            getComputedStyle(settingsGlowRow).visibility === 'hidden' ||
+            !settingsGlowRow.querySelector('[data-sw="glow"]:disabled'))
+          throw new Error('Settings glow toggle is not visible and disabled in Speed');
+        const settingsSpeedPref = test.state().prefs.glow !== false;
+        settings.querySelector('#setGlowRow [data-sw="glow"]').click(); await frame();
+        if ((test.state().prefs.glow !== false) !== settingsSpeedPref) throw new Error('Settings Speed toggle changed saved glow preference');
+        test.setGfxMode('balance', {persist:false, notify:false}); await frame();
+        if (settings.querySelector('#setGlowRow [data-sw="glow"]').disabled)
+          throw new Error('Settings glow toggle did not re-enable in Balance');
+        test.setGfxMode('beauty', {persist:false, notify:false}); await frame();
+        if (settings.querySelector('#setGlowRow [data-sw="glow"]').disabled)
+          throw new Error('Settings glow toggle was disabled in Visual');
+        test.setGfxMode('balance', {persist:false, notify:false}); await frame();
+
+        // The real native-delete API is present; do not invoke the destructive action.
         const settingsButton = settings && settings.querySelector('.seg[data-seg="motion"] button[data-v="balance"]');
         if (!settingsButton) throw new Error('settings mode buttons are missing');
         if (!settingsButton.classList.contains('on')) settingsButton.click();
@@ -554,21 +641,25 @@ def performance_mode_probe(ui: Cdp) -> Dict[str, Any]:
         if (!nativeDeleteAvailable) throw new Error('native profile-deletion control is missing');
         if (settingsMode !== 'balance') throw new Error('settings mode selection failed');
 
+        test.setGfxMode(original, {persist:false, notify:false});
+        if ((test.state().prefs.glow !== false) !== originalGlow)
+          throw new Error('saved glow preference was not restored after mode transitions');
         test.setGfxMode(original, {persist:true, notify:false});
         await frame();
         return JSON.stringify({checked:checked.length, rapidCycles:5, quickModeOpen:quickModeOpen,
-          settingsMode:settingsMode, nativeDeleteAvailable:nativeDeleteAvailable,
-          final:test.gfxSnapshot()});
+          quickGlowPreserved:quickGlowPreserved, settingsMode:settingsMode,
+          nativeDeleteAvailable:nativeDeleteAvailable, final:test.gfxSnapshot()});
       })()
     """
-    raw = ui.evaluate(expression, timeout=30)
+    raw = ui.evaluate(expression, timeout=40)
     if not raw:
         raise AcceptanceError("Performance-mode regression probe returned no result")
     result = json.loads(raw)
     if result.get("checked") != 13 or result.get("rapidCycles") != 5:
         raise AcceptanceError(f"Performance-mode probe did not complete: {result}")
+    if result.get("quickGlowPreserved") is not True:
+        raise AcceptanceError(f"Quick-menu glow preference was not preserved: {result}")
     return result
-
 
 def quick_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
     """Verify quick-menu theme changes keep the menu open and can be restored."""
@@ -649,7 +740,7 @@ def wait_native_overlay_idle(ui: Cdp, process: subprocess.Popen, timeout: float 
 
 
 def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
-    """Check actual popup paint styles through Visual → Balance → Speed → Visual."""
+    """Check that native popups stay glassy in Visual/Balance and opaque in Speed."""
     ui.evaluate(
         "(function(){const b=document.getElementById('moreBtn');if(!b)throw new Error('menu button missing');b.click();return true;})()"
     )
@@ -669,6 +760,7 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
       (async function() {
         const test = window.shelterTest;
         const original = test.state().prefs.gfx || 'balance';
+        const originalGlow = test.state().prefs.glow !== false;
         const frame = () => new Promise(resolve =>
           requestAnimationFrame(() => requestAnimationFrame(resolve))
         );
@@ -696,10 +788,13 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             nativeContentVisible:document.body.classList.contains('native-content-visible'),
             backgroundColor:css.backgroundColor,
             backgroundAlpha:alphaOf(css.backgroundColor),
+            backgroundImage:css.backgroundImage,
             backdropFilter:css.backdropFilter || css.webkitBackdropFilter || 'none',
             animationName:css.animationName,
             animationDuration:css.animationDuration,
             boxShadow:css.boxShadow,
+            filter:css.filter,
+            borderColor:css.borderColor,
             glowToken:getComputedStyle(document.body).getPropertyValue('--glow-soft').trim(),
             glowOff:document.body.classList.contains('glow-off'),
             reduceMotion:document.documentElement.classList.contains('reduce-motion'),
@@ -711,7 +806,7 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
         }
         test.setGfxMode(original, {persist:false, notify:false});
         await frame();
-        return JSON.stringify({checked:checked, original:original});
+        return JSON.stringify({checked:checked, original:original, originalGlow:originalGlow});
       })()
     """
     raw = ui.evaluate(expression, timeout=20)
@@ -721,6 +816,9 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
     checked = result.get("checked", [])
     if len(checked) != 4 or [item.get("mode") for item in checked] != ["beauty", "balance", "perf", "beauty"]:
         raise AcceptanceError(f"Native popup probe did not complete the mode sequence: {result}")
+    original_glow = result.get("originalGlow")
+    if not isinstance(original_glow, bool):
+        raise AcceptanceError(f"Native popup probe did not capture the saved glow preference: {result}")
     for item in checked:
         mode = item["mode"]
         if not item.get("nativeContentVisible"):
@@ -733,31 +831,37 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
                 raise AcceptanceError(f"Speed popup is not opaque over a native page: {item}")
             if item.get("backdropFilter") != "none" or item.get("animationName") != "none":
                 raise AcceptanceError(f"Speed left a popup effect active: {item}")
-            if item.get("boxShadow") != "none":
-                raise AcceptanceError(f"Speed left a popup glow/shadow: {item}")
+            if item.get("boxShadow") != "none" or item.get("filter") != "none" or item.get("backgroundImage") != "none":
+                raise AcceptanceError(f"Speed left a popup glow, shadow, filter, or gradient: {item}")
             if not item.get("glowOff") or not item.get("reduceMotion"):
                 raise AcceptanceError(f"Speed mode flags are incomplete: {item}")
             if item.get("glowToken") != "none":
                 raise AcceptanceError(f"Speed retained a glow token: {item}")
         else:
-            if alpha < 0.939:
-                raise AcceptanceError(f"Popup fallback is too transparent for arbitrary web content: {item}")
+            if not 0.72 <= alpha < 0.92:
+                raise AcceptanceError(f"Native popup fallback hides the glass or is too faint: {item}")
+            if item.get("backgroundImage") == "none" or item.get("borderColor") == "transparent":
+                raise AcceptanceError(f"Native popup lost its glass highlight/rim: {item}")
+            if item.get("boxShadow") == "none":
+                raise AcceptanceError(f"Native popup lost its glass lift/shadow: {item}")
             if item.get("animationName") == "none" or item.get("animationDuration") in ("0s", "0.0s"):
                 raise AcceptanceError(f"Visual/Balance lost ordinary popup animation: {item}")
-            if item.get("glowOff") != (mode != "beauty"):
-                raise AcceptanceError(f"Popup glow state does not match {mode}: {item}")
-            if (item.get("glowToken") == "none") != (mode != "beauty"):
-                raise AcceptanceError(f"Popup glow token does not match {mode}: {item}")
+            active_glow = item.get("mode") == "beauty" or item.get("mode") == "balance"
+            active_glow = active_glow and original_glow
+            if item.get("glowOff") == active_glow:
+                raise AcceptanceError(f"Popup glow state does not match the saved preference in {mode}: {item}")
+            if (item.get("glowToken") == "none") == active_glow:
+                raise AcceptanceError(f"Popup glow token does not match the saved preference in {mode}: {item}")
             if item.get("reduceMotion"):
                 raise AcceptanceError(f"Reduced-motion state leaked into {mode}: {item}")
-            if mode == "beauty" and item.get("ambientPlayState") != "paused":
+            if mode == "beauty" and original_glow and item.get("ambientPlayState") != "paused":
                 raise AcceptanceError(f"Visual ambient animation is not paused over native content: {item}")
-            if mode == "balance" and (
-                item.get("ambientDisplay") != "none"
-                and item.get("ambientAnimationName") != "none"
-                and item.get("ambientPlayState") != "paused"
+            if mode == "balance" and original_glow and (
+                item.get("ambientDisplay") == "none" or item.get("ambientAnimationName") != "none"
             ):
-                raise AcceptanceError(f"Balance left a decorative ambient animation running: {item}")
+                raise AcceptanceError(f"Balance glow is missing or still animated: {item}")
+            if not original_glow and item.get("ambientDisplay") != "none":
+                raise AcceptanceError(f"Disabled user glow still shows ambient decoration: {item}")
             if mode == "beauty" and "blur(" not in item.get("backdropFilter", ""):
                 raise AcceptanceError(f"Visual popup lost backdrop blur: {item}")
             if mode == "balance" and item.get("backdropFilter") != "none":
@@ -825,15 +929,27 @@ def fast_scroll_probe(
         )
         menu_style = ui.evaluate(
             "(function(){var m=document.querySelector('.menu:not(.closing)');if(!m)return null;"
-            "var c=getComputedStyle(m);return JSON.stringify({background:c.backgroundColor,blur:c.backdropFilter,"
+            "var c=getComputedStyle(m);return JSON.stringify({mode:document.body.dataset.gfx,background:c.backgroundColor,blur:c.backdropFilter,"
+            "backgroundImage:c.backgroundImage,boxShadow:c.boxShadow,filter:c.filter,borderColor:c.borderColor,"
             "alpha:(function(v){var m=String(v).match(/\\/\\s*([0-9.]+)(%)?\\s*\\)$/);"
             "if(m)return m[2]?+m[1]/100:+m[1];if(/^rgba\\(/.test(v))return +v.slice(0,-1).split(',').pop();return 1;})(c.backgroundColor)});})()"
         )
         if not menu_style:
             raise AcceptanceError(f"Popup vanished during the scroll probe for {route}")
         menu_style = json.loads(menu_style)
-        if menu_style.get("alpha", 0) < 0.939:
-            raise AcceptanceError(f"Popup lost its opaque fallback during fast scrolling: {menu_style}")
+        alpha = menu_style.get("alpha", 0)
+        if menu_style.get("mode") == "perf":
+            if alpha < 0.999 or menu_style.get("boxShadow") != "none" or menu_style.get("filter") != "none":
+                raise AcceptanceError(f"Speed popup lost its opaque, effect-free fallback during fast scrolling: {menu_style}")
+        elif (
+            not 0.72 <= alpha < 0.92
+            or menu_style.get("backgroundImage") == "none"
+            or menu_style.get("boxShadow") == "none"
+            or menu_style.get("borderColor") == "transparent"
+            or (menu_style.get("mode") == "beauty" and "blur(" not in menu_style.get("blur", ""))
+            or (menu_style.get("mode") == "balance" and menu_style.get("blur") != "none")
+        ):
+            raise AcceptanceError(f"Popup lost its visible glass fallback during fast scrolling: {menu_style}")
         ui.evaluate("document.getElementById('moreBtn').click()")
         wait_native_overlay_idle(ui, process)
     scroll = finish_scroll_sweep(page)
@@ -912,18 +1028,33 @@ def loading_popup_probe(
         r"""(function(){
           var menu=document.querySelector('.menu:not(.closing)');
           if(!menu)return null;
-          var color=getComputedStyle(menu).backgroundColor;
+          var css=getComputedStyle(menu), color=css.backgroundColor;
           var slash=color.match(/\/\s*([0-9.]+)(%)?\s*\)$/);
           var alpha=slash?(slash[2]?Number(slash[1])/100:Number(slash[1])):
             (/^rgba\(/i.test(color)?Number(color.slice(0,-1).split(',').pop()):1);
-          return JSON.stringify({backgroundColor:color,alpha:alpha});
+          return JSON.stringify({mode:document.body.dataset.gfx,nativeContentVisible:document.body.classList.contains('native-content-visible'),
+            backgroundColor:color,backgroundImage:css.backgroundImage,boxShadow:css.boxShadow,filter:css.filter,
+            backdropFilter:css.backdropFilter,borderColor:css.borderColor,alpha:alpha});
         })()"""
     )
     if not menu_style:
         raise AcceptanceError("Popup did not remain open over the still-loading native page")
     menu_style = json.loads(menu_style)
-    if menu_style.get("alpha", 0) < 0.939:
-        raise AcceptanceError(f"Popup fallback is too transparent during native loading: {menu_style}")
+    alpha = menu_style.get("alpha", 0)
+    if not menu_style.get("nativeContentVisible"):
+        raise AcceptanceError(f"Native-content fallback did not activate during loading: {menu_style}")
+    if menu_style.get("mode") == "perf":
+        if alpha < 0.999 or menu_style.get("boxShadow") != "none" or menu_style.get("filter") != "none":
+            raise AcceptanceError(f"Speed popup fallback is not opaque and effect-free during native loading: {menu_style}")
+    elif (
+        not 0.72 <= alpha < 0.92
+        or menu_style.get("backgroundImage") == "none"
+        or menu_style.get("boxShadow") == "none"
+        or menu_style.get("borderColor") == "transparent"
+        or (menu_style.get("mode") == "beauty" and "blur(" not in menu_style.get("backdropFilter", ""))
+        or (menu_style.get("mode") == "balance" and menu_style.get("backdropFilter") != "none")
+    ):
+        raise AcceptanceError(f"Popup lost its visible glass fallback during native loading: {menu_style}")
     loading_during_popup = page_state(page)
     if loading_during_popup.get("readyState") == "complete":
         raise AcceptanceError("The delayed fixture finished before the loading-popup probe ran")

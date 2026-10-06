@@ -568,6 +568,16 @@ void Shell::RequestClose() {
   }
 }
 
+void Shell::PrepareForShutdown() {
+  CEF_REQUIRE_UI_THREAD();
+  // Release persistent request contexts before CefShutdown so SQLite/cache
+  // handles are closed before the profile directory is removed.
+  pending_downloads_.clear();
+  tabs_.clear();
+  contexts_.clear();
+  popup_windows_.clear();
+}
+
 void Shell::OnBrowserCreated() { ++browser_count_; }
 
 void Shell::OnBrowserClosed() {

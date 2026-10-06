@@ -6,8 +6,10 @@
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
+#include <filesystem>
 #include <memory>
 #include <string>
+#include <system_error>
 #include <thread>
 
 #include "src/platform.h"
@@ -40,17 +42,18 @@ void LogKC(const char* fmt, ...) {
 // Разблокирована ли login keychain — запрос СТАТУСА, без UI и без обращений к
 // записям: единственный абсолютно безопасный способ не провисеть на диалоге
 // разблокировки в headless-окружении (CI).
-bool LoginKeychainUnlocked() {
+bool LoginKeychainUnlocked(bool log_status = true) {
   SecKeychainRef kc = nullptr;
   if (SecKeychainCopyDefault(&kc) != errSecSuccess || !kc) {
-    LogKC("status: no default keychain");
+    if (log_status) LogKC("status: no default keychain");
     return false;
   }
   SecKeychainStatus st = 0;
   OSStatus s = SecKeychainGetStatus(kc, &st);
   CFRelease(kc);
   const bool unlocked = (s == errSecSuccess) && (st & kSecUnlockStateStatus);
-  LogKC("status: os=%d st=%u unlocked=%d", (int)s, (unsigned)st, unlocked ? 1 : 0);
+  if (log_status)
+    LogKC("status: os=%d st=%u unlocked=%d", (int)s, (unsigned)st, unlocked ? 1 : 0);
   return unlocked;
 }
 
@@ -94,6 +97,31 @@ OSStatus KeychainReadNoPrompt(const char* service, const char* account,
   }
   CFRelease(res);
   return result;
+}
+
+// Удаляет ровно app-specific master key. Shared запись Chromium Safe Storage
+// намеренно не трогаем: она может использоваться другими Chromium-браузерами.
+bool KeychainDeleteNoPrompt(const char* service, const char* account) {
+  if (!LoginKeychainUnlocked(false)) return false;
+  CFStringRef svc = MakeCF(service);
+  CFStringRef acct = MakeCF(account);
+  if (!svc || !acct) {
+    if (svc) CFRelease(svc);
+    if (acct) CFRelease(acct);
+    return false;
+  }
+  const void* keys[] = {kSecClass, kSecAttrService, kSecAttrAccount,
+                        kSecUseAuthenticationUI};
+  const void* vals[] = {kSecClassGenericPassword, svc, acct,
+                        kSecUseAuthenticationUIFail};
+  CFDictionaryRef query = CFDictionaryCreate(
+      kCFAllocatorDefault, keys, vals, 4, &kCFTypeDictionaryKeyCallBacks,
+      &kCFTypeDictionaryValueCallBacks);
+  OSStatus status = query ? SecItemDelete(query) : errSecAllocate;
+  if (query) CFRelease(query);
+  CFRelease(svc);
+  CFRelease(acct);
+  return status == errSecSuccess || status == errSecItemNotFound;
 }
 
 }  // namespace
@@ -171,6 +199,48 @@ bool RunTimed(const std::function<bool()>& op, int timeout_ms) {
   for (int waited = 0; waited < timeout_ms && state->load() < 0; waited += 50)
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
   return state->load() == 1;
+}
+
+namespace {
+bool RemoveOwnedUserDataDirectory() {
+  namespace fs = std::filesystem;
+  NSArray* dirs = NSSearchPathForDirectoriesInDomains(
+      NSApplicationSupportDirectory, NSUserDomainMask, YES);
+  if (!dirs.count) return false;
+  NSString* expected_string = [dirs[0] stringByAppendingPathComponent:@"SHELTER"];
+  const fs::path expected = fs::u8path(std::string([expected_string UTF8String]));
+  const fs::path target = fs::u8path(UserDataDir());
+  if (target.filename().string() != "SHELTER" ||
+      target.lexically_normal() != expected.lexically_normal()) {
+    return false;
+  }
+  std::error_code ec;
+  const fs::file_status status = fs::symlink_status(target, ec);
+  if (ec == std::errc::no_such_file_or_directory) return true;
+  if (ec) return false;
+  if (status.type() == fs::file_type::not_found) return true;
+  fs::remove_all(target, ec);  // a profile-root symlink itself is removed, never followed
+  if (ec) return false;
+  ec.clear();
+  const fs::file_status after = fs::symlink_status(target, ec);
+  return ec == std::errc::no_such_file_or_directory ||
+         (!ec && after.type() == fs::file_type::not_found);
+}
+}  // namespace
+
+bool DeleteUserData() {
+  // Remove the key first. This is bounded and silent (no UI prompt), and its
+  // worker never writes logs that could recreate the profile after removal.
+  const bool key_ok = RunTimed(
+      [] { return KeychainDeleteNoPrompt("SHELTER", "master-key"); }, 3000);
+  const bool files_ok = RemoveOwnedUserDataDirectory();
+  return key_ok && files_ok;
+}
+
+void ShowUserDataDeletionFailure() {
+  NSRunAlertPanel(@"SHELTER",
+                  @"Не удалось полностью удалить профиль SHELTER. Некоторые файлы или ключ в Keychain могли остаться. Разблокируйте связку ключей и проверьте права доступа.",
+                  @"OK", nil, nil);
 }
 
 bool EnsureCookieKeychain() {

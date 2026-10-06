@@ -69,6 +69,9 @@ class Shell {
   // ---- жизненный цикл ----
   void Start();                 // UI-поток, после OnContextInitialized
   void RequestClose();          // Cmd+Q / закрытие из UI
+  void MarkDeleteUserDataOnExit() { delete_user_data_on_exit_ = true; }
+  bool delete_user_data_on_exit() const { return delete_user_data_on_exit_; }
+  void PrepareForShutdown();
   void OnBrowserCreated();      // счётчик живых браузеров (все клиенты)
   void OnBrowserClosed();
   bool closing() const { return closing_; }
@@ -195,6 +198,7 @@ class Shell {
   int browser_count_ = 0;
   bool closing_ = false;
   bool quit_posted_ = false;
+  bool delete_user_data_on_exit_ = false;
 };
 
 // Сравнение адресов без учёта схемы, www, завершающего '/' и регистра.

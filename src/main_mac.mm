@@ -7,6 +7,7 @@
 #include "include/wrapper/cef_library_loader.h"
 #include "src/browser_app.h"
 #include "src/shell.h"
+#include "src/platform.h"
 
 @interface ShelterAppDelegate : NSObject <NSApplicationDelegate>
 - (void)createApplication:(id)object;
@@ -136,7 +137,11 @@ int main(int argc, char* argv[]) {
                             waitUntilDone:NO];
 
     CefRunMessageLoop();
+    const bool delete_user_data = shelter::Shell::Get().delete_user_data_on_exit();
+    shelter::Shell::Get().PrepareForShutdown();
     CefShutdown();
+    if (delete_user_data && !shelter::platform::DeleteUserData())
+      shelter::platform::ShowUserDataDeletionFailure();
     delegate = nil;
   }
   return 0;

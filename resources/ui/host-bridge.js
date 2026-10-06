@@ -490,6 +490,9 @@
     clearPrivacy: function (parts, opts) {
       return q('privacy.clear', { parts: parts || null, opts: opts || null });
     },
+    deleteUserData: function () {
+      return q('user-data.delete');
+    },
     clipRead: function () { return q('clip.read').then(function (r) { return (r && r.text) || ''; }); },
     clipWrite: function (t) { return q('clip.write', { text: String(t == null ? '' : t) }).then(function (r) { return !!(r && r.ok); }); },
     themeScheme: function (m) { q('theme.scheme', { mode: m }); },

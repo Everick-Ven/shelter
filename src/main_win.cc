@@ -5,6 +5,8 @@
 #include "include/cef_sandbox_win.h"
 #include "src/browser_app.h"
 #include "src/renderer_app.h"
+#include "src/platform.h"
+#include "src/shell.h"
 
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
   CefMainArgs main_args(hInstance);
@@ -30,6 +32,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
     return CefGetExitCode();
   }
   CefRunMessageLoop();
+  const bool delete_user_data = shelter::Shell::Get().delete_user_data_on_exit();
+  shelter::Shell::Get().PrepareForShutdown();
   CefShutdown();
+  if (delete_user_data && !shelter::platform::DeleteUserData())
+    shelter::platform::ShowUserDataDeletionFailure();
   return 0;
 }

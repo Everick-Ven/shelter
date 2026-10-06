@@ -14,6 +14,8 @@ std::string DownloadsDir() {
   const char* h = std::getenv("HOME");
   return std::string(h ? h : ".") + "/Downloads";
 }
+bool DeleteUserData() { return false; }
+void ShowUserDataDeletionFailure() {}
 void ShowInFolder(const std::string&) {}
 void OpenExternal(const std::string&) {}
 void SetColorScheme(bool) {}

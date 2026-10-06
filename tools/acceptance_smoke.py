@@ -339,9 +339,19 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const quickMenu = document.querySelector('.menu-quick');
         const opacity = quickMenu && quickMenu.querySelector('#glassOpSec');
         const palette = quickMenu && quickMenu.querySelector('#quickThemeSec');
+        const swatchWrap = palette && palette.querySelector('.q-theme-swatches');
+        const swatches = swatchWrap ? Array.from(swatchWrap.querySelectorAll('.swatch[data-theme]')) : [];
+        const wrapRect = swatchWrap && swatchWrap.getBoundingClientRect();
+        const firstRect = swatches[0] && swatches[0].getBoundingClientRect();
+        const lastRect = swatches[swatches.length - 1] && swatches[swatches.length - 1].getBoundingClientRect();
+        const leftInset = wrapRect && firstRect ? firstRect.left - wrapRect.left : null;
+        const rightInset = wrapRect && lastRect ? wrapRect.right - lastRect.right : null;
         const paletteState = {
           immediatelyAfterOpacity: !!opacity && opacity.nextElementSibling === palette,
-          swatchCount: palette ? palette.querySelectorAll('.swatches .swatch[data-theme]').length : 0
+          swatchCount: swatches.length,
+          leftInset: leftInset,
+          rightInset: rightInset,
+          equalSideInsets: leftInset !== null && rightInset !== null && Math.abs(leftInset - rightInset) <= 1.5
         };
         quick.click();
         await frame();
@@ -360,6 +370,166 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         raise AcceptanceError("Toolbar/menu layout probe could not inspect the UI")
     return json.loads(raw)
 
+
+def performance_mode_probe(ui: Cdp) -> Dict[str, Any]:
+    """Exercise all six performance-mode transitions, rapid repeats, and both controls."""
+    expression = r"""
+      (async function() {
+        const test = window.shelterTest;
+        if (!test || !test.setGfxMode || !test.gfxSnapshot)
+          throw new Error('performance test surface is missing');
+        const original = test.state().prefs.gfx || 'balance';
+        const frame = () => new Promise(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        );
+        const verify = (expected, snap) => {
+          const issues = [];
+          const visual = expected === 'beauty';
+          const speed = expected === 'perf';
+          if (snap.gfx !== expected || snap.dataGfx !== expected) issues.push('mode state mismatch');
+          if (snap.motion !== (speed ? 'off' : 'full')) issues.push('animation state mismatch');
+          if (snap.glow !== visual || snap.glowOff === visual) issues.push('glow state mismatch');
+          if (snap.reduceMotion !== speed) issues.push('reduced-motion class mismatch');
+          if (visual ? !snap.blur.includes('blur(') : snap.blur !== 'none') issues.push('glass blur mismatch');
+          if (visual ? !snap.menuBlur.includes('blur(') : snap.menuBlur !== 'none') issues.push('menu blur mismatch');
+          if (visual ? !snap.glassBackdrop.includes('blur(') : snap.glassBackdrop !== 'none') issues.push('surface backdrop-filter mismatch');
+          if (!visual && snap.glowSoft !== 'none') issues.push('glow shadow token survived mode change');
+          if (visual ? snap.animation === 'none' : snap.animation !== 'none') issues.push('ambient animation mismatch');
+          const hasTransition = snap.transition.split(',').some(x => parseFloat(x) > 0);
+          if (speed ? hasTransition : !hasTransition) issues.push('ordinary UI transition mismatch');
+          if (speed && snap.shadow !== 'none') issues.push('Speed shadow was not removed');
+          if (speed && snap.backgroundImage !== 'none') issues.push('Speed gradient/glow background remains');
+          const alpha = snap.cardBackground.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([0-9.]+)\)/i);
+          if (speed && alpha && parseFloat(alpha[1]) < 0.999) issues.push('Speed surface is translucent');
+          if (!speed && Math.round(parseFloat(snap.glassOpacity)) !== Math.round(+test.state().prefs.glassOp || 82)) issues.push('glass opacity preference changed');
+          if (speed && Math.round(parseFloat(snap.glassOpacity)) !== 100) issues.push('Speed is not opaque');
+          if (snap.hero && snap.hero.balanceCache) issues.push('stale cached Hero frame');
+          if (!visual && snap.hero && snap.hero.canvasVisibility !== 'hidden') issues.push('Hero canvas is not cleared');
+          if (!visual && snap.hero && snap.hero.offscreenBuffers !== 0) issues.push('Hero glow cache survived mode change');
+          if (!visual && snap.spotLights) issues.push('cursor glow class survived mode change');
+          if (document.documentElement.classList.contains('theme-anim') || document.documentElement.classList.contains('vt-theme')) issues.push('theme transition class leaked');
+          const amb = document.querySelector('.ambient'), fx = document.getElementById('heroFx');
+          if ((amb && (amb.style.opacity || amb.style.transition)) || (fx && (fx.style.opacity || fx.style.transition))) issues.push('inline glow fade leaked');
+          return issues;
+        };
+        const checked = [];
+        const plan = ['beauty', 'balance', 'beauty', 'balance', 'perf', 'balance',
+          'beauty', 'perf', 'beauty', 'perf', 'balance', 'perf', 'beauty'];
+        for (const mode of plan) {
+          test.setGfxMode(mode, {persist:false, notify:false});
+          await frame();
+          const snap = test.gfxSnapshot();
+          const issues = verify(mode, snap);
+          checked.push({mode:mode, issues:issues, snapshot:snap});
+          if (issues.length) throw new Error('mode ' + mode + ': ' + issues.join(', '));
+        }
+        // Several complete cycles without yielding to rAF catch delayed callbacks
+        // or inline styles that could survive rapid toggles.
+        const rapid = ['beauty', 'balance', 'perf', 'beauty', 'perf', 'balance'];
+        for (let cycle = 0; cycle < 5; cycle++)
+          rapid.forEach(mode => test.setGfxMode(mode, {persist:false, notify:false}));
+        await frame();
+        let rapidSnap = test.gfxSnapshot();
+        let rapidIssues = verify('balance', rapidSnap);
+        if (rapidIssues.length) throw new Error('rapid switching: ' + rapidIssues.join(', '));
+
+        // Exercise the quick-menu segmented control itself, not just its setter.
+        const quick = document.getElementById('quickBtn');
+        const qTarget = original === 'perf' ? 'beauty' : 'perf';
+        quick.click(); await frame();
+        const quickMenu = document.querySelector('.menu-quick:not(.closing)');
+        const qButton = quickMenu && quickMenu.querySelector('.seg[data-seg="motion"] button[data-v="' + qTarget + '"]');
+        if (!qButton) throw new Error('quick-menu mode buttons are missing');
+        qButton.click(); await frame();
+        const quickModeOpen = !!document.querySelector('.menu-quick:not(.closing)') && test.state().prefs.gfx === qTarget;
+        if (!quickModeOpen) throw new Error('quick-menu mode selection closed the menu or failed');
+        quick.click(); await frame();
+
+        // Exercise the same segmented control in Settings, then verify the real
+        // native-delete API is present without invoking the destructive action.
+        test.openSettings('look'); await frame();
+        const settings = document.querySelector('.settings');
+        const settingsButton = settings && settings.querySelector('.seg[data-seg="motion"] button[data-v="balance"]');
+        if (!settingsButton) throw new Error('settings mode buttons are missing');
+        if (!settingsButton.classList.contains('on')) settingsButton.click();
+        await frame();
+        const settingsMode = test.state().prefs.gfx;
+        const dataNav = settings && settings.querySelector('.set-nav [data-sec="data"]');
+        if (!dataNav) throw new Error('settings data section is missing');
+        dataNav.click();
+        await new Promise(resolve => setTimeout(resolve, 230));
+        await frame();
+        const dataSection = settings.querySelector('#set-data');
+        const nativeDeleteAvailable = !!(window.shelterNative && window.shelterNative.isNative &&
+          typeof window.shelterNative.deleteUserData === 'function' &&
+          dataSection && dataSection.querySelector('[data-set="delete-user-data"]'));
+        const close = settings && settings.querySelector('[data-set="close"]');
+        if (close) close.click();
+        await new Promise(resolve => setTimeout(resolve, 230));
+        await frame();
+        if (!nativeDeleteAvailable) throw new Error('native profile-deletion control is missing');
+        if (settingsMode !== 'balance') throw new Error('settings mode selection failed');
+
+        test.setGfxMode(original, {persist:true, notify:false});
+        await frame();
+        return JSON.stringify({checked:checked.length, rapidCycles:5, quickModeOpen:quickModeOpen,
+          settingsMode:settingsMode, nativeDeleteAvailable:nativeDeleteAvailable,
+          final:test.gfxSnapshot()});
+      })()
+    """
+    raw = ui.evaluate(expression, timeout=30)
+    if not raw:
+        raise AcceptanceError("Performance-mode regression probe returned no result")
+    result = json.loads(raw)
+    if result.get("checked") != 13 or result.get("rapidCycles") != 5:
+        raise AcceptanceError(f"Performance-mode probe did not complete: {result}")
+    return result
+
+
+def quick_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
+    """Verify quick-menu theme changes keep the menu open and can be restored."""
+    expression = r"""
+      (async function() {
+        const quick = document.getElementById('quickBtn');
+        const frame = () => new Promise(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        );
+        const waitForTheme = async theme => {
+          const deadline = performance.now() + 2500;
+          while (performance.now() < deadline) {
+            if (document.documentElement.getAttribute('data-theme') === theme) return true;
+            await new Promise(resolve => setTimeout(resolve, 25));
+          }
+          return false;
+        };
+        const original = document.documentElement.getAttribute('data-theme');
+        quick.click(); await frame();
+        let menu = document.querySelector('.menu-quick:not(.closing)');
+        if (!menu) throw new Error('quick menu did not open');
+        const swatches = Array.from(menu.querySelectorAll('.swatch[data-theme]'));
+        const target = swatches.find(button => button.dataset.theme !== original);
+        if (!target) throw new Error('alternate theme is missing');
+        const selected = target.dataset.theme;
+        target.click();
+        const applied = await waitForTheme(selected); await frame();
+        menu = document.querySelector('.menu-quick:not(.closing)');
+        const stayedOpen = !!menu;
+        const selectedState = menu && menu.querySelector('.swatch[data-theme="' + selected + '"]')?.getAttribute('aria-pressed') === 'true';
+        if (!applied || !stayedOpen || !selectedState)
+          throw new Error('theme change did not preserve/update quick menu');
+        menu.querySelector('.swatch[data-theme="' + original + '"]').click();
+        const restored = await waitForTheme(original); await frame();
+        const menuAfterRestore = !!document.querySelector('.menu-quick:not(.closing)');
+        quick.click(); await frame();
+        if (!restored || !menuAfterRestore) throw new Error('original theme could not be restored in open menu');
+        return JSON.stringify({original:original, selected:selected, stayedOpen:stayedOpen,
+          selectedState:selectedState, restored:restored, menuAfterRestore:menuAfterRestore});
+      })()
+    """
+    raw = ui.evaluate(expression, timeout=20)
+    if not raw:
+        raise AcceptanceError("Quick-menu theme probe returned no result")
+    return json.loads(raw)
 
 def page_state(page: Cdp) -> Dict[str, Any]:
     raw = page.evaluate(
@@ -632,7 +802,7 @@ def main() -> int:
                         f"{toolbar_menu}"
                     )
                 palette = toolbar_menu["palette"]
-                if not palette["immediatelyAfterOpacity"] or palette["swatchCount"] != 6:
+                if not palette["immediatelyAfterOpacity"] or palette["swatchCount"] != 6 or not palette["equalSideInsets"]:
                     raise AcceptanceError(
                         f"Theme palette is not directly after opacity: {toolbar_menu}"
                     )
@@ -641,6 +811,14 @@ def main() -> int:
                     + json.dumps(toolbar_menu, ensure_ascii=False),
                     flush=True,
                 )
+
+            theme_probe = quick_theme_switch_probe(ui)
+            print("SHELTER_ACCEPTANCE_QUICK_THEME " + json.dumps(theme_probe, ensure_ascii=False), flush=True)
+            print("SHELTER_ACCEPTANCE_QUICK_THEME_PASS", flush=True)
+
+            mode_probe = performance_mode_probe(ui)
+            print("SHELTER_ACCEPTANCE_PERFORMANCE " + json.dumps(mode_probe, ensure_ascii=False), flush=True)
+            print("SHELTER_ACCEPTANCE_PERFORMANCE_PASS", flush=True)
 
             ui.evaluate("window.newTab('https://example.com/')")
             target, page, state = wait_for_site(port, "example.com", process)

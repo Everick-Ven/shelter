@@ -6,7 +6,9 @@
 
 #include <cstring>
 #include <cwchar>
+#include <filesystem>
 #include <string>
+#include <system_error>
 
 namespace shelter {
 namespace platform {
@@ -60,7 +62,48 @@ std::string UserDataDir() {
 
 std::string DownloadsDir() {
   std::string d = KnownFolder(FOLDERID_Downloads);
-  return d.empty() ? UserDataDir() + "\\Downloads" : d;
+  if (!d.empty()) return d;
+  // Keep downloads outside the disposable browser profile even when the
+  // Downloads known folder is unavailable.
+  std::string profile = KnownFolder(FOLDERID_Profile);
+  if (!profile.empty()) return profile + "\\Downloads";
+  std::string local = KnownFolder(FOLDERID_LocalAppData);
+  if (!local.empty()) return local + "\\Downloads";  // sibling of the SHELTER profile
+  wchar_t temp[32768] = {};
+  const DWORD temp_capacity = static_cast<DWORD>(sizeof(temp) / sizeof(temp[0]));
+  const DWORD temp_len = GetTempPathW(temp_capacity, temp);
+  if (temp_len > 0 && temp_len < temp_capacity)
+    return Utf8(std::wstring(temp, temp_len)) + "SHELTER Downloads";
+  return UiResourceDir() + "\\Downloads";
+}
+
+bool DeleteUserData() {
+  namespace fs = std::filesystem;
+  const std::string local_app_data = KnownFolder(FOLDERID_LocalAppData);
+  if (local_app_data.empty()) return false;
+  const fs::path expected = fs::u8path(local_app_data) / "SHELTER";
+  const fs::path target = fs::u8path(UserDataDir());
+  if (target.filename().string() != "SHELTER" ||
+      target.lexically_normal() != expected.lexically_normal()) {
+    return false;
+  }
+  std::error_code ec;
+  const fs::file_status status = fs::symlink_status(target, ec);
+  if (ec == std::errc::no_such_file_or_directory) return true;
+  if (ec) return false;
+  if (status.type() == fs::file_type::not_found) return true;
+  fs::remove_all(target, ec);  // remove_all removes a root symlink itself, never follows it
+  if (ec) return false;
+  ec.clear();
+  const fs::file_status after = fs::symlink_status(target, ec);
+  return ec == std::errc::no_such_file_or_directory ||
+         (!ec && after.type() == fs::file_type::not_found);
+}
+
+void ShowUserDataDeletionFailure() {
+  MessageBoxW(nullptr,
+              L"Не удалось полностью удалить профиль SHELTER. Некоторые файлы или ключ приложения могли остаться. Проверьте права доступа и повторите удаление.",
+              L"SHELTER", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
 }
 
 void ShowInFolder(const std::string& path) {

@@ -16,6 +16,10 @@ std::string UiResourceDir();
 // Каталог пользовательских данных (профили, кэш).
 std::string UserDataDir();
 
+// Удалить только выделенный каталог данных SHELTER и его app-specific master key.
+bool DeleteUserData();
+void ShowUserDataDeletionFailure();
+
 // Каталог «Загрузки».
 std::string DownloadsDir();
 

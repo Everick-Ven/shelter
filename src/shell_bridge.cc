@@ -5,6 +5,8 @@
 
 #include "include/cef_cookie.h"
 #include "include/cef_parser.h"
+#include "include/cef_task.h"
+#include "include/cef_thread.h"
 #include "include/wrapper/cef_helpers.h"
 #include "src/clients.h"
 #include "src/common.h"
@@ -16,6 +18,14 @@ namespace shelter {
 namespace {
 
 using Callback = CefMessageRouterBrowserSide::Callback;
+
+class CloseAfterUserDataDeleteTask : public CefTask {
+ public:
+  void Execute() override { Shell::Get().RequestClose(); }
+
+ private:
+  IMPLEMENT_REFCOUNTING(CloseAfterUserDataDeleteTask);
+};
 
 double Num(CefRefPtr<CefDictionaryValue> d, const char* key, double def = 0) {
   if (!d || !d->HasKey(key)) return def;
@@ -130,10 +140,30 @@ class CookieClearVisitor : public CefCookieVisitor {
 
 // ============================================================================
 
-bool Shell::HandleBridge(CefRefPtr<CefBrowser>, const std::string& m,
+bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                          CefRefPtr<CefDictionaryValue> a,
                          CefRefPtr<Callback> cb) {
   CEF_REQUIRE_UI_THREAD();
+
+  if (m == "user-data.delete") {
+    // Destructive host operations are accepted only from SHELTER's own UI,
+    // never from a site that happens to share the CEF message router.
+    if (!browser || !IsUiBrowser(browser)) {
+      cb->Failure(403, "operation is restricted to the SHELTER UI");
+      return true;
+    }
+    if (closing_ || delete_user_data_on_exit()) {
+      cb->Failure(409, "application is already closing");
+      return true;
+    }
+    MarkDeleteUserDataOnExit();
+    cb->Success("{\"ok\":true,\"closing\":true}");
+    // Let cefQuery deliver its acknowledgement and the UI display its final
+    // notice before closing the window. Files are removed after CefShutdown.
+    if (!CefPostDelayedTask(TID_UI, new CloseAfterUserDataDeleteTask(), 350))
+      RequestClose();
+    return true;
+  }
 
   // ---- окно ----
   if (m == "win.minimize") {

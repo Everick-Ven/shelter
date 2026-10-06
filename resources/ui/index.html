@@ -545,9 +545,9 @@ body.no-badges .badge{display:none!important}
 .q-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .q-row .q-h{margin:0}
 .q-sec > .q-h{margin:0 0 10px}
-.q-theme-swatches{flex:0 1 300px;width:min(300px,100%);max-width:100%;height:38px;padding:0 8px}
+.q-theme-swatches{flex:0 1 300px;width:min(300px,100%);max-width:100%;height:38px;padding:0 8px;margin:0}
 .q-theme-swatches .swatch{width:24px;height:24px}
-.q-theme-sec{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.q-theme-sec{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap}
 .q-theme-sec > .q-h{margin:0;min-width:130px}
 .q-tabs.list{display:flex;flex-direction:column;gap:2px;max-height:min(360px,50vh);overflow:auto}
 .q-li{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 8px;border-radius:10px;color:var(--text);text-align:left;width:100%;background:none;border:0;cursor:pointer}
@@ -872,12 +872,9 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .scrim{position:fixed;inset:0;z-index:150;background:var(--scrim);display:grid;place-items:center;padding:24px;animation:fadeIn .25s ease both;
   -webkit-backdrop-filter:blur(4px) saturate(1.05);backdrop-filter:blur(4px) saturate(1.05)}
 .scrim.closing{animation:fadeOut .2s ease forwards}
-/* Уровень beauty — полный Liquid Glass; база = balance, perf выключает совсем. */
+/* Visual: glass и blur; Balance сохраняет полупрозрачные поверхности без blur; Speed — сплошные поверхности. */
 [data-gfx="beauty"] .q-tile .q-x{backdrop-filter:blur(8px);background:rgba(8,9,12,.55)}
 [data-gfx="beauty"] .scrim{-webkit-backdrop-filter:blur(8px) saturate(1.1);backdrop-filter:blur(8px) saturate(1.1)}
-/* Уровень графики «Производительность» (для слабых ПК): глассморфизм без blur —
-   прозрачности и хайрлайны остаются, backdrop-сэмплирование выключено (как
-   «плоский близнец» у Apple при ослабленном железе). */
 [data-gfx="perf"] .q-tile .q-x,[data-gfx="perf"] .scrim{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 .scrim.closing .modal,.scrim.closing .palette{animation:modalOut .2s ease forwards}
 @keyframes fadeIn{from{opacity:0}}
@@ -1574,8 +1571,8 @@ html[data-theme="ivory"],html[data-theme="porcelain"],html[data-theme="bordeaux"
   .omni-row{gap:6px}
 }
 
-html.reduce-motion *,html.reduce-motion *::before,html.reduce-motion *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
-html.reduce-motion .ambient i{animation:none}
+html.reduce-motion *,html.reduce-motion *::before,html.reduce-motion *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+html.reduce-motion .ambient i{animation:none!important}
 /* --- Профиль SHELTER ID и премиальные ачивки --- */
 .profile-hero{position:relative;isolation:isolate;overflow:hidden;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);align-items:center;gap:22px;padding:21px 23px;border:1px solid var(--line-2);border-radius:22px;background:linear-gradient(112deg,color-mix(in srgb,var(--card) 84%,rgb(var(--gc)/.13)),var(--card) 58%,color-mix(in srgb,var(--card) 88%,rgb(var(--gb)/.13)));box-shadow:var(--hi)}
 .profile-hero::before{content:"";position:absolute;z-index:0;pointer-events:none;width:360px;height:250px;left:12%;top:-155px;border-radius:50%;background:radial-gradient(closest-side,rgb(var(--gc)/.20),transparent 74%);filter:blur(10px)}
@@ -1924,6 +1921,16 @@ html.reduce-motion .ambient i{animation:none}
   --bf-glass: blur(18px) saturate(160%);
   --bf-menu: blur(22px) saturate(170%);
 }
+body[data-gfx="balance"]{
+  --bf-glass:none !important;
+  --bf-menu:none !important;
+}
+body[data-gfx="balance"] *,
+body[data-gfx="balance"] *::before,
+body[data-gfx="balance"] *::after{
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
 body[data-gfx="perf"]{
   --bf-glass:none !important;
   --bf-menu:none !important;
@@ -1937,8 +1944,26 @@ body[data-gfx="perf"]{
   --glass-surface:var(--surface) !important;
   --glass-border:var(--line-2) !important;
   --glass-border-soft:var(--line) !important;
+  --bar:var(--surface) !important;
+  --bar-line:var(--line-2) !important;
+  --pill:var(--card-2) !important;
+  --pill-line:var(--line-2) !important;
+  --active:var(--card-2) !important;
+  --hero-lift:var(--hero) !important;
+  --scrim:var(--bg) !important;
+  --sh-sm:none !important;
+  --sh-md:none !important;
+  --sh-lg:none !important;
+  --hi:none !important;
+  --glow-ring:none !important;
+  --glow-soft:none !important;
+  --glow-lift:none !important;
+  --glow-lift-lg:none !important;
+  --glow-lift-sm:none !important;
 }
-html.reduce-motion{ --bf-glass:blur(10px) saturate(130%); --bf-menu:blur(12px) saturate(140%); }
+body.glow-off .ambient,
+body.glow-off #heroFx{display:none !important;visibility:hidden !important}
+body.glow-off .ambient i{animation:none !important}
 
 /* ---------- 1 · Каркас: боковая панель ---------- */
 .sb{
@@ -2784,12 +2809,16 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
   .dt-mobile-menu .i{width:16px;height:16px}
 }
 
-/* --- Режим «Производительность — Скорость» (data-gfx="perf"): 0% прозрачности на меню и всех элементах --- */
+/* Speed: плоский непрозрачный UI без blur, glow, теней и фильтров. */
+body[data-gfx="perf"],
 body[data-gfx="perf"] *,
 body[data-gfx="perf"] *::before,
 body[data-gfx="perf"] *::after{
   -webkit-backdrop-filter:none !important;
   backdrop-filter:none !important;
+  box-shadow:none !important;
+  text-shadow:none !important;
+  filter:none !important;
 }
 body[data-gfx="perf"] .menu,
 body[data-gfx="perf"] .palette,
@@ -2811,8 +2840,18 @@ body[data-gfx="perf"] .devtools{
 body[data-gfx="perf"] .sb{
   background:var(--bg) !important;
 }
-body[data-gfx="perf"] .sb::before{
+body[data-gfx="perf"] .ambient,
+body[data-gfx="perf"] #heroFx{display:none !important;visibility:hidden !important}
+body[data-gfx="perf"] .sb::before,
+body[data-gfx="perf"] .hero::before,
+body[data-gfx="perf"] .site-card::before,
+body[data-gfx="perf"] .profile-hero::before,
+body[data-gfx="perf"] .profile-hero::after,
+body[data-gfx="perf"] .ach-card::before{
   display:none !important;
+}
+body[data-gfx="perf"] .checkout-card{
+  background:var(--card) !important;
 }
 body[data-gfx="perf"] .stage,
 body[data-gfx="perf"] .set-nav,
@@ -2863,13 +2902,11 @@ body[data-gfx="perf"] .ctl{
 }
 body[data-gfx="perf"] .bm-mount,
 body[data-gfx="perf"] .bm-mount .hero-links{
-  background:transparent !important;
+  background:var(--surface) !important;
   box-shadow:none !important;
-  border:0 !important;
+  border-color:var(--line-2) !important;
 }
 #glassOpSec.is-disabled,body[data-gfx="perf"] #glassOpSec,
-#qGlowRow.is-disabled,body[data-gfx="perf"] #qGlowRow,
-#setGlowRow.is-disabled,body[data-gfx="perf"] #setGlowRow,
 #setGlowModeRow.is-disabled,#glowCustomRow.is-disabled,#setGlowIntRow.is-disabled,#setGlowSatRow.is-disabled{opacity:.42;pointer-events:none;user-select:none;filter:grayscale(.85);transition:opacity .2s var(--ease)}
 #glassOpRange:disabled,.sw-t:disabled,.sw-t.is-disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 
@@ -3763,7 +3800,7 @@ const PREF_DEFAULTS = {
   trackers: true, https: true, fp: true, strict: false,
   ruca: true, rucaupd: true, gostbadge: true,
   pinnedProtect: true, dragTabs: true, hoverPreview: false, lazyTabs: true, memSaver: true,
-  suggestHistory: true, checkUpdates: true, startup: 'ntp', dns: 'cf', lang: 'ru', motion: 'reduced', glow: true, gfx: 'balance', askDownload: false,
+  suggestHistory: true, checkUpdates: true, startup: 'ntp', dns: 'cf', lang: 'ru', motion: 'full', glow: true, gfx: 'balance', askDownload: false,
   menuAdapt: true, menuDev: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true, persets: {}, cleanSurf: false, glassOp: 82,
   uiScale: 100, fontScaleI: 100, fontScaleD: 100, fontScaleM: 100,
   glowMode: 'theme', glowColor: '#5E8BFF', glowIntensity: 45, glowSat: 60
@@ -4105,11 +4142,11 @@ function load() {
   const ext = store.json('shelter:ext', null);
   const lux = store.json('shelter:lux', {}) || {};
   Object.assign(S.prefs, lux.prefs || {});
-  if (!lux.prefs || !('motion' in lux.prefs)) { try { if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) S.prefs.motion = 'reduced'; } catch (_) {} }
   Object.assign(S.ui, lux.ui || {});
-  /* Уровень графики задаёт режим анимаций (beauty=full, balance=reduced, perf=off) */
-  if (S.prefs.motion === 'off' && S.prefs.gfx !== 'perf') S.prefs.glow = false;
-  S.prefs.motion = ({ beauty: 'full', balance: 'reduced', perf: 'off' })[S.prefs.gfx] || 'reduced';
+  /* Один источник истины: Visual/Balance сохраняют обычные UI-анимации; Speed выключает их. */
+  S.prefs.gfx = ['beauty', 'balance', 'perf'].includes(S.prefs.gfx) ? S.prefs.gfx : 'balance';
+  S.prefs.motion = S.prefs.gfx === 'perf' ? 'off' : 'full';
+  S.prefs.glow = S.prefs.gfx === 'beauty';
   if (S.ui.dlSeen == null) S.ui.dlSeen = Date.now();
   S.deep = !!lux.deep; S.account = lux.account || null;
   S.ai = aiFromStore(store.json('shelter:ai', null));
@@ -4254,7 +4291,7 @@ function favFor(url, cls = '') { const m = urlMeta(url); return m.kind === 'inte
    Оверлеи: меню, модальные окна, тосты, подсказки
    ========================================================= */
 const OV = { menu: null, stack: [] };
-const REDUCED = () => S.prefs.motion === 'reduced';
+const REDUCED = () => S.prefs.gfx === 'perf';
 
 function menuItemHtml(it, i) {
   if (it === '-' ) return '<div class="msep"></div>';
@@ -4519,22 +4556,15 @@ function segHtml(name, opts, val, cls = '') {
   return `<div class="seg ${cls}" data-seg="${name}"><span class="seg-th"></span>${opts.map(o => `<button data-v="${o[0]}" class="${o[0] === val ? 'on' : ''}"${o[2] ? ` data-tip="${esc(o[2])}"` : ''}>${o[1]}</button>`).join('')}</div>`;
 }
 function setSegValue(seg, v) { if (!seg) return; $$('button[data-v]', seg).forEach(b => b.classList.toggle('on', b.dataset.v === v)); segSync(seg); }
-const swDisabled = key => key === 'glow' && S.prefs.gfx === 'perf';
-const swHtml = (key, on, disabled = swDisabled(key)) => `<button class="sw-t ${(!disabled && on) ? 'on' : ''}${disabled ? ' is-disabled' : ''}" data-sw="${key}" role="switch" aria-checked="${!!(!disabled && on)}"${disabled ? ' disabled aria-disabled="true"' : ''}><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></button>`;
-const swState = key => key === 'ghost' ? S.ghost : key === 'deep' ? S.deep : key === 'glow' ? (S.prefs.gfx !== 'perf' && S.prefs.glow !== false) : !!S.prefs[key];
+const swHtml = (key, on) => `<button class="sw-t ${on ? 'on' : ''}" data-sw="${key}" role="switch" aria-checked="${!!on}"><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></button>`;
+const swState = key => key === 'ghost' ? S.ghost : key === 'deep' ? S.deep : !!S.prefs[key];
 function syncSwitches() {
   $$('[data-sw]').forEach(b => {
     const k = b.dataset.sw;
     if (/^extg?:/.test(k)) return;
-    const dis = swDisabled(k);
-    const on = !dis && swState(k);
+    const on = swState(k);
     b.classList.toggle('on', on);
-    b.classList.toggle('is-disabled', dis);
-    b.disabled = dis;
-    if (b.classList.contains('sw-t')) {
-      b.setAttribute('aria-checked', String(on));
-      b.setAttribute('aria-disabled', String(dis));
-    }
+    if (b.classList.contains('sw-t')) b.setAttribute('aria-checked', String(on));
   });
   syncControls(); DASH.protUpdate();
 }
@@ -4547,7 +4577,7 @@ const PREF_TOAST = { trackers: ['Блокировка трекеров вклю�
   showTips: ['Подсказки включены', 'Подсказки выключены', 'info'],
   sbBadges: ['Счётчики в боковом меню включены', 'Счётчики в боковом меню выключены', 'circle-dot'] };
 function toggleSetting(key, el) {
-  if (swDisabled(key) || (el && el.disabled)) return;
+  if (key === 'glow' || (el && el.disabled)) return;
   if (key === 'ghost') { toggleGhost(); return; }
   if (key === 'deep') { setDeep(!S.deep); return; }
 
@@ -4556,11 +4586,11 @@ function toggleSetting(key, el) {
   if (achievementBefore) captureProfileUnlocks(achievementBefore.d);
   S.prefs[key] = !S.prefs[key]; persist();
   /* 1.0.160 «Чистый серфинг»: ручное включение любого допа снимает режим; выключение — включает режим */
-  if (S.prefs.cleanSurf === true && S.prefs[key] && (key === 'glow' || PERS_K.indexOf(key) >= 0)) { S.prefs.cleanSurf = false; delete S.prefs.cleanSurfPrev; }
+  if (S.prefs.cleanSurf === true && S.prefs[key] && PERS_K.indexOf(key) >= 0) { S.prefs.cleanSurf = false; delete S.prefs.cleanSurfPrev; }
   if (key === 'cleanSurf') applyCleanSurf(S.prefs.cleanSurf === true);
   if (achievementBefore) reconcileProfileAchievementChange(achievementBefore);
   syncSwitches();
-  if (key === 'glow' || key === 'cleanSurf') { applyGlowPrefs(); Hero.relayout(); }
+  if (key === 'cleanSurf') applyGlowPrefs();
   const tt = PREF_TOAST[key]; if (tt) toast(S.prefs[key] ? tt[0] : tt[1], { icon: tt[2] });
   if (key === 'dragTabs') renderTabs();
   if (tracksAchievement) { renderHeroFoot(); refreshPage('profile'); }
@@ -4582,10 +4612,10 @@ function applyPersona(key) {
   persist(); syncSwitches(); applyPers();
   toast('Профиль «' + pr.label + '» применён', { icon: 'user' });
 }
-/* 1.0.160 «Чистый серфинг»: голый браузер — пространства, вкладки, закладки и защита остаются,
-   выключаются все допы Персонализации и свечение (украшения); выбор тем не затрагивается. */
+/* «Чистый серфинг» меняет только дополнительные элементы Персонализации; режим графики
+   сам определяет свечение и анимации и не зависит от этого пресета. */
 function applyCleanSurf(on) {
-  const keys = PERS_K.concat(['glow']);
+  const keys = PERS_K;
   if (on) {
     const prev = {};
     keys.forEach(k => { prev[k] = S.prefs[k]; S.prefs[k] = false; });
@@ -4691,52 +4721,115 @@ async function persDel() {
 /* =========================================================
    Тема — круговое раскрытие (View Transitions)
    ========================================================= */
+function clearThemeInlineStyles() {
+  ['.ambient', '#heroFx'].forEach(sel => {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.style.removeProperty('transition');
+    el.style.removeProperty('opacity');
+  });
+}
+function cancelThemeMotion(finishPending = false) {
+  const root = document.documentElement;
+  const hadVt = !!T.vtSeq;
+  const pending = T.pendingThemeApply;
+  T.pendingThemeApply = null;
+  T.themeSeq = (T.themeSeq || 0) + 1;
+  ['glowBack', 'glowRise', 'glowReset', 'themeAnim'].forEach(k => {
+    clearTimeout(T[k]);
+    T[k] = 0;
+  });
+  if (T.vt) {
+    try { if (T.vt.skipTransition) T.vt.skipTransition(); } catch (_) {}
+  }
+  T.vt = null;
+  T.vtSeq = 0;
+  root.classList.remove('vt-theme', 'theme-anim');
+  clearThemeInlineStyles();
+  if (finishPending && typeof pending === 'function') {
+    try { pending(); } catch (_) {}
+  }
+  return hadVt;
+}
+function cancelModeAnimations() {
+  try {
+    document.getAnimations().forEach(animation => {
+      // Оставляем обычные CSS keyframes для текущего режима; CSS-переходы и
+      // вызовы Element.animate() — одноразовые, их нельзя переносить в новый режим.
+      if (typeof animation.animationName === 'string') return;
+      animation.cancel();
+    });
+  } catch (_) {}
+}
 function setTheme(name, origin) {
+  const hadVt = cancelThemeMotion(true);
+  if (hadVt && !document.hidden && !OV.stack.length) {
+    try { Hero.resume(); } catch (_) {}
+  }
   if (!THEMES[name] || name === S.theme) return;
   const root = document.documentElement;
-  closeMenu();
-  const apply = () => { root.setAttribute('data-theme', name); S.theme = name; if (THEMES[name]) { if (THEMES[name].kind === 'Светлая') S.ui.schemeLightTheme = name; else S.ui.schemeDarkTheme = name; } syncThemeUI(); syncSchemeBtn(); syncWebScheme(); persist(); };
+  const inQuickMenu = !!(origin && origin.closest && origin.closest('.menu-quick'));
+  if (!inQuickMenu) closeMenu();
+  const apply = () => {
+    if (T.pendingThemeApply === apply) T.pendingThemeApply = null;
+    root.setAttribute('data-theme', name);
+    S.theme = name;
+    if (THEMES[name].kind === 'Светлая') S.ui.schemeLightTheme = name;
+    else S.ui.schemeDarkTheme = name;
+    syncThemeUI(); syncSchemeBtn(); syncWebScheme(); persist();
+  };
+  T.pendingThemeApply = apply;
   const relayout = () => { try { if (typeof Hero !== 'undefined' && Hero.relayout) Hero.relayout(); } catch (_) {} };
   const amb = document.querySelector('.ambient');
   const fx = document.getElementById('heroFx');
-  const fade = (el, v, ms) => { if (el) { el.style.transition = 'opacity ' + ms + 'ms cubic-bezier(.4,0,.2,1)'; el.style.opacity = String(v); } };
+  const fade = (el, v, ms) => {
+    if (!el) return;
+    el.style.transition = 'opacity ' + ms + 'ms cubic-bezier(.4,0,.2,1)';
+    el.style.opacity = String(v);
+  };
   const seq = (T.themeSeq = (T.themeSeq || 0) + 1);
-  /* Windows: быстрая смена темы (1.0.108); mac и reduced — прежние тайминги */
+  /* Windows: быстрая смена темы; в режиме Speed — сразу, без перехода. */
   const sn = window.shelterNative;
   const fast = !!(sn && sn.isNative && sn.platform !== 'darwin');
-  clearTimeout(T.glowBack); clearTimeout(T.glowRise); clearTimeout(T.themeAnim);
-  if (T.vtSeq) {
-    try { if (T.vt && T.vt.skipTransition) T.vt.skipTransition(); } catch (_) {}
-    T.vtSeq = 0; root.classList.remove('vt-theme');
-    try { if (!document.hidden && !OV.stack.length) Hero.resume(); } catch (_) {}
-  }
   if (REDUCED()) {
-    if (amb) { amb.style.transition = 'none'; amb.style.opacity = '1'; }
-    if (fx) { fx.style.transition = 'none'; fx.style.opacity = '1'; }
-    apply(); relayout(); return;
+    apply(); relayout(); clearThemeInlineStyles(); return;
   }
-  // 1) свечение плавно гаснет — тема сменяется мягким перекрёстным затуханием (без геометрии)
-  fade(amb, 0, fast ? 150 : 220); fade(fx, 0, fast ? 150 : 220);
+  // Свечение затухает перед заменой темы. Inline-стили обязательно снимаются
+  // после перехода и при любой смене режима (иначе opacity мог застрять на 0).
+  fade(amb, 0, fast ? 150 : 220);
+  fade(fx, 0, fast ? 150 : 220);
   T.glowBack = setTimeout(() => {
     if (seq !== T.themeSeq) return;
     const glowRise = () => {
       clearTimeout(T.glowRise);
-      T.glowRise = setTimeout(() => { if (seq !== T.themeSeq) return; fade(amb, 1, fast ? 260 : 420); fade(fx, 1, fast ? 260 : 420); }, fast ? 40 : 70);
+      T.glowRise = setTimeout(() => {
+        if (seq !== T.themeSeq) return;
+        const duration = fast ? 260 : 420;
+        fade(amb, 1, duration); fade(fx, 1, duration);
+        T.glowReset = setTimeout(() => {
+          if (seq !== T.themeSeq) return;
+          clearThemeInlineStyles();
+          T.glowReset = 0;
+        }, duration + 24);
+        T.glowRise = 0;
+      }, fast ? 40 : 70);
     };
     const tokenFade = () => {
       apply(); relayout();
       root.classList.add('theme-anim'); void root.offsetWidth;
       glowRise();
       clearTimeout(T.themeAnim);
-      T.themeAnim = setTimeout(() => { if (seq !== T.themeSeq) return; root.classList.remove('theme-anim'); relayout(); }, fast ? 320 : 560);
+      T.themeAnim = setTimeout(() => {
+        if (seq !== T.themeSeq) return;
+        root.classList.remove('theme-anim'); relayout(); T.themeAnim = 0;
+      }, fast ? 320 : 560);
     };
     if (typeof document.startViewTransition !== 'function') { tokenFade(); return; }
-    // 2) кросс-фейд: старая тема плавно растворяется, новая мягко проявляется (см. CSS ::view-transition-old/new)
     root.classList.add('vt-theme'); root.classList.remove('theme-anim');
     try { Hero.pause(); } catch (_) {}
     let vt = null;
     try { vt = document.startViewTransition(apply); }
-    catch (e) {
+    catch (_) {
       root.classList.remove('vt-theme');
       try { if (!document.hidden && !OV.stack.length) Hero.resume(); } catch (_) {}
       tokenFade(); return;
@@ -4744,7 +4837,7 @@ function setTheme(name, origin) {
     T.vt = vt; T.vtSeq = seq;
     const waveEnd = () => {
       if (T.vtSeq !== seq) return;
-      T.vtSeq = 0;
+      T.vtSeq = 0; T.vt = null;
       root.classList.remove('vt-theme'); relayout();
       try { if (!document.hidden && !OV.stack.length) Hero.resume(); } catch (_) {}
       glowRise();
@@ -4948,7 +5041,7 @@ function syncControls() {
 function themeSwatchesMarkup() {
   return `<div class="swatches q-theme-swatches" id="swatches"><span class="sw-ind" id="swInd"></span>` + THEME_ORDER.map(k => {
     const t = THEMES[k];
-    return `<button type="button" class="swatch" data-act="theme" data-theme="${k}" style="--c1:${t.sw[0]};--c2:${t.sw[1]};--c3:${t.sw[2]}" aria-label="Тема: ${t.name}" aria-pressed="${k === S.theme}" title="${t.name}"><i></i></button>`;
+    return `<button type="button" class="swatch" data-act="theme" data-theme="${k}" data-q-keep style="--c1:${t.sw[0]};--c2:${t.sw[1]};--c3:${t.sw[2]}" aria-label="Тема: ${t.name}" aria-pressed="${k === S.theme}" title="${t.name}"><i></i></button>`;
   }).join('') + `</div>`;
 }
 function renderUser() {
@@ -5469,7 +5562,7 @@ const Hero = (() => {
   const PERIOD = 12000, PAD = 168, RADIUS = 22;
   const SIG_BLOOM = 0.072, SIG_RIM = 0.15, SIG_CORE = 0.034;
   const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.*@#+-=/&%π'.split('');
-  let canvas, ctx, dpr = 1, path = null, pathKey = '', chars = [], charKey = '', off = null, rimLayer = null, balanceLayer = null, balanceKey = '', t0 = performance.now();
+  let canvas, ctx, dpr = 1, path = null, pathKey = '', chars = [], charKey = '', off = null, rimLayer = null, t0 = performance.now();
   let COL_A = [255, 107, 61], COL_A_SOFT = [235, 99, 56], COL_A_HOT = [255, 236, 222];
   let COL_B = [77, 124, 255], COL_B_SOFT = [71, 114, 235], COL_B_HOT = [214, 232, 255];
   let palKey = '', palLight = false, palAmp = 1, palGlyph = 1;
@@ -5492,7 +5585,6 @@ const Hero = (() => {
     const key = ga.concat(gb).map(v => v | 0).join(',') + (light ? 'L' : 'D') + (isFinite(g) ? g : 1);
     if (key === palKey) return;
     palKey = key;
-    balanceKey = '';
     COL_A = ga; COL_B = gb;
     COL_A_SOFT = [ga[0] * 0.92, ga[1] * 0.92, ga[2] * 0.92];
     COL_B_SOFT = [gb[0] * 0.92, gb[1] * 0.92, gb[2] * 0.92];
@@ -5683,7 +5775,7 @@ const Hero = (() => {
       canvas.style.width = bw + 'px';
       canvas.style.height = bh + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      pathKey = ''; charKey = ''; balanceKey = '';
+      pathKey = ''; charKey = '';
     }
     const cl = Math.round(ox - PAD), ct = Math.round(oy - PAD);
     if (cl !== canvasLeft || ct !== canvasTop) {
@@ -5873,57 +5965,46 @@ const Hero = (() => {
     ribbon(octx, path, ox, oy, COL_B, 3.2, t => light(t, offset).bR, 0.42 * g);
     blit(board, ox, oy, 9, 0.88); if (!perfG) blit(board, ox, oy, 3.2, 0.55);
   }
-  function glowOff() { return !!(S && S.prefs && (S.prefs.motion === 'off' || S.prefs.glow === false)); }
+  function glowOff() { return gfxLvl() !== 'beauty'; }
   function gfxLvl() { return (S && S.prefs && S.prefs.gfx) || 'balance'; }
-  function renderBalanceLayer() {
-    if (!canvas || !path) return false;
-    const key = [pathKey, palKey, dpr, canvas.width, canvas.height].join('|');
-    if (balanceLayer && balanceKey === key) return true;
-    balanceLayer = document.createElement('canvas');
-    balanceLayer.width = canvas.width;
-    balanceLayer.height = canvas.height;
-    const mainCtx = ctx;
-    const layerCtx = balanceLayer.getContext('2d', { alpha: true });
-    ctx = layerCtx;
-    layerCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    layerCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-    layerCtx.globalCompositeOperation = 'source-over';
-    layerCtx.globalAlpha = 1;
-    layerCtx.filter = 'none';
-    // Один полный кадр: тот же glow, glyphs и rim, но больше никогда не пересчитываем его по времени.
-    drawGlow(0);
-    drawChars(0);
-    drawRim(0);
-    ctx = mainCtx;
-    balanceKey = key;
-    return true;
-  }
-  function paint(now) {
-    const heroEl0 = document.getElementById('hero');
-    if (!heroEl0 || heroEl0.hidden) return;
-    syncPalette();
-    if (!ensureCanvas() || !ctx) return;
-    if (glowOff()) {
+  function clearCanvas() {
+    stop();
+    clearTimeout(H.kt); H.kt = 0; H.kick = 1;
+    H.lastP = 0;
+    t0 = performance.now();
+    if (!canvas) canvas = $('#heroFx');
+    if (!ctx && canvas) ctx = canvas.getContext('2d', { alpha: true });
+    if (canvas && ctx) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.filter = 'none';
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       canvas.style.visibility = 'hidden';
-      return;
+      canvas.style.removeProperty('opacity');
+      canvas.style.removeProperty('transition');
     }
+    // Do not retain a rendered glow in any offscreen buffer between modes.
+    const discardLayer = layer => { if (layer) { layer.width = 0; layer.height = 0; } };
+    discardLayer(off); off = null;
+    discardLayer(rimLayer); rimLayer = null;
+    bloomPool.forEach(discardLayer); bloomPool.length = 0;
+    path = null;
+    pathKey = '';
+    chars = [];
+    charKey = '';
+  }
+  function paint(now) {
+    const heroEl = document.getElementById('hero');
+    if (!heroEl || heroEl.hidden) return;
+    syncPalette();
+    if (!ensureCanvas() || !ctx) return;
+    if (glowOff()) { clearCanvas(); return; }
     canvas.style.visibility = '';
     if (!ensurePath()) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
-
-    if (gfxLvl() === 'balance') {
-      // Баланс: свечение полностью статично, но сохраняет полноценный вид.
-      if (renderBalanceLayer()) {
-        ctx.drawImage(balanceLayer, 0, 0, balanceLayer.width, balanceLayer.height,
-          0, 0, canvas.width / dpr, canvas.height / dpr);
-      }
-      return;
-    }
-
     const still = (typeof REDUCED === 'function' && REDUCED()) || location.hash === '#still';
     const offset = still ? 0 : ((now - t0) / PERIOD) % 1;
     drawGlow(offset); drawChars(offset); drawRim(offset);
@@ -5940,9 +6021,7 @@ const Hero = (() => {
       const dt = performance.now() - t1;
       H.pEMA = dt > H.pEMA ? dt : H.pEMA * 0.9 + dt * 0.1;
       const glv = gfxLvl();
-      // В Балансе после создания статического кадра RAF больше не нужен.
-      if (glv === 'balance') return;
-      const target = glv === 'beauty' ? 32 : (H.pEMA > 40 ? 96 : 64);
+      const target = glv === 'beauty' ? 32 : 64;
       H.gap = target > H.gap ? target : Math.max(target, H.gap - 8);
     }
     if (glowOff()) return;
@@ -5951,6 +6030,7 @@ const Hero = (() => {
   }
   function start() {
     if (!H.visible || H.paused) return;
+    if (glowOff()) { clearCanvas(); return; }
     resize();
     if (!H.raf) H.raf = requestAnimationFrame(loop);
   }
@@ -5958,7 +6038,7 @@ const Hero = (() => {
 
   window.addEventListener('resize', () => {
     if (!H.visible) return;
-    pathKey = ''; balanceKey = ''; resize();
+    pathKey = ''; resize();
     if (H.paused || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
     else if (!H.raf) start();
   });
@@ -5967,7 +6047,7 @@ const Hero = (() => {
     if (ro || typeof ResizeObserver === 'undefined') return;
     ro = new ResizeObserver(() => {
       if (!H.visible) return;
-      pathKey = ''; balanceKey = ''; resize();
+      pathKey = ''; resize();
       if (H.paused || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
       else if (!H.raf) start();
     });
@@ -5980,7 +6060,8 @@ const Hero = (() => {
 
   return {
     show() { H.visible = true; if (!document.hidden && !OV.stack.length) H.paused = false; observe(); start(); },
-    hide() { H.visible = false; stop(); balanceLayer = null; balanceKey = ''; if (ctx && canvas) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); } },
+    hide() { H.visible = false; clearCanvas(); },
+    clear() { clearCanvas(); },
     pause() { H.paused = true; stop(); },
     resume() { H.paused = false; if (!H.visible) return; start(); },
     focus() { H.focus = 1; }, // курсор в поле не влияет на цвет/интенсивность свечения (1.0.84)
@@ -5988,7 +6069,15 @@ const Hero = (() => {
     setBoost(b) { H.boost = b || 1; },
     burst() { H.kick = 3.2; clearTimeout(H.kt); H.kt = setTimeout(() => { H.kick = 1; }, 520); },
     nudge() { this.kick(); },
-    relayout() { palKey = ''; pathKey = ''; balanceKey = ''; if (!H.visible) return; resize(); if (H.paused) { paint(performance.now()); return; } stop(); start(); },
+    relayout() {
+      palKey = ''; pathKey = '';
+      if (!H.visible) return;
+      if (glowOff()) { clearCanvas(); return; }
+      resize();
+      if (H.paused) { paint(performance.now()); return; }
+      stop(); start();
+    },
+    debug() { return { visible: H.visible, paused: H.paused, raf: H.raf, canvas: !!canvas, canvasVisibility: canvas ? canvas.style.visibility : '', offscreenBuffers: (off ? 1 : 0) + (rimLayer ? 1 : 0) + bloomPool.length, balanceCache: false }; },
     remask() { pathKey = ''; }
   };
 })();
@@ -7670,7 +7759,7 @@ function taskModal(id, opts) {
       return;
     }
     if (r.dataset.r === 'del') { m.guard = null; closeModal(m); if (await confirmDlg({ title: 'Удалить задачу?', text: String(src.title || ''), ok: 'Удалить', danger: true, icon: 'trash' })) { b.tasks = b.tasks.filter(x => x !== src); persist(); tasksRerender(); toast('Задача удалена', { icon: 'trash' }); } return; }
-    const title = g('#tfTitle').value.trim(); if (!title) { g('#tfTitle').focus(); g('#tfTitle').animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }], { duration: 300 }); return; }
+    const title = g('#tfTitle').value.trim(); if (!title) { g('#tfTitle').focus(); if (!REDUCED()) g('#tfTitle').animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }], { duration: 300 }); return; }
     if (simple) {
       const qEl = g('#tfQm .on');
       const qm = qEl ? +qEl.dataset.qm : 0;
@@ -9356,6 +9445,32 @@ const SET_SECTIONS = [['general', 'Общие', 'gear'], ['look', 'Внешни�
 const SHORTCUTS = [['Новая вкладка', '⌘T'], ['Закрыть вкладку', '⌘W'], ['Следующая вкладка', '⌘Tab'], ['Вернуть закрытую', '⌘⇧T'], ['Команды и поиск', '⌘K'], ['Адресная строка', '⌘L'], ['Найти на странице', '⌘F'], ['Режим «Призрак»', '⌘⇧P'], ['История', '⌘Y'], ['В закладки', '⌘D'], ['Боковая панель', '⌘\\'], ['Пространства 1–4', '⌘1 … ⌘4'], ['Масштаб', '⌘+  ⌘−  ⌘0'], ['Инструменты разработчика', '⌥⌘I'], ['Открыть файл', '⌘O'], ['Настройки', '⌘,'], ['Закрыть меню, окно или остановить загрузку', 'Esc']];
 const kbdGrid = () => `<div class="kbd-grid">${SHORTCUTS.map(s => `<div><span>${s[0]}</span><span class="kbd">${esc(kb(s[1]))}</span></div>`).join('')}</div>`;
 function showShortcuts() { const m = openModal({ width: 640, html: `<div class="modal-h"><div class="mi-ic">${ico('keyboard')}</div><h3>Горячие клавиши</h3><button class="icon-btn" data-x="1" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b">${kbdGrid()}<p class="muted" style="font-size:12px;margin-top:14px">${IS_MAC ? 'На Windows и Linux вместо ⌘ используйте Ctrl.' : 'На macOS вместо Ctrl используйте ⌘.'}</p></div>` }); m.scrim.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(m); }); }
+async function requestUserDataDeletion() {
+  if (!NAT || !NAT.isNative || typeof NAT.deleteUserData !== 'function') {
+    toast('Удаление профиля доступно в настольной версии SHELTER', { icon: 'info' });
+    return false;
+  }
+  const confirmed = await confirmDlg({
+    title: 'Удалить пользовательские данные?',
+    text: 'SHELTER закроется. После остановки CEF приложение удалит свой профиль и при следующем запуске создаст пустой. Удаляются обычные файлы — гарантированное стирание с SSD не обещается.',
+    list: [
+      'Локальный CEF-профиль и профили всех пространств: cookies, данные сайтов, историю, кэш, настройки, пароли и список загрузок',
+      'Локальная запись SHELTER ID и сохранённые приложением секреты удаляются. Внешние аккаунты Google/Яндекс и данные на серверах сайтов не удаляются.',
+      'Удаляется ключ SHELTER (файл, а на macOS также app-specific запись master-key в Keychain). Общая запись Chromium Safe Storage не удаляется, чтобы не затронуть другие браузеры.',
+      'Файлы в общей папке «Загрузки» и любые другие файлы за пределами профиля SHELTER останутся.'
+    ],
+    ok: 'Удалить профиль и закрыть', danger: true, icon: 'trash'
+  });
+  if (!confirmed) return false;
+  let result = null;
+  try { result = await NAT.deleteUserData(); } catch (_) {}
+  if (!result || result.ok !== true || result.closing !== true) {
+    toast('Не удалось запустить удаление профиля', { icon: 'x' });
+    return false;
+  }
+  toast('SHELTER закрывается. Профиль будет удалён после остановки браузерного движка.', { icon: 'trash' });
+  return true;
+}
 function openSettings(sec) {
   if ($('.settings')) return;
   const P = S.prefs, sw = k => swHtml(k, swState(k));
@@ -9379,12 +9494,11 @@ function openSettings(sec) {
           ${row('Тёмная тема', 'Какая тема применяется в тёмном режиме', segHtml('schemeDark', [['obsidian', 'Обсидиан'], ['amethyst', 'Аметист']], schemeThemeFor('dark'), 'sm'))}
           ${row('Светлая тема', 'Какая тема применяется в светлом режиме', segHtml('schemeLight', [['ivory', 'Слоновая кость'], ['porcelain', 'Фарфор']], schemeThemeFor('light'), 'sm'))}
           ${row('Боковая панель', kb('⌘\\ — свернуть или развернуть'), segHtml('sidebar', [['full', 'Развёрнута'], ['rail', 'Компактная']], $('#app').classList.contains('collapsed') ? 'rail' : 'full', 'sm'))}
-          ${row('Анимации', 'Бегущий свет, «дыхание» и переходы', segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], P.gfx, 'sm'))}
-          <div class="set-row ${P.gfx === 'perf' ? 'is-disabled' : ''}" id="setGlowRow"><div class="tx"><b>Свечение при наведении</b><span>Мягкая подсветка карточек и курсора в стиле macOS</span></div>${sw('glow')}</div>
-          <div class="set-row ${(P.gfx === 'perf' || P.glow === false) ? 'is-disabled' : ''}" id="setGlowModeRow"><div class="tx"><b>Цвет свечения</b><span>По умолчанию подстраивается под активную тему оформления</span></div>${segHtml('glowMode', [['theme', 'По теме'], ['custom', 'Свой цвет']], P.glowMode === 'custom' ? 'custom' : 'theme', 'sm')}</div>
-          <div class="set-row ${(P.gfx === 'perf' || P.glow === false) ? 'is-disabled' : ''}" id="glowCustomRow" ${P.glowMode === 'custom' ? '' : 'hidden'}><div class="tx"><b>Палитра свечения</b><span>Деликатные оттенки с защитой от перенасыщения</span></div><div class="glow-palette">${GLOW_PALETTE.map(([hex, lbl]) => `<button type="button" class="glow-sw ${(P.glowColor || '#5E8BFF').toUpperCase() === hex ? 'on' : ''}" data-act="glowSw" data-color="${hex}" style="--gc-sw:${hex}" title="${lbl}" aria-label="${lbl}"></button>`).join('')}<label class="glow-picker-wrap" style="--gc-custom:${esc(P.glowColor || '#5E8BFF')}"><span class="glow-picker-dot" id="glowPickerDot"></span><span>Свой оттенок</span><input type="color" id="glowColorPicker" value="${esc(P.glowColor || '#5E8BFF')}" ${(P.gfx === 'perf' || P.glow === false) ? 'disabled' : ''} aria-label="Выбрать свой цвет свечения"></label></div></div>
-          <div class="set-row ${(P.gfx === 'perf' || P.glow === false) ? 'is-disabled' : ''}" id="setGlowIntRow"><div class="tx"><b>Интенсивность свечения</b><span>Мягкий потолок яркости без пересвета поверхностей</span></div><div class="uiscale"><input type="range" class="fscale-r" id="glowIntRange" min="10" max="100" step="5" value="${clamp(+(P.glowIntensity ?? 45), 10, 100)}" ${(P.gfx === 'perf' || P.glow === false) ? 'disabled' : ''} style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="glowIntVal">${clamp(+(P.glowIntensity ?? 45), 10, 100)} %</span><button class="btn sm" data-act="glowDef" data-gd="int" ${(P.gfx === 'perf' || P.glow === false) ? 'disabled' : ''}>По умолчанию</button></div></div>
-          <div class="set-row ${(P.gfx === 'perf' || P.glow === false) ? 'is-disabled' : ''}" id="setGlowSatRow"><div class="tx"><b>Насыщенность свечения</b><span>Сбалансированная глубина оттенка без кислотных цветов</span></div><div class="uiscale"><input type="range" class="fscale-r" id="glowSatRange" min="20" max="100" step="5" value="${clamp(+(P.glowSat ?? 60), 20, 100)}" ${(P.gfx === 'perf' || P.glow === false) ? 'disabled' : ''} style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="glowSatVal">${clamp(+(P.glowSat ?? 60), 20, 100)} %</span><button class="btn sm" data-act="glowDef" data-gd="sat" ${(P.gfx === 'perf' || P.glow === false) ? 'disabled' : ''}>По умолчанию</button></div></div>
+          ${row('Режим графики', 'Визуал — все эффекты; Баланс — без свечения и размытия; Скорость — без анимаций, свечения и прозрачности', segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], P.gfx, 'sm'))}
+          <div class="set-row ${P.gfx !== 'beauty' ? 'is-disabled' : ''}" id="setGlowModeRow"><div class="tx"><b>Параметры свечения</b><span>Свечение включено только в режиме «Визуал»; в «Балансе» и «Скорости» оно выключено</span></div>${segHtml('glowMode', [['theme', 'По теме'], ['custom', 'Свой цвет']], P.glowMode === 'custom' ? 'custom' : 'theme', 'sm')}</div>
+          <div class="set-row ${(P.gfx !== 'beauty') ? 'is-disabled' : ''}" id="glowCustomRow" ${P.glowMode === 'custom' ? '' : 'hidden'}><div class="tx"><b>Палитра свечения</b><span>Деликатные оттенки с защитой от перенасыщения</span></div><div class="glow-palette">${GLOW_PALETTE.map(([hex, lbl]) => `<button type="button" class="glow-sw ${(P.glowColor || '#5E8BFF').toUpperCase() === hex ? 'on' : ''}" data-act="glowSw" data-color="${hex}" style="--gc-sw:${hex}" title="${lbl}" aria-label="${lbl}"></button>`).join('')}<label class="glow-picker-wrap" style="--gc-custom:${esc(P.glowColor || '#5E8BFF')}"><span class="glow-picker-dot" id="glowPickerDot"></span><span>Свой оттенок</span><input type="color" id="glowColorPicker" value="${esc(P.glowColor || '#5E8BFF')}" ${(P.gfx !== 'beauty') ? 'disabled' : ''} aria-label="Выбрать свой цвет свечения"></label></div></div>
+          <div class="set-row ${(P.gfx !== 'beauty') ? 'is-disabled' : ''}" id="setGlowIntRow"><div class="tx"><b>Интенсивность свечения</b><span>Мягкий потолок яркости без пересвета поверхностей</span></div><div class="uiscale"><input type="range" class="fscale-r" id="glowIntRange" min="10" max="100" step="5" value="${clamp(+(P.glowIntensity ?? 45), 10, 100)}" ${(P.gfx !== 'beauty') ? 'disabled' : ''} style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="glowIntVal">${clamp(+(P.glowIntensity ?? 45), 10, 100)} %</span><button class="btn sm" data-act="glowDef" data-gd="int" ${(P.gfx !== 'beauty') ? 'disabled' : ''}>По умолчанию</button></div></div>
+          <div class="set-row ${(P.gfx !== 'beauty') ? 'is-disabled' : ''}" id="setGlowSatRow"><div class="tx"><b>Насыщенность свечения</b><span>Сбалансированная глубина оттенка без кислотных цветов</span></div><div class="uiscale"><input type="range" class="fscale-r" id="glowSatRange" min="20" max="100" step="5" value="${clamp(+(P.glowSat ?? 60), 20, 100)}" ${(P.gfx !== 'beauty') ? 'disabled' : ''} style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="glowSatVal">${clamp(+(P.glowSat ?? 60), 20, 100)} %</span><button class="btn sm" data-act="glowDef" data-gd="sat" ${(P.gfx !== 'beauty') ? 'disabled' : ''}>По умолчанию</button></div></div>
           ${row('Масштаб страниц', kb('⌘+ / ⌘− / ⌘0'), `<div style="display:flex;align-items:center;gap:6px"><button class="btn sm icon" data-set="zoom-" aria-label="Уменьшить">${ico('minus')}</button><b class="num" id="setZoom" style="min-width:48px;text-align:center">${S.ui.zoom}%</b><button class="btn sm icon" data-set="zoom+" aria-label="Увеличить">${ico('plus')}</button></div>`)}
         </div></section>
       <section class="set-sec" id="set-fonts"><h4>Шрифты</h4>
@@ -9451,6 +9565,7 @@ function openSettings(sec) {
       <section class="set-sec" id="set-data"><h4>Данные</h4><div class="set-card">
         ${row('Экспорт данных', 'Пространства, закладки, история и задачи в JSON', btn('export', ico('upload') + 'Экспорт'))}
         ${row('Демо-данные', 'Помечены отдельно и не смешиваются с вашими', btn('demo-reset', 'Обновить') + btn('demo-clear', 'Удалить', 'ghost'))}
+        ${row('Удалить пользовательские данные', 'Локальный профиль, SHELTER ID, история, пароли, cookies и настройки. Файлы в общей папке «Загрузки» останутся.', btn('delete-user-data', 'Удалить и закрыть…', 'danger'))}
         ${row('Сбросить SHELTER', 'Вернуть настройки и данные к исходным', btn('reset', 'Сбросить…', 'danger'))}
       </div></section>
       <section class="set-sec" id="set-keys"><h4>Горячие клавиши</h4><div class="set-card" style="padding:4px 16px 8px">${kbdGrid()}</div></section>
@@ -9480,6 +9595,7 @@ function openSettings(sec) {
     else if (a === 'demo-reset') { clearDemo(); seedDemo(); saveNow(); renderAll(); toast('Демо-данные обновлены', { icon: 'ref' }); }
     else if (a === 'demo-clear') { clearDemo(); saveNow(); renderAll(); toast('Демо-данные удалены', { icon: 'trash' }); }
     else if (a === 'reset') { if (await confirmDlg({ title: 'Сбросить SHELTER?', text: 'Все пространства, вкладки, история и настройки вернутся к исходным.', ok: 'Сбросить', danger: true, icon: 'undo' })) { ['theme', 'ghost', 'searchEngine', 'spaces', 'currentSpace', 'activeTabId', 'bookmarks', 'visits', 'board', 'boards', 'ext', 'lux', 'ai'].forEach(k => store.del('shelter:' + k)); location.reload(); } }
+    else if (a === 'delete-user-data') { if (await requestUserDataDeletion()) closeModal(m); }
     else if (a === 'pers-save') persSave();
     else if (a === 'pers-del') persDel();
     else if (a === 'update') { b.disabled = true; b.innerHTML = '<span class="think"><i></i><i></i><i></i></span>'; setTimeout(() => { b.disabled = false; b.textContent = 'Проверить обновления'; toast('У вас последняя версия — ' + VERSION, { icon: 'check' }); }, 1300); }
@@ -9549,11 +9665,20 @@ function installFontScale() {
 }
 SEG.startup = v => { S.prefs.startup = v; persist(); };
 SEG.sidebar = v => { if ((v === 'rail') !== $('#app').classList.contains('collapsed')) toggleSidebar(); };
-SEG.motion = v => { S.prefs.gfx = ['beauty', 'balance', 'perf'].includes(v) ? v : 'balance'; S.prefs.motion = S.prefs.gfx === 'perf' ? 'off' : (S.prefs.gfx === 'beauty' ? 'full' : 'reduced'); persist(); document.documentElement.classList.toggle('reduce-motion', S.prefs.motion === 'reduced'); applyGfx(); Hero.relayout(); toast('Режим: ' + ({ beauty: 'Визуал', balance: 'Баланс', perf: 'Скорость (для слабых ПК)' })[S.prefs.gfx], { icon: 'sparkles' }); };
+SEG.motion = v => setGfxMode(v);
 function applyGfx() {
-  const gfx = S.prefs.gfx || 'balance';
-  document.body.dataset.gfx = gfx;
+  const gfx = ['beauty', 'balance', 'perf'].includes(S.prefs.gfx) ? S.prefs.gfx : 'balance';
+  S.prefs.gfx = gfx;
+  S.prefs.motion = gfx === 'perf' ? 'off' : 'full';
+  S.prefs.glow = gfx === 'beauty';
   const isPerf = gfx === 'perf';
+  const isBeauty = gfx === 'beauty';
+  const root = document.documentElement;
+  const body = document.body;
+  body.dataset.gfx = gfx;
+  body.classList.toggle('glow-off', !isBeauty);
+  root.classList.toggle('reduce-motion', isPerf);
+  $$('.seg[data-seg="motion"]').forEach(seg => setSegValue(seg, gfx));
   const gr = $('#glassOpRange'), gv = $('#glassOpVal'), gs = $('#glassOpSec');
   if (gr) {
     gr.disabled = isPerf;
@@ -9563,10 +9688,37 @@ function applyGfx() {
     syncRangeFill(gr);
   }
   if (gs) gs.classList.toggle('is-disabled', isPerf);
-  const qg = $('#qGlowRow'); if (qg) qg.classList.toggle('is-disabled', isPerf);
-  const sg = $('#setGlowRow'); if (sg) sg.classList.toggle('is-disabled', isPerf);
   try { syncSwitches(); } catch (_) {}
   if (typeof applyGlowPrefs === 'function') applyGlowPrefs();
+}
+function setGfxMode(value, options = {}) {
+  const gfx = ['beauty', 'balance', 'perf'].includes(value) ? value : 'balance';
+  const save = options.persist !== false;
+  const notify = options.notify !== false;
+  const hadVt = cancelThemeMotion(true);
+  if (hadVt) { try { Hero.resume(); } catch (_) {} }
+  cancelModeAnimations();
+  const root = document.documentElement;
+  const body = document.body;
+  // Tear down the previous state synchronously. No frame can paint between this
+  // reset and the complete new state installed below.
+  root.classList.remove('reduce-motion', 'theme-anim', 'vt-theme');
+  body.classList.remove('glow-off');
+  body.removeAttribute('data-gfx');
+  try { Hero.clear(); } catch (_) {}
+  try { if (typeof window.shelterClearGlowSpot === 'function') window.shelterClearGlowSpot(); } catch (_) {}
+  S.prefs.gfx = gfx;
+  S.prefs.motion = gfx === 'perf' ? 'off' : 'full';
+  S.prefs.glow = gfx === 'beauty';
+  applyGfx();
+  if (gfx === 'beauty') {
+    try { Hero.relayout(); } catch (_) {}
+  } else {
+    try { Hero.clear(); } catch (_) {}
+  }
+  if (save) persist();
+  if (notify) toast('Режим: ' + ({ beauty: 'Визуал', balance: 'Баланс', perf: 'Скорость (для слабых ПК)' })[gfx], { icon: 'sparkles' });
+  return gfx;
 }
 function hexToRgbTuple(hex) {
   const m = String(hex || '').trim().match(/^#?([0-9a-f]{6})$/i);
@@ -9612,7 +9764,8 @@ function hslToRgb(h, s, l) {
 function applyGlowPrefs() {
   const P = S.prefs || PREF_DEFAULTS;
   const isPerf = P.gfx === 'perf';
-  const off = P.glow === false || isPerf;
+  const off = P.gfx !== 'beauty';
+  P.glow = !off;
   document.body.classList.toggle('glow-off', off);
   const mode = P.glowMode === 'custom' ? 'custom' : 'theme';
   const th = THEMES[S.theme] || THEMES.obsidian;
@@ -9637,8 +9790,8 @@ function applyGlowPrefs() {
   root.setProperty('--glow-spot-a', spotA);
   root.setProperty('--glow-sh-a', shA);
   root.setProperty('--glow-bdr-p', bdrP + '%');
-  const qg = $('#qGlowRow'); if (qg) qg.classList.toggle('is-disabled', isPerf);
-  const sg = $('#setGlowRow'); if (sg) sg.classList.toggle('is-disabled', isPerf);
+  root.setProperty('--glow-soft', off ? 'none' : `0 18px 42px -22px rgb(${r} ${g} ${b} / .52)`);
+  root.setProperty('--glow-ring', off ? 'none' : `0 0 0 1px rgb(${r} ${g} ${b} / .16)`);
   ['#setGlowModeRow', '#glowCustomRow', '#setGlowIntRow', '#setGlowSatRow'].forEach(sel => {
     const el = $(sel); if (el) el.classList.toggle('is-disabled', off);
   });
@@ -9969,7 +10122,7 @@ function quickPanelHtml() {
   const bmPos = ['top', 'center', 'bottom'].includes(S.ui.bmPos) ? S.ui.bmPos : 'center';
   const glassOp = clamp(+S.prefs.glassOp || 82, 40, 100);
   const shownOp = isPerf ? 100 : glassOp;
-  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}<div class="q-row ${isPerf ? 'is-disabled' : ''}" id="qGlowRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Свечение</div>${swHtml('glow', !isPerf && S.prefs.glow !== false, isPerf)}</div></div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec q-theme-sec" id="quickThemeSec"><div class="q-h">Цветовая тема</div>${themeSwatchesMarkup()}</div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
+  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}</div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec q-theme-sec" id="quickThemeSec"><div class="q-h">Цветовая тема</div>${themeSwatchesMarkup()}</div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
 }
 function syncQuickPanel(full) {
   const el = OV.menu && OV.menu.el;
@@ -10311,7 +10464,46 @@ window.shelterTest = {
   state: () => S,
   recordVisit: (u, t, id) => recordVisit(u, t, id),
   pomo: () => pomoState(),
-  visits: () => S.visits
+  visits: () => S.visits,
+  setGfxMode: (mode, options) => setGfxMode(mode, options || {}),
+  gfxSnapshot: () => {
+    const body = document.body, root = document.documentElement;
+    const ambient = document.querySelector('.ambient i');
+    const motionSample = document.querySelector('.tb-btn') || document.querySelector('.btn');
+    const probeGlass = document.createElement('div');
+    probeGlass.className = 'menu';
+    probeGlass.style.cssText = 'position:fixed;left:-10000px;top:-10000px;width:16px;height:16px;pointer-events:none';
+    body.appendChild(probeGlass);
+    const glassCss = getComputedStyle(probeGlass);
+    const probeSurface = document.createElement('div');
+    probeSurface.className = 'card';
+    probeSurface.style.cssText = 'position:fixed;left:-10000px;top:-10000px;width:16px;height:16px;pointer-events:none';
+    body.appendChild(probeSurface);
+    const shadowCss = getComputedStyle(probeSurface);
+    const motionCss = motionSample ? getComputedStyle(motionSample) : null;
+    const hero = typeof Hero !== 'undefined' && Hero.debug ? Hero.debug() : {};
+    const snapshot = {
+      gfx: S.prefs.gfx, motion: S.prefs.motion, glow: S.prefs.glow,
+      dataGfx: body.dataset.gfx, glowOff: body.classList.contains('glow-off'),
+      reduceMotion: root.classList.contains('reduce-motion'),
+      blur: getComputedStyle(body).getPropertyValue('--bf-glass').trim(),
+      menuBlur: getComputedStyle(body).getPropertyValue('--bf-menu').trim(),
+      glowSoft: getComputedStyle(body).getPropertyValue('--glow-soft').trim(),
+      glassBackdrop: glassCss.backdropFilter,
+      glassOpacity: getComputedStyle(body).getPropertyValue('--glass-op').trim(),
+      animation: ambient ? getComputedStyle(ambient).animationName : '',
+      transition: motionCss ? motionCss.transitionDuration : '',
+      shadow: shadowCss ? shadowCss.boxShadow : '',
+      spotLights: document.querySelectorAll('.spot-on').length,
+      cardBackground: shadowCss ? shadowCss.backgroundColor : '',
+      backgroundImage: shadowCss.backgroundImage,
+      hero: hero
+    };
+    probeSurface.remove();
+    probeGlass.remove();
+    return snapshot;
+  },
+  openSettings: sec => openSettings(sec)
 };
 window.shelterApplyExt = list => applyExtList(list);
 window.navBack = goStackBack;
@@ -10325,7 +10517,6 @@ window.shelter = { version: VERSION, theme: k => setTheme(k), ghost: () => toggl
 function init() {
   load();
   document.documentElement.setAttribute('data-theme', S.theme);
-  if (S.prefs.motion === 'reduced') document.documentElement.classList.add('reduce-motion');
   applyGfx(); applyGlassOp(); applyGlowPrefs(); installFontScale();
   const app = $('#app');
   if (S.ui.collapsed || (innerWidth < 980 && innerWidth > 720)) app.classList.add('collapsed');
@@ -10361,8 +10552,19 @@ init();
   var SEL = '.kpi,.tk-stat,.profile-stat,.profile-award-slot,.bm,.ext,.cert,.q-tile,.tabs-card,.day,.ach-card,.tcard,.card,.stats,.chart,.set-card,.eq,.wcol,.site-card,.checkout-card';
   var last = null, lastRect = null, pending = null, raf = 0;
   function clearSpot(){
-    if (last) { last.classList.remove('spot-on'); last = null; lastRect = null; }
+    if (last) {
+      last.classList.remove('spot-on');
+      last.style.removeProperty('--mx'); last.style.removeProperty('--my');
+      last = null; lastRect = null;
+    }
   }
+  function resetSpot(){
+    pending = null;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    clearSpot();
+  }
+  window.shelterClearGlowSpot = resetSpot;
   function invalidateRect(){ lastRect = null; }
   function apply(){
     raf = 0;

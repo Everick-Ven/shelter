@@ -6,6 +6,7 @@
 namespace shelter {
 namespace platform {
 std::string UiResourceDir() { return "./ui"; }
+std::string FiltersDir() { return "./filters"; }
 std::string UserDataDir() {
   const char* h = std::getenv("HOME");
   return std::string(h ? h : ".") + "/.config/SHELTER";

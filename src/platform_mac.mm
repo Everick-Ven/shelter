@@ -279,6 +279,11 @@ std::string UiResourceDir() {
   return std::string([res UTF8String]) + "/ui";
 }
 
+std::string FiltersDir() {
+  NSString* res = [[NSBundle mainBundle] resourcePath];
+  return std::string([res UTF8String]) + "/filters";
+}
+
 std::string UserDataDir() {
   NSArray* dirs = NSSearchPathForDirectoriesInDomains(
       NSApplicationSupportDirectory, NSUserDomainMask, YES);

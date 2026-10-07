@@ -9,6 +9,7 @@
 #include "include/cef_task.h"
 #include "include/cef_thread.h"
 #include "include/wrapper/cef_helpers.h"
+#include "src/blocker.h"
 #include "src/clients.h"
 #include "src/common.h"
 #include "src/platform.h"
@@ -393,6 +394,17 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   }
   if (m == "shell.show") {
     platform::ShowInFolder(Str(a, "path"));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "block.setEnabled") {
+    // UI-настройка «Блокировка трекеров и рекламы»: включаем/выключаем
+    // сетевую и косметическую фильтрацию на нативной стороне.
+    if (!browser || !IsUiBrowser(browser)) {
+      cb->Failure(403, "blocker control is restricted to the SHELTER UI");
+      return true;
+    }
+    blocker::SetEnabled(Flag(a, "on", false));
     cb->Success("{}");
     return true;
   }

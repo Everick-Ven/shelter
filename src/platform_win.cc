@@ -55,6 +55,12 @@ std::string UiResourceDir() {
   return Utf8(path) + "\\ui";
 }
 
+std::string FiltersDir() {
+  std::string d = UiResourceDir();
+  const size_t p = d.find_last_of("\\/");
+  return (p == std::string::npos ? d : d.substr(0, p)) + "\\filters";
+}
+
 std::string UserDataDir() {
   std::string base = KnownFolder(FOLDERID_LocalAppData);
   if (base.empty()) base = ".";

@@ -3622,6 +3622,21 @@ html[data-theme="graphite"] .badge.hot{
           if (N && typeof N.setFullscreen === 'function') N.setFullscreen(on);
           break;
         }
+        case 'blocked': {
+          // Нативный сетевой фильтр реально отменил запрос: ведём честную
+          // статистику вместо прежней синтетической.
+          if (S.prefs.trackers === false) break;
+          const n = (d.t | 0) + (d.a | 0);
+          if (!n) break;
+          const k = dayKey(Date.now()), b = S.blocks[k] || (S.blocks[k] = { t: 0, a: 0, c: 0, f: 0 });
+          b.t += d.t | 0; b.a += d.a | 0;
+          const t = curTab(); if (t) t.blocked = (t.blocked || 0) + n;
+          persist();
+          raf(() => { syncControls(); renderHeroFoot(); });
+          const sn = $('#shieldN'); if (sn) sn.textContent = fmtN(todayBlocked());
+          $$('[data-count]').forEach(el => { el.textContent = fmtN((curTab() && curTab().blocked) || 0); });
+          break;
+        }
         case 'ext':
           if (typeof window.shelterApplyExt === 'function') window.shelterApplyExt(d.list);
           break;
@@ -4128,17 +4143,7 @@ function seedVisits() {
   }
   return out;
 }
-function seedBlocks() {
-  const R = rng(777), o = {};
-  for (let d = 60; d >= 0; d--) {
-    const k = dayKey(Date.now() - d * DAY), we = [0, 6].includes(new Date(Date.now() - d * DAY).getDay());
-    const s = we ? .6 : 1;
-    o[k] = { t: Math.round((70 + R() * 170) * s), a: Math.round((24 + R() * 70) * s), c: Math.round((12 + R() * 40) * s), f: Math.round((2 + R() * 14) * s), demo: true };
-  }
-  const tk = dayKey(Date.now()); const h = new Date().getHours() / 24;
-  Object.keys(o[tk]).forEach(k => { if (k !== 'demo') o[tk][k] = Math.round(o[tk][k] * Math.max(.15, h)); });
-  return o;
-}
+/* seedBlocks удалена: блокировки считаются только реально (нативный фильтр). */
 function seedTasks(b) {
   const d = n => ruDate(Date.now() + n * DAY);
   const mk = (title, project, prio, term, days, dl, format, assignee, status, comment) => ({ id: uid('task'), title, project, created: d(-3), prio: status === 'Готово' ? 'Выполнено' : prio, term, days, deadline: dl, format, assignee, comment: comment || '', status, demo: true });
@@ -4203,7 +4208,7 @@ function seedMisc() {
 }
 function seedDemo() {
   S.visits = S.visits.concat(seedVisits()).sort((a, b) => a.at - b.at);
-  S.blocks = Object.assign(seedBlocks(), S.blocks);
+  S.blocks = S.blocks || {};
   if (!S.board || !S.board.tasks || !S.board.tasks.length) { S.board = S.board || defaultBoard(); seedTasks(S.board); }
   if (!S.chats.length) seedChats();
   seedMisc();
@@ -4694,6 +4699,7 @@ function toggleSetting(key, el) {
   if (achievementBefore) reconcileProfileAchievementChange(achievementBefore);
   syncSwitches();
   if (key === 'glow' || key === 'cleanSurf') applyGlowPrefs();
+  if (key === 'trackers') applyBlockerPref();
   const tt = PREF_TOAST[key]; if (tt) toast(S.prefs[key] ? tt[0] : tt[1], { icon: tt[2] });
   if (key === 'dragTabs') renderTabs();
   if (tracksAchievement) { renderHeroFoot(); refreshPage('profile'); }
@@ -5236,7 +5242,7 @@ function addTab(url = 'shelter.dev/start', { activate = true, space = S.currentS
   sp.tabs.push(tab); justAdded = tab.id;
   const m = urlMeta(url);
   if (m.kind === 'search') recordProfileSearchEngine(m.engine);
-  if (m.kind !== 'internal') { recordVisit(url, m.title, tab.id); if (m.kind === 'site') tab.blocked = countBlocks(m); }
+  if (m.kind !== 'internal') { recordVisit(url, m.title, tab.id); tab.blocked = 0; /* счёт ведёт нативный фильтр (событие blocked) */ }
   if (activate && space === S.currentSpace) activateTab(tab.id, true); else { renderTabs(); persist(); }
   return tab;
 }
@@ -5487,7 +5493,7 @@ function loadUrl(tab, url, { push = true } = {}) {
     if (histNorm(tab.stack[tab.stack.length - 1]) !== nu) tab.stack.push(url);
     tab.idx = tab.stack.length - 1;
   }
-  if (m.kind !== 'internal') { recordVisit(url, m.title, tab.id); tab.blocked = m.kind === 'site' ? countBlocks(m) : 0; }
+  if (m.kind !== 'internal') { recordVisit(url, m.title, tab.id); tab.blocked = 0; }
   persist(); renderTabs();
   if (tab.id === S.activeTabId) { progress(); renderView(true); }
 }
@@ -5537,15 +5543,8 @@ function dedupeVisits() {
   }
   if (out.length !== S.visits.length) { S.visits = out; persist(); }
 }
-function countBlocks(m) {
-  if (!S.prefs.trackers) return 0;
-  const R = rng(hashStr(m.host) + (Date.now() / 6e4 | 0));
-  const add = { t: 3 + (R() * 16 | 0), a: 1 + (R() * 8 | 0), c: R() * 6 | 0, f: S.prefs.fp ? R() * 3 | 0 : 0 };
-  const k = dayKey(Date.now()), b = S.blocks[k] || (S.blocks[k] = { t: 0, a: 0, c: 0, f: 0 });
-  b.t += add.t; b.a += add.a; b.c += add.c; b.f += add.f;
-  raf(() => { syncControls(); renderHeroFoot(); });
-  return add.t + add.a + add.c + add.f;
-}
+/* Статистику блокировок больше никто не «сочиняет»: счёт ведёт нативный
+   сетевой фильтр, события приходят в shelterCefDispatch('blocked'). */
 function progress() {
   if (REDUCED()) return; const p = $('#progress');
   p.getAnimations().forEach(a => a.cancel());
@@ -8245,7 +8244,14 @@ try {
   if (window.shelterNative && typeof window.shelterNative.onDownloadPrompt === 'function') {
     window.shelterNative.onDownloadPrompt((info) => dlAsk(info));
   }
+  applyBlockerPref();
 } catch (_) {}
+/* Настоящая блокировка трекеров/рекламы живёт в нативной части (сетевой
+   фильтр + косметический CSS); сюда настройка приходит тумблером. */
+function applyBlockerPref() {
+  const n = window.shelterNative;
+  if (n && typeof n.blockSetEnabled === 'function') n.blockSetEnabled(S.prefs.trackers !== false);
+}
 function dlPanelDone(d) {
   if (d && d.demo) return;
   const f = $('#dlFloat'); if (!f || dlPanelOff) return;

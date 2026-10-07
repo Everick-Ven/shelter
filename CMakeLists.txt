@@ -46,6 +46,7 @@ set(SHELTER_COMMON_SRCS
   src/ui_scheme.cc src/ui_scheme.h
   src/key_map.cc src/key_map.h
   src/clients.cc src/clients.h
+  src/blocker.cc src/blocker.h
   src/shell.cc src/shell_bridge.cc src/shell.h
   src/browser_app.cc src/browser_app.h
   src/platform.h src/security_paths.h
@@ -86,6 +87,7 @@ if(OS_WINDOWS)
   COPY_FILES("${CEF_TARGET}" "${CEF_RESOURCE_FILES}" "${CEF_RESOURCE_DIR}" "${CEF_TARGET_OUT_DIR}")
   add_custom_command(TARGET ${CEF_TARGET} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${SHELTER_UI_DIR}" "${CEF_TARGET_OUT_DIR}/ui"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/resources/filters" "${CEF_TARGET_OUT_DIR}/filters"
     VERBATIM)
   if(USE_SANDBOX)
     SET_LPAC_ACLS("${CEF_TARGET}")
@@ -150,6 +152,7 @@ if(OS_MAC)
   add_custom_command(TARGET ${CEF_TARGET} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CEF_APP}/Contents/Resources"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${SHELTER_UI_DIR}" "${CEF_APP}/Contents/Resources/ui"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/resources/filters" "${CEF_APP}/Contents/Resources/filters"
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/mac/Shelter.icns" "${CEF_APP}/Contents/Resources/Shelter.icns"
     VERBATIM)
 endif()

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "include/cef_client.h"
+#include "include/cef_resource_request_handler.h"
 #include "include/wrapper/cef_message_router.h"
 
 namespace shelter {
@@ -100,7 +101,8 @@ class TabClient : public CefClient,
                   public CefDownloadHandler,
                   public CefKeyboardHandler,
                   public CefFindHandler,
-                  public CefRequestHandler {
+                  public CefRequestHandler,
+                  public CefResourceRequestHandler {
  public:
   explicit TabClient(const std::string& tab_id) : tab_id_(tab_id) {}
   const std::string& tab_id() const { return tab_id_; }
@@ -197,6 +199,17 @@ class TabClient : public CefClient,
                         const CefString& target_url,
                         cef_window_open_disposition_t target_disposition,
                         bool user_gesture) override;
+  CefRefPtr<CefResourceRequestHandler> GetResourceRequestHandler(
+      CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request, bool is_navigation, bool is_download,
+      const CefString& request_initiator,
+      bool& disable_default_handling) override;
+
+  // CefResourceRequestHandler — блокировка трекеров/рекламы.
+  cef_return_value_t OnBeforeResourceLoad(
+      CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request,
+      CefRefPtr<CefCallback> callback) override;
 
  private:
   const std::string tab_id_;
@@ -207,17 +220,29 @@ class TabClient : public CefClient,
 // Клиент всплывающих окон (window.open с features, DevTools).
 class PopupClient : public CefClient,
                     public CefLifeSpanHandler,
-                    public CefDisplayHandler {
+                    public CefDisplayHandler,
+                    public CefRequestHandler,
+                    public CefResourceRequestHandler {
  public:
   PopupClient() = default;
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
+  CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
   void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
   void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
   void OnTitleChange(CefRefPtr<CefBrowser> browser,
                      const CefString& title) override;
   void OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
                               bool fullscreen) override;
+  CefRefPtr<CefResourceRequestHandler> GetResourceRequestHandler(
+      CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request, bool is_navigation, bool is_download,
+      const CefString& request_initiator,
+      bool& disable_default_handling) override;
+  cef_return_value_t OnBeforeResourceLoad(
+      CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request,
+      CefRefPtr<CefCallback> callback) override;
 
  private:
   IMPLEMENT_REFCOUNTING(PopupClient);

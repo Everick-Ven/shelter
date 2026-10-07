@@ -33,6 +33,7 @@
 #include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 #include "src/clients.h"
+#include "src/blocker.h"
 #include "src/common.h"
 #include "src/key_map.h"
 #include "src/platform.h"
@@ -1709,16 +1710,35 @@ void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
   ExtPushList();
 }
 
+// Косметическая фильтрация: прячем типовые рекламные контейнеры стилем.
+// Инъекция идемпотентна (проверка по атрибуту) и ставится и на старт, и на
+// конец загрузки: на старте контекст может уже существовать (SPA-переходы),
+// на конце — гарантированно закрывает страницы с поздним контекстом.
+static void InjectBlockerCss(CefRefPtr<CefFrame> frame) {
+  if (!frame || !frame->IsValid() || !frame->IsMain()) return;
+  const std::string& css = blocker::CosmeticCss();
+  if (css.empty()) return;
+  const std::string js =
+      "(function(){if(document.querySelector('style[data-shelter-blocker]'))"
+      "return;var s=document.createElement('style');"
+      "s.setAttribute('data-shelter-blocker','1');s.textContent=" +
+      JsString(css) +
+      ";(document.head||document.documentElement).appendChild(s);})();";
+  frame->ExecuteJavaScript(js, frame->GetURL(), 0);
+}
+
 void Shell::OnTabLoadStart(CefRefPtr<CefBrowser> browser,
                            CefRefPtr<CefFrame> frame) {
   CEF_REQUIRE_UI_THREAD();
   InjectExtScripts(browser, frame, true);
+  if (blocker::Enabled()) InjectBlockerCss(frame);
 }
 
 void Shell::OnTabLoadEnd(CefRefPtr<CefBrowser> browser,
                          CefRefPtr<CefFrame> frame) {
   CEF_REQUIRE_UI_THREAD();
   InjectExtScripts(browser, frame, false);
+  if (blocker::Enabled()) InjectBlockerCss(frame);
 }
 
 void Shell::OnTabDownloadUpdated(

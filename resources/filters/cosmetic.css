@@ -1,0 +1,47 @@
+/* SHELTER blocker: косметическая фильтрация (скрытие рекламных контейнеров).
+   Производный урезанный набор из EasyList/AdGuard cosmetic-правил: только
+   устойчивые, характерные селекторы, чтобы не ломать полезную разметку. */
+ins.adsbygoogle,
+.adsbygoogle,
+[id^="google_ads_iframe"],
+[id^="div-gpt-ad"],
+[id^="aswift_"],
+.ad-slot,
+.ads-slot,
+.ad-banner,
+.ad-container,
+.ad-wrapper,
+.ad-frame,
+.ad-unit,
+.adzone,
+.ad-placeholder,
+.ad-rectangle,
+.ad-leaderboard,
+.ad-sidebar,
+.ad-block,
+.adbox,
+.advert-wrap,
+.advertising-block,
+.sponsored-label,
+.promo-popup,
+.popunder,
+.popup-overlay-ad,
+[data-ad-module],
+[data-ad-client],
+[data-ad-slot],
+.ya-direct,
+.yandex-direct,
+.mgid-ad,
+.taboola-block,
+.outbrain-block,
+#teasers,
+.teasers,
+#popunder,
+#banner-top,
+#banner-bottom,
+#skyscraper {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+}

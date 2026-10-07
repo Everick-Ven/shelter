@@ -5,6 +5,7 @@
 #include "include/cef_command_line.h"
 #include "include/cef_parser.h"
 #include "include/wrapper/cef_helpers.h"
+#include "src/blocker.h"
 #include "src/common.h"
 #include "src/shell.h"
 
@@ -228,6 +229,45 @@ bool TabClient::OnBeforeBrowse(CefRefPtr<CefBrowser>,
   return scheme == kUiScheme;
 }
 
+// ---- блокировка трекеров/рекламы (сетевой этап) ----------------------------
+
+namespace {
+
+// Отменяет сторонние запросы к доменам-трекерам и рекламные URL-шаблоны.
+// Навигации основного фрейма не трогаем: сайт, открытый пользователем
+// осознанно, обязан загрузиться.
+cef_return_value_t BlockerCheck(CefRefPtr<CefFrame> frame,
+                                CefRefPtr<CefRequest> request) {
+  if (!request || !::shelter::blocker::Enabled()) return RV_CONTINUE;
+  const std::string url = request->GetURL().ToString();
+  if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0)
+    return RV_CONTINUE;
+  if (frame && frame->IsMain()) return RV_CONTINUE;
+  char kind = 0;
+  const std::string page = frame ? frame->GetURL().ToString() : std::string();
+  if (!::shelter::blocker::ShouldBlock(url, page, &kind)) return RV_CONTINUE;
+  std::string host;
+  CefURLParts parts;
+  if (CefParseURL(CefString(url), parts))
+    host = CefString(&parts.host).ToString();
+  ::shelter::blocker::RecordBlock(host, kind);
+  return RV_CANCEL;
+}
+
+}  // namespace
+
+CefRefPtr<CefResourceRequestHandler> TabClient::GetResourceRequestHandler(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, CefRefPtr<CefRequest>, bool,
+    bool, const CefString&, bool&) {
+  return this;
+}
+
+cef_return_value_t TabClient::OnBeforeResourceLoad(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
+    CefRefPtr<CefRequest> request, CefRefPtr<CefCallback>) {
+  return BlockerCheck(frame, request);
+}
+
 bool TabClient::OnBeforePopup(CefRefPtr<CefBrowser> browser,
                               CefRefPtr<CefFrame>, int,
                               const CefString& target_url,
@@ -393,6 +433,19 @@ void PopupClient::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
   if (auto view = CefBrowserView::GetForBrowser(browser)) {
     if (auto window = view->GetWindow()) window->SetFullscreen(fullscreen);
   }
+}
+
+// Всплывающие окна — тоже веб-контент: трекеры блокируем и в них.
+CefRefPtr<CefResourceRequestHandler> PopupClient::GetResourceRequestHandler(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, CefRefPtr<CefRequest>, bool,
+    bool, const CefString&, bool&) {
+  return this;
+}
+
+cef_return_value_t PopupClient::OnBeforeResourceLoad(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
+    CefRefPtr<CefRequest> request, CefRefPtr<CefCallback>) {
+  return BlockerCheck(frame, request);
 }
 
 }  // namespace shelter

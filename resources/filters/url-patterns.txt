@@ -1,0 +1,32 @@
+# SHELTER blocker: подстроки URL, блокируемые в любых запросах
+# (first-party и third-party). Держим список консервативным, чтобы не ломать
+# функциональные ресурсы: только явные рекламные/трекерные пути и скрипты.
+/pagead/
+/adsbygoogle.js
+/adsbygoogle
+doubleclick.net
+/facebook.net/tr
+/connect.facebook.net/signals
+/streak.com/pixel
+/redditstatic.com/ads/pixel
+/adservice.
+/adv/sponsor
+/popunder.js
+/popunder/
+/clickunder.
+/teaser/
+/teasers/
+/mgid-adsserver
+/adsystem/
+/adserver/
+/adfarm.
+/admentor/
+/adriver.core.js
+/directadvert.
+/marketgid.
+/promo/banner
+/rotaban/
+/exchange-links.
+/counters/counter.js
+/top100.
+/openstat.

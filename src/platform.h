@@ -13,6 +13,10 @@ namespace platform {
 // Каталог с ресурсами UI (index.html, host-bridge.js, иконки).
 std::string UiResourceDir();
 
+// Каталог списков блокировщика (tracker-domains.txt, url-patterns.txt,
+// cosmetic.css) — рядом с ресурсами UI, обновляется без пересборки.
+std::string FiltersDir();
+
 // Каталог пользовательских данных (профили, кэш).
 std::string UserDataDir();
 

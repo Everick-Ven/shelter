@@ -3063,10 +3063,12 @@ html[data-theme="graphite"] .badge.hot{
    тяжёлого размытия каждого тайла. Режим «Скорость» по-прежнему отключает
    backdrop-filter (существующие правила !important выше по каскаду).
    Адаптация под ограничения переноса (вёрстка сохранена):
-   - НЕ перенесена геометрия эталона: .main/.app.collapsed .main padding-left,
+   - НЕ перенесена геометрия эталона, кроме зазора панель↔сцена:
+     .main/.app.collapsed .main padding-left (8px, мобильные 6px) добавлен
+     отдельным блоком по запросу пользователя 07.10.2026; остальное —
      .tb height/margin/padding, .bm-mount margin/padding/min-height,
-     .hero-links padding, hover-подъёмы transform:translateY(-2px),
-     мобильные отступы — только декоративные свойства;
+     .hero-links padding, hover-подъёмы transform:translateY(-2px) —
+     только декоративные свойства;
    - НЕ перенесён --glass-op:72 и по-токенные множители прозрачности: альфа
      всплывающих меню проверяется приёмочными пробами по единому --glass-opacity;
    - ::before/::after ниже — декларативные слои, элементы в DOM не добавлены.
@@ -3320,6 +3322,13 @@ body[data-gfx="beauty"] :is(.bm,.ext,.cert,.q-tile:not(.add),.tabs-card,.day:not
 /* Пользователи с пониженной прозрачностью: стекло без тяжёлого размытия. */
 @media (prefers-reduced-transparency:reduce){
   :root{--bf-glass:blur(10px) saturate(130%);--bf-menu:blur(12px) saturate(140%)}
+}
+/* Воздух между панелью и сценой, как в эталоне: правый край левого меню
+   читается отдельной кромкой (добавлено по запросу пользователя 07.10.2026). */
+.main{padding-left:8px}
+.app.collapsed .main{padding-left:8px}
+@media (max-width:720px){
+  .main,.app.collapsed .main{padding-left:6px}
 }
 
 </style>

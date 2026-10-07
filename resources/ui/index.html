@@ -3067,9 +3067,10 @@ html[data-theme="graphite"] .badge.hot{
      07.10.2026: .main/.app.collapsed .main padding-left (8px, мобильные 6px),
      .tb margin 8px 0 10px и padding 0 11px (мобильные margin 6px 0 8px),
      .bm-mount:not([hidden]) margin 0 0 8px + padding 3px 10px,
-     .sb-scroll padding-bottom 8px, .hero-links padding 7px 12px —
-     блок «отступы каркаса» в самом конце; высоты/габариты (.tb height,
-     min-height:34px) и hover-подъёмы transform:translateY(-2px) не взяты;
+     .hero-links padding 7px 12px — блок «отступы каркаса» в самом конце;
+     .sb-scroll padding-bottom:8px отклонён (приёмка требует нулевой зазор
+     после «Расширений»); высоты/габариты (.tb height, min-height:34px)
+     и hover-подъёмы transform:translateY(-2px) не взяты;
    - НЕ перенесён --glass-op:72 и по-токенные множители прозрачности: альфа
      всплывающих меню проверяется приёмочными пробами по единому --glass-opacity;
    - ::before/::after ниже — декларативные слои, элементы в DOM не добавлены.
@@ -3332,13 +3333,14 @@ body[data-gfx="beauty"] :is(.bm,.ext,.cert,.q-tile:not(.add),.tabs-card,.day:not
   .main,.app.collapsed .main{padding-left:6px}
 }
 /* Отступы каркаса из эталона (запрос пользователя 07.10.2026): тулбар-капсула
-   и строка быстрых ссылок получают вертикальные зазоры эталона, низ скролла
-   панели и линки героя — его паддинги — чтобы элементы не слипались.
-   Только spacing: высоты/габариты и hover-подъёмы по-прежнему наши. */
+   и строка быстрых ссылок получают вертикальные зазоры эталона, линки героя —
+   его паддинги — чтобы элементы не слипались. Только spacing: высоты/габариты
+   и hover-подъёмы по-прежнему наши.
+   .sb-scroll padding-bottom:8px из эталона НЕ взят: приёмка сайдбара требует
+   нулевой зазор после «Расширений» (баг «мёртвое пространство» уже чинили). */
 .tb{margin:8px 0 10px}
 .bm-mount:not([hidden]){margin:0 0 8px;padding:3px 10px}
 .hero-links{padding:7px 12px}
-.sb-scroll{padding-bottom:8px}
 @media (min-width:721px){
   .tb{padding:0 11px}
 }

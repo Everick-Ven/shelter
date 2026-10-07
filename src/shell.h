@@ -133,6 +133,10 @@ class Shell {
   void OnTabLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame);
   void OnTabLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame);
 
+  // Анти-отпечаток: настройка из UI и рассылка состояния рендерерам.
+  void SetFpEnabled(bool on);
+  void PushFpState(CefRefPtr<CefBrowser> browser);
+
   // ---- расширения (Chrome Web Store / .crx) ----
   void ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
   void ExtInstall(const std::string& src);
@@ -226,6 +230,8 @@ class Shell {
   // The accepted map also retains the CEF-suggested filename as a safe fallback.
   std::map<std::string, std::string> accepted_downloads_;
   std::map<std::string, ActiveDownload> active_downloads_;
+  // Включён ли «Анти-отпечаток» (шум Canvas/WebGL/Audio в рендерере).
+  bool fp_enabled_ = false;
   // id -> {временный путь («не подтверждено», *.crdownload), итоговый путь}.
   // Пока загрузка идёт, файл виден в папке под временным именем и получает
   // окончательное имя только после полного завершения.

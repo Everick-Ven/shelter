@@ -361,6 +361,20 @@ void TabClient::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
   Shell::Get().OnTabFullscreen(browser, fullscreen);
 }
 
+bool TabClient::OnConsoleMessage(CefRefPtr<CefBrowser>, cef_log_severity_t,
+                                 const CefString& message, const CefString&,
+                                 int) {
+  CEF_REQUIRE_UI_THREAD();
+  const std::string m = message.ToString();
+  // Маркер из внедрённого скрипта анти-отпечатка: считаем честно применённые
+  // защиты (canvas/webgl/audio) и не засоряем консоль маркером.
+  if (m.rfind("__SHELTER_FP__:", 0) == 0) {
+    Shell::Get().UiEvent("blocked", "{\"f\":1}");
+    return true;
+  }
+  return false;
+}
+
 bool TabClient::RunContextMenu(CefRefPtr<CefBrowser> browser,
                                CefRefPtr<CefFrame> frame,
                                CefRefPtr<CefContextMenuParams> params,
@@ -408,9 +422,10 @@ bool TabClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
 // PopupClient
 // ============================================================================
 
-void PopupClient::OnAfterCreated(CefRefPtr<CefBrowser>) {
+void PopupClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
   Shell::Get().OnBrowserCreated();
+  Shell::Get().PushFpState(browser);
 }
 
 void PopupClient::OnBeforeClose(CefRefPtr<CefBrowser>) {

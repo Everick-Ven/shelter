@@ -408,6 +408,17 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
+  if (m == "fp.setEnabled") {
+    // UI-настройка «Анти-отпечаток»: состояние уходит рендерерам, где до JS
+    // страниц встраивается шум Canvas/WebGL/Audio.
+    if (!browser || !IsUiBrowser(browser)) {
+      cb->Failure(403, "fingerprint defense is restricted to the SHELTER UI");
+      return true;
+    }
+    Shell::Get().SetFpEnabled(Flag(a, "on", false));
+    cb->Success("{}");
+    return true;
+  }
   if (m == "shell.filestate") {
     // Существует ли скачанный файл на диске (для подписи «Файл удалён или
     // перемещён» во вкладке загрузок). Доступно только UI-браузеру.

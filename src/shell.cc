@@ -1046,6 +1046,7 @@ void Shell::OnTabCreated(CefRefPtr<CefBrowser> browser, const std::string& id) {
   t->browser = browser;
   t->browser_id = browser->GetIdentifier();
   browser->GetHost()->SetZoomLevel(std::log(zoom_) / std::log(1.2));
+  PushFpState(browser);  // рендерер узнаёт состояние «Анти-отпечатка» до загрузки
   if (!t->pending_url.empty()) {
     browser->GetMainFrame()->LoadURL(t->pending_url);
     t->pending_url.clear();
@@ -1725,6 +1726,22 @@ static void InjectBlockerCss(CefRefPtr<CefFrame> frame) {
       JsString(css) +
       ";(document.head||document.documentElement).appendChild(s);})();";
   frame->ExecuteJavaScript(js, frame->GetURL(), 0);
+}
+
+// ---- анти-отпечаток ---------------------------------------------------------
+
+void Shell::PushFpState(CefRefPtr<CefBrowser> browser) {
+  if (!browser) return;
+  CefRefPtr<CefProcessMessage> m = CefProcessMessage::Create("shelter.fp");
+  m->GetArgumentList()->SetBool(0, fp_enabled_);
+  if (auto frame = browser->GetMainFrame())
+    frame->SendProcessMessage(PID_RENDERER, m);
+}
+
+void Shell::SetFpEnabled(bool on) {
+  CEF_REQUIRE_UI_THREAD();
+  fp_enabled_ = on;
+  for (auto& kv : tabs_) PushFpState(kv.second.browser);
 }
 
 void Shell::OnTabLoadStart(CefRefPtr<CefBrowser> browser,

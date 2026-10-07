@@ -165,6 +165,11 @@ class TabClient : public CefClient,
                      const CefString& title) override;
   void OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
                               bool fullscreen) override;
+  // Счётчик «Анти-отпечатка»: рендерер помечает применённый шум маркером в
+  // console, здесь он превращается в событие статистики для UI.
+  bool OnConsoleMessage(CefRefPtr<CefBrowser> browser,
+                        cef_log_severity_t level, const CefString& message,
+                        const CefString& source, int line) override;
 
   // CefContextMenuHandler
   bool RunContextMenu(CefRefPtr<CefBrowser> browser,

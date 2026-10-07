@@ -3625,11 +3625,12 @@ html[data-theme="graphite"] .badge.hot{
         case 'blocked': {
           // Нативный сетевой фильтр реально отменил запрос: ведём честную
           // статистику вместо прежней синтетической.
-          if (S.prefs.trackers === false) break;
-          const n = (d.t | 0) + (d.a | 0);
+          const n = (d.t | 0) + (d.a | 0) + (d.f | 0);
           if (!n) break;
+          if ((d.t || d.a) && S.prefs.trackers === false) break;
+          if (d.f && S.prefs.fp === false) break;
           const k = dayKey(Date.now()), b = S.blocks[k] || (S.blocks[k] = { t: 0, a: 0, c: 0, f: 0 });
-          b.t += d.t | 0; b.a += d.a | 0;
+          b.t += d.t | 0; b.a += d.a | 0; b.f += d.f | 0;
           const t = curTab(); if (t) t.blocked = (t.blocked || 0) + n;
           persist();
           raf(() => { syncControls(); renderHeroFoot(); });
@@ -4700,6 +4701,7 @@ function toggleSetting(key, el) {
   syncSwitches();
   if (key === 'glow' || key === 'cleanSurf') applyGlowPrefs();
   if (key === 'trackers') applyBlockerPref();
+  if (key === 'fp') applyFpPref();
   const tt = PREF_TOAST[key]; if (tt) toast(S.prefs[key] ? tt[0] : tt[1], { icon: tt[2] });
   if (key === 'dragTabs') renderTabs();
   if (tracksAchievement) { renderHeroFoot(); refreshPage('profile'); }
@@ -8245,12 +8247,19 @@ try {
     window.shelterNative.onDownloadPrompt((info) => dlAsk(info));
   }
   applyBlockerPref();
+  applyFpPref();
 } catch (_) {}
 /* Настоящая блокировка трекеров/рекламы живёт в нативной части (сетевой
    фильтр + косметический CSS); сюда настройка приходит тумблером. */
 function applyBlockerPref() {
   const n = window.shelterNative;
   if (n && typeof n.blockSetEnabled === 'function') n.blockSetEnabled(S.prefs.trackers !== false);
+}
+/* «Анти-отпечаток» тоже настоящий: рендерер до JS страниц встраивает шум
+   Canvas/WebGL/Audio и стандартизует navigator-сигналы. */
+function applyFpPref() {
+  const n = window.shelterNative;
+  if (n && typeof n.fpSetEnabled === 'function') n.fpSetEnabled(S.prefs.fp !== false);
 }
 function dlPanelDone(d) {
   if (d && d.demo) return;

@@ -36,6 +36,10 @@ CefRefPtr<CefValue> ParseJson(const std::string& json);
 // Строка в виде JS-литерала (с кавычками), безопасная для вставки в скрипт.
 std::string JsString(const std::string& s);
 
+// Регистрируемый домен хоста (последние два ярлыка, три для co.uk-подобных).
+// Используется там, где нужно сравнение «сторонний или свой» (строгий режим).
+std::string RegistrableDomain(const std::string& host);
+
 // Имя раздела (partition) -> безопасное имя каталога.
 std::string SanitizeForPath(const std::string& s);
 

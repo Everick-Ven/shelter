@@ -61,6 +61,29 @@ void AllowInsecure(const std::string& host);
 // Вызывается с IO-потока — сам переносит работу в UI-поток.
 void RecordUpgrade(const std::string& host);
 
+// ---- строгий режим ----------------------------------------------------------
+// Модель Brave Shields / NoScript: сторонние скрипты по умолчанию
+// блокируются на сетевом уровне, сайт получает разрешение по явному выбору
+// пользователя. Разрешения живут в оперативной памяти до перезапуска.
+
+void SetStrictEnabled(bool on);
+bool StrictEnabled();
+
+// Разрешить сторонние скрипты для регистрируемого домена страницы.
+void AllowScriptsFor(const std::string& host);
+bool ScriptsAllowedFor(const std::string& host);
+
+// true — запрос надо отменить: это сторонний скрипт, а сайту не разрешено.
+// Вызывается с IO-потока.
+bool ShouldBlockScript(const std::string& script_url,
+                       const std::string& page_url);
+
+// Статистика «заблокирован скрипт» + сигнал для интерактивного разрешения
+// (событие «strict-block» для тоста с кнопкой «Разрешить»). Вызывается с
+// IO-потока — сам переносит работу в UI-поток; уведомления троттлятся.
+void RecordScriptBlock(const std::string& page_host,
+                       const std::string& script_host);
+
 }  // namespace netguard
 }  // namespace shelter
 

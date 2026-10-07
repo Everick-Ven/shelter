@@ -143,6 +143,14 @@ class Shell {
   void SetDohProvider(const std::string& provider);
   void ApplyNetGuard();
 
+  // Строгий режим: сторонние скрипты — только по разрешению.
+  void SetStrictEnabled(bool on);
+  void StrictAllow(const std::string& host);
+
+  // «Призрак»: режим приходит из UI; при выключении сразу освобождаем
+  // in-memory контексты, у которых не осталось вкладок.
+  void SetGhostMode(bool on);
+
   // ---- расширения (Chrome Web Store / .crx) ----
   void ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
   void ExtInstall(const std::string& src);

@@ -1,6 +1,10 @@
 #include "src/common.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <string>
+#include <vector>
 
 #include "include/cef_parser.h"
 
@@ -63,6 +67,41 @@ std::string SanitizeForPath(const std::string& s) {
     r.resize(80);
   }
   return r;
+}
+
+std::string RegistrableDomain(const std::string& host_in) {
+  auto lower = [](std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return s;
+  };
+  const std::string host = lower(host_in);
+  static const char* const kTwoLevel[] = {
+      "co.uk", "org.uk", "net.uk", "gov.uk", "ac.uk", "com.au", "net.au",
+      "org.au", "co.nz", "co.jp", "ne.jp", "or.jp", "com.br", "com.mx",
+      "com.ar", "com.tr", "com.pl", "com.ua", "net.ru", "org.ru", "com.ru",
+      "pp.ru", "msk.ru", "spb.ru", "co.il", "co.kr", "co.in", "com.cn",
+      "net.cn", "org.cn", "com.hk", "com.sg", "com.tw", "co.za", "co.id"};
+  std::vector<std::string> labels;
+  size_t start = 0;
+  for (size_t i = 0; i <= host.size(); ++i) {
+    if (i == host.size() || host[i] == '.') {
+      if (i > start) labels.push_back(host.substr(start, i - start));
+      start = i + 1;
+    }
+  }
+  if (labels.size() <= 2) return host;
+  const std::string last2 = labels[labels.size() - 2] + "." + labels.back();
+  const bool two_level =
+      std::find(std::begin(kTwoLevel), std::end(kTwoLevel), last2) !=
+      std::end(kTwoLevel);
+  const size_t take = two_level ? 3 : 2;
+  std::string out;
+  for (size_t i = labels.size() - take; i < labels.size(); ++i) {
+    if (!out.empty()) out += ".";
+    out += labels[i];
+  }
+  return out;
 }
 
 }  // namespace shelter

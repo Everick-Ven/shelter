@@ -1772,6 +1772,32 @@ void Shell::SetDohProvider(const std::string& provider) {
   ApplyNetGuard();
 }
 
+// ---- строгий режим ----------------------------------------------------------
+
+void Shell::SetStrictEnabled(bool on) {
+  CEF_REQUIRE_UI_THREAD();
+  netguard::SetStrictEnabled(on);
+}
+
+void Shell::StrictAllow(const std::string& host) {
+  CEF_REQUIRE_UI_THREAD();
+  netguard::AllowScriptsFor(host);
+}
+
+// ---- призрак ------------------------------------------------------------------
+
+void Shell::SetGhostMode(bool on) {
+  CEF_REQUIRE_UI_THREAD();
+  if (on) return;  // при включении профили создаются лениво по запросу вкладок
+  // При выключении сразу освобождаем in-memory контексты без вкладок, чтобы
+  // приватная сессия исчезла из памяти как можно раньше.
+  std::vector<std::string> temp_parts;
+  for (auto& kv : contexts_) {
+    if (kv.first.rfind("temp:", 0) == 0) temp_parts.push_back(kv.first);
+  }
+  for (auto& p : temp_parts) ReleaseContextIfUnused(p);
+}
+
 void Shell::OnTabLoadStart(CefRefPtr<CefBrowser> browser,
                            CefRefPtr<CefFrame> frame) {
   CEF_REQUIRE_UI_THREAD();

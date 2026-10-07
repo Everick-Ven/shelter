@@ -3582,6 +3582,9 @@ html[data-theme="graphite"] .badge.hot{
     notifyZoom: code => listeners.zoom.forEach(fn => { try { fn(code); } catch (_) {} })
   };
 
+  /* Анти-дубль тостов строгого режима: домен страницы -> время последнего. */
+  const strictToasts = {};
+
   /* Единая точка входа для вызовов из C++ CEF (CefFrame::ExecuteJavaScript):
      window.shelterCefDispatch('title', { tabId, title }) и т.д. */
   window.shelterCefDispatch = (event, data) => {
@@ -3624,20 +3627,43 @@ html[data-theme="graphite"] .badge.hot{
         }
         case 'blocked': {
           // Нативный сетевой фильтр реально отменил запрос (или поднял
-          // навигацию на HTTPS): ведём честную статистику вместо прежней
-          // синтетической.
-          const n = (d.t | 0) + (d.a | 0) + (d.f | 0) + (d.h | 0);
+          // навигацию на HTTPS, или остановил сторонний скрипт строгого
+          // режима): ведём честную статистику вместо прежней синтетической.
+          const n = (d.t | 0) + (d.a | 0) + (d.f | 0) + (d.h | 0) + (d.s | 0);
           if (!n) break;
           if ((d.t || d.a) && S.prefs.trackers === false) break;
           if (d.f && S.prefs.fp === false) break;
           if (d.h && S.prefs.https === false) break;
-          const k = dayKey(Date.now()), b = S.blocks[k] || (S.blocks[k] = { t: 0, a: 0, c: 0, f: 0, h: 0 });
-          b.t += d.t | 0; b.a += d.a | 0; b.f += d.f | 0; b.h = (b.h || 0) + (d.h | 0);
+          if (d.s && S.prefs.strict !== true) break;
+          const k = dayKey(Date.now()), b = S.blocks[k] || (S.blocks[k] = { t: 0, a: 0, c: 0, f: 0, h: 0, s: 0 });
+          b.t += d.t | 0; b.a += d.a | 0; b.f += d.f | 0; b.h = (b.h || 0) + (d.h | 0); b.s = (b.s || 0) + (d.s | 0);
           const t = curTab(); if (t) t.blocked = (t.blocked || 0) + n;
           persist();
           raf(() => { syncControls(); renderHeroFoot(); });
           const sn = $('#shieldN'); if (sn) sn.textContent = fmtN(todayBlocked());
           $$('[data-count]').forEach(el => { el.textContent = fmtN((curTab() && curTab().blocked) || 0); });
+          break;
+        }
+        case 'strict-block': {
+          // Строгий режим отменил сторонний скрипт. Предлагаем разрешить его
+          // для этого сайта — тогда вкладка перезагрузится уже со скриптами.
+          if (S.prefs.strict !== true) break;
+          const host = String(d.host || ''), script = String(d.script || '');
+          if (!host) break;
+          const now = Date.now();
+          strictToasts[host] = strictToasts[host] || 0;
+          if (now - strictToasts[host] < 6000) break;
+          strictToasts[host] = now;
+          if (typeof window.toast === 'function') {
+            window.toast(`Строгий режим: заблокирован сторонний скрипт${script ? ' ' + script : ''} на ${host}`, {
+              icon: 'shield-check', ms: 9000,
+              action: { label: 'Разрешить', run: () => {
+                const n = window.shelterNative;
+                if (n && typeof n.strictAllow === 'function') n.strictAllow(host);
+                try { if (window.shelterCef && typeof window.shelterCef.reload === 'function') window.shelterCef.reload(); } catch (_) {}
+              } }
+            });
+          }
           break;
         }
         case 'ext':
@@ -4322,7 +4348,9 @@ function saveNow() {
   store.put('shelter:board', S.board);
   store.put('shelter:boards', { boards: S.boards || [], id: S.boardId || '' });
   store.put('shelter:ext', S.ext);
-  store.put('shelter:lux', { seeded: true, prefs: S.prefs, ui: S.ui, deep: S.deep, account: S.account, chats: blobToStore('__chatsBlob', S.chats), messages: blobToStore('__messagesBlob', S.messages), downloads: S.downloads, passwords: pwToStore(S.passwords), blocks: S.blocks });
+  /* Загрузки приватной сессии («Призрак») на диск не пишутся — как список
+     загрузок инкогнито в больших браузерах; сами файлы остаются в папке. */
+  store.put('shelter:lux', { seeded: true, prefs: S.prefs, ui: S.ui, deep: S.deep, account: S.account, chats: blobToStore('__chatsBlob', S.chats), messages: blobToStore('__messagesBlob', S.messages), downloads: (S.downloads || []).filter(x => x && !x.ghost), passwords: pwToStore(S.passwords), blocks: S.blocks });
   if (!S.ghost) {
     const now = Date.now();
     if (now - _visitsAt >= 4000) { flushVisits(); }
@@ -4705,6 +4733,7 @@ function toggleSetting(key, el) {
   if (key === 'trackers') applyBlockerPref();
   if (key === 'fp') applyFpPref();
   if (key === 'https') applyNetPref();
+  if (key === 'strict') applyStrictPref();
   const tt = PREF_TOAST[key]; if (tt) toast(S.prefs[key] ? tt[0] : tt[1], { icon: tt[2] });
   if (key === 'dragTabs') renderTabs();
   if (tracksAchievement) { renderHeroFoot(); refreshPage('profile'); }
@@ -5133,8 +5162,8 @@ function updateNavActive(page) {
   $$('#sbPin .ni[data-page], #sbInner .ni[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   positionNavInd();
 }
-function blocksDay(k) { return S.blocks[k] || { t: 0, a: 0, c: 0, f: 0, h: 0 }; }
-function todayBlocked() { const b = blocksDay(dayKey(Date.now())); return b.t + b.a + b.c + b.f + (b.h || 0); }
+function blocksDay(k) { return S.blocks[k] || { t: 0, a: 0, c: 0, f: 0, h: 0, s: 0 }; }
+function todayBlocked() { const b = blocksDay(dayKey(Date.now())); return b.t + b.a + b.c + b.f + (b.h || 0) + (b.s || 0); }
 function renderControls() {
   const tiles = [
     ['ghost', 'ghost', 'Призрак — приватный режим\nНичего не сохраняется: история, cookies и входы на сайтах стираются сразу, как только вы закроете вкладку. Сайты вас «не запомнят».'],
@@ -5273,7 +5302,11 @@ function closeTab(id, silent) {
   const done = () => {
     const j = sp.tabs.indexOf(t); if (j < 0) return;
     sp.tabs.splice(j, 1);
-    S.closed.push({ tab: t, space: S.currentSpace, index: j, at: Date.now() }); if (S.closed.length > 25) S.closed.shift();
+    /* Вкладки «Призрака» не попадают в «Недавно закрытые»: приватная сессия
+       исчезает бесследно, восстановить её нельзя (как в больших браузерах). */
+    if (!t.ghost) {
+      S.closed.push({ tab: t, space: S.currentSpace, index: j, at: Date.now() }); if (S.closed.length > 25) S.closed.shift();
+    }
     if (!sp.tabs.length) sp.tabs.push(newTabObj('shelter.dev/start'));
     if (S.activeTabId === id) { S.activeTabId = sp.tabs[Math.min(j, sp.tabs.length - 1)].id; renderView(true, -1); }
     renderTabs(); persist();
@@ -6439,6 +6472,7 @@ function closeGhostTabs() {
     if (!sp.tabs.length) sp.tabs.push(newTabObj('shelter.dev/start'));
   });
   S.closed = (S.closed || []).filter(c => !(c && c.tab && c.tab.ghost));
+  S.downloads = (S.downloads || []).filter(x => !(x && x.ghost));
   const sp = S.spaces[S.currentSpace] || Object.values(S.spaces)[0];
   if (sp && sp.tabs.length) {
     if (!sp.tabs.find(t => t.id === S.activeTabId)) {
@@ -6468,6 +6502,10 @@ async function toggleGhost(force) {
   reconcileProfileAchievementChange(achievementBefore);
   syncSwitches(); updateToolbar(); renderHeroBits(); refreshPage('profile');
   try { if (typeof window.shelterGhostSync === 'function') window.shelterGhostSync(!v); } catch (_) {}
+  /* Нативная часть: новые вкладки и так уходят в in-memory профили через
+     разделы «temp:…», а при выключении призрака оболочка сразу освобождает
+     приватные контексты, оставшиеся без вкладок. */
+  try { const n = window.shelterNative; if (n && typeof n.ghostSetEnabled === 'function') n.ghostSetEnabled(v); } catch (_) {}
   toast(v ? 'Призрак включён — ничего не сохраняется на диск'
     : (closed ? `Призрак выключен · закрыто вкладок: ${closed} · данные очищены` : 'Призрак выключен · данные очищены'), { icon: 'ghost' });
   return true;
@@ -6549,8 +6587,8 @@ function periodRange(P) {
   if (P === 'week') return { from: t0 - 6 * DAY, to: now, len: 7 * DAY, n: 7 };
   return { from: t0 - 29 * DAY, to: now, len: 30 * DAY, n: 30 };
 }
-function sumBlocks(from, to) { let s = { t: 0, a: 0, c: 0, f: 0, h: 0 }; for (let d = startOfDay(from).getTime(); d <= to; d += DAY) { const b = blocksDay(dayKey(d)); s.t += b.t; s.a += b.a; s.c += b.c; s.f += b.f; s.h += b.h || 0; } return s; }
-const bsum = b => b.t + b.a + b.c + b.f + (b.h || 0);
+function sumBlocks(from, to) { let s = { t: 0, a: 0, c: 0, f: 0, h: 0, s: 0 }; for (let d = startOfDay(from).getTime(); d <= to; d += DAY) { const b = blocksDay(dayKey(d)); s.t += b.t; s.a += b.a; s.c += b.c; s.f += b.f; s.h += b.h || 0; s.s += b.s || 0; } return s; }
+const bsum = b => b.t + b.a + b.c + b.f + (b.h || 0) + (b.s || 0);
 function niceMax(v) { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
 function fmtAxis(v, M) { if (M === 'time') return v < 60 ? Math.round(v) + 'м' : (v / 60).toFixed(v % 60 ? 1 : 0).replace('.', ',') + 'ч'; return v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 1 : 0).replace('.', ',') + 'k' : String(Math.round(v)); }
 const fmtVal = (v, M) => M === 'time' ? fmtDurS(v) : fmtN(v);
@@ -6604,7 +6642,7 @@ function topSitesHtml(P) {
 }
 function donutHtml(P) {
   const r = periodRange(P), b = P === 'day' ? blocksDay(dayKey(Date.now())) : sumBlocks(r.from, r.to), tot = bsum(b) || 1, C = 2 * Math.PI * 46;
-  const segs = [['Трекеры', b.t, 'var(--accent)'], ['Реклама', b.a, 'var(--gb)'], ['Сторонние cookie', b.c, 'var(--ga)'], ['Отпечаток', b.f, 'var(--gc)'], ['Подъём на HTTPS', b.h || 0, 'var(--info)']];
+  const segs = [['Трекеры', b.t, 'var(--accent)'], ['Реклама', b.a, 'var(--gb)'], ['Сторонние cookie', b.c, 'var(--ga)'], ['Отпечаток', b.f, 'var(--gc)'], ['Подъём на HTTPS', b.h || 0, 'var(--info)'], ['Скрипты (строгий)', b.s || 0, 'var(--danger)']];
   let off = 0;
   const circles = segs.map(s => { const len = s[1] / tot * C, h = `<circle class="seg2" cx="60" cy="60" r="46" data-len="${Math.max(0, len - 5).toFixed(2)}" style="stroke:rgb(${s[2]});stroke-dasharray:0 ${C.toFixed(2)};stroke-dashoffset:${(-(off + 2.5)).toFixed(2)}"/>`; off += len; return h; }).join('');
   return `<div class="card-h"><h3>${ico('pie')}Структура блокировок</h3></div>
@@ -8302,6 +8340,7 @@ try {
   applyBlockerPref();
   applyFpPref();
   applyNetPref();
+  applyStrictPref();
 } catch (_) {}
 /* Настоящая блокировка трекеров/рекламы живёт в нативной части (сетевой
    фильтр + косметический CSS); сюда настройка приходит тумблером. */
@@ -8324,6 +8363,13 @@ function applyNetPref() {
   if (!n) return;
   if (typeof n.httpsSetEnabled === 'function') n.httpsSetEnabled(S.prefs.https !== false);
   if (typeof n.dnsSetProvider === 'function') n.dnsSetProvider(S.prefs.dns || 'cf');
+}
+/* «Строгий режим» тоже настоящий: нативный сетевой фильтр отменяет сторонние
+   скрипты (модель Brave Shields / NoScript), а сайт получает разрешение по
+   явному выбору пользователя из тоста. */
+function applyStrictPref() {
+  const n = window.shelterNative;
+  if (n && typeof n.strictSetEnabled === 'function') n.strictSetEnabled(S.prefs.strict === true);
 }
 function dlPanelDone(d) {
   if (d && d.demo) return;
@@ -8422,7 +8468,7 @@ window.shelterDownload = function (p) {
     if (!d) {
       d = { id: uid('dl'), mid: id, name: filename, size: 0, totalBytes: 0,
         bytesReceived: 0, speedBytesPerSecond: 0, p: 100, state: 'done', at: now, path,
-        url: String(p.url || '') };
+        url: String(p.url || ''), ghost: !!S.ghost };
       S.downloads.unshift(d);
     }
     const finalBytes = bytes > 0 ? bytes : Math.max(reportedTotal, dlTotalBytes(d));
@@ -8446,7 +8492,7 @@ window.shelterDownload = function (p) {
     if (!d) {
       d = { id: uid('dl'), mid: id, name: filename, size: 0, totalBytes: 0,
         bytesReceived: 0, speedBytesPerSecond: 0, p: null, state: 'run', at: now, path,
-        url: String(p.url || '') };
+        url: String(p.url || ''), ghost: !!S.ghost };
       S.downloads.unshift(d);
       dlPanelOff = false;
     }

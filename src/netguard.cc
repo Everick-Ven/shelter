@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <chrono>
 #include <cstdio>
 #include <map>
 #include <mutex>
@@ -201,6 +202,95 @@ void RecordUpgrade(const std::string& host) {
                             Shell::Get().UiEvent("blocked", os.str());
                           },
                           host)));
+}
+
+// ---- строгий режим ----------------------------------------------------------
+
+namespace {
+
+std::atomic<bool> g_strict{false};
+
+// Разрешённые пользователем сайты (регистрируемые домены). Сессия в памяти.
+std::mutex g_strict_mu;
+std::set<std::string> g_script_allowed;
+// Троттлинг интерактивных уведомлений: домен страницы -> время последнего.
+std::map<std::string, int64_t> g_strict_last_notify;
+constexpr int64_t kStrictNotifyCooldownMs = 6000;
+constexpr size_t kMaxScriptAllowList = 512;
+
+}  // namespace
+
+void SetStrictEnabled(bool on) { g_strict.store(on); }
+
+bool StrictEnabled() { return g_strict.load(); }
+
+void AllowScriptsFor(const std::string& host) {
+  const std::string reg = RegistrableDomain(host);
+  if (reg.empty() || reg.find('.') == std::string::npos) return;
+  std::lock_guard<std::mutex> lk(g_strict_mu);
+  g_script_allowed.insert(reg);
+  if (g_script_allowed.size() > kMaxScriptAllowList)
+    g_script_allowed.erase(g_script_allowed.begin());
+}
+
+bool ScriptsAllowedFor(const std::string& host) {
+  const std::string reg = RegistrableDomain(host);
+  std::lock_guard<std::mutex> lk(g_strict_mu);
+  return g_script_allowed.count(reg) > 0;
+}
+
+bool ShouldBlockScript(const std::string& script_url,
+                       const std::string& page_url) {
+  if (!StrictEnabled()) return false;
+  if (script_url.rfind("http://", 0) != 0 &&
+      script_url.rfind("https://", 0) != 0)
+    return false;
+  const std::string script_host = HostOf(script_url);
+  const std::string page_host = HostOf(page_url);
+  if (script_host.empty()) return false;
+  // Инлайн/внутренние и служебные источники не трогаем.
+  if (page_host.empty()) return false;
+  const std::string s_reg = RegistrableDomain(script_host);
+  const std::string p_reg = RegistrableDomain(page_host);
+  // Свой домен (включая поддомены) — не сторонний.
+  if (!s_reg.empty() && s_reg == p_reg) return false;
+  // Сайту уже разрешили сторонние скрипты.
+  if (ScriptsAllowedFor(page_host)) return false;
+  return true;
+}
+
+void RecordScriptBlock(const std::string& page_host,
+                       const std::string& script_host) {
+  const std::string p_reg = RegistrableDomain(page_host);
+  // Интерактивное уведомление показываем не чаще раза в несколько секунд на
+  // сайт, чтобы не заваливать тостами при десятках заблокированных скриптов.
+  bool notify = false;
+  {
+    std::lock_guard<std::mutex> lk(g_strict_mu);
+    const int64_t now_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch())
+            .count();
+    auto it = g_strict_last_notify.find(p_reg);
+    if (it == g_strict_last_notify.end() ||
+        now_ms - it->second >= kStrictNotifyCooldownMs) {
+      g_strict_last_notify[p_reg] = now_ms;
+      notify = true;
+      if (g_strict_last_notify.size() > kMaxScriptAllowList)
+        g_strict_last_notify.erase(g_strict_last_notify.begin());
+    }
+  }
+  CefPostTask(TID_UI, CefCreateClosureTask(base::BindOnce(
+                          [](std::string page, std::string script, bool n) {
+                            Shell::Get().UiEvent("blocked", "{\"s\":1}");
+                            if (n) {
+                              std::ostringstream os;
+                              os << "{\"host\":" << JsString(page)
+                                 << ",\"script\":" << JsString(script) << "}";
+                              Shell::Get().UiEvent("strict-block", os.str());
+                            }
+                          },
+                          page_host, script_host, notify)));
 }
 
 }  // namespace netguard

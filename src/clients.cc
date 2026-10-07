@@ -320,6 +320,29 @@ void HttpsOnlyUpgrade(CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request) 
   ::shelter::netguard::RecordUpgrade(host);
 }
 
+// Строгий режим: сторонние скрипты отменяются на сетевом уровне, пока сайт не
+// получит разрешение пользователя (модель Brave Shields / NoScript).
+bool StrictScriptCheck(CefRefPtr<CefBrowser> browser,
+                       CefRefPtr<CefRequest> request) {
+  if (!request || !::shelter::netguard::StrictEnabled()) return false;
+  if (request->GetResourceType() != RT_SCRIPT) return false;
+  const std::string url = request->GetURL().ToString();
+  std::string page;
+  if (browser) {
+    if (CefRefPtr<CefFrame> main = browser->GetMainFrame())
+      page = main->GetURL().ToString();
+  }
+  if (!::shelter::netguard::ShouldBlockScript(url, page)) return false;
+  CefURLParts parts;
+  std::string script_host, page_host;
+  if (CefParseURL(CefString(url), parts))
+    script_host = CefString(&parts.host).ToString();
+  if (CefParseURL(CefString(page), parts))
+    page_host = CefString(&parts.host).ToString();
+  ::shelter::netguard::RecordScriptBlock(page_host, script_host);
+  return true;
+}
+
 }  // namespace
 
 CefRefPtr<CefResourceRequestHandler> TabClient::GetResourceRequestHandler(
@@ -329,8 +352,9 @@ CefRefPtr<CefResourceRequestHandler> TabClient::GetResourceRequestHandler(
 }
 
 cef_return_value_t TabClient::OnBeforeResourceLoad(
-    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
+    CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
     CefRefPtr<CefRequest> request, CefRefPtr<CefCallback>) {
+  if (StrictScriptCheck(browser, request)) return RV_CANCEL;
   HttpsOnlyUpgrade(frame, request);
   return BlockerCheck(frame, request);
 }
@@ -532,8 +556,9 @@ CefRefPtr<CefResourceRequestHandler> PopupClient::GetResourceRequestHandler(
 }
 
 cef_return_value_t PopupClient::OnBeforeResourceLoad(
-    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
+    CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
     CefRefPtr<CefRequest> request, CefRefPtr<CefCallback>) {
+  if (StrictScriptCheck(browser, request)) return RV_CANCEL;
   return BlockerCheck(frame, request);
 }
 

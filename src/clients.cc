@@ -7,6 +7,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "src/blocker.h"
 #include "src/common.h"
+#include "src/netguard.h"
 #include "src/shell.h"
 
 namespace shelter {
@@ -48,6 +49,53 @@ std::string ErrorPageDataUrl(const std::string& url, const std::string& text) {
       "<p><code>" + HtmlEscape(url) + "</code></p>"
       "<p>" + HtmlEscape(text) + "</p>"
       "<a href=\"" + HtmlEscape(url) + "\">Повторить</a></main>";
+  return "data:text/html;charset=utf-8;base64," +
+         CefURIEncode(CefBase64Encode(html.data(), html.size()), false)
+             .ToString();
+}
+
+// Интерстишиал HTTPS-only: сайт не ответил на поднятый до https:// запрос.
+// Даём осознанный выбор — вернуться или продолжить по незащищённому http://
+// (как «Always Use Secure Connections» в Chrome). Хост к этому моменту уже
+// внесен в исключения (netguard::TakeUpgradeFallback), поэтому переход по
+// ссылке не зациклится повторным апгрейдом.
+std::string HttpsOnlyInterstitialDataUrl(const std::string& http_url,
+                                         const std::string& https_url) {
+  const std::string html =
+      "<!doctype html><html lang=ru><meta charset=utf-8>"
+      "<meta name=color-scheme content='dark light'>"
+      "<title>Сайт не отвечает по HTTPS</title><style>"
+      "html,body{height:100%;margin:0}"
+      "body{display:grid;place-items:center;background:#0E0F13;color:#EDEEF2;"
+      "font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}"
+      "main{max-width:560px;padding:32px}"
+      ".ic{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;"
+      "background:#2A1D12;color:#FF9A4D;margin-bottom:18px}"
+      "h1{font-size:22px;margin:0 0 8px;font-weight:650}"
+      "p{color:#A2A5AF;margin:6px 0}code{color:#EDEEF2;word-break:break-all}"
+      ".row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}"
+      "a{display:inline-block;padding:10px 18px;border-radius:12px;text-decoration:none;"
+      "border:1px solid #ffffff1a}"
+      ".back{background:#1D1E25;color:#EDEEF2}.back:hover{background:#252630}"
+      ".go{background:#3A2415;color:#FFB066}.go:hover{background:#4A2E1B}"
+      ".note{font-size:13px;color:#7C808B;margin-top:14px}</style><main>"
+      "<div class=ic><svg width=28 height=28 viewBox='0 0 24 24' fill=none "
+      "stroke=currentColor stroke-width=1.7 stroke-linecap=round "
+      "stroke-linejoin=round><rect x=4 y=10.5 width=16 height=10 rx=2.5/>"
+      "<path d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/><path d='M12 14.5v2.5'/></svg></div>"
+      "<h1>Сайт не отвечает по HTTPS</h1>"
+      "<p>SHELTER открыл адрес по защищённому соединению, но сайт не поддержал "
+      "его:</p><p><code>" + HtmlEscape(https_url) + "</code></p>"
+      "<p>Можно вернуться назад или перейти по незащищённому адресу. В режиме "
+      "без шифрования содержимое страницы и введённые данные видны оператору "
+      "связи и владельцу сети.</p>"
+      "<div class=row>"
+      "<a class=back href=javascript:history.back()>Назад</a>"
+      "<a class=go href=\"" + HtmlEscape(http_url) + "\">Продолжить без "
+      "шифрования</a></div>"
+      "<p class=note>Для этого сайта незащищённое соединение разрешено до "
+      "перезапуска браузера. Отключить HTTPS-only можно в Настройках → "
+      "Приватность.</p></main>";
   return "data:text/html;charset=utf-8;base64," +
          CefURIEncode(CefBase64Encode(html.data(), html.size()), false)
              .ToString();
@@ -254,6 +302,24 @@ cef_return_value_t BlockerCheck(CefRefPtr<CefFrame> frame,
   return RV_CANCEL;
 }
 
+// HTTPS-only (стандарт октября 2026 — «Always Use Secure Connections»,
+// Chrome 154 включает его всем по умолчанию): навигации основного фрейма
+// поднимаются с http:// на https:// прямо в запросе. Если поднятый адрес не
+// откроется, OnLoadError покажет интерстишиал с переходом на исходный http://.
+void HttpsOnlyUpgrade(CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request) {
+  if (!request || !frame || !frame->IsMain()) return;
+  const std::string url = request->GetURL().ToString();
+  auto upgraded = ::shelter::netguard::TryUpgrade(url);
+  if (!upgraded) return;
+  ::shelter::netguard::RememberUpgrade(*upgraded, url);
+  request->SetURL(*upgraded);
+  std::string host;
+  CefURLParts parts;
+  if (CefParseURL(CefString(*upgraded), parts))
+    host = CefString(&parts.host).ToString();
+  ::shelter::netguard::RecordUpgrade(host);
+}
+
 }  // namespace
 
 CefRefPtr<CefResourceRequestHandler> TabClient::GetResourceRequestHandler(
@@ -265,6 +331,7 @@ CefRefPtr<CefResourceRequestHandler> TabClient::GetResourceRequestHandler(
 cef_return_value_t TabClient::OnBeforeResourceLoad(
     CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
     CefRefPtr<CefRequest> request, CefRefPtr<CefCallback>) {
+  HttpsOnlyUpgrade(frame, request);
   return BlockerCheck(frame, request);
 }
 
@@ -322,7 +389,14 @@ void TabClient::OnLoadError(CefRefPtr<CefBrowser> browser,
   if (Tab* tab = Shell::Get().FindTabByBrowser(browser->GetIdentifier())) {
     tab->error_url = failedUrl.ToString();
   }
-  frame->LoadURL(ErrorPageDataUrl(failedUrl.ToString(), errorText.ToString()));
+  const std::string failed = failedUrl.ToString();
+  // Неудавшийся апгрейд HTTPS-only: вместо общей страницы ошибки показываем
+  // интерстишиал с осознанным переходом на исходный незащищённый адрес.
+  if (auto http_url = ::shelter::netguard::TakeUpgradeFallback(failed)) {
+    frame->LoadURL(HttpsOnlyInterstitialDataUrl(*http_url, failed));
+    return;
+  }
+  frame->LoadURL(ErrorPageDataUrl(failed, errorText.ToString()));
 }
 
 void TabClient::OnAddressChange(CefRefPtr<CefBrowser> browser,

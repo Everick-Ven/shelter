@@ -137,6 +137,12 @@ class Shell {
   void SetFpEnabled(bool on);
   void PushFpState(CefRefPtr<CefBrowser> browser);
 
+  // HTTPS-only + DoH: настройка из UI («Безопасный HTTPS + приватный DNS»)
+  // и применение шифрованного DNS ко всем готовым контекстам (сессиям).
+  void SetHttpsOnlyEnabled(bool on);
+  void SetDohProvider(const std::string& provider);
+  void ApplyNetGuard();
+
   // ---- расширения (Chrome Web Store / .crx) ----
   void ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
   void ExtInstall(const std::string& src);

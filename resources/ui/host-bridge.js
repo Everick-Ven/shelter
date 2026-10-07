@@ -624,6 +624,8 @@
     fileState: function (p) { return q('shell.filestate', { path: String(p || '') }).then(function (r) { return !!(r && r.exists); }).catch(function () { return null; }); },
     blockSetEnabled: function (on) { return q('block.setEnabled', { on: !!on }).catch(function () {}); },
     fpSetEnabled: function (on) { return q('fp.setEnabled', { on: !!on }).catch(function () {}); },
+    httpsSetEnabled: function (on) { return q('https.setEnabled', { on: !!on }).catch(function () {}); },
+    dnsSetProvider: function (p) { return q('dns.setProvider', { provider: String(p || 'cf') }).catch(function () {}); },
     onDownloadPrompt: function (cb) { cbs.dlprompt = cb; },
     downloadDecision: function (o) { return q('dl.decision', o || {}); },
     downloadControl: function (o) { return q('dl.control', o || {}); },

@@ -419,6 +419,28 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
+  if (m == "https.setEnabled") {
+    // UI-настройка «Безопасный HTTPS + приватный DNS»: автоподъём навигаций
+    // на https:// и шифрованный DNS в сетевом стеке профиля.
+    if (!browser || !IsUiBrowser(browser)) {
+      cb->Failure(403, "HTTPS-only control is restricted to the SHELTER UI");
+      return true;
+    }
+    Shell::Get().SetHttpsOnlyEnabled(Flag(a, "on", false));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "dns.setProvider") {
+    // Провайдер DoH (Cloudflare / Google / Quad9 / системный). Применяется
+    // сразу ко всем инициализированным контекстам.
+    if (!browser || !IsUiBrowser(browser)) {
+      cb->Failure(403, "DNS control is restricted to the SHELTER UI");
+      return true;
+    }
+    Shell::Get().SetDohProvider(Str(a, "provider"));
+    cb->Success("{}");
+    return true;
+  }
   if (m == "shell.filestate") {
     // Существует ли скачанный файл на диске (для подписи «Файл удалён или
     // перемещён» во вкладке загрузок). Доступно только UI-браузеру.

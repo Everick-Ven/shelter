@@ -47,6 +47,7 @@ set(SHELTER_COMMON_SRCS
   src/key_map.cc src/key_map.h
   src/clients.cc src/clients.h
   src/blocker.cc src/blocker.h
+  src/netguard.cc src/netguard.h
   src/shell.cc src/shell_bridge.cc src/shell.h
   src/browser_app.cc src/browser_app.h
   src/platform.h src/security_paths.h

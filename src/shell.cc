@@ -35,6 +35,7 @@
 #include "src/clients.h"
 #include "src/blocker.h"
 #include "src/common.h"
+#include "src/netguard.h"
 #include "src/key_map.h"
 #include "src/platform.h"
 #include "src/security_paths.h"
@@ -837,6 +838,10 @@ void Shell::OnContextReady(const std::string& partition) {
   auto ready = context_ready_.find(partition);
   if (ready == context_ready_.end()) return;  // контекст уже выброшен
   ready->second = true;
+  // Профиль инициализирован — применяем шифрованный DNS, если он включён
+  // (каждое пространство получает свою копию настроек профиля).
+  auto ctx = contexts_.find(partition);
+  if (ctx != contexts_.end()) netguard::ApplyDohPrefs(ctx->second);
   auto waiters = context_waiters_.find(partition);
   if (waiters == context_waiters_.end()) return;
   std::vector<std::string> ids = std::move(waiters->second);
@@ -1742,6 +1747,29 @@ void Shell::SetFpEnabled(bool on) {
   CEF_REQUIRE_UI_THREAD();
   fp_enabled_ = on;
   for (auto& kv : tabs_) PushFpState(kv.second.browser);
+}
+
+// ---- HTTPS-only + DoH -------------------------------------------------------
+
+void Shell::ApplyNetGuard() {
+  CEF_REQUIRE_UI_THREAD();
+  for (auto& kv : contexts_) {
+    auto ready = context_ready_.find(kv.first);
+    if (ready != context_ready_.end() && ready->second)
+      netguard::ApplyDohPrefs(kv.second);
+  }
+}
+
+void Shell::SetHttpsOnlyEnabled(bool on) {
+  CEF_REQUIRE_UI_THREAD();
+  netguard::SetHttpsOnlyEnabled(on);
+  ApplyNetGuard();  // DoH живёт тем же тумблером, что и HTTPS-only
+}
+
+void Shell::SetDohProvider(const std::string& provider) {
+  CEF_REQUIRE_UI_THREAD();
+  netguard::SetDohProvider(provider);
+  ApplyNetGuard();
 }
 
 void Shell::OnTabLoadStart(CefRefPtr<CefBrowser> browser,

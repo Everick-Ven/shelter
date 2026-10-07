@@ -3623,14 +3623,16 @@ html[data-theme="graphite"] .badge.hot{
           break;
         }
         case 'blocked': {
-          // Нативный сетевой фильтр реально отменил запрос: ведём честную
-          // статистику вместо прежней синтетической.
-          const n = (d.t | 0) + (d.a | 0) + (d.f | 0);
+          // Нативный сетевой фильтр реально отменил запрос (или поднял
+          // навигацию на HTTPS): ведём честную статистику вместо прежней
+          // синтетической.
+          const n = (d.t | 0) + (d.a | 0) + (d.f | 0) + (d.h | 0);
           if (!n) break;
           if ((d.t || d.a) && S.prefs.trackers === false) break;
           if (d.f && S.prefs.fp === false) break;
-          const k = dayKey(Date.now()), b = S.blocks[k] || (S.blocks[k] = { t: 0, a: 0, c: 0, f: 0 });
-          b.t += d.t | 0; b.a += d.a | 0; b.f += d.f | 0;
+          if (d.h && S.prefs.https === false) break;
+          const k = dayKey(Date.now()), b = S.blocks[k] || (S.blocks[k] = { t: 0, a: 0, c: 0, f: 0, h: 0 });
+          b.t += d.t | 0; b.a += d.a | 0; b.f += d.f | 0; b.h = (b.h || 0) + (d.h | 0);
           const t = curTab(); if (t) t.blocked = (t.blocked || 0) + n;
           persist();
           raf(() => { syncControls(); renderHeroFoot(); });
@@ -4702,6 +4704,7 @@ function toggleSetting(key, el) {
   if (key === 'glow' || key === 'cleanSurf') applyGlowPrefs();
   if (key === 'trackers') applyBlockerPref();
   if (key === 'fp') applyFpPref();
+  if (key === 'https') applyNetPref();
   const tt = PREF_TOAST[key]; if (tt) toast(S.prefs[key] ? tt[0] : tt[1], { icon: tt[2] });
   if (key === 'dragTabs') renderTabs();
   if (tracksAchievement) { renderHeroFoot(); refreshPage('profile'); }
@@ -5130,8 +5133,8 @@ function updateNavActive(page) {
   $$('#sbPin .ni[data-page], #sbInner .ni[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   positionNavInd();
 }
-function blocksDay(k) { return S.blocks[k] || { t: 0, a: 0, c: 0, f: 0 }; }
-function todayBlocked() { const b = blocksDay(dayKey(Date.now())); return b.t + b.a + b.c + b.f; }
+function blocksDay(k) { return S.blocks[k] || { t: 0, a: 0, c: 0, f: 0, h: 0 }; }
+function todayBlocked() { const b = blocksDay(dayKey(Date.now())); return b.t + b.a + b.c + b.f + (b.h || 0); }
 function renderControls() {
   const tiles = [
     ['ghost', 'ghost', 'Призрак — приватный режим\nНичего не сохраняется: история, cookies и входы на сайтах стираются сразу, как только вы закроете вкладку. Сайты вас «не запомнят».'],
@@ -6279,6 +6282,11 @@ function renderAll() { renderSpaceRow(); renderTabs(); syncControls(); renderBad
 
 /* ---------- главный экран: подписи, пилюли ---------- */
 function dnsLabel() { return { cf: '1.1.1.1', google: '8.8.8.8', quad9: '9.9.9.9', sys: 'системный' }[S.prefs.dns] || '1.1.1.1'; }
+/* Честная подпись состояния DNS: шифрованный канал работает, только когда
+   включён тумблер «Безопасный HTTPS + приватный DNS» и выбран не системный
+   резолвер. */
+function dnsOn() { return S.prefs.https !== false && S.prefs.dns !== 'sys'; }
+function dnsSecLabel() { return dnsOn() ? 'DoH · ' + dnsLabel() : 'Системный · без шифрования'; }
 function renderHeroBits() {
   $('#greet').textContent = greeting(); $('#heroDate').textContent = dateFull(Date.now());
   const mp = $('#modePill'); mp.innerHTML = `${ico(S.ghost ? 'ghost' : 'feather')}<span class="lb">${S.ghost ? 'Призрак' : 'Обычный'}</span>${ico('chev', 'chev')}`; mp.classList.toggle('lit', S.ghost);
@@ -6541,8 +6549,8 @@ function periodRange(P) {
   if (P === 'week') return { from: t0 - 6 * DAY, to: now, len: 7 * DAY, n: 7 };
   return { from: t0 - 29 * DAY, to: now, len: 30 * DAY, n: 30 };
 }
-function sumBlocks(from, to) { let s = { t: 0, a: 0, c: 0, f: 0 }; for (let d = startOfDay(from).getTime(); d <= to; d += DAY) { const b = blocksDay(dayKey(d)); s.t += b.t; s.a += b.a; s.c += b.c; s.f += b.f; } return s; }
-const bsum = b => b.t + b.a + b.c + b.f;
+function sumBlocks(from, to) { let s = { t: 0, a: 0, c: 0, f: 0, h: 0 }; for (let d = startOfDay(from).getTime(); d <= to; d += DAY) { const b = blocksDay(dayKey(d)); s.t += b.t; s.a += b.a; s.c += b.c; s.f += b.f; s.h += b.h || 0; } return s; }
+const bsum = b => b.t + b.a + b.c + b.f + (b.h || 0);
 function niceMax(v) { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
 function fmtAxis(v, M) { if (M === 'time') return v < 60 ? Math.round(v) + 'м' : (v / 60).toFixed(v % 60 ? 1 : 0).replace('.', ',') + 'ч'; return v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 1 : 0).replace('.', ',') + 'k' : String(Math.round(v)); }
 const fmtVal = (v, M) => M === 'time' ? fmtDurS(v) : fmtN(v);
@@ -6596,7 +6604,7 @@ function topSitesHtml(P) {
 }
 function donutHtml(P) {
   const r = periodRange(P), b = P === 'day' ? blocksDay(dayKey(Date.now())) : sumBlocks(r.from, r.to), tot = bsum(b) || 1, C = 2 * Math.PI * 46;
-  const segs = [['Трекеры', b.t, 'var(--accent)'], ['Реклама', b.a, 'var(--gb)'], ['Сторонние cookie', b.c, 'var(--ga)'], ['Отпечаток', b.f, 'var(--gc)']];
+  const segs = [['Трекеры', b.t, 'var(--accent)'], ['Реклама', b.a, 'var(--gb)'], ['Сторонние cookie', b.c, 'var(--ga)'], ['Отпечаток', b.f, 'var(--gc)'], ['Подъём на HTTPS', b.h || 0, 'var(--info)']];
   let off = 0;
   const circles = segs.map(s => { const len = s[1] / tot * C, h = `<circle class="seg2" cx="60" cy="60" r="46" data-len="${Math.max(0, len - 5).toFixed(2)}" style="stroke:rgb(${s[2]});stroke-dasharray:0 ${C.toFixed(2)};stroke-dashoffset:${(-(off + 2.5)).toFixed(2)}"/>`; off += len; return h; }).join('');
   return `<div class="card-h"><h3>${ico('pie')}Структура блокировок</h3></div>
@@ -8293,6 +8301,7 @@ try {
   }
   applyBlockerPref();
   applyFpPref();
+  applyNetPref();
 } catch (_) {}
 /* Настоящая блокировка трекеров/рекламы живёт в нативной части (сетевой
    фильтр + косметический CSS); сюда настройка приходит тумблером. */
@@ -8305,6 +8314,16 @@ function applyBlockerPref() {
 function applyFpPref() {
   const n = window.shelterNative;
   if (n && typeof n.fpSetEnabled === 'function') n.fpSetEnabled(S.prefs.fp !== false);
+}
+/* «Безопасный HTTPS + приватный DNS» — по-настоящему: нативная часть
+   поднимает http://-навигации на https:// (с интерстишиалом, если сайт не
+   поддерживает HTTPS), а сетевой стек решает DNS через шифрованный канал
+   выбранного провайдера (DoH). Тумблер управляет обоими механизмами. */
+function applyNetPref() {
+  const n = window.shelterNative;
+  if (!n) return;
+  if (typeof n.httpsSetEnabled === 'function') n.httpsSetEnabled(S.prefs.https !== false);
+  if (typeof n.dnsSetProvider === 'function') n.dnsSetProvider(S.prefs.dns || 'cf');
 }
 function dlPanelDone(d) {
   if (d && d.demo) return;
@@ -9439,7 +9458,7 @@ function dtBuildLocalReply(promptText) {
         'Формирую рекомендации по усилению безопасности'
       ],
       paragraphs: [
-        `Контур приватности активен на ${shieldsOn} из ${PROFILE_PRIVACY_PROTECTIONS.length} щитов. Сегодня заблокировано ${fmtN(blockedToday)} рекламных и трекинговых запросов, DNS работает через шифрованный канал (${dnsLabel()}).`,
+        `Контур приватности активен на ${shieldsOn} из ${PROFILE_PRIVACY_PROTECTIONS.length} щитов. Сегодня заблокировано ${fmtN(blockedToday)} рекламных и трекинговых запросов, DNS работает ${dnsOn() ? 'через шифрованный канал (' + dnsLabel() + ')' : 'через системный резолвер (без шифрования)'}.`,
         weakPw > 0
           ? `В менеджере паролей обнаружено ${weakPw} ${plural(weakPw, ['слабый пароль', 'слабых пароля', 'слабых паролей'])}. Рекомендую перейти в «Пароли» и нажать «Усилить», чтобы заменить их криптостойкими ключами.`
           : `Все ${S.passwords.length} сохранённых паролей имеют высокую криптостойкость — уязвимых записей не найдено.`
@@ -9928,7 +9947,7 @@ function openSettings(sec) {
       <section class="set-sec" id="set-privacy"><h4>Приватность</h4><div class="set-card">
         ${row('Режим «Призрак»', kb('Сессия только в оперативной памяти · ⌘⇧P'), sw('ghost'))}
         ${row('Блокировка трекеров и рекламы', 'EasyList, EasyPrivacy, CNAME-клоакинг', sw('trackers'))}
-        ${row('HTTPS-only + DNS-over-HTTPS', 'Незашифрованные сайты открываются по запросу', sw('https'))}
+        ${row('HTTPS-only + DNS-over-HTTPS', 'Автоподъём на https:// · DNS шифруется (поставщик ниже)', sw('https'))}
         ${row('Защита от цифрового отпечатка', 'Шум Canvas, WebGL, AudioContext', sw('fp'))}
         ${row('Строгий режим', 'Сторонние скрипты — только по разрешению', sw('strict'))}
         ${row('Удалить сессии', 'История, cookies, кэш и вкладки', btn('fire', ico('flame') + 'Удалить', 'danger'))}
@@ -9987,7 +10006,7 @@ function openSettings(sec) {
     else if (a === 'pers-del') persDel();
     else if (a === 'update') { b.disabled = true; b.innerHTML = '<span class="think"><i></i><i></i><i></i></span>'; setTimeout(() => { b.disabled = false; b.textContent = 'Проверить обновления'; toast('У вас последняя версия — ' + VERSION, { icon: 'check' }); }, 1300); }
   });
-  $('#setDns', root).addEventListener('change', e => { S.prefs.dns = e.target.value; persist(); renderHeroFoot(); toast('DoH: ' + dnsLabel(), { icon: 'server' }); });
+  $('#setDns', root).addEventListener('change', e => { S.prefs.dns = e.target.value; persist(); applyNetPref(); renderHeroFoot(); toast(S.prefs.https !== false && S.prefs.dns !== 'sys' ? 'DoH: ' + dnsLabel() : 'DNS: системный (без шифрования)', { icon: 'server' }); });
   const pSelEl = $('#persSelect', root);
   if (pSelEl) { pSelEl.value = persDetect(); pSelEl.addEventListener('change', e => persPick(e.target.value)); persSyncUi(); }
   const pNameEl = $('#persName', root);
@@ -10456,11 +10475,11 @@ function setZoom(z) {
 function certPop(anchor) {
   const t = curTab(), m = urlMeta(t.url); let html;
   if (m.kind === 'internal') html = `<div class="pop-h"><span class="ic" style="background:var(--card-3);color:var(--text)">${ico('shield-check')}</span><div><b>Страница SHELTER</b><span>shelter://${esc(m.page)} · локально</span></div></div><div class="kv"><span>Сеть</span><b>Не используется</b></div><div class="kv"><span>Данные</span><b>Только на устройстве</b></div><div class="kv"><span>Пространство</span><b>${esc(curSpace().name)}</b></div>`;
-  else if (m.kind === 'search') html = `<div class="pop-h"><span class="ic">${ico('search')}</span><div><b>Приватный поиск</b><span>${esc(ENGINES[m.engine].name)}</span></div></div><div class="kv"><span>Cookies поисковика</span><b>Не передаются</b></div><div class="kv"><span>Отпечаток</span><b>${S.prefs.fp ? 'Зашумлён' : 'Открыт'}</b></div><div class="kv"><span>DNS</span><b>DoH · ${dnsLabel()}</b></div>`;
+  else if (m.kind === 'search') html = `<div class="pop-h"><span class="ic">${ico('search')}</span><div><b>Приватный поиск</b><span>${esc(ENGINES[m.engine].name)}</span></div></div><div class="kv"><span>Cookies поисковика</span><b>Не передаются</b></div><div class="kv"><span>Отпечаток</span><b>${S.prefs.fp ? 'Зашумлён' : 'Открыт'}</b></div><div class="kv"><span>DNS</span><b>${dnsSecLabel()}</b></div>`;
   else html = `<div class="pop-h"><span class="ic"${m.ru ? ' style="background:rgb(var(--info)/.12);color:rgb(var(--info))"' : ''}>${ico('lock')}</span><div><b>Соединение защищено</b><span>${esc(m.host)}</span></div></div>
     <div class="kv"><span>Протокол</span><b>${m.ru && S.prefs.gostbadge ? 'TLS 1.3 · ГОСТ' : 'TLS 1.3 · X25519'}</b></div>
     <div class="kv"><span>Сертификат</span><b>${m.ru ? 'Russian Trusted Sub CA' : 'Let’s Encrypt R11'}</b></div>
-    <div class="kv"><span>DNS</span><b>DoH · ${dnsLabel()}</b></div>
+    <div class="kv"><span>DNS</span><b>${dnsSecLabel()}</b></div>
     <div class="kv"><span>Трекеры</span><b class="num">${t.blocked || 0} заблокировано</b></div>
     <div class="kv"><span>Cookies</span><b>«${esc(curSpace().name)}»</b></div>
     <div class="mh" style="padding:12px 2px 4px">Разрешения сайта</div>

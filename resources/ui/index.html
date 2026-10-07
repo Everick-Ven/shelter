@@ -5664,6 +5664,10 @@ const Hero = (() => {
   const SIG_BLOOM = 0.072, SIG_RIM = 0.15, SIG_CORE = 0.034;
   const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.*@#+-=/&%π'.split('');
   let canvas, ctx, dpr = 1, path = null, pathKey = '', chars = [], charKey = '', off = null, rimLayer = null, t0 = performance.now();
+  /* 1.0.151 (static glyphs): глифы растеризуются ОДИН раз в маску на отдельном
+     холсте; кадр лишь рисует цветные пятна (цвет/прозрачность меняются), а маска
+     оставляет подсветку только внутри букв — эффект «проявления». */
+  let glyphMask = null, glyphBoard = null, glyphMaskKey = '';
   let COL_A = [255, 107, 61], COL_A_SOFT = [235, 99, 56], COL_A_HOT = [255, 236, 222];
   let COL_B = [77, 124, 255], COL_B_SOFT = [71, 114, 235], COL_B_HOT = [214, 232, 255];
   let palKey = '', palLight = false, palAmp = 1, palGlyph = 1;
@@ -6028,11 +6032,39 @@ const Hero = (() => {
     blit(rimLayer, ox, oy, 7, 0.55);
     blit(rimLayer, ox, oy, 2.2, 0.82);
   }
+  function ensureGlyphLayers() {
+    const W = canvas.width, H = canvas.height;
+    if (!glyphMask || glyphMask.width !== W || glyphMask.height !== H) {
+      if (!glyphMask) glyphMask = document.createElement('canvas');
+      glyphMask.width = W; glyphMask.height = H;
+      glyphMask.ctx = glyphMask.getContext('2d', { alpha: true });
+      glyphMaskKey = '';
+    }
+    if (!glyphBoard || glyphBoard.width !== W || glyphBoard.height !== H) {
+      if (!glyphBoard) glyphBoard = document.createElement('canvas');
+      glyphBoard.width = W; glyphBoard.height = H;
+      glyphBoard.ctx = glyphBoard.getContext('2d', { alpha: true });
+    }
+    if (!glyphMaskKey || glyphMaskKey !== charKey) {
+      const m = glyphMask.ctx;
+      m.setTransform(dpr, 0, 0, dpr, 0, 0);
+      m.clearRect(0, 0, W / dpr, H / dpr);
+      m.globalCompositeOperation = 'source-over';
+      m.globalAlpha = 1;
+      m.fillStyle = '#fff';
+      m.font = chars.font; m.textBaseline = 'middle'; m.textAlign = 'center';
+      for (let i = 0; i < chars.length; i++) m.fillText(chars[i].ch, chars[i].x, chars[i].y);
+      glyphMaskKey = charKey;
+    }
+    return glyphBoard;
+  }
   function drawChars(offset) {
+    if (!chars.length) return;
     const g = gain() * palGlyph;
-    ctx.save();
-    ctx.font = chars.font; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-    ctx.globalCompositeOperation = glowComp();
+    const board = ensureGlyphLayers(), bctx = board.ctx;
+    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bctx.globalCompositeOperation = 'source-over';
+    bctx.clearRect(0, 0, board.width / dpr, board.height / dpr);
     for (let i = 0; i < chars.length; i++) {
       const ch = chars[i], L = light(ch.t, offset), body = L.oB + L.bB;
       if (body < 0.16) continue;
@@ -6044,10 +6076,20 @@ const Hero = (() => {
       let b = (COL_A[2] * oW + COL_B[2] * bW) / w;
       const lift = Math.min(0.45, ch.near * 0.35 + body * 0.2);
       r = r + (255 - r) * lift; gg = gg + (255 - gg) * lift; b = b + (255 - b) * lift;
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = 'rgb(' + (r | 0) + ',' + (gg | 0) + ',' + (b | 0) + ')';
-      ctx.fillText(ch.ch, ch.x, ch.y);
+      bctx.fillStyle = 'rgba(' + (r | 0) + ',' + (gg | 0) + ',' + (b | 0) + ',' + alpha.toFixed(3) + ')';
+      bctx.fillRect(ch.x - 5, ch.y - 9, 10, 18);
     }
+    // Маска оставляет подсветку только внутри букв.
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.globalCompositeOperation = 'destination-in';
+    bctx.drawImage(glyphMask, 0, 0);
+    bctx.globalCompositeOperation = 'source-over';
+    // Готовый слой — в главный холст (аддитивно в тёмных темах).
+    ctx.save();
+    ctx.globalCompositeOperation = glowComp();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'low';
+    ctx.drawImage(board, 0, 0, board.width, board.height, 0, 0, board.width / dpr, board.height / dpr);
     ctx.restore();
   }
   function drawGlow(offset) {
@@ -6089,11 +6131,14 @@ const Hero = (() => {
     const discardLayer = layer => { if (layer) { layer.width = 0; layer.height = 0; } };
     discardLayer(off); off = null;
     discardLayer(rimLayer); rimLayer = null;
+    discardLayer(glyphMask); glyphMask = null;
+    discardLayer(glyphBoard); glyphBoard = null;
     bloomPool.forEach(discardLayer); bloomPool.length = 0;
     path = null;
     pathKey = '';
     chars = [];
     charKey = '';
+    glyphMaskKey = '';
   }
   function paint(now) {
     const heroEl = document.getElementById('hero');

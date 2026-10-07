@@ -8601,7 +8601,10 @@ window.shelterDownload = function (p) {
     else if (d) toast(`Скачивание отменено: ${filename}`, { icon: 'download' });
   }
 };
-const pwFor = p => { if (p.pass) return p.pass; const R = rng(hashStr(p.id + p.site)), C = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*'; let s = ''; const n = p.strength >= 3 ? 16 : p.strength === 2 ? 11 : 8; for (let i = 0; i < n; i++) s += C[R() * C.length | 0]; return s; };
+/* Значение, которое реально лежит в записи. Ничего не «дорисовываем»:
+   показать/скопировать выдуманный пароль опаснее, чем не показать ничего —
+   его можно принять за настоящий и вставить на сайте. */
+const pwFor = p => (p && typeof p.pass === 'string') ? p.pass : '';
 function genPassword(n = 20, sym = true) { const C = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789' + (sym ? '!@#$%&*-_+=?' : ''), a = new Uint32Array(n); try { crypto.getRandomValues(a); } catch (e) { for (let i = 0; i < n; i++) a[i] = Math.random() * 1e9; } return Array.from(a, x => C[x % C.length]).join(''); }
 function pwRows(q = '') {
   q = q.toLowerCase(); const list = S.passwords.filter(p => !q || p.site.includes(q) || p.login.toLowerCase().includes(q));
@@ -10821,8 +10824,19 @@ const ACT = {
   profileSettings: () => openProfileSettings(), premiumDialog: () => openPremiumDialog(),
   achDetail: el => showAchievementDetail(el.dataset.achId),
   achPin: (el, e) => { if (e) e.stopPropagation(); toggleAchievementPin(el.dataset.achId); },
-  pwShow: el => { const p = S.passwords.find(x => x.id === el.dataset.id), s = $(`[data-pw="${el.dataset.id}"]`); if (!p || !s) return; const on = s.dataset.on !== '1'; s.dataset.on = on ? '1' : ''; s.textContent = on ? pwFor(p) : '••••••••••••'; el.innerHTML = ico(on ? 'eye-off' : 'eye'); },
-  pwCopy: el => { const p = S.passwords.find(x => x.id === el.dataset.id); if (p) { copySecret(pwFor(p)); toast('Пароль скопирован · очистится через 60 с', { icon: 'copy' }); } },
+  pwShow: el => {
+    const p = S.passwords.find(x => x.id === el.dataset.id), s = $(`[data-pw="${el.dataset.id}"]`);
+    if (!p || !s) return;
+    const v = pwFor(p);
+    if (!v) { toast('Для записи не сохранён пароль', { icon: 'key' }); return; }
+    const on = s.dataset.on !== '1'; s.dataset.on = on ? '1' : ''; s.textContent = on ? v : '••••••••••••';
+    el.innerHTML = ico(on ? 'eye-off' : 'eye');
+  },
+  pwCopy: el => {
+    const p = S.passwords.find(x => x.id === el.dataset.id); if (!p) return;
+    const v = pwFor(p); if (!v) { toast('Для записи не сохранён пароль', { icon: 'key' }); return; }
+    copySecret(v); toast('Пароль скопирован · очистится через 60 с', { icon: 'copy' });
+  },
   pwDel: async el => { const p = S.passwords.find(x => x.id === el.dataset.id); if (!p) return; if (await confirmDlg({ title: 'Удалить пароль для ' + p.site + '?', ok: 'Удалить', danger: true, icon: 'key' })) { S.passwords = S.passwords.filter(x => x !== p); persist(); refreshPage('passwords'); } },
   pwGen: () => pwGenModal(), pwAdd: () => pwAddModal(),
   pwFix: () => { let n = 0; S.passwords.forEach(p => { if (p.strength < 2) { p.pass = genPassword(18); p.strength = 3; n++; } }); persist(); refreshPage('passwords'); toast('Усилено паролей: ' + n + ' · обновите их на сайтах', { icon: 'shield-check' }); },

@@ -3063,12 +3063,13 @@ html[data-theme="graphite"] .badge.hot{
    тяжёлого размытия каждого тайла. Режим «Скорость» по-прежнему отключает
    backdrop-filter (существующие правила !important выше по каскаду).
    Адаптация под ограничения переноса (вёрстка сохранена):
-   - НЕ перенесена геометрия эталона, кроме зазора панель↔сцена:
-     .main/.app.collapsed .main padding-left (8px, мобильные 6px) добавлен
-     отдельным блоком по запросу пользователя 07.10.2026; остальное —
-     .tb height/margin/padding, .bm-mount margin/padding/min-height,
-     .hero-links padding, hover-подъёмы transform:translateY(-2px) —
-     только декоративные свойства;
+   - НЕ перенесена геометрия эталона, кроме зазоров по запросу пользователя
+     07.10.2026: .main/.app.collapsed .main padding-left (8px, мобильные 6px),
+     .tb margin 8px 0 10px и padding 0 11px (мобильные margin 6px 0 8px),
+     .bm-mount:not([hidden]) margin 0 0 8px + padding 3px 10px,
+     .sb-scroll padding-bottom 8px, .hero-links padding 7px 12px —
+     блок «отступы каркаса» в самом конце; высоты/габариты (.tb height,
+     min-height:34px) и hover-подъёмы transform:translateY(-2px) не взяты;
    - НЕ перенесён --glass-op:72 и по-токенные множители прозрачности: альфа
      всплывающих меню проверяется приёмочными пробами по единому --glass-opacity;
    - ::before/::after ниже — декларативные слои, элементы в DOM не добавлены.
@@ -3329,6 +3330,21 @@ body[data-gfx="beauty"] :is(.bm,.ext,.cert,.q-tile:not(.add),.tabs-card,.day:not
 .app.collapsed .main{padding-left:8px}
 @media (max-width:720px){
   .main,.app.collapsed .main{padding-left:6px}
+}
+/* Отступы каркаса из эталона (запрос пользователя 07.10.2026): тулбар-капсула
+   и строка быстрых ссылок получают вертикальные зазоры эталона, низ скролла
+   панели и линки героя — его паддинги — чтобы элементы не слипались.
+   Только spacing: высоты/габариты и hover-подъёмы по-прежнему наши. */
+.tb{margin:8px 0 10px}
+.bm-mount:not([hidden]){margin:0 0 8px;padding:3px 10px}
+.hero-links{padding:7px 12px}
+.sb-scroll{padding-bottom:8px}
+@media (min-width:721px){
+  .tb{padding:0 11px}
+}
+@media (max-width:720px){
+  .tb{margin:6px 0 8px}
+  .bm-mount:not([hidden]){margin-bottom:6px}
 }
 
 </style>

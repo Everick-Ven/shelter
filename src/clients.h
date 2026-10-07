@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "include/cef_client.h"
+#include "include/cef_permission_handler.h"
 #include "include/cef_resource_request_handler.h"
 #include "include/wrapper/cef_message_router.h"
 
@@ -101,6 +102,7 @@ class TabClient : public CefClient,
                   public CefDownloadHandler,
                   public CefKeyboardHandler,
                   public CefFindHandler,
+                  public CefPermissionHandler,
                   public CefRequestHandler,
                   public CefResourceRequestHandler {
  public:
@@ -115,6 +117,9 @@ class TabClient : public CefClient,
   }
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
   CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
+  CefRefPtr<CefPermissionHandler> GetPermissionHandler() override {
+    return this;
+  }
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
   CefRefPtr<CefFindHandler> GetFindHandler() override { return this; }
 
@@ -163,6 +168,11 @@ class TabClient : public CefClient,
                        const CefString& url) override;
   void OnTitleChange(CefRefPtr<CefBrowser> browser,
                      const CefString& title) override;
+  // Иконку сайта берём у самого сайта (её же объявила страница) и отдаём в UI;
+  // сторонние сервисы фавиконов не должны узнавать, какие сайты открывает
+  // пользователь.
+  void OnFaviconURLChange(CefRefPtr<CefBrowser> browser,
+                          const std::vector<CefString>& icon_urls) override;
   void OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
                               bool fullscreen) override;
   // Счётчик «Анти-отпечатка»: рендерер помечает применённый шум маркером в
@@ -192,6 +202,23 @@ class TabClient : public CefClient,
                      const CefKeyEvent& event,
                      CefEventHandle os_event,
                      bool* is_keyboard_shortcut) override;
+
+  // CefPermissionHandler — политика SHELTER: ни одного разрешения без решения
+  // пользователя. Запросы к камере/микрофону/геолокации/уведомлениям
+  // отклоняются явно (а не «тихим» дефолтом рантайма), UI получает событие
+  // и показывает, что именно сайт просил.
+  bool OnRequestMediaAccessPermission(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      const CefString& requesting_origin,
+      uint32_t requested_permissions,
+      CefRefPtr<CefMediaAccessCallback> callback) override;
+  bool OnShowPermissionPrompt(
+      CefRefPtr<CefBrowser> browser,
+      uint64_t prompt_id,
+      const CefString& requesting_origin,
+      uint32_t requested_permissions,
+      CefRefPtr<CefPermissionPromptCallback> callback) override;
 
   // CefRequestHandler
   bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser,

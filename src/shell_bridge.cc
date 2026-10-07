@@ -209,6 +209,11 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
+  if (m == "file.open") {  // Ctrl+O: нативный диалог, затем file-open в UI
+    PickLocalFile();
+    cb->Success("{}");
+    return true;
+  }
   if (m == "win.openPlain") {  // «Открыть в новом окне» — пока вкладкой
     UiEvent("newtab", "{\"url\":" + JsString(Str(a, "url")) + "}");
     cb->Success("{}");
@@ -372,8 +377,14 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
   if (m == "devtools") {
-    if (Str(a, "act") == "window") TabAction(active_tab_, "devtools", "");
-    cb->Success("{\"ok\":false}");
+    // UI просит отдельное окно DevTools для активной вкладки. Док-панель
+    // (act=open/close) нативно не реализована — отвечаем честным ok:false.
+    if (Str(a, "act") == "window" && !active_tab_.empty()) {
+      TabAction(active_tab_, "devtools", "");
+      cb->Success("{\"ok\":true}");
+    } else {
+      cb->Success("{\"ok\":false}");
+    }
     return true;
   }
 
@@ -533,10 +544,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     } else {
       cb->Success("\"no tab\"");
     }
-    return true;
-  }
-  if (m == "auth.window") {  // TODO(этап 3): окно входа SHELTER ID
-    cb->Success("{\"ok\":false}");
     return true;
   }
   return false;

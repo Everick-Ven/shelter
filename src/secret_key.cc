@@ -1,6 +1,8 @@
 // SHELTER — мастер-ключ для шифрования секретов UI (пароли, ключи ИИ).
-// Windows: ключ защищён DPAPI (привязан к учётной записи пользователя).
-// macOS/Linux: файл secret.key с правами 0600 в каталоге данных пользователя.
+// Windows: DPAPI (привязан к учётной записи пользователя).
+// macOS: login Keychain, запись SHELTER/master-key (без запросов доступа);
+//        файл secret.key 0600 — только fallback и миграция со старых версий.
+// Linux: файл secret.key с правами 0600 в каталоге данных пользователя.
 #include <cstdio>
 #include <filesystem>
 #include <iterator>

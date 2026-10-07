@@ -1,6 +1,8 @@
 #include "src/browser_app.h"
 
+#include <cstdlib>
 #include <filesystem>
+#include <string>
 
 #include "include/cef_command_line.h"
 #include "include/wrapper/cef_helpers.h"
@@ -27,8 +29,15 @@ void BrowserApp::OnBeforeCommandLineProcessing(
   // Приватный браузер: без фоновых служб Google.
   command_line->AppendSwitch("disable-background-networking");
   command_line->AppendSwitch("disable-sync");
+  command_line->AppendSwitch("disable-domain-reliability");
   command_line->AppendSwitch("no-default-browser-check");
-  command_line->AppendSwitchWithValue("disable-features", "Translate");
+  // Ничего из введённого в формы не уходит в сеть: автофилл-сервис Google
+  // (метаданные полей), проверка утечек паролей (хеши учётных данных),
+  // подсказки популярных адресов, медиа-роутер и новостные фиды выключены.
+  command_line->AppendSwitchWithValue(
+      "disable-features",
+      "Translate,AutofillServerCommunication,PasswordLeakDetection,"
+      "OptimizationHints,MediaRouter,InterestFeedContentSuggestions");
 }
 
 void BrowserApp::OnContextInitialized() {
@@ -39,11 +48,15 @@ void BrowserApp::OnContextInitialized() {
 void FillSettings(CefSettings& settings) {
   const std::string root = platform::UserDataDir();
   const std::filesystem::path root_path = std::filesystem::u8path(root);
-  if (security::EnsureDirectoryWithoutLink(root_path)) {
-    CefString(&settings.root_cache_path) = root;
-    CefString(&settings.log_file) = root + "/debug.log";
-  }
-  settings.log_severity = LOGSEVERITY_WARNING;
+  const bool root_ok = security::EnsureDirectoryWithoutLink(root_path);
+  if (root_ok) CefString(&settings.root_cache_path) = root;
+  // Chromium-журнал по умолчанию ВЫКЛ: в предупреждениях CEF встречаются
+  // адреса и имена файлов, а профиль не должен копить лишние следы сессии.
+  // Диагностика включается явно: SHELTER_DIAG=1 (так делают CI-прогоны).
+  const char* diag = std::getenv("SHELTER_DIAG");
+  const bool diag_on = diag && *diag && std::string(diag) != "0";
+  if (diag_on && root_ok) CefString(&settings.log_file) = root + "/debug.log";
+  settings.log_severity = diag_on ? LOGSEVERITY_WARNING : LOGSEVERITY_DISABLE;
   CefString(&settings.locale) = "ru";
   CefString(&settings.accept_language_list) = "ru-RU,ru,en-US,en";
 #if !defined(CEF_USE_SANDBOX)

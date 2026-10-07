@@ -638,8 +638,11 @@
     extList: function () { return q('ext.list'); },
     extInstall: function (src) { return q('ext.install', { src: String(src || '') }); },
     extRemove: function (id) { return q('ext.remove', { id: String(id || '') }); },
-    extPick: function () { return q('ext.pick'); }
-    // authWindow / devTools — не определены: вёрстка использует запасной путь.
+    extPick: function () { return q('ext.pick'); },
+    fileOpen: function () { return q('file.open'); },  // Ctrl+O: диалог ОС -> file-open
+    devTools: function (msg) { return q('devtools', msg || {}); },  // окно DevTools (F12 / ⇧⌘I)
+    // authWindow намеренно не определён: вёрстка использует запасной путь.
+    // Док-панель DevTools (act=open/close) в CEF не реализована.
   };
 
   /* ---------- события host -> UI ---------- */

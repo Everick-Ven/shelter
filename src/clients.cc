@@ -1,9 +1,11 @@
 #include "src/clients.h"
 
+#include <algorithm>
 #include <string>
 
 #include "include/cef_command_line.h"
 #include "include/cef_parser.h"
+#include "include/cef_urlrequest.h"
 #include "include/wrapper/cef_helpers.h"
 #include "src/blocker.h"
 #include "src/common.h"
@@ -13,6 +15,58 @@
 namespace shelter {
 
 namespace {
+
+// Лимит на иконку сайта: больше — это уже не favicon.
+constexpr size_t kMaxFaviconBytes = 256 * 1024;
+
+// Загрузка иконки сайта тем же контекстом, что и вкладка (cookies, прокси,
+// DoH-настройки), с жёстким лимитом размера. Данные никуда не отправляются:
+// результат уходит в UI-кэш.
+class FaviconRequest : public CefURLRequestClient {
+ public:
+  FaviconRequest(std::string tab_id, std::string host, std::string url)
+      : tab_id_(std::move(tab_id)), host_(std::move(host)), url_(std::move(url)) {}
+
+  void OnRequestComplete(CefRefPtr<CefURLRequest> request) override {
+    CefRefPtr<CefResponse> r = request->GetResponse();
+    const bool ok = request->GetRequestStatus() == UR_SUCCESS &&
+                    r && r->GetStatus() == 200 && !bytes_.empty();
+    if (ok) {
+      std::string mime = r->GetMimeType().ToString();
+      if (mime.rfind("image/", 0) != 0) mime = "image/png";
+      const std::string data =
+          "data:" + mime + ";base64," +
+          CefBase64Encode(bytes_.data(), bytes_.size()).ToString();
+      Shell::Get().OnFaviconReady(tab_id_, host_, url_, data);
+    } else {
+      Shell::Get().OnFaviconReady(tab_id_, host_, url_, std::string());
+    }
+  }
+  void OnUploadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+  void OnDownloadProgress(CefRefPtr<CefURLRequest> request, int64_t current,
+                          int64_t) override {
+    if (current > static_cast<int64_t>(kMaxFaviconBytes)) request->Cancel();
+  }
+  void OnDownloadData(CefRefPtr<CefURLRequest>, const void* data,
+                      size_t data_length) override {
+    if (bytes_.size() >= kMaxFaviconBytes) return;
+    bytes_.append(static_cast<const char*>(data),
+                  std::min(data_length, kMaxFaviconBytes - bytes_.size()));
+  }
+  bool GetAuthCredentials(bool, const CefString&, int, const CefString&,
+                          const CefString&,
+                          CefRefPtr<CefAuthCallback>) override {
+    return false;
+  }
+
+ private:
+  std::string tab_id_;
+  std::string host_;
+  std::string url_;
+  std::string bytes_;
+  IMPLEMENT_REFCOUNTING(FaviconRequest);
+  DISALLOW_COPY_AND_ASSIGN(FaviconRequest);
+};
 
 bool IsUiUrl(const std::string& url) {
   return url.rfind(kUiOriginPrefix, 0) == 0;
@@ -277,7 +331,7 @@ bool TabClient::OnBeforeBrowse(CefRefPtr<CefBrowser>,
   return scheme == kUiScheme;
 }
 
-// ---- блокировка трекеров/рекламы (сетевой этап) ----------------------------
+// ---- блокировка трекеров/рекламы -------------------------------------------
 
 namespace {
 
@@ -435,6 +489,60 @@ void TabClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
                               const CefString& title) {
   CEF_REQUIRE_UI_THREAD();
   Shell::Get().OnTabTitle(browser, title.ToString());
+}
+
+void TabClient::OnFaviconURLChange(CefRefPtr<CefBrowser> browser,
+                                   const std::vector<CefString>& icon_urls) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!browser || icon_urls.empty()) return;
+  std::string icon;
+  for (const auto& u : icon_urls) {
+    const std::string s = u.ToString();
+    if (s.rfind("http://", 0) == 0 || s.rfind("https://", 0) == 0) {
+      icon = s;
+      break;
+    }
+  }
+  if (icon.empty()) return;
+  CefURLParts parts;
+  if (!CefParseURL(icon, parts)) return;
+  const std::string host = CefString(&parts.host).ToString();
+  if (host.empty()) return;
+  // Отсекаем повторы (хост уже спрашивали в этой сессии) и призрачные вкладки:
+  // приватная сессия не оставляет ни сети, ни кэша иконок.
+  if (!Shell::Get().FaviconNeeded(tab_id_, host)) return;
+  CefRefPtr<CefRequest> req = CefRequest::Create();
+  req->SetURL(icon);
+  req->SetMethod("GET");
+  CefRefPtr<CefURLRequest> r = CefURLRequest::Create(
+      req, new FaviconRequest(tab_id_, host, icon),
+      browser->GetHost()->GetRequestContext());
+  Shell::Get().FaviconRequestStarted(icon, r);
+}
+
+// ---- разрешения: отказ по умолчанию, событие в UI ---------------------------
+
+bool TabClient::OnRequestMediaAccessPermission(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, const CefString& origin,
+    uint32_t requested_permissions,
+    CefRefPtr<CefMediaAccessCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  // Биты cef_media_access_permission_types_t: 0 — звук, 1 — видео.
+  Shell::Get().NotePermissionRequest(origin.ToString(), requested_permissions,
+                                     true);
+  if (callback) callback->Cancel();  // явный отказ, без диалогов ОС
+  return true;
+}
+
+bool TabClient::OnShowPermissionPrompt(
+    CefRefPtr<CefBrowser>, uint64_t, const CefString& origin,
+    uint32_t requested_permissions,
+    CefRefPtr<CefPermissionPromptCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().NotePermissionRequest(origin.ToString(), requested_permissions,
+                                     false);
+  if (callback) callback->Continue(CEF_PERMISSION_RESULT_DENY);
+  return true;
 }
 
 void TabClient::OnLoadStart(CefRefPtr<CefBrowser> browser,

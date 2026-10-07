@@ -1350,6 +1350,7 @@ def main() -> int:
                 cwd=str(executable.parent),
                 stdout=app_log,
                 stderr=subprocess.STDOUT,
+                env=dict(os.environ, SHELTER_DIAG="1"),  # CEF debug.log только для диагностики
             )
             ui_target = wait_until(
                 lambda: next(

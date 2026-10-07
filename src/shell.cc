@@ -1137,13 +1137,25 @@ void Shell::ApplyClip(Tab* tab) {
 }
 
 void Shell::Log(const std::string& line) {
-  const fs::path p = fs::path(platform::UserDataDir()) / "shelter.log";
+  const fs::path dir = fs::path(platform::UserDataDir());
+  const fs::path p = dir / "shelter.log";
+  // Ретенция: журнал не растёт бесконечно и не копит историю сессий. Один
+  // предыдущий файл — для разбора последнего сбоя, дальше старые следы уходят.
+  constexpr std::uintmax_t kMaxLogBytes = 512 * 1024;
+  std::error_code ec;
+  if (fs::file_size(p, ec) > kMaxLogBytes && !ec) {
+    const fs::path prev = dir / "shelter.log.1";
+    std::error_code rec;
+    fs::remove(prev, rec);
+    fs::rename(p, prev, rec);
+  }
   std::ofstream f(p, std::ios::app);
   if (!f) return;
   f << line << "\n";
   f.close();
 #if !defined(OS_WIN)
-  // Лог содержит URL загрузок и адреса — держим0600 (не шире владельца).
+  // В записях нет адресов и путей (см. ExtLabel), но журнал всё равно личный:
+  // держим 0600 — не шире владельца.
   ::chmod(p.string().c_str(), 0600);
 #endif
 }
@@ -1332,6 +1344,18 @@ std::string HostOf(const std::string& url) {
   return std::string();
 }
 
+// В shelter.log попадают только обезличенные метки: расширение файла помогает
+// разбирать сбои, но не выдаёт ни путь, ни полное имя. Всё остальное — мусор.
+std::string ExtLabel(const std::string& name) {
+  std::string ext = PathToUtf8(fs::u8path(name).extension());
+  if (ext.size() > 8) ext.resize(8);
+  for (char& c : ext) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (!std::isalnum(static_cast<unsigned char>(c)) && c != '.') c = '_';
+  }
+  return ext.empty() ? std::string("-") : ext;
+}
+
 std::string UniquePath(const std::string& dir, const std::string& name) {
   const fs::path directory = fs::u8path(dir);
   fs::path leaf = fs::u8path(name).filename();
@@ -1357,6 +1381,11 @@ std::string UniquePath(const std::string& dir, const std::string& name) {
 // после полного завершения.
 constexpr char kPartialSuffix[] = ".crdownload";
 
+// Приватная («призрачная») вкладка живёт в in-memory профиле temp:ghost-<key>.
+bool IsGhostPartition(const std::string& p) {
+  return p.rfind("temp:ghost-", 0) == 0;
+}
+
 }  // namespace
 
 void Shell::OnTabDownloadBefore(CefRefPtr<CefBrowser> browser,
@@ -1370,13 +1399,18 @@ void Shell::OnTabDownloadBefore(CefRefPtr<CefBrowser> browser,
   std::string name = suggested_name;
   if (name.empty()) name = item->GetSuggestedFileName().ToString();
   if (name.empty()) name = "download";
-  pending_downloads_[id] = {callback, name};
+  // Приватная вкладка оставляет файл на диске (как инкогнито в больших
+  // браузерах), но не следов в логе SHELTER: ни адреса, ни пути.
+  const Tab* tab = browser ? FindTabByBrowser(browser->GetIdentifier()) : nullptr;
+  const bool priv = tab && IsGhostPartition(tab->partition);
+  pending_downloads_[id] = {callback, name, priv};
+  if (priv) private_downloads_.insert(id);
 
   const std::string url = item->GetURL().ToString();
   const std::int64_t reported_size = item->GetTotalBytes();
   const std::int64_t size = reported_size > 0 ? reported_size : 0;
-  Log("download before id=" + id + " host=" + HostOf(url) +
-      " size=" + std::to_string(size));
+  Log("download before id=" + id + (priv ? " private=1" : "") +
+      " ext=" + ExtLabel(name) + " size=" + std::to_string(size));
 
   // Навигация по ссылке-загрузке не меняет страницу: возвращаем UI реальный адрес вкладки.
   if (browser) {
@@ -1436,8 +1470,9 @@ bool Shell::DownloadDecision(const std::string& id, const std::string& action,
     temp_downloads_[id] = {pass_path, path};
   }
   Log("download decision id=" + id + " action=save dialog=" +
-      (show_dialog ? "1" : "0") + " path=" + path +
-      (pass_path != path ? " partial=" + pass_path : std::string()) +
+      (show_dialog ? "1" : "0") + " ext=" + ExtLabel(pd.filename) +
+      " name_len=" + std::to_string(pd.filename.size()) +
+      (pass_path != path ? " partial=1" : std::string()) +
       (ec ? " mkdir_error=" + ec.message() : std::string()));
   // With the Save As preference enabled, CEF opens its native chooser while
   // keeping the suggested filename/path as the initial value.
@@ -1541,6 +1576,37 @@ void Shell::ExtPick() {
   const CefString title(std::string("Установить расширение"));
   ui_browser_->GetHost()->RunFileDialog(FILE_DIALOG_OPEN, title, CefString(),
                                         filters, new ExtPickCallback());
+}
+
+// Открытие локального файла (Ctrl+O): реальный диалог ОС и реальный путь —
+// UI получает готовый file:// URL и открывает его вкладкой.
+namespace {
+class FileOpenCallback : public CefRunFileDialogCallback {
+ public:
+  FileOpenCallback() = default;
+  void OnFileDialogDismissed(const std::vector<CefString>& file_paths) override {
+    if (file_paths.empty()) return;
+    std::string path = file_paths[0].ToString();
+    if (path.empty()) return;
+    std::string url = "file://";
+    if (path[0] != '/') url += "/";  // Windows: C:\… -> file:///C:/…
+    for (char c : path) url += (c == '\\') ? '/' : c;
+    Shell::Get().UiEvent("file-open", "{\"url\":" + JsString(url) + "}");
+  }
+
+ private:
+  IMPLEMENT_REFCOUNTING(FileOpenCallback);
+  DISALLOW_COPY_AND_ASSIGN(FileOpenCallback);
+};
+}  // namespace
+
+void Shell::PickLocalFile() {
+  CEF_REQUIRE_UI_THREAD();
+  if (!ui_browser_) return;
+  const CefString title(std::string("Открыть файл"));
+  ui_browser_->GetHost()->RunFileDialog(FILE_DIALOG_OPEN, title, CefString(),
+                                        std::vector<CefString>(),
+                                        new FileOpenCallback());
 }
 
 void Shell::ExtInstall(const std::string& src) {
@@ -1798,6 +1864,50 @@ void Shell::SetGhostMode(bool on) {
   for (auto& p : temp_parts) ReleaseContextIfUnused(p);
 }
 
+// ---- разрешения сайтов и иконки ---------------------------------------------
+
+void Shell::NotePermissionRequest(const std::string& origin, uint32_t mask,
+                                  bool media) {
+  CEF_REQUIRE_UI_THREAD();
+  // Никаких записей на диск: событие живёт только в UI. Тост показывает, кто
+  // и что просил, — «тихий» отказ рантайма выглядел бы как сломанная страница.
+  std::string host;
+  CefURLParts parts;
+  if (CefParseURL(origin, parts)) host = CefString(&parts.host).ToString();
+  std::ostringstream os;
+  os << "{\"origin\":" << JsString(origin) << ",\"host\":" << JsString(host)
+     << ",\"mask\":" << mask << ",\"media\":" << (media ? "1" : "0") << "}";
+  UiEvent("perm", os.str());
+}
+
+bool Shell::FaviconNeeded(const std::string& tab_id, const std::string& host) {
+  CEF_REQUIRE_UI_THREAD();
+  if (host.empty() || favicon_hosts_.size() >= 400) return false;
+  Tab* t = FindTab(tab_id);
+  if (t && IsGhostPartition(t->partition)) return false;  // призрак не кэширует
+  if (!favicon_hosts_.insert(host).second) return false;
+  return true;
+}
+
+void Shell::FaviconRequestStarted(const std::string& url,
+                                  CefRefPtr<CefURLRequest> request) {
+  CEF_REQUIRE_UI_THREAD();
+  favicon_requests_[url] = request;
+}
+
+void Shell::OnFaviconReady(const std::string& tab_id, const std::string& host,
+                           const std::string& url, const std::string& data) {
+  CEF_REQUIRE_UI_THREAD();
+  favicon_requests_.erase(url);
+  Tab* t = FindTab(tab_id);
+  if (t && IsGhostPartition(t->partition)) return;
+  if (data.empty() || data.size() > 400000) return;
+  std::ostringstream os;
+  os << "{\"tabId\":" << JsString(tab_id) << ",\"host\":" << JsString(host)
+     << ",\"data\":" << JsString(data) << "}";
+  UiEvent("fav", os.str());
+}
+
 void Shell::OnTabLoadStart(CefRefPtr<CefBrowser> browser,
                            CefRefPtr<CefFrame> frame) {
   CEF_REQUIRE_UI_THREAD();
@@ -1870,12 +1980,13 @@ void Shell::OnTabDownloadUpdated(
       // становится итоговым (как в современных браузерах).
       std::error_code rec;
       fs::rename(fs::u8path(temp->second.first), fs::u8path(temp->second.second), rec);
+      const bool dl_priv = private_downloads_.count(id) > 0;
       if (!rec) {
         path = temp->second.second;
-        Log("download finalized id=" + id + " path=" + path);
+        Log("download finalized id=" + id +
+            (dl_priv ? " private=1" : " ext=" + ExtLabel(path)));
       } else {
-        Log("download rename failed id=" + id + " error=" + rec.message() +
-            " temp=" + temp->second.first);
+        Log("download rename failed id=" + id + " error=" + rec.message());
       }
     } else if (state == "cancelled" || state == "interrupted") {
       // Прерванная или отменённая загрузка не оставляет «не подтверждённый» файл.
@@ -1888,11 +1999,12 @@ void Shell::OnTabDownloadUpdated(
     name = PathToUtf8(fs::u8path(path).filename());
   if (name.empty()) name = accepted->second.empty() ? "download" : accepted->second;
 
+  const bool dl_priv = private_downloads_.count(id) > 0;
   if (state != "progressing")
     Log("download update id=" + id + " state=" + state + " bytes=" +
         std::to_string(bytes) + " total=" + std::to_string(total) +
         " reason=" + std::to_string(static_cast<int>(item->GetInterruptReason())) +
-        " path=" + path);
+        (dl_priv ? " private=1" : " ext=" + ExtLabel(path)));
 
   std::ostringstream os;
   os << "{\"id\":" << JsString(id) << ",\"filename\":" << JsString(name)
@@ -1909,6 +2021,7 @@ void Shell::OnTabDownloadUpdated(
     accepted_downloads_.erase(id);
     active_downloads_.erase(id);
     temp_downloads_.erase(id);
+    private_downloads_.erase(id);  // приватность записи больше не нужна
   }
 }
 

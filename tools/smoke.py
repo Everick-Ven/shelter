@@ -99,7 +99,8 @@ def os_shot(path):
 
 args = [exe, f"--remote-debugging-port={PORT}", "--remote-allow-origins=*"] + sys.argv[3:]
 log("launch:", args)
-proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                        env=dict(os.environ, SHELTER_DIAG="1"))  # CEF debug.log — только в диагностике
 try:
     ui = None
     for _ in range(60):

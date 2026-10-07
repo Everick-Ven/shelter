@@ -68,6 +68,9 @@ struct Tab {
 struct PendingDownload {
   CefRefPtr<CefBeforeDownloadCallback> callback;
   std::string filename;
+  // Загрузка из приватной («призрачной») вкладки: её адрес и путь не попадают
+  // даже в собственный лог SHELTER.
+  bool priv = false;
 };
 
 struct ActiveDownload {
@@ -150,6 +153,22 @@ class Shell {
   // «Призрак»: режим приходит из UI; при выключении сразу освобождаем
   // in-memory контексты, у которых не осталось вкладок.
   void SetGhostMode(bool on);
+
+  // ---- приватность: разрешения и иконки сайтов ----
+  // Сайт попросил разрешение (камера/микрофон/геолокация/…). Оболочка всегда
+  // отказывает; UI получает событие, чтобы показать это пользователю.
+  void NotePermissionRequest(const std::string& origin, uint32_t mask,
+                             bool media);
+  // Иконка сайта: берём у самого сайта, кэшируем в UI. Призрачные вкладки
+  // пропускаются, повторные запросы к тому же хосту — тоже.
+  bool FaviconNeeded(const std::string& tab_id, const std::string& host);
+  void FaviconRequestStarted(const std::string& url,
+                             CefRefPtr<CefURLRequest> request);
+  void OnFaviconReady(const std::string& tab_id, const std::string& host,
+                      const std::string& url, const std::string& data);
+  // Нативный диалог «открыть файл» (Ctrl+O): выбранный путь открывается
+  // вкладкой в UI — без выдуманных путей на стороне вёрстки.
+  void PickLocalFile();
 
   // ---- расширения (Chrome Web Store / .crx) ----
   void ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
@@ -240,6 +259,11 @@ class Shell {
   // partition -> id вкладок, ждущих инициализации контекста.
   std::map<std::string, std::vector<std::string>> context_waiters_;
   std::map<std::string, PendingDownload> pending_downloads_;
+  // Хосты, для которых иконка уже запрошена (в этой сессии), и живые запросы.
+  std::set<std::string> favicon_hosts_;
+  std::map<std::string, CefRefPtr<CefURLRequest>> favicon_requests_;
+  // Загрузки из «призрачных» вкладок: их адрес/путь не пишутся в лог.
+  std::set<std::string> private_downloads_;
   // Downloads are surfaced only after the user accepts the confirmation prompt.
   // The accepted map also retains the CEF-suggested filename as a safe fallback.
   std::map<std::string, std::string> accepted_downloads_;

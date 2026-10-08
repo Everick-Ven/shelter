@@ -8,7 +8,10 @@
 //      заголовка, метки закрепления и крестика закрытия;
 //   3) миниатюра задана и для боковых доков, и для полосы сверху/снизу;
 //   4) закреплённые вкладки идут первыми в списке;
-//   5) в полосе сверху/снизу «+» вставляется сразу после списка вкладок.
+//   5) в полосе сверху/снизу «+» вставляется сразу после списка вкладок;
+//   6) значок миниатюры остаётся по центру и в свёрнутой панели: правила
+//      `.app.collapsed .tab` / `#tabRight.is-collapsed .tab` задают padding-left
+//      и по специфичности перебивали миниатюру (значок уезжал на 5–8 px).
 //
 // Тест читает resources/ui/index.html как текст: без браузера, без зависимостей.
 'use strict';
@@ -71,6 +74,17 @@ check('закреплённые вкладки сортируются в нач�
 check('кнопка «+» вставляется сразу после списка вкладок', /tl\.after\(plus\)/.test(render));
 check('кнопка «+» существует в разметке боковых доков',
   /data-act="newTab" aria-label="Новая вкладка"/.test(html));
+
+// 6. Центрирование миниатюры в свёрнутых контекстах.
+const cpAt = css.indexOf('.app.collapsed .tab.pinned,');
+const collapsedPin = cpAt < 0 ? '' : css.slice(cpAt, css.indexOf('}', cpAt));
+check('миниатюра центрируется и в свёрнутой панели',
+  /\.app\.collapsed \.tab\.pinned/.test(collapsedPin) && /padding:0/.test(collapsedPin) && /justify-content:center/.test(collapsedPin),
+  collapsedPin.slice(0, 90));
+check('миниатюра в полосе сверху центрируется при свёрнутой панели',
+  /\.app\.collapsed \.tab-mount \.tab\.pinned/.test(collapsedPin));
+check('миниатюра в схлопнутом правом доке центрируется',
+  /#tabRight\.is-collapsed \.tab\.pinned/.test(collapsedPin));
 
 const failed = results.filter(x => !x).length;
 console.log(failed ? 'UI_TABS_TEST_FAIL ' + failed : 'UI_TABS_TEST_PASS ' + results.length + '/' + results.length);

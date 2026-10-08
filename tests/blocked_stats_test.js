@@ -71,20 +71,23 @@ function makeContext() {
     prefs: { trackers: true, fp: true, https: true, strict: false },
     blocks: {},
   };
-  const calls = { persist: 0, raf: 0, synced: 0, hero: 0 };
+  const calls = { persist: 0, raf: 0, hero: 0, shieldWrites: 0, countWrites: 0 };
   const toasts = [];
+  /* Счётчик блокировок рисуется прямо в обработчике: строка тулбара (#shieldN)
+     и значения на плитках ([data-count]) должны получить новое число. */
+  const shieldN = { _v: '', set textContent(v) { calls.shieldWrites += 1; this._v = v; }, get textContent() { return this._v; } };
+  const dataCount = [{ _v: '', set textContent(v) { calls.countWrites += 1; this._v = v; }, get textContent() { return this._v; } }];
   const context = {
     S: state,
     curTab: () => state.spaces.main.tabs.find(t => t.id === state.activeTabId),
     dayKey: () => '2026-10-08',
     persist: () => { calls.persist += 1; },
     raf: fn => { calls.raf += 1; fn(); },
-    syncControls: () => { calls.synced += 1; },
     renderHeroFoot: () => { calls.hero += 1; },
     fmtN: n => String(n),
     todayBlocked: () => 0,
-    $: () => null,
-    $$: () => [],
+    $: sel => (sel === '#shieldN' ? shieldN : null),
+    $$: sel => (sel === '[data-count]' ? dataCount : []),
     toasts,
     toast: (msg, opts) => { toasts.push({ msg, opts }); },
     favCachePut: () => {},
@@ -95,11 +98,11 @@ function makeContext() {
   vm.runInContext(
     hookSource + '\nglobalThis.__hooks = { blocked: window.shelterBlockedStats, strict: window.shelterStrictBlock };',
     context, { filename: 'resources/ui/index.html' });
-  return { state, calls, hooks: context.__hooks, toasts };
+  return { state, calls, hooks: context.__hooks, toasts, probe: { shieldN, dataCount } };
 }
 
 {
-  const { state, calls, hooks } = makeContext();
+  const { state, calls, hooks, probe } = makeContext();
   hooks.blocked({ host: 'ads.example', a: 1, id: 't-ad' });
   hooks.blocked({ host: 'tracker.example', t: 1, id: 't-ad' });
   hooks.blocked({ f: 1 });                           // без id — в активную вкладку
@@ -110,8 +113,11 @@ function makeContext() {
   assert.equal(state.blocks['2026-10-08'].a, 1, 'ad blocks land in the daily tally');
   assert.equal(state.blocks['2026-10-08'].t, 1, 'tracker blocks land in the daily tally');
   assert.equal(state.blocks['2026-10-08'].f, 1, 'fingerprint defenses land in the daily tally');
-  assert.ok(calls.persist > 0 && calls.raf > 0 && calls.synced > 0 && calls.hero > 0,
+  assert.ok(calls.persist > 0 && calls.raf > 0 && calls.hero > 0 &&
+    calls.shieldWrites > 0 && calls.countWrites > 0,
     'statistics trigger persist and UI refresh');
+  assert.equal(probe.shieldN.textContent, '0', 'toolbar counter is repainted from the daily tally');
+  assert.ok(probe.dataCount.every(el => /^\d+$/.test(el.textContent)), 'tile counters are repainted with a number');
 }
 
 // --- выключенный тумблер не даёт статистики ----------------------------------

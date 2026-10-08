@@ -14,7 +14,10 @@
 //      отрисовку секций оценкой высот (content-visibility ломает точность
 //      offsetTop, а выигрыша не даёт — замерено);
 //   5) сброс поиска возвращает весь список разделов, а не прячет те, у которых
-//      нет обычных строк (у «О SHELTER» их нет).
+//      нет обычных строк (у «О SHELTER» их нет);
+//   6) ползунок «Скругления углов» тянет за собой весь интерфейс: точечные
+//      радиусы заданы через множитель --rs (иначе скругления менялись только
+//      у карточек-токенов, а тулбар/меню/поля оставались прежними).
 //
 // Тест читает resources/ui/index.html как текст: без браузера, без зависимостей.
 'use strict';
@@ -40,7 +43,7 @@ const cut = (from, to) => {
 // 1. Тулбар: плитки-переключатели защит переехали в попап щита (#protBtn),
 //    в тулбаре остаётся только плитка «Удалить сессии». Проверяем, что ни один
 //    переключатель не потерялся: попап щита обязан собрать все строки PROT_ROWS.
-const grid = cut("const g = $('#ctlGrid')", 'function syncControls');
+const grid = cut("const g = $('#ctlGrid')", 'function themeSwatchesMarkup');
 check('плитка «Удалить сессии» рисуется в тулбаре', /class="ctl fire"/.test(grid) && /data-act="fire"/.test(grid), grid.length + ' символов');
 check('в тулбаре не осталось плиток-переключателей защит', grid.length > 0 && !/data-sw/.test(grid) && !/const tiles = \[/.test(html));
 const shieldBtn = cut('<button class="tb-btn" id="protBtn"', '</button>');
@@ -92,6 +95,17 @@ check('отложенная часть режима страхуется тай�
 // 5. Поиск: сброс показывает все разделы.
 check('сброс поиска не прячет разделы без обычных строк', /let any = !q;/.test(settings));
 check('подсветка раздела синхронизируется сразу после прыжка', /body\.scrollTo\(\{ top: s\.offsetTop - 18 \}\); syncNav\(\)/.test(settings));
+
+// 6. Скругления: один множитель на весь интерфейс.
+check('множитель скруглений объявлен по умолчанию', /--rs:\s*1;/.test(html));
+const radiusFn = cut('function applyRadius() {', '\nfunction ');
+check('ползунок задаёт множитель вместе с токенами',
+  ['--rs', '--r-m', '--r-l', '--r-xl', '--r-s', '--r-xs'].every(t => radiusFn.includes("'" + t + "'")), radiusFn.length + ' символов');
+const radii = [...html.matchAll(/border-radius:([^;}"]+)/g)].map(m => m[1].trim());
+const literal = radii.filter(v => /^\d+(\.\d+)?px$/.test(v) && v !== '99px');
+check('литеральные радиусы следуют за множителем', literal.length === 0, literal.join(', ') || 'нет');
+check('пилюли и круги остались полностью скруглёнными',
+  radii.includes('99px') && radii.includes('50%'));
 
 const failed = results.filter(x => !x).length;
 console.log(failed ? 'UI_SETTINGS_TEST_FAIL ' + failed : 'UI_SETTINGS_TEST_PASS ' + results.length + '/' + results.length);

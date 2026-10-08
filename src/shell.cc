@@ -1021,6 +1021,12 @@ Tab* Shell::FindTabByBrowser(int browser_id) {
   return nullptr;
 }
 
+std::string Shell::TabIdForBrowser(int browser_id) {
+  if (browser_id <= 0) return std::string();
+  Tab* t = FindTabByBrowser(browser_id);
+  return t ? t->id : std::string();
+}
+
 Tab* Shell::CreateTab(const std::string& id, const std::string& partition,
                       const std::string& url, double zoom) {
   Tab tab;

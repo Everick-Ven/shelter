@@ -193,15 +193,18 @@ void AllowInsecure(const std::string& host) {
     g_insecure_allowed.erase(g_insecure_allowed.begin());
 }
 
-void RecordUpgrade(const std::string& host) {
-  // Вызывается с IO-потока; статистику ведём в UI-потоке.
+void RecordUpgrade(const std::string& host, int browser_id) {
+  // Вызывается с IO-потока; статистику ведём в UI-потоке, там же резолвим
+  // вкладку-источник по id браузера.
   CefPostTask(TID_UI, CefCreateClosureTask(base::BindOnce(
-                          [](std::string h) {
+                          [](std::string h, int bid) {
                             std::ostringstream os;
-                            os << "{\"host\":" << JsString(h) << ",\"h\":1}";
+                            os << "{\"host\":" << JsString(h) << ",\"h\":1"
+                               << ",\"id\":" << JsString(Shell::Get().TabIdForBrowser(bid))
+                               << "}";
                             Shell::Get().UiEvent("blocked", os.str());
                           },
-                          host)));
+                          host, browser_id)));
 }
 
 // ---- строгий режим ----------------------------------------------------------
@@ -259,7 +262,7 @@ bool ShouldBlockScript(const std::string& script_url,
   return true;
 }
 
-void RecordScriptBlock(const std::string& page_host,
+void RecordScriptBlock(const std::string& page_host, int browser_id,
                        const std::string& script_host) {
   const std::string p_reg = RegistrableDomain(page_host);
   // Интерактивное уведомление показываем не чаще раза в несколько секунд на
@@ -281,8 +284,11 @@ void RecordScriptBlock(const std::string& page_host,
     }
   }
   CefPostTask(TID_UI, CefCreateClosureTask(base::BindOnce(
-                          [](std::string page, std::string script, bool n) {
-                            Shell::Get().UiEvent("blocked", "{\"s\":1}");
+                          [](std::string page, std::string script, bool n, int bid) {
+                            std::ostringstream sb;
+                            sb << "{\"s\":1,\"id\":"
+                               << JsString(Shell::Get().TabIdForBrowser(bid)) << "}";
+                            Shell::Get().UiEvent("blocked", sb.str());
                             if (n) {
                               std::ostringstream os;
                               os << "{\"host\":" << JsString(page)
@@ -290,7 +296,7 @@ void RecordScriptBlock(const std::string& page_host,
                               Shell::Get().UiEvent("strict-block", os.str());
                             }
                           },
-                          page_host, script_host, notify)));
+                          page_host, script_host, notify, browser_id)));
 }
 
 }  // namespace netguard

@@ -126,6 +126,9 @@ class Shell {
   // ---- события вкладок (TabClient -> Shell) ----
   Tab* FindTab(const std::string& id);
   Tab* FindTabByBrowser(int browser_id);
+  // id вкладки по идентификатору CEF-браузера; пусто, если вкладки уже нет.
+  // Нужен событиям статистики, которые приходят асинхронно с IO-потока.
+  std::string TabIdForBrowser(int browser_id);
   void OnTabCreated(CefRefPtr<CefBrowser> browser, const std::string& id);
   void OnTabAddress(CefRefPtr<CefBrowser> browser, const std::string& url);
   void OnTabTitle(CefRefPtr<CefBrowser> browser, const std::string& title);

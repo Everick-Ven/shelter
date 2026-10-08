@@ -3634,7 +3634,6 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   };
 
   /* Анти-дубль тостов строгого режима: домен страницы -> время последнего. */
-  const strictToasts = {};
   const permToasts = {};  // сайт+тип -> время последнего тоста о разрешении
 
   /* Единая точка входа для вызовов из C++ CEF (CefFrame::ExecuteJavaScript):
@@ -3677,47 +3676,16 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
           if (N && typeof N.setFullscreen === 'function') N.setFullscreen(on);
           break;
         }
-        case 'blocked': {
-          // Нативный сетевой фильтр реально отменил запрос (или поднял
-          // навигацию на HTTPS, или остановил сторонний скрипт строгого
-          // режима): ведём честную статистику вместо прежней синтетической.
-          const n = (d.t | 0) + (d.a | 0) + (d.f | 0) + (d.h | 0) + (d.s | 0);
-          if (!n) break;
-          if ((d.t || d.a) && S.prefs.trackers === false) break;
-          if (d.f && S.prefs.fp === false) break;
-          if (d.h && S.prefs.https === false) break;
-          if (d.s && S.prefs.strict !== true) break;
-          const k = dayKey(Date.now()), b = S.blocks[k] || (S.blocks[k] = { t: 0, a: 0, c: 0, f: 0, h: 0, s: 0 });
-          b.t += d.t | 0; b.a += d.a | 0; b.f += d.f | 0; b.h = (b.h || 0) + (d.h | 0); b.s = (b.s || 0) + (d.s | 0);
-          const t = curTab(); if (t) t.blocked = (t.blocked || 0) + n;
-          persist();
-          raf(() => { syncControls(); renderHeroFoot(); });
-          const sn = $('#shieldN'); if (sn) sn.textContent = fmtN(todayBlocked());
-          $$('[data-count]').forEach(el => { el.textContent = fmtN((curTab() && curTab().blocked) || 0); });
+        case 'blocked':
+          // Нативный фильтр реально отменил запрос (реклама/трекер), поднял
+          // навигацию на HTTPS или остановил сторонний скрипт строгого режима.
+          // Счёт ведёт основной скрипт UI — здесь доступны только window-хуки.
+          if (typeof window.shelterBlockedStats === 'function') window.shelterBlockedStats(d);
           break;
-        }
-        case 'strict-block': {
-          // Строгий режим отменил сторонний скрипт. Предлагаем разрешить его
-          // для этого сайта — тогда вкладка перезагрузится уже со скриптами.
-          if (S.prefs.strict !== true) break;
-          const host = String(d.host || ''), script = String(d.script || '');
-          if (!host) break;
-          const now = Date.now();
-          strictToasts[host] = strictToasts[host] || 0;
-          if (now - strictToasts[host] < 6000) break;
-          strictToasts[host] = now;
-          if (typeof window.toast === 'function') {
-            window.toast(`Строгий режим: заблокирован сторонний скрипт${script ? ' ' + script : ''} на ${host}`, {
-              icon: 'shield-check', ms: 9000,
-              action: { label: 'Разрешить', run: () => {
-                const n = window.shelterNative;
-                if (n && typeof n.strictAllow === 'function') n.strictAllow(host);
-                try { if (window.shelterCef && typeof window.shelterCef.reload === 'function') window.shelterCef.reload(); } catch (_) {}
-              } }
-            });
-          }
+        case 'strict-block':
+          // Строгий режим отменил сторонний скрипт: тост с разрешением сайта.
+          if (typeof window.shelterStrictBlock === 'function') window.shelterStrictBlock(d);
           break;
-        }
         case 'ext':
           if (typeof window.shelterApplyExt === 'function') window.shelterApplyExt(d.list);
           break;
@@ -3726,7 +3694,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
           break;
         case 'fav':
           // Иконку сайта принесла оболочка (у самого сайта). Кэш — локальный.
-          favCachePut(String(d.host || ''), String(d.data || ''));
+          if (typeof window.shelterFavIcon === 'function') window.shelterFavIcon(String(d.host || ''), String(d.data || ''));
           break;
         case 'perm': {
           // Сайт просил камеру/микрофон/геолокацию/уведомления — оболочка
@@ -11021,6 +10989,53 @@ window.openFind = () => openFind();
 window.doFind = q => doFind(q);
 window.toggleDevtools = () => toggleDevtools();
 window.pushTabHist = pushTabHist;
+/* Хуки для диспетчера CEF-событий: он живёт в первом (адаптерном) скрипте и
+   видит только window, поэтому учёт заблокированных запросов, тосты строгого
+   режима и кэш иконок живут здесь, рядом с состоянием S. */
+const tabById = id => {
+  const ks = Object.keys(S.spaces || {});
+  for (const k of ks) { const t = (S.spaces[k].tabs || []).find(x => x.id === id); if (t) return t; }
+  return null;
+};
+window.shelterBlockedStats = payload => {
+  const d = payload || {};
+  const n = (d.t | 0) + (d.a | 0) + (d.f | 0) + (d.h | 0) + (d.s | 0);
+  if (!n) return;
+  if ((d.t || d.a) && S.prefs.trackers === false) return;
+  if (d.f && S.prefs.fp === false) return;
+  if (d.h && S.prefs.https === false) return;
+  if (d.s && S.prefs.strict !== true) return;
+  const k = dayKey(Date.now()), b = S.blocks[k] || (S.blocks[k] = { t: 0, a: 0, c: 0, f: 0, h: 0, s: 0 });
+  b.t += d.t | 0; b.a += d.a | 0; b.f += d.f | 0; b.h = (b.h || 0) + (d.h | 0); b.s = (b.s || 0) + (d.s | 0);
+  /* Оболочка присылает id вкладки-источника: заблокированное в фоновой вкладке
+     не должно попадать в счётчик активной. Без id — падаем на текущую. */
+  const t = (d.id && tabById(d.id)) || curTab();
+  if (t) t.blocked = (t.blocked || 0) + n;
+  persist();
+  raf(() => { syncControls(); renderHeroFoot(); });
+  const sn = $('#shieldN'); if (sn) sn.textContent = fmtN(todayBlocked());
+  $$('[data-count]').forEach(el => { el.textContent = fmtN(((t || curTab()) && (t || curTab()).blocked) || 0); });
+};
+const strictToasts = {};
+window.shelterStrictBlock = payload => {
+  const d = payload || {};
+  if (S.prefs.strict !== true) return;
+  const host = String(d.host || ''), script = String(d.script || '');
+  if (!host) return;
+  const now = Date.now();
+  if (now - (strictToasts[host] || 0) < 6000) return;
+  strictToasts[host] = now;
+  if (typeof window.toast !== 'function') return;
+  window.toast(`Строгий режим: заблокирован сторонний скрипт${script ? ' ' + script : ''} на ${host}`, {
+    icon: 'shield-check', ms: 9000,
+    action: { label: 'Разрешить', run: () => {
+      const n = window.shelterNative;
+      if (n && typeof n.strictAllow === 'function') n.strictAllow(host);
+      try { if (window.shelterCef && typeof window.shelterCef.reload === 'function') window.shelterCef.reload(); } catch (_) {}
+    } }
+  });
+};
+window.shelterFavIcon = (host, data) => favCachePut(String(host || ''), String(data || ''));
 /* Тестовая поверхность (headless-регрессии): минимум внутренностей наружу */
 window.shelterTest = {
   state: () => S,

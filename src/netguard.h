@@ -59,7 +59,7 @@ void AllowInsecure(const std::string& host);
 
 // Честная статистика: событие «blocked» {h:1} для дашборда.
 // Вызывается с IO-потока — сам переносит работу в UI-поток.
-void RecordUpgrade(const std::string& host);
+void RecordUpgrade(const std::string& host, int browser_id);
 
 // ---- строгий режим ----------------------------------------------------------
 // Модель Brave Shields / NoScript: сторонние скрипты по умолчанию
@@ -81,7 +81,7 @@ bool ShouldBlockScript(const std::string& script_url,
 // Статистика «заблокирован скрипт» + сигнал для интерактивного разрешения
 // (событие «strict-block» для тоста с кнопкой «Разрешить»). Вызывается с
 // IO-потока — сам переносит работу в UI-поток; уведомления троттлятся.
-void RecordScriptBlock(const std::string& page_host,
+void RecordScriptBlock(const std::string& page_host, int browser_id,
                        const std::string& script_host);
 
 }  // namespace netguard

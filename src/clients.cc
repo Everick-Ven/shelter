@@ -342,7 +342,8 @@ namespace {
 // подключает прямо из своего документа, приходят из главного фрейма и раньше
 // проходили фильтр насквозь — поэтому на реальных сайтах (например, с Yandex
 // Direct) реклама не блокировалась вовсе.
-cef_return_value_t BlockerCheck(CefRefPtr<CefFrame> frame,
+cef_return_value_t BlockerCheck(CefRefPtr<CefBrowser> browser,
+                                CefRefPtr<CefFrame> frame,
                                 CefRefPtr<CefRequest> request) {
   if (!request || !::shelter::blocker::Enabled()) return RV_CONTINUE;
   const std::string url = request->GetURL().ToString();
@@ -356,7 +357,8 @@ cef_return_value_t BlockerCheck(CefRefPtr<CefFrame> frame,
   CefURLParts parts;
   if (CefParseURL(CefString(url), parts))
     host = CefString(&parts.host).ToString();
-  ::shelter::blocker::RecordBlock(host, kind);
+  ::shelter::blocker::RecordBlock(host, kind,
+                                  browser ? browser->GetIdentifier() : 0);
   return RV_CANCEL;
 }
 
@@ -375,7 +377,8 @@ void HttpsOnlyUpgrade(CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request) 
   CefURLParts parts;
   if (CefParseURL(CefString(*upgraded), parts))
     host = CefString(&parts.host).ToString();
-  ::shelter::netguard::RecordUpgrade(host);
+  ::shelter::netguard::RecordUpgrade(
+      host, frame && frame->GetBrowser() ? frame->GetBrowser()->GetIdentifier() : 0);
 }
 
 // Строгий режим: сторонние скрипты отменяются на сетевом уровне, пока сайт не
@@ -397,7 +400,8 @@ bool StrictScriptCheck(CefRefPtr<CefBrowser> browser,
     script_host = CefString(&parts.host).ToString();
   if (CefParseURL(CefString(page), parts))
     page_host = CefString(&parts.host).ToString();
-  ::shelter::netguard::RecordScriptBlock(page_host, script_host);
+  ::shelter::netguard::RecordScriptBlock(
+      page_host, browser ? browser->GetIdentifier() : 0, script_host);
   return true;
 }
 
@@ -414,7 +418,7 @@ cef_return_value_t TabClient::OnBeforeResourceLoad(
     CefRefPtr<CefRequest> request, CefRefPtr<CefCallback>) {
   if (StrictScriptCheck(browser, request)) return RV_CANCEL;
   HttpsOnlyUpgrade(frame, request);
-  return BlockerCheck(frame, request);
+  return BlockerCheck(browser, frame, request);
 }
 
 bool TabClient::OnBeforePopup(CefRefPtr<CefBrowser> browser,
@@ -571,7 +575,8 @@ void TabClient::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
   Shell::Get().OnTabFullscreen(browser, fullscreen);
 }
 
-bool TabClient::OnConsoleMessage(CefRefPtr<CefBrowser>, cef_log_severity_t,
+bool TabClient::OnConsoleMessage(CefRefPtr<CefBrowser> browser,
+                                 cef_log_severity_t,
                                  const CefString& message, const CefString&,
                                  int) {
   CEF_REQUIRE_UI_THREAD();
@@ -579,7 +584,10 @@ bool TabClient::OnConsoleMessage(CefRefPtr<CefBrowser>, cef_log_severity_t,
   // Маркер из внедрённого скрипта анти-отпечатка: считаем честно применённые
   // защиты (canvas/webgl/audio) и не засоряем консоль маркером.
   if (m.rfind("__SHELTER_FP__:", 0) == 0) {
-    Shell::Get().UiEvent("blocked", "{\"f\":1}");
+    const std::string id = browser ? Shell::Get().TabIdForBrowser(
+                                         browser->GetIdentifier())
+                                   : std::string();
+    Shell::Get().UiEvent("blocked", "{\"f\":1,\"id\":" + JsString(id) + "}");
     return true;
   }
   return false;
@@ -672,7 +680,7 @@ cef_return_value_t PopupClient::OnBeforeResourceLoad(
     CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
     CefRefPtr<CefRequest> request, CefRefPtr<CefCallback>) {
   if (StrictScriptCheck(browser, request)) return RV_CANCEL;
-  return BlockerCheck(frame, request);
+  return BlockerCheck(browser, frame, request);
 }
 
 }  // namespace shelter

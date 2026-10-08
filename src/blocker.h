@@ -29,8 +29,10 @@ bool ShouldBlock(const std::string& url, const std::string& page_url,
                  char* kind);
 
 // Сообщает UI о блокировке (событие «blocked», счётчики в дашборде).
-// Вызывается с IO-потока — сам переносит работу в UI-поток.
-void RecordBlock(const std::string& host, char kind);
+// browser_id — вкладка-источник: статистика должна попадать в неё, даже если
+// запрос блокировался в фоновой вкладке. Вызывается с IO-потока — сам
+// переносит работу в UI-поток.
+void RecordBlock(const std::string& host, char kind, int browser_id);
 
 // CSS косметической фильтрации (пусто, если файла нет).
 const std::string& CosmeticCss();

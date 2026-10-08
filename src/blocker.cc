@@ -165,18 +165,21 @@ bool ShouldBlock(const std::string& url, const std::string& page_url,
   return false;
 }
 
-void RecordBlock(const std::string& host, char kind) {
-  // Вызывается с IO-потока CEF; статистику и UI-событие ведём в UI-потоке.
+void RecordBlock(const std::string& host, char kind, int browser_id) {
+  // Вызывается с IO-потока CEF; статистику и UI-событие ведём в UI-потоке,
+  // там же резолвим вкладку по браузеру (id нужен для честного счётчика).
   const bool tracker = kind == 't';
   CefPostTask(TID_UI, CefCreateClosureTask(base::BindOnce(
-                          [](std::string h, bool t) {
+                          [](std::string h, bool t, int bid) {
                             std::ostringstream os;
                             os << "{\"host\":" << JsString(h)
                                << ",\"t\":" << (t ? 1 : 0)
-                               << ",\"a\":" << (t ? 0 : 1) << "}";
+                               << ",\"a\":" << (t ? 0 : 1)
+                               << ",\"id\":" << JsString(Shell::Get().TabIdForBrowser(bid))
+                               << "}";
                             Shell::Get().UiEvent("blocked", os.str());
                           },
-                          host, tracker)));
+                          host, tracker, browser_id)));
 }
 
 const std::string& CosmeticCss() {

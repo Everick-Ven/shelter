@@ -87,13 +87,7 @@ class LongPageHandler(BaseHTTPRequestHandler):
                       '<button onclick="window.__answer(\\'necessary\\')">Принять только необходимые</button>' +
                       '<button onclick="window.__answer(\\'all\\')">Принять все</button>';
                     document.body.appendChild(box);
-                    requestAnimationFrame(function(){
-                      requestAnimationFrame(function(){
-                        var st = getComputedStyle(box);
-                        window.__bannerVisibleLate = !(st.display === 'none' ||
-                          st.visibility === 'hidden');
-                      });
-                    });
+                    window.__lateMounted = true;
                   }, 700);
                 </script>"""
             )
@@ -102,20 +96,24 @@ class LongPageHandler(BaseHTTPRequestHandler):
                 "<title>Consent fixture</title></head><body>"
                 "<h1>SHELTER consent fixture</h1>"
                 + ("" if late else immediate)
-                + "<script>window.__consent=null;window.__bannerVisible=null;"
-                  "window.__bannerVisibleLate=null;"
+                + "<script>window.__consent=null;window.__lateMounted=false;"
                   "window.__answer=function(kind){window.__consent=kind;"
                   "var b=document.getElementById('cmp');"
                   "if(b&&b.parentNode)b.parentNode.removeChild(b);};</script>"
                 + mount
                 + """<script>
-                  requestAnimationFrame(function(){
-                    var box = document.getElementById('cmp');
-                    if (!box) { window.__bannerVisible = false; return; }
-                    var st = getComputedStyle(box);
-                    window.__bannerVisible = !(st.display === 'none' ||
-                      st.visibility === 'hidden');
-                  });
+                  /* Видимость считаем в момент чтения флагов: rAF в скрытом
+                     окне может не сработать, а решение CMP видно сразу. */
+                  window.__visible = function(){
+                    var el = document.getElementById('cmp');
+                    if (!el || !el.isConnected) return false;
+                    for (var n = el; n && n.nodeType === 1; n = n.parentElement) {
+                      var st = getComputedStyle(n);
+                      if (st.display === 'none' || st.visibility === 'hidden' ||
+                          st.opacity === '0') return false;
+                    }
+                    return true;
+                  };
                 </script>"""
                 "</body></html>"
             ).encode("utf-8")
@@ -1405,6 +1403,56 @@ def read_ad_flags(page: Cdp) -> Dict[str, Any]:
     raise AcceptanceError(f"Ad fixture did not report its state: {last_error}")
 
 
+BLOCKER_STATS = (
+    "JSON.stringify((function(){"
+    "var st=window.shelterTest.state();"
+    "var sp=st.spaces[st.currentSpace]||{tabs:[]};"
+    "var tabs=(sp.tabs||[]).map(function(t){return {id:t.id,blocked:t.blocked|0,"
+    "url:String(t.url||'').slice(0,80)};});"
+    "var ad=tabs.filter(function(t){return t.url.indexOf('/adpage')>=0;}).pop();"
+    "var b=st.blocks||{},ks=Object.keys(b),total=0;"
+    "for(var i=0;i<ks.length;i++){var v=b[ks[i]];"
+    "total+=(v.t|0)+(v.a|0)+(v.f|0)+(v.h|0)+(v.s|0);}"
+    "return {tabBlocked:ad?(ad.blocked|0):-1,today:total,activeId:st.activeTabId,"
+    "trackers:st.prefs.trackers===true,"
+    "hooks:{host:typeof window.__shelterHost,"
+    "stats:typeof window.shelterBlockedStats,"
+    "dispatch:typeof window.shelterCefDispatch},"
+    "tabs:tabs.slice(-4)};})())"
+)
+
+
+def read_blocker_stats(ui: Cdp) -> Dict[str, Any]:
+    """Снимок статистики блокировщика на стороне UI (для диагностики падений)."""
+    try:
+        raw = ui.evaluate(BLOCKER_STATS)
+    except AcceptanceError:
+        return {}
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return {}
+
+
+# Самопроверка UI: работает ли учёт блокировок без нативных событий. Запускается
+# ТОЛЬКО в ветке падения — синтетическое событие не должно маскировать ошибку.
+BLOCKER_SELF_TEST = (
+    "JSON.stringify((function(){"
+    "var out={hook:typeof window.shelterBlockedStats,before:null,after:null,error:null};"
+    "try{var st=window.shelterTest.state();"
+    "var sp=st.spaces[st.currentSpace]||{tabs:[]};"
+    "var ad=(sp.tabs||[]).filter(function(t){"
+    "return String(t.url||'').indexOf('/adpage')>=0;}).pop();"
+    "out.before=ad?(ad.blocked|0):-1;"
+    "if(typeof window.shelterBlockedStats==='function'){"
+    "window.shelterBlockedStats({a:1,id:ad?ad.id:''});}"
+    "out.after=ad?(ad.blocked|0):-1;"
+    "}catch(e){out.error=String((e&&e.message)||e);}return out;})())"
+)
+
+
 def blocker_probe(
     ui: Cdp,
     port: int,
@@ -1446,14 +1494,24 @@ def blocker_probe(
         raise AcceptanceError(
             "Cosmetic filter did not hide the ad container: " + json.dumps(blocked)
         )
-    counter = ui.evaluate(
-        "(function(){var st=window.shelterTest.state();"
-        "var sp=st.spaces[st.currentSpace];"
-        "var t=(sp&&sp.tabs||[]).filter(x=>x.url.indexOf('/adpage')>=0).pop();"
-        "return t?(t.blocked||0):-1;})()"
-    )
+    # События фильтра приходят из браузерного процесса асинхронно, поэтому
+    # счётчик вкладки может отставать от сетевых блокировок: ждём его роста.
+    counter, snapshot = -1, {}
+    deadline = time.monotonic() + 15
+    while True:
+        snapshot = read_blocker_stats(ui)
+        counter = snapshot.get("tabBlocked", -1) if snapshot else -1
+        if isinstance(counter, int) and counter >= 2:
+            break
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.4)
     if not isinstance(counter, int) or counter < 2:
-        raise AcceptanceError(f"Blocked-request counter did not grow: {counter}")
+        self_test = ui.evaluate(BLOCKER_SELF_TEST)
+        raise AcceptanceError(
+            "Blocked-request counter did not grow: " + json.dumps(snapshot)
+            + " ui_self_test=" + json.dumps(self_test)
+        )
 
     control: Dict[str, Any] = {}
     try:
@@ -1486,6 +1544,7 @@ def blocker_probe(
         "blocked": blocked,
         "control": control,
         "counter": counter,
+        "stats": snapshot,
         "original": original,
     }
 
@@ -1493,10 +1552,10 @@ def blocker_probe(
 CONSENT_FLAGS = (
     "JSON.stringify({"
     "consent:window.__consent||null,"
-    "visible:window.__bannerVisible,"
-    "visibleLate:window.__bannerVisibleLate,"
+    "visible:(typeof window.__visible==='function')&&window.__visible(),"
+    "lateMounted:window.__lateMounted===true,"
     "banner:(function(){var b=document.getElementById('cmp');"
-    "if(!b)return 'removed';var st=getComputedStyle(b);"
+    "if(!b||!b.isConnected)return 'removed';var st=getComputedStyle(b);"
     "return st.display==='none'?'hidden':'shown';})()"
     "})"
 )
@@ -1570,7 +1629,8 @@ def cookie_consent_probe(
                 f"Consent banner {route} stayed in the page after consent: "
                 + json.dumps(flags)
             )
-        if name == "late" and flags.get("visibleLate") is not False:
+        if name == "late" and (flags.get("lateMounted") is not True or
+                                flags.get("visible") is not False):
             raise AcceptanceError(
                 "Late consent banner stayed visible instead of being hidden and "
                 "answered: " + json.dumps(flags)

@@ -259,6 +259,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download UI regression test
         run: node tests/download_ui_test.js
+      - name: Tracker/ad statistics regression test
+        run: node tests/blocked_stats_test.js
       - name: Compile and run path/archive safety tests
         run: |
           set -euo pipefail

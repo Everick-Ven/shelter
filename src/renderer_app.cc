@@ -24,11 +24,16 @@ void AppBase::OnWebKitInitialized() {
 
 namespace {
 
-// «Анти-отпечаток» включён браузерным процессом (сообщение shelter.fp).
+// Состояние защит приходит из браузерного процесса: командной строкой при
+// рождении процесса и сообщением shelter.protections на каждую навигацию
+// главного фрейма (см. Shell::PushProtections). Оба тумблера живут вместе —
+// иначе одна половина состояния могла бы отстать, и автосогласие cookies
+// возвращалось бы вопреки выключенному тумблеру.
+
+// «Анти-отпечаток»: по умолчанию выключен.
 bool g_fp_enabled = false;
 
-// Автосогласие cookies включено браузерным процессом (сообщение
-// shelter.cookies). По умолчанию — включено: баннер согласия не должен
+// Автосогласие cookies: по умолчанию включено — баннер согласия не должен
 // появляться перед пользователем вообще, ещё до ответа UI настройками.
 bool g_auto_consent = true;
 
@@ -509,14 +514,12 @@ bool AppBase::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                        CefProcessId source_process,
                                        CefRefPtr<CefProcessMessage> message) {
   const std::string name = message->GetName().ToString();
-  if (name == "shelter.fp" && source_process == PID_BROWSER) {
+  if (name == "shelter.protections" && source_process == PID_BROWSER) {
     CefRefPtr<CefListValue> args = message->GetArgumentList();
-    g_fp_enabled = args && args->GetSize() > 0 && args->GetBool(0);
-    return true;
-  }
-  if (name == "shelter.cookies" && source_process == PID_BROWSER) {
-    CefRefPtr<CefListValue> args = message->GetArgumentList();
-    g_auto_consent = args && args->GetSize() > 0 && args->GetBool(0);
+    if (args && args->GetSize() >= 2) {
+      g_fp_enabled = args->GetBool(0);
+      g_auto_consent = args->GetBool(1);
+    }
     return true;
   }
   return router_ &&

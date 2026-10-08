@@ -1057,8 +1057,9 @@ void Shell::OnTabCreated(CefRefPtr<CefBrowser> browser, const std::string& id) {
   t->browser = browser;
   t->browser_id = browser->GetIdentifier();
   browser->GetHost()->SetZoomLevel(std::log(zoom_) / std::log(1.2));
-  PushFpState(browser);  // рендерер узнаёт состояние «Анти-отпечатка» до загрузки
-  PushCookieState(browser);  // и состояние автосогласия cookies
+  // Рендерер узнаёт состояние защит до первой загрузки: и анти-отпечаток, и
+  // автосогласие cookies идут одним сообщением.
+  PushProtections(browser->GetMainFrame());
   if (!t->pending_url.empty()) {
     browser->GetMainFrame()->LoadURL(t->pending_url);
     t->pending_url.clear();
@@ -1808,12 +1809,26 @@ static void InjectBlockerCss(CefRefPtr<CefFrame> frame) {
 
 // ---- анти-отпечаток ---------------------------------------------------------
 
-void Shell::PushFpState(CefRefPtr<CefBrowser> browser) {
-  if (!browser) return;
-  CefRefPtr<CefProcessMessage> m = CefProcessMessage::Create("shelter.fp");
-  m->GetArgumentList()->SetBool(0, fp_enabled_);
-  if (auto frame = browser->GetMainFrame())
-    frame->SendProcessMessage(PID_RENDERER, m);
+// Единственный канал «состояние защит»: два бита, оба тумблера. Раздельные
+// сообщения (fp/cookies) означали бы, что половина состояния может отстать —
+// именно так и терялось автосогласие cookies.
+void Shell::PushProtections(CefRefPtr<CefFrame> frame) {
+  if (!frame) return;
+  const int flags = ProtectionFlags();
+  CefRefPtr<CefProcessMessage> m =
+      CefProcessMessage::Create("shelter.protections");
+  CefRefPtr<CefListValue> args = m->GetArgumentList();
+  args->SetBool(0, (flags & 1) != 0);
+  args->SetBool(1, (flags & 2) != 0);
+  frame->SendProcessMessage(PID_RENDERER, m);
+}
+
+void Shell::PushProtectionsToTabs() {
+  CEF_REQUIRE_UI_THREAD();
+  for (auto& kv : tabs_) {
+    if (kv.second.browser)
+      PushProtections(kv.second.browser->GetMainFrame());
+  }
 }
 
 void Shell::SyncProtectionFlags() {
@@ -1827,24 +1842,16 @@ void Shell::SetFpEnabled(bool on) {
   CEF_REQUIRE_UI_THREAD();
   fp_enabled_ = on;
   SyncProtectionFlags();
-  for (auto& kv : tabs_) PushFpState(kv.second.browser);
+  PushProtectionsToTabs();
 }
 
 // ---- автосогласие cookies ---------------------------------------------------
-
-void Shell::PushCookieState(CefRefPtr<CefBrowser> browser) {
-  if (!browser) return;
-  CefRefPtr<CefProcessMessage> m = CefProcessMessage::Create("shelter.cookies");
-  m->GetArgumentList()->SetBool(0, auto_consent_enabled_);
-  if (auto frame = browser->GetMainFrame())
-    frame->SendProcessMessage(PID_RENDERER, m);
-}
 
 void Shell::SetAutoConsentEnabled(bool on) {
   CEF_REQUIRE_UI_THREAD();
   auto_consent_enabled_ = on;
   SyncProtectionFlags();
-  for (auto& kv : tabs_) PushCookieState(kv.second.browser);
+  PushProtectionsToTabs();
 }
 
 // ---- HTTPS-only + DoH -------------------------------------------------------

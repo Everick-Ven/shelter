@@ -139,16 +139,24 @@ class Shell {
   void OnTabLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame);
   void OnTabLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame);
 
-  // Анти-отпечаток: настройка из UI и рассылка состояния рендерерам.
+  // Анти-отпечаток: настройка из UI.
   void SetFpEnabled(bool on);
   // Пересобирает protection_flags_ из текущих тумблеров (UI-поток).
   void SyncProtectionFlags();
-  void PushFpState(CefRefPtr<CefBrowser> browser);
 
   // Автосогласие cookies: согласие «только необходимое» подтверждается в
-  // рендерере до первого кадра баннера. Состояние тоже уходит сообщением.
+  // рендерере до первого кадра баннера.
   void SetAutoConsentEnabled(bool on);
-  void PushCookieState(CefRefPtr<CefBrowser> browser);
+
+  // Состояние защит уходит в рендерер одним сообщением (shelter.protections):
+  // при рождении вкладки, при переключении тумблера и — главное — в начале
+  // каждой навигации главного фрейма. Сообщения «браузер → рендерер» идут по
+  // одному каналу в порядке отправки, поэтому состояние оказывается в процессе
+  // раньше документа: даже процесс, переживший переключение тумблера (spare
+  // или повторно используемый сайт), не применит старое значение к новой
+  // странице.
+  void PushProtections(CefRefPtr<CefFrame> frame);
+  void PushProtectionsToTabs();
 
   // Биты защит для командной строки новых дочерних процессов (см.
   // BrowserApp::OnBeforeChildProcessLaunch): 1 — анти-отпечаток, 2 — cookies.

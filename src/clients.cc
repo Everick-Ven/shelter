@@ -557,6 +557,11 @@ void TabClient::OnLoadStart(CefRefPtr<CefBrowser> browser,
                             CefRefPtr<CefFrame> frame,
                             cef_transition_type_t) {
   CEF_REQUIRE_UI_THREAD();
+  // До документа: процесс мог пережить переключение тумблера (spare/spare-сайт),
+  // и тогда его состояние защит устарело. Сообщение уходит раньше коммита
+  // навигации по тому же каналу, поэтому новая страница увидит уже свежие
+  // значения.
+  if (frame && frame->IsMain()) Shell::Get().PushProtections(frame);
   Shell::Get().OnTabLoadStart(browser, frame);
 }
 
@@ -643,8 +648,7 @@ bool TabClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
 void PopupClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
   Shell::Get().OnBrowserCreated();
-  Shell::Get().PushFpState(browser);
-  Shell::Get().PushCookieState(browser);
+  Shell::Get().PushProtections(browser->GetMainFrame());
 }
 
 void PopupClient::OnBeforeClose(CefRefPtr<CefBrowser>) {

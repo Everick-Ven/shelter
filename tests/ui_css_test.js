@@ -122,5 +122,9 @@ const structureCss = (html.match(/<style id="ux-macos-structure">([\s\S]*?)<\/st
 check('липкая шапка совпадает с полями страницы и не расширяет дашборд',
   /margin:-6px calc\(-1 \* clamp\(22px,2\.8vw,44px\)\) 18px/.test(structureCss) &&
   /\.dashboard-page > \.page-h\s*\{\s*margin-left:-12px;\s*margin-right:-12px;\s*padding-left:12px;\s*padding-right:12px;/.test(structureCss));
+check('на узком экране инструменты возвращаются в переносимый flex-ряд',
+  /@media \(max-width:720px\)\s*\{[\s\S]*?\.tb\{display:flex;height:auto;min-height:54px;flex-wrap:wrap/.test(structureCss) &&
+  /\.tb>\.omni-tb\{flex:1 1 140px;width:auto;min-width:140px;max-width:none;margin:0\}/.test(structureCss) &&
+  /\.tb>\.tb-actions\{flex:1 0 100%;min-width:0;flex-wrap:wrap;justify-content:flex-end;gap:5px\}/.test(structureCss));
 
 finish();

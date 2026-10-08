@@ -3722,7 +3722,13 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .tb{padding:0 11px}
 }
 @media (max-width:720px){
-  .tb{margin:6px 0 8px}
+  /* The Safari-style three-column toolbar is for wide windows. At phone
+     widths, restore the two-row flex layout so actions stay together. */
+  .tb{display:flex;height:auto;min-height:54px;flex-wrap:wrap;align-content:center;
+      gap:4px 8px;padding:5px 8px;margin:6px 0 8px}
+  .tb>.omni-tb{flex:1 1 140px;width:auto;min-width:140px;max-width:none;margin:0}
+  .tb>.tb-actions{flex:1 0 100%;min-width:0;flex-wrap:wrap;justify-content:flex-end;gap:5px}
+  .tb-ctls{gap:1px;margin:0}
   .bm-mount:not([hidden]){margin-bottom:6px}
 }
 

@@ -126,5 +126,7 @@ check('на узком экране инструменты возвращают�
   /@media \(max-width:720px\)\s*\{[\s\S]*?\.tb\{display:flex;height:auto;min-height:54px;flex-wrap:wrap/.test(structureCss) &&
   /\.tb>\.omni-tb\{flex:1 1 140px;width:auto;min-width:140px;max-width:none;margin:0\}/.test(structureCss) &&
   /\.tb>\.tb-actions\{flex:1 0 100%;min-width:0;flex-wrap:wrap;justify-content:flex-end;gap:5px\}/.test(structureCss));
+check('узкий ассистент: detail занимает всю ширину при выносе рейла',
+  /@container dt-shell \(max-width:900px\)\s*\{\s*\/\*[\s\S]*?\*\/\s*\.dt-app > \.dt-main\{grid-column:1 \/ -1\}/.test(css));
 
 finish();

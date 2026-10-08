@@ -1152,7 +1152,8 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
           const railOpen = app.classList.contains('rail-open');
           if (Math.abs(main.left - appRect.left) > 1 ||
               Math.abs(main.right - appRect.right) > 1)
-            throw new Error('mobile assistant detail panel does not fill its shell');
+            throw new Error('mobile assistant detail panel does not fill its shell: main=' +
+              main.left + '..' + main.right + ', shell=' + appRect.left + '..' + appRect.right);
           if (railOpen) {
             if (rail.left < appRect.left - 1 || rail.right > appRect.right + 1)
               throw new Error('open mobile assistant rail is outside its shell');

@@ -1656,6 +1656,7 @@ def blocker_probe(
 
 CONSENT_FLAGS = (
     "JSON.stringify({"
+    "href:location.href,"
     "consent:window.__consent||null,"
     "visible:(typeof window.__visible==='function')&&window.__visible(),"
     "lateMounted:window.__lateMounted===true,"
@@ -1802,10 +1803,24 @@ def cookie_consent_probe(
     try:
         ui.evaluate(f"{test}.setPref('cookies', false)")
         time.sleep(0.8)
-        ui.evaluate("window.navigate(" + json.dumps(base + "/consent?manual=1") + ")")
+        if ui.evaluate(f"{test}.state().prefs.cookies") is not False:
+            raise AcceptanceError("Cookie auto-consent preference did not turn off")
+        ui.evaluate(
+            "window.navigate(" + json.dumps(base + "/consent?manual=1") + ")"
+        )
+        # Читаем именно контрольный документ: соединение, взятое на прошлом
+        # шаге, могло остаться на прежней странице вкладки, и тогда «ответ
+        # при выключенном тумблере» был бы ответом прошлого документа.
+        try:
+            _target, control_page, _state = wait_for_site(
+                port, "127.0.0.1", process, path_contains="manual=1", timeout=25
+            )
+        except AcceptanceError as exc:
+            raise AcceptanceError("Control consent page did not load: " + str(exc)) from exc
+        site_pages.append(control_page)
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
-            control = read_consent_flags(page)
+            control = read_consent_flags(control_page)
             if control.get("consent") is None and control.get("visible") is True:
                 break
             time.sleep(0.3)
@@ -2439,18 +2454,9 @@ def main() -> int:
             )
             print("SHELTER_ACCEPTANCE_BLOCKER_PASS", flush=True)
 
-            consent_result = cookie_consent_probe(
-                ui, port, long_page_base, process, site_pages
-            )
-            print(
-                "SHELTER_ACCEPTANCE_COOKIE_CONSENT "
-                + json.dumps(consent_result, ensure_ascii=False),
-                flush=True,
-            )
-            print("SHELTER_ACCEPTANCE_COOKIE_CONSENT_PASS", flush=True)
-
-            # Проба Ассистента идёт первой: если раскладка вкладок упадёт,
-            # результат по углам всё равно попадёт в отчёт.
+            # Пробы оформления идут раньше сетевых: они герметичны (живут
+            # внутри UI) и не должны зависеть от фикстур, а их отчёт — теряться
+            # из-за сбоя сетевой проверки.
             corner_probe = assistant_corners_probe(ui)
             print(
                 "SHELTER_ACCEPTANCE_ASSISTANT_CORNERS "
@@ -2466,6 +2472,16 @@ def main() -> int:
                 flush=True,
             )
             print("SHELTER_ACCEPTANCE_TAB_WIDTH_PASS", flush=True)
+
+            consent_result = cookie_consent_probe(
+                ui, port, long_page_base, process, site_pages
+            )
+            print(
+                "SHELTER_ACCEPTANCE_COOKIE_CONSENT "
+                + json.dumps(consent_result, ensure_ascii=False),
+                flush=True,
+            )
+            print("SHELTER_ACCEPTANCE_COOKIE_CONSENT_PASS", flush=True)
 
             ui.evaluate(
                 "window.shelterTest.setGfxMode(" + json.dumps(original_gfx) +

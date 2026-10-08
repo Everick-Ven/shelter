@@ -272,27 +272,27 @@ jobs:
       - name: Compile and run path/archive safety tests
         run: |
           set -euo pipefail
-          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/security_paths_test.cc -o security-paths-test
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/security_paths_test.cc -o security-paths-test
           ./security-paths-test
       - name: Compile and run protection switch tests
         run: |
           set -euo pipefail
-          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/protection_flags_test.cc -o protection-flags-test
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/protection_flags_test.cc -o protection-flags-test
           ./protection-flags-test
       - name: Compile and run favicon host tests
         run: |
           set -euo pipefail
-          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/favicon_hosts_test.cc -o favicon-hosts-test
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/favicon_hosts_test.cc -o favicon-hosts-test
           ./favicon-hosts-test
       - name: Compile and run extension match tests
         run: |
           set -euo pipefail
-          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/extension_match_test.cc -o extension-match-test
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/extension_match_test.cc -o extension-match-test
           ./extension-match-test
       - name: Compile and run extension engine tests
         run: |
           set -euo pipefail
-          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/extension_engine_test.cc -o extension-engine-test
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/extension_engine_test.cc -o extension-engine-test
           ./extension-engine-test
 
   release:

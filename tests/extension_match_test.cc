@@ -35,7 +35,6 @@ shelter::ExtScriptRules Rules(std::vector<std::string> matches,
   r.include_globs = std::move(include_globs);
   r.exclude_globs = std::move(exclude_globs);
   r.all_frames = all_frames;
-  r.Prepare();
   return r;
 }
 
@@ -164,7 +163,7 @@ int main() {
   Check(ExtScriptRules().AppliesTo("https://example.com/") == false,
         "правила по умолчанию никого не затрагивают");
 
-  // Неподготовленный набор считается тем же способом (AppliesTo готовит копию).
+  // Правила считаются одинаково независимо от истории объекта: проверка чистая.
   {
     shelter::ExtScriptRules raw;
     raw.matches = {"*://*.example.com/*"};
@@ -172,12 +171,17 @@ int main() {
     Check(raw.AppliesTo("https://a.example.com/x"), "неподготовленные правила: совпадение");
   }
 
-  // Битый шаблон не совпадает и не роняет проверку.
+  // Битый шаблон не совпадает и не роняет проверку (сборка Chromium идёт без
+  // исключений, поэтому сопоставитель ничего не бросает).
   {
     shelter::ExtScriptRules bad;
-    bad.matches = {"*://[broken/*"};
-    bad.Prepare();
-    Check(!bad.AppliesTo("https://example.com/"), "битый шаблон просто не совпадает");
+    bad.matches = {"*://[broken/*", "*://example.com/*"};
+    Check(!shelter::ExtUrlMatchesPattern("*://[broken/*", "https://example.com/"),
+          "битый шаблон сам по себе не совпадает");
+    Check(bad.AppliesTo("https://example.com/x"),
+          "в наборе правил битый шаблон не мешает валидным");
+    Check(!bad.AppliesTo("https://[broken/x"),
+          "и не совпадает случайно");
   }
 
   // --- проводка в оболочке --------------------------------------------------

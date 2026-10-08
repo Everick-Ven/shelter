@@ -3,9 +3,10 @@
 // CEF вырезал публичный API расширений (~M127), поэтому оболочка сама
 // выполняет ту часть модели Chromium-расширений, которая не требует Chrome-UI:
 // объявленные в манифесте content_scripts (JS/CSS) внедряются в подходящие
-// фреймы вкладок. Чтобы поведение совпадало с Chromium, разбор
-// `matches` / `exclude_matches` / `include_globs` / `exclude_globs` /
-// `all_frames` живёт здесь и покрыт обычным c++ тестом
+// фреймы вкладок, а расширения с manifest v3 отдаются движку Chromium
+// аргументом --load-extension (см. src/extension_engine.h). Чтобы поведение
+// совпадало с Chromium, разбор `matches` / `exclude_matches` / `include_globs` /
+// `exclude_globs` / `all_frames` живёт здесь и покрыт обычным c++ тестом
 // (tests/extension_match_test.cc) — CEF для проверки не нужен.
 //
 // Семантика (документация Chrome «Content scripts»):
@@ -26,12 +27,15 @@
 // `<all_urls>` соответствует http/https. Локальные file:// страницы намеренно
 // не затрагиваются: расширения (как и в Chrome без отдельного разрешения) не
 // получают доступ к файлам на диске.
+//
+// Сопоставление реализовано вручную (без std::regex): сборка Chromium идёт с
+// выключенными исключениями, а std::regex может бросить исключение на
+// некорректном шаблоне или на сложном совпадении. Ручной сопоставитель не
+// бросает ничего, не зависит от состояния регулярок и работает быстрее.
 #ifndef SHELTER_EXTENSION_MATCH_H_
 #define SHELTER_EXTENSION_MATCH_H_
 
 #include <cctype>
-#include <cstring>
-#include <regex>
 #include <string>
 #include <vector>
 
@@ -71,73 +75,40 @@ inline bool ExtSplitUrl(const std::string& url, std::string* scheme,
   return true;
 }
 
-// URL в виде, пригодном для сравнения с шаблоном: без query и fragment (в
-// шаблонах Chrome они не участвуют), схема и хост в нижнем регистре (хосты
-// сравниваются без учёта регистра) и с путём — если пути нет, подставляется
-// «/». Так `*://example.com/*` совпадает и с `https://EXAMPLE.com`.
-inline std::string ExtNormalizeUrl(const std::string& url) {
-  const auto cut = url.find_first_of("?#");
-  const std::string u = cut == std::string::npos ? url : url.substr(0, cut);
-  const auto sep = u.find("://");
-  if (sep == std::string::npos) return u;
-  const auto host_begin = sep + 3;
-  const auto host_end = u.find('/', host_begin);
-  const std::string host =
-      host_end == std::string::npos
-          ? u.substr(host_begin)
-          : u.substr(host_begin, host_end - host_begin);
-  std::string out = u.substr(0, host_begin);  // схема + "://"
-  for (char& c : out)
-    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-  for (const char c : host)
-    out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-  if (host_end == std::string::npos) out += '/';
-  else out += u.substr(host_end);
-  return out;
-}
-
-// Шаблон -> regex: `*` превращается в «любые символы», остальное экранируется.
-inline std::string ExtPatternToRegex(const std::string& s) {
-  std::string r;
-  r.reserve(s.size() + 8);
-  for (const char c : s) {
-    if (c == '*') {
-      r += ".*";
-    } else if (std::strchr(".+?[]^$(){}|\\", c) != nullptr) {
-      r += '\\';
-      r += c;
+// Совпадение строки с шаблоном, где `*` — любая последовательность символов,
+// `?` — один символ (как в globs Chromium). Итеративный алгоритм с одной
+// запомненной звёздочкой: без рекурсии, без исключений, без катастрофического
+// отката. `*` совпадает и с `/`: в шаблонах Chrome он покрывает любые символы.
+inline bool ExtWildMatch(const std::string& pattern, const std::string& text) {
+  size_t p = 0, t = 0;
+  size_t star = std::string::npos, mark = 0;
+  while (t < text.size()) {
+    if (p < pattern.size() &&
+        (pattern[p] == '?' || pattern[p] == text[t])) {
+      ++p;
+      ++t;
+    } else if (p < pattern.size() && pattern[p] == '*') {
+      star = p++;
+      mark = t;
+    } else if (star != std::string::npos) {
+      p = star + 1;
+      t = ++mark;
     } else {
-      r += c;
+      return false;
     }
   }
-  return r;
+  while (p < pattern.size() && pattern[p] == '*') ++p;
+  return p == pattern.size();
 }
 
-// Глоб -> regex: `*` — любые символы, `?` — один символ, остальное экранируется.
-inline std::string ExtGlobToRegex(const std::string& glob) {
-  std::string r;
-  r.reserve(glob.size() + 8);
-  for (const char c : glob) {
-    if (c == '*') {
-      r += ".*";
-    } else if (c == '?') {
-      r += ".";
-    } else if (std::strchr(".+?[]^$(){}|\\", c) != nullptr) {
-      r += '\\';
-      r += c;
-    } else {
-      r += c;
-    }
-  }
-  return r;
-}
-
-// Match-pattern -> regex (без якорей). `(?!)` — шаблон, который не совпадает
-// ни с чем (невалидный: нет схемы, пустой хост, порт в хосте).
-inline std::string ExtUrlPatternToRegex(const std::string& pattern) {
-  if (pattern == "<all_urls>") return "(?:http|https)://[^/?#]+(?:[/?#].*)?";
+// Разбор match-pattern на части. Возвращает false, если шаблон невалиден:
+// нет схемы, пустой хост, порт в хосте, `*` в середине схемы или хоста.
+// (Chromium отвергает такие шаблоны при разборе манифеста.)
+inline bool ExtParsePattern(const std::string& pattern, std::string* scheme,
+                            std::string* host, std::string* path) {
+  if (pattern.empty()) return false;
   const auto sep = pattern.find("://");
-  if (sep == std::string::npos || sep == 0) return "(?!)";
+  if (sep == std::string::npos || sep == 0) return false;
   std::string pscheme = pattern.substr(0, sep);
   for (char& c : pscheme)
     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -146,55 +117,89 @@ inline std::string ExtUrlPatternToRegex(const std::string& pattern) {
   std::string phost = slash == std::string::npos ? rest : rest.substr(0, slash);
   std::string ppath = slash == std::string::npos ? "/" : rest.substr(slash);
   if (ppath.empty()) ppath = "/";
-  if (phost.empty() || phost.find(':') != std::string::npos) return "(?!)";
+  if (phost.empty() || phost.find(':') != std::string::npos) return false;
   for (char& c : phost)
     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-  // `*` в схеме — только http/https (как в Chromium), не любой протокол.
-  const std::string scheme_re =
-      pscheme == "*" ? "(?:http|https)" : ExtPatternToRegex(pscheme);
-  std::string hpat;
-  if (phost == "*") {
-    hpat = "[^/?#]+";
-  } else if (phost[0] == '*') {  // *.example.com — домен и его поддомены
-    std::string suffix = phost.substr(1);
-    if (!suffix.empty() && suffix[0] == '.') suffix = suffix.substr(1);
-    hpat = "(?:[a-z0-9-]+\\.)*" + ExtPatternToRegex(suffix);
-  } else {
-    hpat = ExtPatternToRegex(phost);
+  if (phost.find('*') != std::string::npos) {
+    // Разрешены только `*` и `*.домен` (как в Chromium).
+    if (phost != "*" &&
+        (phost.rfind("*.", 0) != 0 || phost.find('*', 2) != std::string::npos)) {
+      return false;
+    }
   }
-  return scheme_re + "://" + hpat + "(?::[0-9]+)?" +
-         ExtPatternToRegex(ppath);
+  // Хост — доменное имя (буквы, цифры, дефис, точки), без пустых меток.
+  // Chromium отвергает такие шаблоны при разборе манифеста, поэтому «совпасть
+  // случайно» они не могут.
+  {
+    const std::string h = phost == "*" ? std::string() : phost;
+    const size_t begin = h.rfind("*.", 0) == 0 ? 2 : 0;
+    if (begin == 2 && h.size() == 2) return false;
+    bool prev_dot = false;
+    for (size_t i = begin; i < h.size(); ++i) {
+      const char c = h[i];
+      const bool alnum = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+      if (c == '.') {
+        if (prev_dot || i == begin || i + 1 == h.size()) return false;
+        prev_dot = true;
+        continue;
+      }
+      if (!alnum && c != '-') return false;
+      prev_dot = false;
+    }
+  }
+  // В схеме `*` допустим только целиком: ни `ht*`, ни `h*ps`.
+  if (pscheme.find('*') != std::string::npos && pscheme != "*") return false;
+  if (pscheme.empty()) return false;
+  if (ppath[0] != '/') return false;
+  *scheme = std::move(pscheme);
+  *host = std::move(phost);
+  *path = std::move(ppath);
+  return true;
 }
 
-// Проверка URL по match-pattern (разовая; набор правил компилирует шаблоны
-// один раз — см. ExtScriptRules::Prepare).
+// Проверка URL по match-pattern.
 inline bool ExtUrlMatchesPattern(const std::string& pattern,
                                  const std::string& url) {
-  try {
-    const std::regex re("^(?:" + ExtUrlPatternToRegex(pattern) + ")$");
-    return std::regex_match(ExtNormalizeUrl(url), re);
-  } catch (const std::regex_error&) {
+  std::string uscheme, uhost, upath;
+  if (!ExtSplitUrl(url, &uscheme, &uhost, &upath)) return false;
+
+  if (pattern == "<all_urls>")
+    return uscheme == "http" || uscheme == "https";
+
+  std::string pscheme, phost, ppath;
+  if (!ExtParsePattern(pattern, &pscheme, &phost, &ppath)) return false;
+  // `*` в схеме — только http/https (как в Chromium), не любой протокол.
+  if (pscheme == "*") {
+    if (uscheme != "http" && uscheme != "https") return false;
+  } else if (pscheme != uscheme) {
     return false;
   }
+  if (phost == "*") {
+    // любой хост
+  } else if (phost.rfind("*.", 0) == 0) {
+    // *.example.com — сам домен и его поддомены, но не «example.com.evil.net».
+    const std::string suffix = phost.substr(2);
+    if (uhost.size() < suffix.size()) return false;
+    if (uhost.compare(uhost.size() - suffix.size(), suffix.size(), suffix) != 0)
+      return false;
+    if (uhost.size() != suffix.size() &&
+        uhost[uhost.size() - suffix.size() - 1] != '.') {
+      return false;
+    }
+  } else if (uhost != phost) {
+    return false;
+  }
+  return ExtWildMatch(ppath, upath);
 }
 
 // Проверка include_globs/exclude_globs: `*` — любые символы, `?` — один символ,
 // сравнение со всей строкой URL (как в Chromium, регистр учитывается).
 inline bool ExtUrlMatchesGlob(const std::string& glob, const std::string& url) {
   if (glob.empty()) return false;
-  try {
-    const std::regex re("^(?:" + ExtGlobToRegex(glob) + ")$");
-    return std::regex_match(url, re);
-  } catch (const std::regex_error&) {
-    return false;
-  }
+  return ExtWildMatch(glob, url);
 }
 
 // Полный набор правил одного блока content_scripts из манифеста.
-//
-// Шаблоны компилируются один раз в Prepare() (после чтения манифеста), а не на
-// каждый фрейм и навигацию: с поддержкой all_frames проверок стало больше, и
-// компиляция std::regex на каждый вызов занимала десятки микросекунд.
 struct ExtScriptRules {
   std::vector<std::string> matches;
   std::vector<std::string> exclude_matches;
@@ -202,37 +207,32 @@ struct ExtScriptRules {
   std::vector<std::string> exclude_globs;
   bool all_frames = false;
 
-  // Компилирует регулярные выражения из строковых шаблонов (вызывается один
-  // раз при загрузке манифеста). Списки строк после первого использования
-  // менять нельзя — кеш регулярных выражений уже построен.
-  void Prepare() { EnsurePrepared(); }
-
+  // Проверка чистая и без состояния: невалидный шаблон просто не совпадает,
+  // поэтому предварительная компиляция (и её ошибки) не нужны.
   bool AppliesTo(const std::string& url) const {
-    EnsurePrepared();  // если Prepare() не позвали — соберём кеш здесь же
-    const std::string target = ExtNormalizeUrl(url);
     bool matched = false;
-    for (const auto& re : mre_) {
-      if (std::regex_match(target, re)) {
+    for (const auto& m : matches) {
+      if (ExtUrlMatchesPattern(m, url)) {
         matched = true;
         break;
       }
     }
     if (!matched) return false;
-    for (const auto& re : xre_) {
-      if (std::regex_match(target, re)) return false;
+    for (const auto& m : exclude_matches) {
+      if (ExtUrlMatchesPattern(m, url)) return false;
     }
-    if (!iglo_.empty()) {  // include_globs задаёт обязательное условие
+    if (!include_globs.empty()) {  // include_globs задаёт обязательное условие
       bool included = false;
-      for (const auto& re : iglo_) {
-        if (std::regex_match(url, re)) {
+      for (const auto& g : include_globs) {
+        if (ExtUrlMatchesGlob(g, url)) {
           included = true;
           break;
         }
       }
       if (!included) return false;
     }
-    for (const auto& re : eglo_) {
-      if (std::regex_match(url, re)) return false;
+    for (const auto& g : exclude_globs) {
+      if (ExtUrlMatchesGlob(g, url)) return false;
     }
     return true;
   }
@@ -241,40 +241,6 @@ struct ExtScriptRules {
   bool AppliesToFrame(bool is_main_frame) const {
     return is_main_frame || all_frames;
   }
-
- private:
-  // Битый шаблон отбрасывается: он не должен ронять вкладку и не должен
-  // совпадать. Кеш ленивый, но по факту строится при загрузке манифеста —
-  // тогда первая же навигация не платит за компиляцию.
-  void EnsurePrepared() const {
-    if (prepared_) return;
-    mre_.clear();
-    xre_.clear();
-    iglo_.clear();
-    eglo_.clear();
-    for (const auto& m : matches) CompilePattern(m, &mre_);
-    for (const auto& m : exclude_matches) CompilePattern(m, &xre_);
-    for (const auto& g : include_globs) CompileGlob(g, &iglo_);
-    for (const auto& g : exclude_globs) CompileGlob(g, &eglo_);
-    prepared_ = true;
-  }
-
-  static void CompilePattern(const std::string& pattern,
-                             std::vector<std::regex>* out) {
-    try {
-      out->emplace_back("^(?:" + ExtUrlPatternToRegex(pattern) + ")$");
-    } catch (const std::regex_error&) {  // некорректный шаблон игнорируем
-    }
-  }
-  static void CompileGlob(const std::string& glob, std::vector<std::regex>* out) {
-    try {
-      out->emplace_back("^(?:" + ExtGlobToRegex(glob) + ")$");
-    } catch (const std::regex_error&) {
-    }
-  }
-
-  mutable bool prepared_ = false;
-  mutable std::vector<std::regex> mre_, xre_, iglo_, eglo_;
 };
 
 }  // namespace shelter

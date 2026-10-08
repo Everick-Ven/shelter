@@ -283,11 +283,13 @@ void LoadExtFromDir(const fs::path& dir) {
         }
         return true;
       };
-      if (!read_list("matches", &out.rules.matches)) continue;
+      if (!read_list("matches", &out.rules.matches)) continue;  // + Prepare() ниже
       if (!read_list("exclude_matches", &out.rules.exclude_matches)) continue;
       if (!read_list("include_globs", &out.rules.include_globs)) continue;
       if (!read_list("exclude_globs", &out.rules.exclude_globs)) continue;
       if (out.rules.matches.empty()) continue;
+      // Шаблоны компилируются один раз на манифест, а не на каждый фрейм.
+      out.rules.Prepare();
 
       bool over_budget = false;
       const auto append_files = [&](const char* key, bool is_js) {

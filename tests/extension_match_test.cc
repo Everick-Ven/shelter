@@ -35,6 +35,7 @@ shelter::ExtScriptRules Rules(std::vector<std::string> matches,
   r.include_globs = std::move(include_globs);
   r.exclude_globs = std::move(exclude_globs);
   r.all_frames = all_frames;
+  r.Prepare();
   return r;
 }
 
@@ -90,6 +91,14 @@ int main() {
         "шаблон без схемы не считается");
   Check(ExtUrlMatchesPattern("*://example.com/*", "https://EXAMPLE.com/x"),
         "хост сравнивается без учёта регистра");
+  Check(ExtUrlMatchesPattern("https://example.com/api", "https://example.com/api?x=1#top"),
+        "query/fragment не мешают точному пути");
+  Check(!ExtUrlMatchesPattern("https://example.com/api", "https://example.com/api/v2"),
+        "точный путь не растягивается на подпапки");
+  Check(Rules({"*://*/*"}).AppliesTo("https://example.com/api?x=1"),
+        "правила совпадают и при query в URL");
+  Check(!Rules({"*://*/api"}, {}, {}, {}, false).AppliesTo("https://example.com/other?a=/api"),
+        "query не подменяет путь для правил");
   Check(!ExtUrlMatchesPattern("*://example.com/*", "ftp://example.com/x"),
         "схема * не пропускает чужой протокол");
   Check(ExtUrlMatchesPattern("*://example.com/*", "https://example.com:8443/x"),
@@ -154,6 +163,22 @@ int main() {
   Check(!ExtUrlMatchesPattern("", "https://example.com/"), "пустой шаблон не совпадает");
   Check(ExtScriptRules().AppliesTo("https://example.com/") == false,
         "правила по умолчанию никого не затрагивают");
+
+  // Неподготовленный набор считается тем же способом (AppliesTo готовит копию).
+  {
+    shelter::ExtScriptRules raw;
+    raw.matches = {"*://*.example.com/*"};
+    Check(!raw.AppliesTo("https://other.test/"), "неподготовленные правила: мимо");
+    Check(raw.AppliesTo("https://a.example.com/x"), "неподготовленные правила: совпадение");
+  }
+
+  // Битый шаблон не совпадает и не роняет проверку.
+  {
+    shelter::ExtScriptRules bad;
+    bad.matches = {"*://[broken/*"};
+    bad.Prepare();
+    Check(!bad.AppliesTo("https://example.com/"), "битый шаблон просто не совпадает");
+  }
 
   // --- проводка в оболочке --------------------------------------------------
   // Правила бесполезны, если shell.cc снова начнёт внедрять скрипты только в

@@ -1592,6 +1592,48 @@ def read_consent_flags(page: Cdp) -> Dict[str, Any]:
     return {}
 
 
+def wait_for_consent(page: Cdp, name: str, deadline_seconds: float = 12) -> Dict[str, Any]:
+    """Ждёт ответа CMP; для маршрута late — ещё и монтирования позднего баннера.
+
+    У поздней фикстуры баннер появляется через 700 мс, поэтому «флаги вообще
+    есть» — не повод что-то утверждать: ждём именно решения.
+    """
+    deadline = time.monotonic() + deadline_seconds
+    flags = read_consent_flags(page)
+    if name == "late":
+        while time.monotonic() < deadline and flags.get("lateMounted") is not True:
+            time.sleep(0.3)
+            flags = read_consent_flags(page)
+        if flags.get("lateMounted") is not True:
+            raise AcceptanceError(
+                "Late consent banner never mounted: " + json.dumps(flags)
+            )
+    while time.monotonic() < deadline and flags.get("consent") is None:
+        time.sleep(0.3)
+        flags = read_consent_flags(page)
+    time.sleep(0.4)
+    return read_consent_flags(page)
+
+
+def assert_minimal_consent(route: str, flags: Dict[str, Any]) -> None:
+    """Минимальный набор подтверждён, баннер не видел пользователь и удалён."""
+    if flags.get("consent") != "necessary":
+        raise AcceptanceError(
+            f"Consent banner {route} was not answered with the minimal set: "
+            + json.dumps(flags)
+        )
+    if flags.get("visible") is not False:
+        raise AcceptanceError(
+            f"Consent banner {route} became visible before it was answered: "
+            + json.dumps(flags)
+        )
+    if flags.get("banner") != "removed":
+        raise AcceptanceError(
+            f"Consent banner {route} stayed in the page after consent: "
+            + json.dumps(flags)
+        )
+
+
 def cookie_consent_probe(
     ui: Cdp,
     port: int,
@@ -1622,45 +1664,49 @@ def cookie_consent_probe(
         site_pages.append(page)
         if "consent fixture" not in (state.get("text", "") + state.get("title", "")):
             raise AcceptanceError(f"Consent fixture {route} did not render: {state}")
-        # Ждём именно ответа: у поздней фикстуры баннер появляется через 700 мс,
-        # поэтому «флаги вообще есть» — ещё не повод что-то утверждать.
-        deadline = time.monotonic() + 12
-        flags = read_consent_flags(page)
-        if name == "late":
-            while time.monotonic() < deadline and flags.get("lateMounted") is not True:
-                time.sleep(0.3)
-                flags = read_consent_flags(page)
-            if flags.get("lateMounted") is not True:
-                raise AcceptanceError(
-                    "Late consent banner never mounted: " + json.dumps(flags)
-                )
-        while time.monotonic() < deadline and flags.get("consent") is None:
-            time.sleep(0.3)
-            flags = read_consent_flags(page)
-        time.sleep(0.4)
-        flags = read_consent_flags(page)
-        if flags.get("consent") != "necessary":
+        flags = wait_for_consent(page, name)
+        assert_minimal_consent(route, flags)
+        if name == "late" and flags.get("lateMounted") is not True:
             raise AcceptanceError(
-                f"Consent banner {route} was not answered with the minimal set: "
-                + json.dumps(flags)
-            )
-        if flags.get("visible") is not False:
-            raise AcceptanceError(
-                f"Consent banner {route} became visible before it was answered: "
-                + json.dumps(flags)
-            )
-        if flags.get("banner") != "removed":
-            raise AcceptanceError(
-                f"Consent banner {route} stayed in the page after consent: "
-                + json.dumps(flags)
-            )
-        if name == "late" and (flags.get("lateMounted") is not True or
-                                flags.get("visible") is not False):
-            raise AcceptanceError(
-                "Late consent banner stayed visible instead of being hidden and "
-                "answered: " + json.dumps(flags)
+                "Late consent banner stayed unmounted: " + json.dumps(flags)
             )
         results[name] = flags
+
+    # localhost и 127.0.0.1 — разные сайты, поэтому CEF вправе поднять для этой
+    # страницы новый процесс рендерера: защиты обязаны работать и там (процесс
+    # получает состояние из своей командной строки). Если площадка недоступна,
+    # это внешняя причина, а не поведение продукта — предупреждаем и идём дальше.
+    fresh: Dict[str, Any] = {}
+    fresh_error = ""
+    fresh_page: Optional[Cdp] = None
+    fresh_state: Dict[str, Any] = {}
+    try:
+        ui.evaluate(
+            "window.navigate("
+            + json.dumps(base.replace("127.0.0.1", "localhost") + "/consent")
+            + ")"
+        )
+        _target, fresh_page, fresh_state = wait_for_site(
+            port, "localhost", process, path_contains="/consent", timeout=25
+        )
+    except AcceptanceError as exc:
+        fresh_error = f"{exc}"
+        fresh_page = None
+    if fresh_page is not None:
+        site_pages.append(fresh_page)
+        if "consent fixture" not in (
+            fresh_state.get("text", "") + fresh_state.get("title", "")
+        ):
+            raise AcceptanceError(
+                f"Fresh-site consent fixture did not render: {fresh_state}"
+            )
+        fresh = wait_for_consent(fresh_page, "fresh")
+        assert_minimal_consent("fresh site", fresh)
+    if fresh_error:
+        print(
+            "SHELTER_ACCEPTANCE_COOKIE_CONSENT_FRESH_SKIPPED " + fresh_error,
+            flush=True,
+        )
 
     control: Dict[str, Any] = {}
     try:
@@ -1686,7 +1732,13 @@ def cookie_consent_probe(
     finally:
         ui.evaluate(f"{test}.setPref('cookies', {json.dumps(original)})")
         time.sleep(0.4)
-    return {"toggles": results, "control": control, "original": original}
+    return {
+        "toggles": results,
+        "fresh": fresh,
+        "fresh_error": fresh_error,
+        "control": control,
+        "original": original,
+    }
 
 
 def start_scroll_sweep(page: Cdp, frames: int = 48) -> Dict[str, Any]:

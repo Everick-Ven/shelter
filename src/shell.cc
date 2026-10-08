@@ -1816,9 +1816,17 @@ void Shell::PushFpState(CefRefPtr<CefBrowser> browser) {
     frame->SendProcessMessage(PID_RENDERER, m);
 }
 
+void Shell::SyncProtectionFlags() {
+  int flags = 0;
+  if (fp_enabled_) flags |= 1;
+  if (auto_consent_enabled_) flags |= 2;
+  protection_flags_.store(flags, std::memory_order_relaxed);
+}
+
 void Shell::SetFpEnabled(bool on) {
   CEF_REQUIRE_UI_THREAD();
   fp_enabled_ = on;
+  SyncProtectionFlags();
   for (auto& kv : tabs_) PushFpState(kv.second.browser);
 }
 
@@ -1835,6 +1843,7 @@ void Shell::PushCookieState(CefRefPtr<CefBrowser> browser) {
 void Shell::SetAutoConsentEnabled(bool on) {
   CEF_REQUIRE_UI_THREAD();
   auto_consent_enabled_ = on;
+  SyncProtectionFlags();
   for (auto& kv : tabs_) PushCookieState(kv.second.browser);
 }
 

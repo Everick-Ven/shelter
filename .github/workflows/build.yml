@@ -266,6 +266,11 @@ jobs:
           set -euo pipefail
           c++ -std=c++17 -Wall -Wextra -Werror -I. tests/security_paths_test.cc -o security-paths-test
           ./security-paths-test
+      - name: Compile and run protection switch tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/protection_flags_test.cc -o protection-flags-test
+          ./protection-flags-test
 
   release:
     name: Release

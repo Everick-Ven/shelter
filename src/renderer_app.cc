@@ -2,8 +2,11 @@
 
 #include <string>
 
+#include "include/cef_command_line.h"
+
 #include "include/cef_parser.h"
 #include "src/common.h"
+#include "src/protection_flags.h"
 
 namespace shelter {
 
@@ -452,6 +455,20 @@ const char kCookieScript[] = R"SHCONSENT((function () {
 })();)SHCONSENT";
 
 }  // namespace
+
+void AppBase::OnBeforeCommandLineProcessing(
+    const CefString& process_type, CefRefPtr<CefCommandLine> command_line) {
+  // Рендерер рождается с уже известными настройками защит: иначе переход на
+  // другой сайт (новый процесс) включал бы автосогласие вопреки тумблеру и
+  // выключал анти-отпечаток, который пользователь включил.
+  if (process_type.empty() || !command_line) return;
+  if (!command_line->HasSwitch(kProtectionSwitch)) return;
+  const std::string value =
+      command_line->GetSwitchValue(kProtectionSwitch).ToString();
+  // Разбор общий с браузерной частью (src/protection_flags.h): чужой формат
+  // оставляет значения по умолчанию.
+  ParseProtectionSwitch(value, &g_fp_enabled, &g_auto_consent);
+}
 
 void AppBase::OnContextCreated(CefRefPtr<CefBrowser> browser,
                                CefRefPtr<CefFrame> frame,

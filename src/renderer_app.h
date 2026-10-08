@@ -15,6 +15,11 @@ class AppBase : public CefApp, public CefRenderProcessHandler {
 
   // CefApp
   void OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) override;
+  // Значения защит приходят из командной строки: браузер добавляет их перед
+  // запуском процесса (BrowserApp::OnBeforeChildProcessLaunch).
+  void OnBeforeCommandLineProcessing(
+      const CefString& process_type,
+      CefRefPtr<CefCommandLine> command_line) override;
   CefRefPtr<CefRenderProcessHandler> GetRenderProcessHandler() override {
     return this;
   }

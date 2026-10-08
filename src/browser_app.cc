@@ -7,6 +7,7 @@
 #include "include/cef_command_line.h"
 #include "include/wrapper/cef_helpers.h"
 #include "src/platform.h"
+#include "src/protection_flags.h"
 #include "src/security_paths.h"
 #include "src/shell.h"
 
@@ -38,6 +39,16 @@ void BrowserApp::OnBeforeCommandLineProcessing(
       "disable-features",
       "Translate,AutofillServerCommunication,PasswordLeakDetection,"
       "OptimizationHints,MediaRouter,InterestFeedContentSuggestions");
+}
+
+void BrowserApp::OnBeforeChildProcessLaunch(
+    CefRefPtr<CefCommandLine> command_line) {
+  if (!command_line) return;
+  // Защиты рендерера фиксируются в момент рождения процесса. Иначе новый
+  // процесс (например, при переходе на другой сайт) стартовал бы со значениями
+  // по умолчанию, и тумблеры фактически не работали бы на новых страницах.
+  command_line->AppendSwitchWithValue(
+      kProtectionSwitch, ProtectionSwitchValue(Shell::Get().ProtectionFlags()));
 }
 
 void BrowserApp::OnContextInitialized() {

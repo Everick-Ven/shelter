@@ -44,6 +44,41 @@ class LongPageHandler(BaseHTTPRequestHandler):
             self.send_response(204)
             self.end_headers()
             return
+        if path == "/adsbygoogle.js":
+            # Рекламный скрипт: совпадает с правилом /adsbygoogle.js и грузится
+            # прямо из документа страницы, то есть из главного фрейма.
+            late = "late" in self.path
+            script = (
+                "window.__adLoaded=(window.__adLoaded||0)+1;"
+                + ("window.__adLateLoaded=true;" if late else "")
+                + "document.title='AD SCRIPT LOADED';"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/javascript; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(script)))
+            self.end_headers()
+            self.wfile.write(script)
+            return
+        if path == "/adpage":
+            document = (
+                "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
+                "<title>Ad fixture</title>"
+                "<script src='/adsbygoogle.js'></script>"
+                "</head><body><h1>SHELTER ad fixture</h1>"
+                "<ins class='adsbygoogle' id='adSlot'>"
+                "<div id='adSlotInner'>AD SLOT</div></ins>"
+                "<script>setTimeout(function(){var s=document.createElement('script');"
+                "s.src='/adsbygoogle.js?late=1';document.head.appendChild(s);},250);"
+                "</script></body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(document)))
+            self.end_headers()
+            self.wfile.write(document)
+            return
         variant = path.rsplit("/", 1)[-1]
         palettes = {
             "a": ("#ffffff", "#152033", "#1264d8"),
@@ -1244,6 +1279,125 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
     return result
 
 
+AD_FIXTURE_FLAGS = (
+    "JSON.stringify({"
+    "title:document.title,"
+    "ready:(document.readyState||''),"
+    "search:location.search,"
+    "loaded:window.__adLoaded||0,"
+    "late:window.__adLateLoaded===true,"
+    "slotDisplay:(function(){var s=document.getElementById('adSlot');"
+    "return s?getComputedStyle(s).display:'missing';})(),"
+    "slotHeight:(function(){var s=document.getElementById('adSlot');"
+    "return s?Math.round(s.getBoundingClientRect().height):-1;})()"
+    "})"
+)
+
+
+def read_ad_flags(page: Cdp) -> Dict[str, Any]:
+    """Read the ad-fixture state, retrying while the page swaps contexts."""
+    last_error: Optional[Exception] = None
+    for _ in range(20):
+        try:
+            raw = page.evaluate(AD_FIXTURE_FLAGS)
+        except AcceptanceError as exc:
+            last_error = exc
+            time.sleep(0.25)
+            continue
+        if raw:
+            try:
+                return json.loads(raw)
+            except ValueError as exc:  # pragma: no cover - defensive
+                last_error = exc
+        time.sleep(0.25)
+    raise AcceptanceError(f"Ad fixture did not report its state: {last_error}")
+
+
+def blocker_probe(
+    ui: Cdp,
+    port: int,
+    base: str,
+    process: subprocess.Popen,
+    site_pages: List[Cdp],
+) -> Dict[str, Any]:
+    """Prove the tracker/ad blocker really cuts ad requests on a live page.
+
+    The fixture serves an ad script from the page's own document (a main-frame
+    subresource), injects a second one after load and embeds a cosmetic ad
+    container. Blocking must cover all three; the control pass with the toggle
+    off must let the same script load, so a passing probe cannot be explained
+    by a broken fixture.
+    """
+    fixture = base + "/adpage"
+    test = "window.shelterTest"
+    original = ui.evaluate(f"{test}.state().prefs.trackers")
+    ui.evaluate(f"{test}.setPref('trackers', true)")
+    time.sleep(0.8)
+    if ui.evaluate(f"{test}.state().prefs.trackers") is not True:
+        raise AcceptanceError("Tracker blocker preference did not turn on")
+    ui.evaluate("window.newTab(" + json.dumps(fixture) + ")")
+    target, page, state = wait_for_site(port, "127.0.0.1", process, path_contains="/adpage")
+    site_pages.append(page)
+    if "SHELTER ad fixture" not in (state.get("text", "") + state.get("title", "")):
+        raise AcceptanceError(f"Ad fixture did not render: {state}")
+    time.sleep(1.1)  # window for the late script attempt
+    blocked = read_ad_flags(page)
+    if blocked.get("loaded", 0) != 0:
+        raise AcceptanceError(
+            "Ad script from the page's own frame was not blocked: " + json.dumps(blocked)
+        )
+    if blocked.get("late"):
+        raise AcceptanceError(
+            "Late ad script request was not blocked: " + json.dumps(blocked)
+        )
+    if blocked.get("slotDisplay") != "none":
+        raise AcceptanceError(
+            "Cosmetic filter did not hide the ad container: " + json.dumps(blocked)
+        )
+    counter = ui.evaluate(
+        "(function(){var st=window.shelterTest.state();"
+        "var sp=st.spaces[st.currentSpace];"
+        "var t=(sp&&sp.tabs||[]).filter(x=>x.url.indexOf('/adpage')>=0).pop();"
+        "return t?(t.blocked||0):-1;})()"
+    )
+    if not isinstance(counter, int) or counter < 2:
+        raise AcceptanceError(f"Blocked-request counter did not grow: {counter}")
+
+    control: Dict[str, Any] = {}
+    try:
+        ui.evaluate(f"{test}.setPref('trackers', false)")
+        time.sleep(0.8)
+        ui.evaluate("window.navigate(" + json.dumps(fixture + "?noblock=1") + ")")
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            control = read_ad_flags(page)
+            if "noblock=1" in control.get("search", ""):
+                break
+            time.sleep(0.3)
+        time.sleep(1.1)
+        control = read_ad_flags(page)
+        if control.get("loaded", 0) < 1:
+            raise AcceptanceError(
+                "Control pass with the blocker off did not load the ad script: "
+                + json.dumps(control)
+            )
+    finally:
+        ui.evaluate(f"{test}.setPref('trackers', {json.dumps(original)})")
+        time.sleep(0.4)
+        ui.evaluate(
+            "(function(){var st=window.shelterTest.state();"
+            "var sp=st.spaces[st.currentSpace];"
+            "var t=(sp&&sp.tabs||[]).filter(x=>x.url.indexOf('/adpage')>=0).pop();"
+            "if(t&&window.closeTab)window.closeTab(t.id);return true;})()"
+        )
+    return {
+        "blocked": blocked,
+        "control": control,
+        "counter": counter,
+        "original": original,
+    }
+
+
 def start_scroll_sweep(page: Cdp, frames: int = 48) -> Dict[str, Any]:
     expression = r"""
       (function(frames) {
@@ -1841,6 +1995,16 @@ def main() -> int:
             )
             print("SHELTER_ACCEPTANCE_LONG_SCROLL " + json.dumps(scroll_probes, ensure_ascii=False), flush=True)
             print("SHELTER_ACCEPTANCE_LONG_SCROLL_PASS", flush=True)
+
+            blocker_result = blocker_probe(
+                ui, port, long_page_base, process, site_pages
+            )
+            print(
+                "SHELTER_ACCEPTANCE_BLOCKER "
+                + json.dumps(blocker_result, ensure_ascii=False),
+                flush=True,
+            )
+            print("SHELTER_ACCEPTANCE_BLOCKER_PASS", flush=True)
 
             tab_probe = tab_width_probe(ui)
             print(

@@ -336,15 +336,19 @@ bool TabClient::OnBeforeBrowse(CefRefPtr<CefBrowser>,
 namespace {
 
 // Отменяет сторонние запросы к доменам-трекерам и рекламные URL-шаблоны.
-// Навигации основного фрейма не трогаем: сайт, открытый пользователем
-// осознанно, обязан загрузиться.
+// Пропускается только навигация верхнего уровня: сайт, открытый пользователем,
+// обязан загрузиться. Это именно тип запроса RT_MAIN_FRAME, а не «запрос из
+// главного фрейма»: рекламные скрипты, пиксели и баннеры, которые страница
+// подключает прямо из своего документа, приходят из главного фрейма и раньше
+// проходили фильтр насквозь — поэтому на реальных сайтах (например, с Yandex
+// Direct) реклама не блокировалась вовсе.
 cef_return_value_t BlockerCheck(CefRefPtr<CefFrame> frame,
                                 CefRefPtr<CefRequest> request) {
   if (!request || !::shelter::blocker::Enabled()) return RV_CONTINUE;
   const std::string url = request->GetURL().ToString();
   if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0)
     return RV_CONTINUE;
-  if (frame && frame->IsMain()) return RV_CONTINUE;
+  if (request->GetResourceType() == RT_MAIN_FRAME) return RV_CONTINUE;
   char kind = 0;
   const std::string page = frame ? frame->GetURL().ToString() : std::string();
   if (!::shelter::blocker::ShouldBlock(url, page, &kind)) return RV_CONTINUE;

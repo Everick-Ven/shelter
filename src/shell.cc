@@ -35,6 +35,7 @@
 #include "src/clients.h"
 #include "src/blocker.h"
 #include "src/common.h"
+#include "src/extension_match.h"
 #include "src/netguard.h"
 #include "src/key_map.h"
 #include "src/platform.h"
@@ -188,12 +189,14 @@ class PopupWindowDelegate : public CefWindowDelegate {
 // ---- расширения: CRX -> распаковка -> собственный runtime content-scripts --
 // CEF вырезал API расширений (~M127), поэтому Shelter сам выполняет ту часть
 // модели Chromium-расширений, которая не требует Chrome-UI: content_scripts
-// (JS/CSS из пакета) внедряются в главные фреймы вкладок по match-паттернам.
-// Фоновые service worker и chrome.* API не поддерживаются — об этом честно
-// написано на странице «Расширения».
+// (JS/CSS из пакета) внедряются в подходящие фреймы вкладок по match-паттернам.
+// Совпадение шаблонов и глобов считается ровно как в Chromium (см.
+// src/extension_match.h): matches/exclude_matches/include_globs/exclude_globs и
+// all_frames (подфреймы). Фоновые service worker и chrome.* API не
+// поддерживаются — об этом честно написано на странице «Расширения».
 
 struct ExtContentScript {
-  std::vector<std::string> matches;
+  shelter::ExtScriptRules rules;  // matches/exclude/globs/all_frames
   std::string js;    // объединённый исходник js-файлов
   std::string css;   // объединённый исходник css-файлов
   bool at_start = false;  // run_at: document_start
@@ -231,52 +234,6 @@ bool ReadFileStr(const fs::path& path, size_t max_bytes, std::string* out) {
   return true;
 }
 
-// match-pattern (<scheme>://<host>/<path>, <all_urls>) -> regex.
-bool ExtMatch(const std::string& pattern, const std::string& url) {
-  if (pattern == "<all_urls>")
-    return url.rfind("http://", 0) == 0 || url.rfind("https://", 0) == 0;
-  const auto sep = pattern.find("://");
-  if (sep == std::string::npos) return false;
-  std::string scheme = pattern.substr(0, sep);
-  const std::string rest = pattern.substr(sep + 3);
-  const auto slash = rest.find('/');
-  const std::string host =
-      slash == std::string::npos ? rest : rest.substr(0, slash);
-  std::string path = slash == std::string::npos ? "/" : rest.substr(slash);
-  if (path.empty()) path = "/";
-  CefURLParts parts;
-  if (!CefParseURL(url, parts)) return false;
-  const std::string uscheme = CefString(&parts.scheme).ToString();
-  const std::string uhost = CefString(&parts.host).ToString();
-  std::string upath = CefString(&parts.path).ToString();
-  if (upath.empty()) upath = "/";
-  if (scheme != "*" && scheme != uscheme) return false;
-  const auto to_regex = [](const std::string& s) {
-    std::string r;
-    for (char c : s) {
-      if (c == '*') r += ".*";
-      else if (strchr(".+?[]^$(){}|\\", c)) { r += '\\'; r += c; }
-      else r += c;
-    }
-    return r;
-  };
-  std::string hpat = to_regex(host);
-  if (!host.empty() && host[0] == '*') {  // *.host или *
-    hpat = to_regex(host.substr(1));
-    hpat = "([a-z0-9.-]+\\.)?" + hpat;
-    if (host == "*") hpat = ".*";
-  }
-  if (!std::regex_match(uhost, std::regex(hpat))) return false;
-  return std::regex_match(upath, std::regex(to_regex(path)));
-}
-
-bool ExtScriptApplies(const ExtContentScript& cs, const std::string& url) {
-  for (const auto& m : cs.matches) {
-    if (ExtMatch(m, url)) return true;
-  }
-  return false;
-}
-
 void LoadExtFromDir(const fs::path& dir) {
   if (!security::IsDirectoryWithoutLink(dir)) return;
   const std::string extension_id = dir.filename().string();
@@ -310,17 +267,27 @@ void LoadExtFromDir(const fs::path& dir) {
       ExtContentScript out;
       if (cs->HasKey("run_at") && cs->GetType("run_at") == VTYPE_STRING)
         out.at_start = cs->GetString("run_at").ToString() == "document_start";
-      if (cs->HasKey("matches") && cs->GetType("matches") == VTYPE_LIST) {
-        CefRefPtr<CefListValue> matches = cs->GetList("matches");
-        if (matches->GetSize() > kMaxExtensionMatchPatterns) continue;
-        for (size_t k = 0; k < matches->GetSize(); ++k) {
-          if (matches->GetType(k) != VTYPE_STRING) continue;
-          const std::string pattern = matches->GetString(k).ToString();
-          if (!pattern.empty() && pattern.size() <= 2048)
-            out.matches.push_back(pattern);
+      if (cs->HasKey("all_frames") && cs->GetType("all_frames") == VTYPE_BOOL)
+        out.rules.all_frames = cs->GetBool("all_frames");
+      // Списки шаблонов и глобов читаются одинаково: строки до 2048 символов,
+      // не больше kMaxExtensionMatchPatterns элементов в каждом.
+      const auto read_list = [&](const char* key,
+                                 std::vector<std::string>* dst) -> bool {
+        if (!cs->HasKey(key) || cs->GetType(key) != VTYPE_LIST) return true;
+        CefRefPtr<CefListValue> items = cs->GetList(key);
+        if (items->GetSize() > kMaxExtensionMatchPatterns) return false;
+        for (size_t k = 0; k < items->GetSize(); ++k) {
+          if (items->GetType(k) != VTYPE_STRING) continue;
+          const std::string v = items->GetString(k).ToString();
+          if (!v.empty() && v.size() <= 2048) dst->push_back(v);
         }
-      }
-      if (out.matches.empty()) continue;
+        return true;
+      };
+      if (!read_list("matches", &out.rules.matches)) continue;
+      if (!read_list("exclude_matches", &out.rules.exclude_matches)) continue;
+      if (!read_list("include_globs", &out.rules.include_globs)) continue;
+      if (!read_list("exclude_globs", &out.rules.exclude_globs)) continue;
+      if (out.rules.matches.empty()) continue;
 
       bool over_budget = false;
       const auto append_files = [&](const char* key, bool is_js) {
@@ -417,15 +384,18 @@ std::string BuildExtListJson() {
 
 void InjectExtScripts(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
                       bool start_phase) {
-  if (!browser || !frame || !frame->IsMain()) return;
+  if (!browser || !frame) return;
   ExtEnsureScanned();
   if (g_exts.empty()) return;
   const std::string url = frame->GetURL().ToString();
   if (url.empty() || url == "about:blank") return;
+  const bool is_main_frame = frame->IsMain();
   for (const auto& kv : g_exts) {
     for (const auto& cs : kv.second.scripts) {
       if (cs.at_start != start_phase) continue;
-      if (!ExtScriptApplies(cs, url)) continue;
+      // Подфреймы получают скрипты только при all_frames: true — как в Chromium.
+      if (!cs.rules.AppliesToFrame(is_main_frame)) continue;
+      if (!cs.rules.AppliesTo(url)) continue;
       if (!cs.css.empty()) {
         const std::string js =
             "(function(){var s=document.createElement('style');s.textContent=" +

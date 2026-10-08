@@ -267,6 +267,8 @@ jobs:
         run: node tests/ui_settings_test.js
       - name: Tab strip and pinned tab regression test
         run: node tests/ui_tabs_test.js
+      - name: Extensions page and bridge regression test
+        run: node tests/ui_extensions_test.js
       - name: Compile and run path/archive safety tests
         run: |
           set -euo pipefail
@@ -282,6 +284,11 @@ jobs:
           set -euo pipefail
           c++ -std=c++17 -Wall -Wextra -Werror -I. tests/favicon_hosts_test.cc -o favicon-hosts-test
           ./favicon-hosts-test
+      - name: Compile and run extension match tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/extension_match_test.cc -o extension-match-test
+          ./extension-match-test
 
   release:
     name: Release

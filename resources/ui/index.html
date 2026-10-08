@@ -8719,13 +8719,13 @@ const CWS_URL = 'https://chromewebstore.google.com/';
 function extMeta(e) { return { c: e.c || hostColor(e.id || e.name), l: e.l || (e.name || '?').slice(0, 1).toUpperCase() }; }
 function extCard(e, i) {
   const m = extMeta(e);
-  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div class="tx"><b>${esc(e.name)}</b><small>${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chromium extension</small></div><span class="ext-state">${ico('check')}Загружено</span></div>
-  <p>${esc(e.desc || 'Content-scripts (JS/CSS) внедряются в подходящие страницы; фоновые API Chrome не поддерживаются.')}</p>
+  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div class="tx"><b>${esc(e.name)}</b><small>${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chrome-расширение · content-scripts</small></div><span class="ext-state">${ico('check')}Включено</span></div>
+  <p>${esc(e.desc || 'Content-scripts (JS/CSS) применяются к подходящим страницам и фреймам по правилам манифеста (matches, globs, all_frames). Фоновые service worker и chrome.* API движком не поддерживаются.')}</p>
   <div class="ft"><span class="mono-dim">${e.cs ? e.cs + ' content-scripts · ' : ''}${esc((e.id || '').slice(0, 12))}${(e.id || '').length > 12 ? '…' : ''}</span><span class="sp"></span><button class="btn sm ghost" data-act="extPage" data-id="${esc(e.id)}">${ico('globe')}Страница</button><button class="btn sm ghost" data-act="extRemove" data-id="${esc(e.id)}">Удалить</button></div></div>`;
 }
 RENDER.extensions = () => {
   const inst = S.ext.filter(e => e && e.id && e.name);
-  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div><div class="page-sub">Настоящие расширения Chromium: Chrome Web Store или файл .crx</div></div>
+  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div><div class="page-sub">Chrome Web Store или файл .crx: пакет распаковывается локально и применяется на страницах</div></div>
   <div class="page-actions"><button class="btn" data-act="extPick">${ico('file')}Из файла…</button></div></div>
   <div class="sec-t">Установленные <small>${inst.length}</small></div>
   <div class="ext-grid">${inst.length ? inst.map(extCard).join('') : emptyState('puzzle', 'Нет расширений', 'Откройте Chrome Web Store и установите расширение по ID или выберите файл .crx')}</div>
@@ -8755,14 +8755,14 @@ function extListPop(anchor) {
   const list = S.ext.filter(e => e && e.id && e.name);
   openMenu(anchor, null, { place: 'bottom-end', cls: 'pop ext-pop', html:
     `<div class="pop-h"><span class="ic">${ico('puzzle')}</span><div><b>Расширения</b><span>${list.length ? list.length + ' ' + plural(list.length, ['расширение', 'расширения', 'расширений']) : 'ничего не установлено'}</span></div></div>`
-    + (list.length ? list.map(e => { const m = extMeta(e); return `<button class="mi tall" data-act="extPop" data-id="${esc(e.id)}"><span class="ext-ico"><span style="background:${esc(m.c)}">${esc(m.l)}</span></span><span class="lb">${esc(e.name)}<span class="sub">${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}расширение Chromium</span></span></button>`; }).join('')
+    + (list.length ? list.map(e => { const m = extMeta(e); return `<button class="mi tall" data-act="extPop" data-id="${esc(e.id)}"><span class="ext-ico"><span style="background:${esc(m.c)}">${esc(m.l)}</span></span><span class="lb">${esc(e.name)}<span class="sub">${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chrome-расширение · content-scripts</span></span></button>`; }).join('')
       : `<div class="ext-none">Расширения не установлены</div>`)
     + `<div class="msep"></div><button class="mi" data-act="page" data-page="extensions"><span class="lb">Все расширения</span>${ico('ext')}</button>` });
 }
 function extPop(anchor) {
   const e = S.ext.find(x => x.id === anchor.dataset.id); if (!e) return;
   const m = extMeta(e);
-  openMenu(anchor, null, { place: 'bottom-end', cls: 'pop', html: `<div class="pop-h"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div><b>${esc(e.name)}</b><span>${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}расширение Chromium</span></div></div>
+  openMenu(anchor, null, { place: 'bottom-end', cls: 'pop', html: `<div class="pop-h"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div><b>${esc(e.name)}</b><span>${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chrome-расширение · content-scripts</span></div></div>
     <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm" style="flex:1" data-act="extPage" data-id="${esc(e.id)}">${ico('globe')}Страница</button><button class="btn sm ghost" style="flex:1" data-act="extRemove" data-id="${esc(e.id)}">Удалить</button></div>` });
 }
 function applyExtList(list) {

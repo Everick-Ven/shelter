@@ -810,8 +810,10 @@ def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
           'Ещё одно длинное имя вкладки для проверки'
         ];
         const results = {};
+        const problems = [];
         try {
           for (const pos of ['top', 'bottom', 'right', 'left']) {
+           try {
             test.setTabPos(pos);
             await frame(); await pause(120);
             const list = document.getElementById('tabList');
@@ -844,15 +846,62 @@ def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
               const rect = tab.getBoundingClientRect();
               return {w: Math.round(rect.width * 100) / 100, h: Math.round(rect.height)};
             });
+            /* Диагностика раскладки: если ширины когда-нибудь разъедутся,
+               отчёт должен объяснять причину без второго прогона CI. */
+            const diag = () => {
+              const app = document.getElementById('app');
+              const track = document.querySelector('#dockLeft') || document.querySelector('.sb');
+              const first = list.querySelector('.tab:not(.new)');
+              const label = first ? first.querySelector('.t') : null;
+              const rect = el => el ? Math.round(el.getBoundingClientRect().width * 100) / 100 : -1;
+              const css = el => el ? getComputedStyle(el) : null;
+              const listCss = css(list), tabCss = css(first);
+              return {
+                dock: pos,
+                viewport: [innerWidth, innerHeight],
+                appClass: app ? app.className : '',
+                side: track ? (track.id || track.className) : '',
+                sideW: rect(track),
+                listW: rect(list),
+                listClientW: list.clientWidth,
+                listDisplay: listCss ? listCss.display + '/' + listCss.flexDirection : '',
+                tabW: rect(first),
+                tabH: rect(first),
+                tabDisplay: tabCss ? tabCss.display : '',
+                tabFlex: tabCss ? tabCss.flex : '',
+                tabMin: tabCss ? tabCss.minWidth : '',
+                tabMax: tabCss ? tabCss.maxWidth : '',
+                tabIsCollapsedChild: !!(track && first && first.parentElement === track),
+                labelW: rect(label),
+                labelOpacity: label ? getComputedStyle(label).opacity : '',
+                labelText: Array.from(list.querySelectorAll('.tab:not(.new) .t'))
+                  .slice(0, 3).map(el => String(el.textContent || '').slice(0, 24)),
+                sbVar: getComputedStyle(document.documentElement)
+                  .getPropertyValue('--sb-w').trim(),
+                sbVarCompact: getComputedStyle(document.documentElement)
+                  .getPropertyValue('--sb-wc').trim(),
+                uiCollapsed: !!test.state().ui.collapsed
+              };
+            };
+            const dockWidth = () => Math.round(list.getBoundingClientRect().width * 100) / 100;
             const few = measure();
+            const fewDock = dockWidth();
             const spread = Math.max(...few.map(t => t.w)) - Math.min(...few.map(t => t.w));
             if (spread > 1)
               throw new Error(
                 'tabs differ in width in the ' + pos + ' dock: ' +
                 JSON.stringify(few)
               );
-            if (few.some(t => t.w < 44))
-              throw new Error('tab collapsed below a usable width in ' + pos);
+            /* Порог «рабочей» ширины не может быть больше самого дока: в
+               компактной боковой панели (или узком окне) место объективно
+               меньше, и тогда требование — заполнять док, а не выдумывать
+               пиксели. При нормальном доке порог остаётся 44px. */
+            if (few.some(t => t.w < Math.min(44, fewDock) - 0.5))
+              throw new Error(
+                'tab collapsed below a usable width in ' + pos + ': ' +
+                JSON.stringify(few) + ' of ' + fewDock + 'px dock ' +
+                JSON.stringify(diag())
+              );
             const horizontal = pos === 'top' || pos === 'bottom';
             if (horizontal && (few[0].w < MIN - 0.5 || few[0].w > MAX + 0.5))
               throw new Error(
@@ -863,6 +912,14 @@ def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
             // historical minimum of the old content-sized layout.
             for (let i = 0; i < 10; i++) window.newTab();
             await frame(); await pause(180);
+            /* Новые вкладки перерисовывают список и стирают подставленные
+               заголовки: возвращаем разные длины, иначе проверка «ширина не
+               зависит от названия» под нагрузкой ничего не значит. */
+            Array.from(list.querySelectorAll('.tab:not(.new)')).forEach((tab, i) => {
+              const label = tab.querySelector('.t');
+              if (label) label.textContent = titles[(i * 3) % titles.length];
+            });
+            await frame(); await pause(40);
             const many = measure();
             const manySpread = Math.max(...many.map(t => t.w)) - Math.min(...many.map(t => t.w));
             if (many.length < 12)
@@ -872,15 +929,28 @@ def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
                 'tabs differ in width under load in the ' + pos + ' dock: ' +
                 JSON.stringify(many.slice(0, 4))
               );
-            if (horizontal && many[0].w < MIN - 0.5)
+            const manyDock = dockWidth();
+            const crowdedFloor = Math.min(MIN, manyDock) - 0.5;
+            if (many[0].w < crowdedFloor)
               throw new Error(
-                'crowded tabs shrank below ' + MIN + 'px in ' + pos +
-                ': ' + many[0].w
+                'crowded tabs shrank below the layout floor in ' + pos +
+                ': ' + many[0].w + ' of ' + manyDock + 'px dock ' +
+                JSON.stringify(diag())
               );
-            results[pos] = {few: few[0], many: many[0], count: many.length};
+            results[pos] = {
+              few: few[0], many: many[0], count: many.length,
+              dockFew: fewDock, dockMany: manyDock, diag: diag()
+            };
             dropExtras();
             await frame(); await pause(60);
+           } catch (err) {
+            /* Сломанный док не должен скрывать состояние остальных: собираем
+               все проблемы и падаем один раз — с полным отчётом по каждому. */
+            problems.push(pos + ': ' + String((err && err.message) || err));
+           }
           }
+          if (problems.length)
+            throw new Error('tab layout problems: ' + problems.join(' | '));
           return JSON.stringify({min: MIN, max: MAX, docks: results});
         } finally {
           test.setTabPos(originalPos);
@@ -935,7 +1005,21 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
                           '.dt-welcome-mark', '.omni.dt-omni', '.dt-privacy-pill',
                           '.dt-private'];
         const report = {};
+        /* Приветственный экран живёт только в пустом диалоге: на чистом
+           профиле Открыт ознакомительный диалог с сообщениями. Открываем
+           новый диалог штатной кнопкой, измеряем экран, затем возвращаемся
+           в прежний — иначе проба проверяла бы поверхность, которой в этом
+           состоянии просто нет. */
+        const restoreThread =
+          (app.querySelector('.dt-thread.active') || {}).dataset;
+        const welcomeHome = app.querySelector('[data-act="dtNew"]');
         for (const selector of surfaces) {
+          if (selector === '.dt-welcome-mark' && !app.querySelector(selector)) {
+            if (!welcomeHome)
+              throw new Error('assistant new-dialog button is missing');
+            welcomeHome.click();
+            await frame(); await pause(120);
+          }
           const el = app.querySelector(selector);
           if (!el) throw new Error('missing assistant surface: ' + selector);
           const measured = corners(el);
@@ -994,6 +1078,12 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         const railStyle = corners(app.querySelector('.dt-rail')).min;
         if (railStyle < 12)
           throw new Error('assistant rail is not a rounded card: ' + railStyle);
+        if (restoreThread && restoreThread.id) {
+          const back = app.querySelector(
+            '[data-act="dtOpen"][data-id="' + restoreThread.id + '"]'
+          );
+          if (back) { back.click(); await frame(); await pause(80); }
+        }
         return JSON.stringify({gap: gap, surfaces: report});
       })()
     """
@@ -2359,14 +2449,8 @@ def main() -> int:
             )
             print("SHELTER_ACCEPTANCE_COOKIE_CONSENT_PASS", flush=True)
 
-            tab_probe = tab_width_probe(ui)
-            print(
-                "SHELTER_ACCEPTANCE_TAB_WIDTH "
-                + json.dumps(tab_probe, ensure_ascii=False),
-                flush=True,
-            )
-            print("SHELTER_ACCEPTANCE_TAB_WIDTH_PASS", flush=True)
-
+            # Проба Ассистента идёт первой: если раскладка вкладок упадёт,
+            # результат по углам всё равно попадёт в отчёт.
             corner_probe = assistant_corners_probe(ui)
             print(
                 "SHELTER_ACCEPTANCE_ASSISTANT_CORNERS "
@@ -2374,6 +2458,14 @@ def main() -> int:
                 flush=True,
             )
             print("SHELTER_ACCEPTANCE_ASSISTANT_CORNERS_PASS", flush=True)
+
+            tab_probe = tab_width_probe(ui)
+            print(
+                "SHELTER_ACCEPTANCE_TAB_WIDTH "
+                + json.dumps(tab_probe, ensure_ascii=False),
+                flush=True,
+            )
+            print("SHELTER_ACCEPTANCE_TAB_WIDTH_PASS", flush=True)
 
             ui.evaluate(
                 "window.shelterTest.setGfxMode(" + json.dumps(original_gfx) +

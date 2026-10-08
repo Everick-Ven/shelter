@@ -395,6 +395,9 @@ body.no-badges .badge{display:none!important}
 .tab.active::before{content:"";position:absolute;left:-14px;top:9px;height:14px;width:3px;border-radius:99px;background:rgb(var(--accent));box-shadow:0 0 10px rgb(var(--accent)/.7)}
 .tab .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .tab .pin{width:12px;height:12px;color:var(--text-3)}
+/* Закреплённая вкладка — миниатюра: от неё остаётся только значок сайта,
+   заголовок и метка закрепления не рисуются (заголовок живёт в подсказке). */
+.tab.pinned{width:38px;min-width:38px;max-width:38px;padding:0;justify-content:center;gap:0}
 .tab .x{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--text-3);opacity:0;transition:opacity .15s,background .15s,color .15s}
 .tab .x .i{width:14px;height:14px}
 .tab:hover .x,.tab.active .x{opacity:1}
@@ -482,10 +485,11 @@ body.no-badges .badge{display:none!important}
 #tabBottom{padding:3px 8px 7px;border-top:1px solid var(--line)}
 .tab-mount .space-row{margin-top:0;padding-left:0;flex:none;width:auto}
 .tab-mount .space-btn{flex:0 1 auto;width:auto;max-width:220px;min-height:30px}
-.tab-mount .tabs{display:flex;flex-direction:row;align-items:center;gap:4px;margin:0;padding:0;flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.tab-mount .tabs{display:flex;flex-direction:row;align-items:center;gap:4px;margin:0;padding:0;flex:0 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 .tab-mount .tabs::-webkit-scrollbar{display:none}
 .tab-mount .tabs::before{display:none}
 .tab-mount .tab{flex:1 1 0;width:auto;min-width:104px;max-width:216px;height:32px;padding:0 6px 0 10px}
+.tab-mount .tab.pinned{flex:0 0 auto;min-width:38px;max-width:38px;padding:0;justify-content:center;gap:0}
 .tab-mount .tab .t{max-width:none;min-width:0}
 .tab-mount .tab.active::before{left:10px;right:10px;top:auto;bottom:-2px;width:auto;height:3px;border-radius:99px}
 .tab-mount .tab.drop-before::after{left:-4px;top:5px;bottom:5px;right:auto;width:3px;height:auto;border-radius:99px}
@@ -5132,7 +5136,9 @@ function tabsScrollSync() {
 function renderTabs() {
   const sp = curSpace();
   const tabs = sp.tabs.filter(t => t.pinned).concat(sp.tabs.filter(t => !t.pinned));
-  $('#tabList').innerHTML = tabs.map(t => `<div class="tab${t.id === S.activeTabId ? ' active' : ''}${t.id === justAdded ? ' enter' : ''}" data-act="tab" data-tab="${t.id}" draggable="${S.prefs.dragTabs ? 'true' : 'false'}" data-tip="${esc(t.title)}">${favHtml(t)}<span class="t hc">${esc(t.title)}</span>${t.ghost ? `<span class="tg hc" data-tip="Открыто в режиме «Призрак»">${ico('ghost')}</span>` : ''}${t.pinned ? ico('pin', 'pin hc') : `<button class="x hc" data-act="closeTab" data-id="${t.id}" aria-label="Закрыть вкладку">${ico('x')}</button>`}</div>`).join('')
+  /* У закреплённой вкладки в разметке остаётся только значок сайта:
+     заголовок, метка закрепления и крестик закрытия не рисуются. */
+  $('#tabList').innerHTML = tabs.map(t => `<div class="tab${t.id === S.activeTabId ? ' active' : ''}${t.pinned ? ' pinned' : ''}${t.id === justAdded ? ' enter' : ''}" data-act="tab" data-tab="${t.id}" draggable="${S.prefs.dragTabs ? 'true' : 'false'}" data-tip="${esc(t.title)}">${favHtml(t)}${t.pinned ? '' : `<span class="t hc">${esc(t.title)}</span>`}${t.ghost ? `<span class="tg hc" data-tip="Открыто в режиме «Призрак»">${ico('ghost')}</span>` : ''}${t.pinned ? '' : `<button class="x hc" data-act="closeTab" data-id="${t.id}" aria-label="Закрыть вкладку">${ico('x')}</button>`}</div>`).join('')
     + ((S.ui.tabPos === 'top' || S.ui.tabPos === 'bottom')
       ? ''
       : `<button class="tab new" data-act="newTab" data-tip="Новая вкладка  ⌘T"><span class="fav">${ico('plus')}</span><span class="t hc">Новая вкладка</span></button>`);

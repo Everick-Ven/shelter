@@ -1658,6 +1658,10 @@ def blocker_probe(
 CONSENT_FLAGS = (
     "JSON.stringify({"
     "href:location.href,"
+    # Метки, которые ставят сами скрипты защит: видно, что именно
+    # применил рендерер в этом документе (а не то, что думает UI).
+    "armedConsent:window.__shConsent===1,"
+    "armedFp:window.__shFp===1,"
     "consent:window.__consent||null,"
     "visible:(typeof window.__visible==='function')&&window.__visible(),"
     "lateMounted:window.__lateMounted===true,"
@@ -1726,6 +1730,30 @@ def assert_minimal_consent(route: str, flags: Dict[str, Any]) -> None:
         )
 
 
+def read_native_protections(ui: Cdp) -> Dict[str, Any]:
+    """Состояние защит глазами браузерного процесса (диагностика dbg.protections).
+
+    Нужно, чтобы сбой в цепочке «тумблер → нативная часть → рендерер» не
+    выглядел одинаково на любом её разрыве.
+    """
+    expression = (
+        "new Promise(function(resolve){"
+        "if (typeof window.cefQuery !== 'function') { resolve(''); return; }"
+        "window.cefQuery({request:'{\"m\":\"dbg.protections\"}',"
+        " persistent:false,"
+        "onSuccess:function(r){resolve(r||'');},"
+        "onFailure:function(){resolve('');}});"
+        "})"
+    )
+    raw = ui.evaluate(expression)
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return {}
+
+
 def cookie_consent_probe(
     ui: Cdp,
     port: int,
@@ -1739,13 +1767,26 @@ def cookie_consent_probe(
     both offering "only necessary" next to "accept all". The probe checks that
     the minimal set is chosen, that the banner never became visible, and — with
     the toggle off — that the same banner stays visible and unanswered.
+
+    Порядок ног выбран так, чтобы каждая проверяла свой механизм доставки
+    состояния в рендерер: обычные ноги идут по одному сайту подряд (процесс
+    живёт), а свежая нога уходит на другой сайт — там процесс рождается заново
+    и получает защиты из своей командной строки.
     """
     test = "window.shelterTest"
     original = ui.evaluate(f"{test}.state().prefs.cookies")
+    original_fp = ui.evaluate(f"{test}.state().prefs.fp")
+    native: Dict[str, Any] = {}
     ui.evaluate(f"{test}.setPref('cookies', true)")
     time.sleep(0.8)
     if ui.evaluate(f"{test}.state().prefs.cookies") is not True:
         raise AcceptanceError("Cookie auto-consent preference did not turn on")
+    native["on"] = read_native_protections(ui)
+    if native["on"].get("cookies") is not True:
+        raise AcceptanceError(
+            "Auto-consent never reached the native layer when switched on: "
+            + json.dumps(native["on"])
+        )
 
     results: Dict[str, Any] = {}
     for name, route in (("immediate", "/consent"), ("late", "/consent-late")):
@@ -1764,15 +1805,68 @@ def cookie_consent_probe(
             )
         results[name] = flags
 
-    # localhost и 127.0.0.1 — разные сайты, поэтому CEF вправе поднять для этой
-    # страницы новый процесс рендерера: защиты обязаны работать и там (процесс
-    # получает состояние из своей командной строки). Если площадка недоступна,
+    # Тумблер выключается сразу после обычных ног, и контрольная нога идёт по
+    # тому же сайту: процесс рендерера заведомо жив, то есть проверяется ровно
+    # то, что тумблер догоняет уже работающую вкладку.
+    control: Dict[str, Any] = {}
+    try:
+        ui.evaluate(f"{test}.setPref('cookies', false)")
+        time.sleep(0.8)
+        if ui.evaluate(f"{test}.state().prefs.cookies") is not False:
+            raise AcceptanceError("Cookie auto-consent preference did not turn off")
+        native["off"] = read_native_protections(ui)
+        if native["off"].get("cookies") is not False:
+            raise AcceptanceError(
+                "Auto-consent never reached the native layer when switched off: "
+                + json.dumps(native["off"])
+            )
+        ui.evaluate(
+            "window.navigate(" + json.dumps(base + "/consent?manual=1") + ")"
+        )
+        try:
+            _target, control_page, _state = wait_for_site(
+                port, "127.0.0.1", process, path_contains="manual=1", timeout=25
+            )
+        except AcceptanceError as exc:
+            raise AcceptanceError(
+                "Control consent page did not load: " + str(exc)
+            ) from exc
+        site_pages.append(control_page)
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            control = read_consent_flags(control_page)
+            if control.get("consent") is None and control.get("visible") is True:
+                break
+            time.sleep(0.3)
+        if control.get("consent") is not None:
+            raise AcceptanceError(
+                "Cookie auto-consent kept answering while switched off: "
+                + json.dumps(control, ensure_ascii=False)
+                + " native=" + json.dumps(native.get("off", {}))
+            )
+        if control.get("visible") is not True:
+            raise AcceptanceError(
+                "With auto-consent off the banner must stay visible: "
+                + json.dumps(control, ensure_ascii=False)
+            )
+    finally:
+        ui.evaluate(f"{test}.setPref('cookies', {json.dumps(original)})")
+        time.sleep(0.6)
+
+    # Свежий сайт: другой сайт означает новый процесс рендерера, и он обязан
+    # получить состояние защит из командной строки. Метка анти-отпечатка в
+    # документе показывает, что именно применил этот новый процесс: если
+    # тумблер включён, а метки нет — процесс родился со значениями по умолчанию,
+    # то есть на новых страницах защиты не работают. Если площадка недоступна,
     # это внешняя причина, а не поведение продукта — предупреждаем и идём дальше.
     fresh: Dict[str, Any] = {}
     fresh_error = ""
     fresh_page: Optional[Cdp] = None
     fresh_state: Dict[str, Any] = {}
     try:
+        ui.evaluate(f"{test}.setPref('cookies', " + json.dumps(True) + ")")
+        ui.evaluate(f"{test}.setPref('fp', " + json.dumps(True) + ")")
+        time.sleep(0.5)
         ui.evaluate(
             "window.navigate("
             + json.dumps(base.replace("127.0.0.1", "localhost") + "/consent")
@@ -1794,58 +1888,30 @@ def cookie_consent_probe(
             )
         fresh = wait_for_consent(fresh_page, "fresh")
         assert_minimal_consent("fresh site", fresh)
+        if fresh.get("armedFp") is not True:
+            raise AcceptanceError(
+                "A process born after the app started missed fingerprint "
+                "protection, so protections do not reach new pages: "
+                + json.dumps(fresh, ensure_ascii=False)
+            )
     if fresh_error:
         print(
             "SHELTER_ACCEPTANCE_COOKIE_CONSENT_FRESH_SKIPPED " + fresh_error,
             flush=True,
         )
 
-    control: Dict[str, Any] = {}
-    try:
-        ui.evaluate(f"{test}.setPref('cookies', false)")
-        time.sleep(0.8)
-        if ui.evaluate(f"{test}.state().prefs.cookies") is not False:
-            raise AcceptanceError("Cookie auto-consent preference did not turn off")
-        ui.evaluate(
-            "window.navigate(" + json.dumps(base + "/consent?manual=1") + ")"
-        )
-        # Читаем именно контрольный документ: соединение, взятое на прошлом
-        # шаге, могло остаться на прежней странице вкладки, и тогда «ответ
-        # при выключенном тумблере» был бы ответом прошлого документа.
-        try:
-            _target, control_page, _state = wait_for_site(
-                port, "127.0.0.1", process, path_contains="manual=1", timeout=25
-            )
-        except AcceptanceError as exc:
-            raise AcceptanceError("Control consent page did not load: " + str(exc)) from exc
-        site_pages.append(control_page)
-        deadline = time.monotonic() + 20
-        while time.monotonic() < deadline:
-            control = read_consent_flags(control_page)
-            if control.get("consent") is None and control.get("visible") is True:
-                break
-            time.sleep(0.3)
-        if control.get("consent") is not None:
-            raise AcceptanceError(
-                "Cookie auto-consent kept answering while switched off: "
-                + json.dumps(control)
-            )
-        if control.get("visible") is not True:
-            raise AcceptanceError(
-                "With auto-consent off the banner must stay visible: "
-                + json.dumps(control)
-            )
-    finally:
-        ui.evaluate(f"{test}.setPref('cookies', {json.dumps(original)})")
-        time.sleep(0.4)
+    ui.evaluate(f"{test}.setPref('cookies', {json.dumps(original)})")
+    ui.evaluate(f"{test}.setPref('fp', {json.dumps(original_fp)})")
+    time.sleep(0.5)
+    native["restored"] = read_native_protections(ui)
     return {
         "toggles": results,
+        "control": control,
         "fresh": fresh,
         "fresh_error": fresh_error,
-        "control": control,
+        "native": native,
         "original": original,
     }
-
 
 def start_scroll_sweep(page: Cdp, frames: int = 48) -> Dict[str, Any]:
     expression = r"""

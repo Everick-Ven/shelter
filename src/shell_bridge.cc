@@ -536,6 +536,20 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                  cb);
     return true;
   }
+  if (m == "dbg.protections") {  // диагностика (CI): состояние защит в браузерном процессе
+    // Приёмка обязана уметь отличить «тумблер не дошёл до нативной части» от
+    // «дошёл, но рендерер применил старое значение»: без этого сбой в цепочке
+    // выглядит одинаково и объясняется догадками.
+    if (!browser || !IsUiBrowser(browser)) {
+      cb->Failure(403, "protection state is restricted to the SHELTER UI");
+      return true;
+    }
+    const int flags = Shell::Get().ProtectionFlags();
+    cb->Success(std::string("{\"fp\":") +
+                ((flags & 1) ? "true" : "false") + ",\"cookies\":" +
+                ((flags & 2) ? "true" : "false") + "}");
+    return true;
+  }
   if (m == "dbg.hit") {  // диагностика hitTest (macOS), только для CI
     cb->Success(JsString(platform::DebugHitTest(Num(a, "x", 0), Num(a, "y", 0))));
     return true;

@@ -661,6 +661,220 @@ def performance_mode_probe(ui: Cdp) -> Dict[str, Any]:
         raise AcceptanceError(f"Quick-menu glow preference was not preserved: {result}")
     return result
 
+def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
+    """Tabs must share one width (standard browser logic) in every dock.
+
+    Wide windows: equal widths, capped by the layout maximum. Narrow windows:
+    equal widths that may shrink but never below the historical minimum.
+    """
+    expression = r"""
+      (async function() {
+        const test = window.shelterTest;
+        if (!test || !test.setTabPos || !test.state)
+          throw new Error('tab position test surface is missing');
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const frame = () => new Promise(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        );
+        const MIN = 104, MAX = 216;
+        const originalPos = test.state().ui.tabPos;
+        const openIds = ids => ids.filter(id => id && id !== test.state().activeTabId);
+        const titles = [
+          'Короткая',
+          'Очень длинное название страницы проверки равной ширины вкладок',
+          'Mid',
+          'Ещё одно длинное имя вкладки для проверки'
+        ];
+        const results = {};
+        try {
+          for (const pos of ['top', 'bottom', 'right', 'left']) {
+            test.setTabPos(pos);
+            await frame(); await pause(120);
+            const list = document.getElementById('tabList');
+            if (!list) throw new Error('tab list is missing for ' + pos);
+            const space = () => {
+              const state = test.state();
+              const key = state.currentSpace;
+              return (state.spaces && (state.spaces[key] || state.spaces)) || null;
+            };
+            const dropExtras = () => {
+              const sp = space();
+              const tabs = sp && sp.tabs ? sp.tabs.slice() : [];
+              openIds(tabs.map(tab => tab.id)).forEach(id => window.closeTab(id));
+            };
+            dropExtras();
+            await frame(); await pause(60);
+            for (let i = 0; i < 3; i++) window.newTab();
+            await frame(); await pause(140);
+            const tabs = Array.from(list.querySelectorAll('.tab:not(.new)'));
+            if (tabs.length < 4)
+              throw new Error('expected four tabs in ' + pos + ' dock, got ' + tabs.length);
+            tabs.forEach((tab, i) => {
+              const label = tab.querySelector('.t');
+              if (label) label.textContent = titles[i % titles.length];
+            });
+            await frame();
+            const measure = () => Array.from(
+              document.querySelectorAll('#tabList .tab:not(.new)')
+            ).map(tab => {
+              const rect = tab.getBoundingClientRect();
+              return {w: Math.round(rect.width * 100) / 100, h: Math.round(rect.height)};
+            });
+            const few = measure();
+            const spread = Math.max(...few.map(t => t.w)) - Math.min(...few.map(t => t.w));
+            if (spread > 1)
+              throw new Error(
+                'tabs differ in width in the ' + pos + ' dock: ' +
+                JSON.stringify(few)
+              );
+            if (few.some(t => t.w < 44))
+              throw new Error('tab collapsed below a usable width in ' + pos);
+            const horizontal = pos === 'top' || pos === 'bottom';
+            if (horizontal && (few[0].w < MIN - 0.5 || few[0].w > MAX + 0.5))
+              throw new Error(
+                'horizontal tab width ' + few[0].w + ' left the ' + MIN + '–' + MAX +
+                ' range in ' + pos
+              );
+            // Too many tabs: widths must still match and never drop below the
+            // historical minimum of the old content-sized layout.
+            for (let i = 0; i < 10; i++) window.newTab();
+            await frame(); await pause(180);
+            const many = measure();
+            const manySpread = Math.max(...many.map(t => t.w)) - Math.min(...many.map(t => t.w));
+            if (many.length < 12)
+              throw new Error('expected twelve tabs in ' + pos + ', got ' + many.length);
+            if (manySpread > 1)
+              throw new Error(
+                'tabs differ in width under load in the ' + pos + ' dock: ' +
+                JSON.stringify(many.slice(0, 4))
+              );
+            if (horizontal && many[0].w < MIN - 0.5)
+              throw new Error(
+                'crowded tabs shrank below ' + MIN + 'px in ' + pos +
+                ': ' + many[0].w
+              );
+            results[pos] = {few: few[0], many: many[0], count: many.length};
+            dropExtras();
+            await frame(); await pause(60);
+          }
+          return JSON.stringify({min: MIN, max: MAX, docks: results});
+        } finally {
+          test.setTabPos(originalPos);
+        }
+      })()
+    """
+    result = ui.evaluate(expression, timeout=90)
+    if not isinstance(result, str):
+        raise AcceptanceError(f"Tab width probe returned no result: {result!r}")
+    data = json.loads(result)
+    if set(data.get("docks", {})) != {"top", "bottom", "right", "left"}:
+        raise AcceptanceError(f"Tab width probe missed a dock: {data}")
+    return data
+
+
+def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
+    """The assistant tab must not contain a single sharp corner.
+
+    Every visible surface on the deepthink page is checked: its four corner
+    radii have to be equal and positive, and the two main panels must be
+    separated rounded cards instead of panels welded corner-to-corner.
+    """
+    ui.evaluate("window.openPage('deepthink')")
+    expression = r"""
+      (async function() {
+        const frame = () => new Promise(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        );
+        const app = document.getElementById('dtApp');
+        if (!app) throw new Error('assistant page did not render');
+        await frame();
+        const parse = value => String(value || '').split(/\s+/).map(part => {
+          const n = parseFloat(part);
+          if (!isFinite(n)) throw new Error('unparsable radius: ' + value);
+          return part.endsWith('%') ? n : n;
+        });
+        const corners = el => {
+          const style = getComputedStyle(el);
+          const tl = parse(style.borderTopLeftRadius);
+          const tr = parse(style.borderTopRightRadius);
+          const br = parse(style.borderBottomRightRadius);
+          const bl = parse(style.borderBottomLeftRadius);
+          const values = [tl[0], tr[0], br[0], bl[0]];
+          return {
+            values: values,
+            min: Math.min(...values),
+            max: Math.max(...values),
+            radius: values.join('/')
+          };
+        };
+        const surfaces = ['.dt-rail', '.dt-main', '.dt-topbar', '.dt-composer-area',
+                          '.dt-new', '.dt-thread-search', '.dt-welcome-mark',
+                          '.omni.dt-omni', '.dt-privacy-pill', '.dt-private'];
+        const report = {};
+        for (const selector of surfaces) {
+          const el = app.querySelector(selector);
+          if (!el) throw new Error('missing assistant surface: ' + selector);
+          const measured = corners(el);
+          if (measured.min <= 0)
+            throw new Error('sharp corner on ' + selector + ': ' + measured.radius);
+          if (measured.max - measured.min > 0.5)
+            throw new Error('uneven corners on ' + selector + ': ' + measured.radius);
+          report[selector] = measured.radius;
+        }
+        // Message surfaces appear only after a conversation exists: build them
+        // in place, measure the real cascade, then remove the probes.
+        const holder = document.createElement('div');
+        holder.className = 'dt-message-list';
+        holder.style.cssText = 'position:absolute;left:-10000px;top:0;width:640px';
+        app.appendChild(holder);
+        const messageSurface = ['.dt-user-bubble', '.dt-answer', '.dt-answer-tools',
+                                '.dt-kpi', '.bub', '.bub.me'];
+        try {
+          for (const selector of messageSurface) {
+            const probe = document.createElement('div');
+            probe.className = selector.replace(/^\./, '').replace(/\./g, ' ');
+            probe.textContent = 'проба';
+            holder.appendChild(probe);
+            const measured = corners(probe);
+            if (measured.min <= 0)
+              throw new Error('sharp corner on ' + selector + ': ' + measured.radius);
+            if (measured.max - measured.min > 0.5)
+              throw new Error('uneven corners on ' + selector + ': ' + measured.radius);
+            report[selector] = measured.radius;
+            probe.remove();
+          }
+        } finally {
+          holder.remove();
+        }
+        const rail = app.querySelector('.dt-rail').getBoundingClientRect();
+        const main = app.querySelector('.dt-main').getBoundingClientRect();
+        const gap = Math.round((main.left - rail.right) * 10) / 10;
+        if (!(gap >= 4))
+          throw new Error('assistant panels are welded together, gap=' + gap);
+        const railStyle = corners(app.querySelector('.dt-rail')).min;
+        if (railStyle < 12)
+          throw new Error('assistant rail is not a rounded card: ' + railStyle);
+        return JSON.stringify({gap: gap, surfaces: report});
+      })()
+    """
+    result = ui.evaluate(expression, timeout=60)
+    if not isinstance(result, str):
+        raise AcceptanceError(f"Assistant corner probe returned no result: {result!r}")
+    data = json.loads(result)
+    missing = [
+        selector
+        for selector in (
+            ".dt-user-bubble",
+            ".dt-answer",
+            ".bub.me",
+        )
+        if selector not in data.get("surfaces", {})
+    ]
+    if missing:
+        raise AcceptanceError(f"Assistant corner probe skipped surfaces: {missing}")
+    return data
+
+
 def quick_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
     """Verify quick-menu theme changes keep the menu open and can be restored."""
     expression = r"""
@@ -1627,6 +1841,23 @@ def main() -> int:
             )
             print("SHELTER_ACCEPTANCE_LONG_SCROLL " + json.dumps(scroll_probes, ensure_ascii=False), flush=True)
             print("SHELTER_ACCEPTANCE_LONG_SCROLL_PASS", flush=True)
+
+            tab_probe = tab_width_probe(ui)
+            print(
+                "SHELTER_ACCEPTANCE_TAB_WIDTH "
+                + json.dumps(tab_probe, ensure_ascii=False),
+                flush=True,
+            )
+            print("SHELTER_ACCEPTANCE_TAB_WIDTH_PASS", flush=True)
+
+            corner_probe = assistant_corners_probe(ui)
+            print(
+                "SHELTER_ACCEPTANCE_ASSISTANT_CORNERS "
+                + json.dumps(corner_probe, ensure_ascii=False),
+                flush=True,
+            )
+            print("SHELTER_ACCEPTANCE_ASSISTANT_CORNERS_PASS", flush=True)
+
             ui.evaluate(
                 "window.shelterTest.setGfxMode(" + json.dumps(original_gfx) +
                 ",{persist:false,notify:false})"

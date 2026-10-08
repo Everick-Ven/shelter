@@ -1498,7 +1498,11 @@ html[data-theme="ivory"],html[data-theme="porcelain"],html[data-theme="bordeaux"
   .main{padding:0 6px 6px}
   .tb{height:auto;min-height:54px;flex-wrap:wrap;align-content:center;gap:4px 8px;padding:5px 8px}
   .tb>#omniTb{flex:1 1 140px;min-width:140px;max-width:none;margin:0}
-  .tb>.tb-actions{flex:1 0 100%;min-width:0;flex-wrap:wrap;justify-content:flex-end}
+  /* В узком окне ряд действий переносится по строкам: поджимаем промежутки,
+     чтобы шестая плитка защиты не разрывала «Настройки · Меню» на две строки. */
+  .tb>.tb-actions{flex:1 0 100%;min-width:0;flex-wrap:wrap;justify-content:flex-end;gap:5px}
+  .tb-ctls{gap:1px;margin:0}
+  .tb-ctls .ctl{width:29px}
   .page{padding:22px 16px 40px}.tb .hide-sm{display:none}
   .cal,.cal-dows{gap:5px}
   .day{min-height:52px;padding:6px;border-radius:11px}

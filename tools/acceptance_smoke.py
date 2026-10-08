@@ -1018,11 +1018,11 @@ def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
 
 
 def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
-    """The assistant tab must not contain a single sharp corner.
+    """Check assistant surfaces plus desktop split-view/mobile overlay geometry.
 
-    Every visible surface on the deepthink page is checked: its four corner
-    radii have to be equal and positive, and the two main panels must be
-    separated rounded cards instead of panels welded corner-to-corner.
+    Decorative surfaces need equal positive corner radii. In the wide layout,
+    the rail and main panel meet at a one-pixel seam; in the narrow layout, the
+    rail is intentionally off-canvas until opened and must not reserve a gap.
     """
     ui.evaluate("window.openPage('deepthink')")
     expression = r"""
@@ -1139,10 +1139,29 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         const mainEl = app.querySelector('.dt-main');
         const rail = railEl.getBoundingClientRect();
         const main = mainEl.getBoundingClientRect();
+        const appRect = app.getBoundingClientRect();
         const gap = Math.round((main.left - rail.right) * 10) / 10;
-        if (gap > 1)
-          throw new Error('assistant panels parted without a reason, gap=' + gap);
         const railCss = getComputedStyle(railEl), mainCss = getComputedStyle(mainEl);
+        const railMode = railCss.position;
+        let layout = 'split-view';
+        if (railMode === 'absolute') {
+          /* Narrow container-query mode deliberately slides the rail 14 px
+             beyond the app edge and lets the detail panel occupy the full
+             width. That off-canvas distance is not a visual gutter. */
+          layout = 'mobile-overlay';
+          const railOpen = app.classList.contains('rail-open');
+          if (Math.abs(main.left - appRect.left) > 1 ||
+              Math.abs(main.right - appRect.right) > 1)
+            throw new Error('mobile assistant detail panel does not fill its shell');
+          if (railOpen) {
+            if (rail.left < appRect.left - 1 || rail.right > appRect.right + 1)
+              throw new Error('open mobile assistant rail is outside its shell');
+          } else if (rail.right > appRect.left + 1) {
+            throw new Error('closed mobile assistant rail covers the detail panel');
+          }
+        } else if (gap > 1) {
+          throw new Error('assistant panels parted without a reason, gap=' + gap);
+        }
         const seam = Math.max(parseFloat(railCss.borderRightWidth) || 0,
                               parseFloat(mainCss.borderLeftWidth) || 0);
         if (!(seam >= 0.5))
@@ -1156,7 +1175,7 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
           );
           if (back) { back.click(); await frame(); await pause(80); }
         }
-        return JSON.stringify({gap: gap, surfaces: report});
+        return JSON.stringify({gap: gap, layout: layout, surfaces: report});
       })()
     """
     result = ui.evaluate(expression, timeout=60)

@@ -979,6 +979,7 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         const frame = () => new Promise(resolve =>
           requestAnimationFrame(() => requestAnimationFrame(resolve))
         );
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         const app = document.getElementById('dtApp');
         if (!app) throw new Error('assistant page did not render');
         await frame();

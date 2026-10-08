@@ -103,10 +103,27 @@ check('вертикальной миниатюры в свёрнутых кон�
 //    их ширину задаёт панель, а не стандарт.
 const tabStd = rule('.tab-mount .tab');
 check('стандарт задан для горизонтальной полосы', tabStd.length > 0, tabStd);
+/* Ширину полосы считает layoutTabStrip(): заголовок вкладки на неё не влияет,
+   поэтому у всех свободных вкладок полосы одна ширина --tabw. Вне полосы
+   переменная не задана, и работает запасное значение 200 px. */
 check('ширина вкладки по умолчанию — 200 px',
-  /flex:0 1 200px/.test(tabStd) && /max-width:200px/.test(tabStd), tabStd);
+  /flex:0 1 var\(--tabw,200px\)/.test(tabStd) && /max-width:var\(--tabw,200px\)/.test(tabStd), tabStd);
 const minW = +(tabStd.match(/min-width:(\d+)px/) || [])[1];
 check('минимальная ширина вкладки в диапазоне 40–80 px', minW >= 40 && minW <= 80, minW + ' px');
+const layout = cut('function layoutTabStrip() {', '\nfunction renderTabs()');
+check('полоса считает одну ширину на все свободные вкладки',
+  /const w = Math\.max\(TAB_MIN, Math\.min\(TAB_MAX, Math\.floor\(\(avail - pin \* TAB_PIN - TAB_GAP \* \(n - 1\)\) \/ free\)\)\)/.test(layout) &&
+  /tl\.style\.setProperty\('--tabw', w \+ 'px'\)/.test(layout), layout.length + ' символов');
+check('ширина не зависит от текста заголовка',
+  layout.length > 0 && !/textContent|scrollWidth|offsetWidth|title/.test(layout));
+check('пределы ширины совпадают с CSS: 72 и 200 px',
+  /const TAB_MIN = 72, TAB_MAX = 200/.test(html) && minW === 72);
+check('панель вне полосы не наследует --tabw',
+  /tl\.style\.removeProperty\('--tabw'\)/.test(layout));
+check('ряд пересчитывается при изменении окна и списка',
+  /new ResizeObserver\(\(\) => layoutTabStrip\(\)\)/.test(html) &&
+  /window\.addEventListener\('resize', debounce\(\(\) => \{[^}]*layoutTabStrip\(\)/.test(html) &&
+  /layoutTabStrip\(\);/.test(cut('function renderTabs() {', '\nfunction applyTabPos()')));
 const stdH = +(tabStd.match(/height:(\d+)px/) || [])[1];
 check('высота вкладки в диапазоне 32–36 px', stdH >= 32 && stdH <= 36, stdH + ' px');
 const padM = tabStd.match(/padding:0 (\d+)px 0 (\d+)px/);
@@ -161,6 +178,69 @@ check('догрузка запускается после монтировани
   /new MutationObserver\(ms => \{/.test(html) && /ensureFavicons\(\); return;/.test(html) && /ensureFavicons\(\);/.test(heroLinksFn));
 check('у моста есть отдельный путь запроса (не легаси-словарь)',
   /window\.shelterCefRequest = \(method, args\) => mq2\(method, args\)/.test(html));
+
+// 10. Арифметика ширины полосы. Прогоняем сам layoutTabStrip() с подставным
+//     DOM: одна переменная --tabw на всю полосу, зажим 72…200 px, закреплённые
+//     по 40 px, полоса вне горизонтальных доков переменную снимает. Это то
+//     требование, которое иначе проверяет только приёмочный прогон в браузере.
+const layoutSrc = cut('function layoutTabStrip() {', '\nfunction renderTabs()');
+const mkStyle = () => ({ setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; } });
+const mkCls = () => {
+  const set = new Set();
+  return { add: c => set.add(c), remove: c => set.delete(c), toggle: (c, on) => { (on ? set.add : set.delete).call(set, c); }, contains: c => set.has(c), size: set.size };
+};
+const runLayout = opts => {
+  const styles = new Map();
+  const tabStyle = () => ({ display: 'flex', position: 'relative' });
+  const tabs = [];
+  for (let i = 0; i < opts.tabs; i++) {
+    const cls = mkCls();
+    if (i < (opts.pinned || 0)) cls.add('pinned');
+    const el = { classList: cls };
+    styles.set(el, tabStyle());
+    tabs.push(el);
+  }
+  const list = { style: mkStyle(), classList: mkCls() };
+  styles.set(list, tabStyle());
+  const siblings = (opts.siblings || []).map(w => {
+    const el = { hidden: false, getBoundingClientRect: () => ({ width: w }) };
+    styles.set(el, { display: 'flex', position: 'static' });
+    return el;
+  });
+  const mount = {
+    id: opts.mount, clientWidth: opts.width, hidden: false,
+    children: [list].concat(siblings), getBoundingClientRect: () => ({ width: opts.width })
+  };
+  styles.set(mount, {
+    display: 'flex', position: 'relative', columnGap: (opts.gap || 0) + 'px', gap: (opts.gap || 0) + 'px',
+    paddingLeft: (opts.padL || 0) + 'px', paddingRight: (opts.padR || 0) + 'px'
+  });
+  list.parentElement = mount;
+  const getComputedStyle = el => styles.get(el) || { display: 'block', position: 'static' };
+  const make = new Function(
+    'TAB_MIN', 'TAB_MAX', 'TAB_GAP', 'TAB_PIN', '$', '$$', 'getComputedStyle',
+    layoutSrc + '\nreturn layoutTabStrip;'
+  );
+  const layout = make(72, 200, 4, 40, () => list, () => tabs, getComputedStyle);
+  layout();
+  return { width: list.style['--tabw'], tight: list.classList.contains('tight'), hasVar: '--tabw' in list.style, tabs: tabs.length };
+};
+check('широкая полоса: ширина упирается в максимум 200 px',
+  runLayout({ mount: 'tabTop', width: 1200, padL: 10, padR: 10, gap: 4, siblings: [30], tabs: 6, pinned: 2 }).width === '200px',
+  JSON.stringify(runLayout({ mount: 'tabTop', width: 1200, padL: 10, padR: 10, gap: 4, siblings: [30], tabs: 6, pinned: 2 })));
+const mid = runLayout({ mount: 'tabTop', width: 700, padL: 10, padR: 10, gap: 4, siblings: [30], tabs: 6, pinned: 2 });
+check('средняя полоса: ширина считается от свободного места', mid.width === '136px', JSON.stringify(mid));
+const narrow = runLayout({ mount: 'tabBottom', width: 500, padL: 10, padR: 10, gap: 4, siblings: [30], tabs: 6, pinned: 2 });
+check('узкая полоса: вкладки сжимаются, но не ниже 72 px', narrow.width === '86px' && narrow.tight === true, JSON.stringify(narrow));
+const floor = runLayout({ mount: 'tabTop', width: 400, padL: 10, padR: 10, gap: 4, siblings: [30], tabs: 6, pinned: 2 });
+check('предельно узкая полоса: ширина остаётся на минимуме 72 px', floor.width === '72px', JSON.stringify(floor));
+const free = runLayout({ mount: 'tabTop', width: 600, padL: 8, padR: 8, gap: 4, siblings: [28], tabs: 3 });
+check('без закреплённых ширина делится на все вкладки',
+  free.width === '181px' && free.tabs === 3, JSON.stringify(free));
+const noRoom = runLayout({ mount: 'tabTop', width: 50, padL: 10, padR: 10, gap: 4, siblings: [30], tabs: 4, pinned: 1 });
+check('когда места нет вовсе, переменная не выставляется', noRoom.hasVar === false, JSON.stringify(noRoom));
+const vertical = runLayout({ mount: 'dockLeft', width: 900, padL: 8, padR: 8, gap: 4, siblings: [], tabs: 5 });
+check('вертикальная панель снимает переменную полосы', vertical.hasVar === false, JSON.stringify(vertical));
 
 const failed = results.filter(x => !x).length;
 console.log(failed ? 'UI_TABS_TEST_FAIL ' + failed : 'UI_TABS_TEST_PASS ' + results.length + '/' + results.length);

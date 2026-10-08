@@ -77,15 +77,23 @@ check('подпись режима объясняет проверку загр�
   /chrome-extension:\/\/…\/manifest\.json/.test(page));
 check('страница не обещает «настоящие расширения Chromium»',
   !/Настоящие расширения Chromium/.test(html));
+const installModal = cut('function extInstallModal() {', 'function extInstallSrc(');
 check('страница предлагает установку из магазина и из файла',
-  /data-act="extPick"/.test(page) && /data-act="extInstallSrc"/.test(page) &&
+  /data-act="extPick"/.test(page) && /data-act="extInstallPop"/.test(page) &&
   /data-act="extStore"/.test(page));
+check('установка по ID открывает попап, а не строку на странице',
+  installModal.length > 0 && /openModal\(\{ width: 460/.test(installModal) &&
+  /extInstallSrc\(src, b\)/.test(installModal) && /closeModal\(m\)/.test(installModal) &&
+  /extInstallPop: \(\) => extInstallModal\(\)/.test(html) &&
+  /extInstallSrc: \(\) => extInstallModal\(\)/.test(html));
 check('список и режим приходят из нативного сканирования',
   /NAT\.extList\(\)/.test(page) && /applyExtList\(r\.list, r\.mode\)/.test(page));
 check('строка магазина предупреждает про chrome.* API',
   /chrome\.\* API не поддерживаются/.test(page));
-check('строка магазина говорит, кто исполнит пакет',
-  /MV3-расширения после установки грузит движок Chromium/.test(page));
+check('страница говорит, кто исполнит пакет каждого типа',
+  /MV3 грузит движок Chromium, MV2 применяет оболочка/.test(page) &&
+  /MV2 движок не грузит политикой Chromium/.test(page) &&
+  /новое расширение подхватывается после перезапуска/.test(page));
 
 // 3. Мост: NAT.ext* — те же команды, что обрабатывает shell_bridge.cc.
 const nat = cut('extList: () => mq2(', 'extPick: () => mq2(');
@@ -122,6 +130,51 @@ check('режим по умолчанию — движок, но нативно�
 const pages = cut('const PAGES = {', '};');
 check('страница extensions зарегистрирована в роутере страниц',
   /extensions:/.test(pages) && /RENDER\.extensions/.test(html));
+
+// 6. Статус расширения — факт, а не обещание: прогоняем extStateChip()/
+//    extCard() с подставными зависимостями и проверяем все состояния из
+//    нативной модели (engine/passed/probe) и обоих режимов (engine/shell).
+const extMetaSrc = cut('function extMeta(e) {', 'function extCard(e, i) {');
+const makeExt = () => new Function(
+  'ico', 'esc', 'hostColor', 'S',
+  extMetaSrc + '\n' + chip + '\n' + card + '\nreturn {chip: extStateChip, card: extCard};'
+);
+const icoStub = () => '';
+const escStub = v => String(v == null ? '' : v);
+const render = (entry, mode) => {
+  const api = makeExt();
+  const fn = api(icoStub, escStub, () => '#123', { extMode: mode });
+  return { chip: fn.chip(entry, mode), card: fn.card(entry, 0), desc: fn.card(entry, 0).match(/<p>([\s\S]*?)<\/p>/) };
+};
+const mv3 = { id: 'cjpalhdlnbpafiamekefhncdjljmbd', name: 'uBlock Origin', ver: '1.60', mv: 3, engine: true, passed: true };
+const states = {
+  ok: render(Object.assign({}, mv3, { probe: 'ok' }), 'engine'),
+  pending: render(Object.assign({}, mv3, { probe: 'pending' }), 'engine'),
+  fail: render(Object.assign({}, mv3, { probe: 'fail' }), 'engine'),
+  nextRun: render({ id: 'aaaa', name: 'Позже', ver: '1.0', mv: 3, engine: true, passed: false }, 'engine'),
+  mv2: render({ id: 'bbbb', name: 'Старое', ver: '2.0', mv: 2 }, 'engine'),
+  shell: render({ id: 'cccc', name: 'Только JS', ver: '1.0', mv: 3 }, 'shell')
+};
+check('подтверждённый движком MV3 — «Загружено движком»',
+  /Загружено движком/.test(states.ok.chip), states.ok.chip);
+check('непроверенный MV3 не выдаётся за загруженный',
+  /Проверяю движок/.test(states.pending.chip) && !/Загружено/.test(states.pending.chip), states.pending.chip);
+check('проваленная проверка движка называется честно',
+  /Движок не подтвердил/.test(states.fail.chip) && !/Загружено/.test(states.fail.chip), states.fail.chip);
+check('путь, ждущий перезапуска, не называется загруженным',
+  /Со следующего запуска/.test(states.nextRun.chip) && !/Загружено/.test(states.nextRun.chip), states.nextRun.chip);
+check('MV2 в режиме движка подписан политикой Chromium',
+  /MV2/.test(states.mv2.chip) && !/Загружено/.test(states.mv2.chip), states.mv2.chip);
+check('режим оболочки подписан content-scripts',
+  /content-scripts/.test(states.shell.chip) && !/Загружено/.test(states.shell.chip), states.shell.chip);
+check('карточка объясняет, кто исполнит пакет',
+  /Manifest v3/.test(states.ok.desc[1]) && /content-scripts/i.test(states.shell.desc[1]) &&
+  /service worker/.test(states.shell.desc[1]) && /content-scripts/.test(states.ok.desc[1]),
+  states.shell.desc[1].slice(0, 80));
+check('карточка показывает версию манифеста, когда она известна',
+  /manifest v3/.test(states.ok.card) && /manifest v2/.test(states.mv2.card));
+check('ни одна карточка не пишет просто «Загружено»',
+  Object.values(states).every(st => !/>\s*Загружено\s*</.test(st.card)));
 
 const failed = results.filter(x => !x).length;
 console.log(failed ? 'UI_EXTENSIONS_TEST_FAIL ' + failed : 'UI_EXTENSIONS_TEST_PASS ' + results.length + '/' + results.length);

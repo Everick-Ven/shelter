@@ -64,7 +64,7 @@ check('у строки cookies задана подсказка про автос
 // 2. Строка в настройках — без иконки, с тумблером.
 /* Разметку окна собирает settingsHtml(), поведение окна осталось в openSettings():
    проверки ниже смотрят каждая в свой кусок. */
-const settingsMarkup = cut('function settingsHtml() {', 'function prewarmSettings()');
+const settingsMarkup = cut('function settingsHtml() {', 'function openSettings(sec) {');
 const settings = cut('function openSettings(sec) {', 'function applyFontScale()');
 check('панель настроек найдена', settings.length > 0, settings.length + ' символов');
 check('разметка настроек собирается сборщиком', settingsMarkup.length > 0, settingsMarkup.length + ' символов');
@@ -135,25 +135,30 @@ const sync = cut('function syncSwitches()', 'const PREF_TOAST');
 check('синхронизация тумблеров не пишет совпадающие состояния',
   /if \(b\.classList\.contains\('on'\) !== on\)/.test(sync) && /if \(b\.getAttribute\('aria-checked'\) !== sa\)/.test(sync));
 
-// 7. Прогрев кешей окна настроек (ТЗ №2). Разметка строится тем же сборщиком
-//    один раз в скрытом контейнере вне потока, контейнер удаляется в той же
-//    синхронной задаче, DOM модалки по-прежнему создаётся только при показе.
-//    Прогрев уходит в простой и не использует таймеров-задержек.
-const pw = cut('function prewarmSettings()', 'function openSettings(sec) {');
-check('окно и прогрев собираются одним сборщиком разметки',
-  /box\.innerHTML = settingsHtml\(\)/.test(pw) && /function settingsHtml\(\)/.test(html) && /return html;/.test(html));
-check('контейнер прогрева скрыт, вне потока и всегда удаляется',
-  /id = 'setPrewarm'/.test(pw) && /visibility:hidden/.test(pw) && /contain:strict/.test(pw) && /finally \{ if \(box\) box\.remove\(\); \}/.test(pw));
-check('прогрев одноразовый и уступает уже открытому окну',
-  /if \(settingsPrewarmDone\) return;/.test(pw) && /if \(\$\('\.settings'\)\) \{ settingsPrewarmDone = true; return; \}/.test(pw));
-check('флаг прогрева ставится только после успеха',
-  /settingsPrewarmDone = true;\n  \} catch/.test(pw));
-check('прогрев запускается в простое и по наведению на кнопку настроек',
-  /requestIdleCallback/.test(html) && /warmSettings, \{ timeout: 2000 \}/.test(html) &&
-  /setBtn\.addEventListener\('pointerenter', warmSettings/.test(html) && /setBtn\.addEventListener\('focus', warmSettings/.test(html));
-check('в прогреве нет таймеров-задержек', !/setTimeout/.test(pw));
-check('окно настроек берёт общую разметку, а не строит её заново',
-  /const html = settingsHtml\(\);/.test(settings));
+// 7. Настройки — обычная внутренняя страница, а не модальное окно: та же
+//    разметка settingsHtml() рисуется через RENDER.settings в поле страницы,
+//    открывается вкладкой shelter.dev/settings, а меню разделов, поиск и
+//    сохранение настроек живут в AFTER.settings. Прогрев скрытого контейнера
+//    умер вместе с модалкой — страница раскладывается один раз при открытии.
+const after = cut('AFTER.settings = () => {', 'function applyFontScale()');
+check('разметка настроек — страница, а не диалог',
+  /<div class="settings settings-page"/.test(settingsMarkup) &&
+  !/set-close/.test(settingsMarkup) && !/role="dialog"/.test(settingsMarkup));
+check('страница рисуется общим сборщиком разметки',
+  /RENDER\.settings = \(\) => settingsHtml\(\)/.test(html) && /return html;/.test(settingsMarkup));
+check('страница настроек зарегистрирована в роутере внутренних страниц',
+  /\n  settings:\s+\{ t: 'Настройки',/.test(html));
+check('открытие идёт вкладкой через openPage, а не модалкой',
+  /function openSettings\(sec\) \{\n  T\.setSec = sec \|\| '';\n  openPage\('settings'\);/.test(settings) && !/openModal/.test(settings));
+check('поведение страницы собирается в AFTER.settings',
+  after.length > 0 && /initSegs\(root\)/.test(after) && /const body = \$\('#setBody', root\)/.test(after), after.length + ' символов');
+check('разделы и поиск привязаны к тела страницы',
+  /SET_SECTIONS\.map/.test(settingsMarkup) && /data-sec="\$\{s\[0\]\}"/.test(settingsMarkup) &&
+  /#setQ', root/.test(after) && /#setDns', root/.test(after) && /#persSelect', root/.test(after));
+check('прогрева модального окна больше нет',
+  !/settingsPrewarm|prewarmSettings|warmSettings|setPrewarm/.test(html));
+check('страница удаляется вместе с вкладкой, без собственного контейнера',
+  !/setPrewarmDone/.test(html) && /function openSettings\(sec\)/.test(html));
 
 const failed = results.filter(x => !x).length;
 console.log(failed ? 'UI_SETTINGS_TEST_FAIL ' + failed : 'UI_SETTINGS_TEST_PASS ' + results.length + '/' + results.length);

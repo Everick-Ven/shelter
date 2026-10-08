@@ -1050,7 +1050,11 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
             radius: values.join('/')
           };
         };
-        const surfaces = ['.dt-rail', '.dt-main', '.dt-new', '.dt-thread-search',
+        /* Карточки и капсулы ассистента: у каждой все четыре угла скруглены
+           одинаково. Панели .dt-rail/.dt-main сюда не входят: в текущем
+           макете это macOS Split View — панели стыкуются встык и разделены
+           волосяной линией, их проверяет блок ниже. */
+        const surfaces = ['.dt-new', '.dt-thread-search', '.dt-kpis',
                           '.dt-welcome-mark', '.omni.dt-omni', '.dt-privacy-pill',
                           '.dt-private'];
         const report = {};
@@ -1078,20 +1082,16 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
             throw new Error('uneven corners on ' + selector + ': ' + measured.radius);
           report[selector] = measured.radius;
         }
-        /* Панели-полосы внутри карточки (.dt-main) скругляются только по
-           внешнему краю: внутренний край — линия стыка, а не угол. */
-        const edgeTrays = [['.dt-topbar', 'top'], ['.dt-composer-area', 'bottom']];
-        for (const [selector, side] of edgeTrays) {
+        /* Панели-полосы .dt-topbar/.dt-composer-area могут быть и скруглёнными,
+           и прямоугольными (встык к карточке), но углы одной полосы обязаны
+           совпадать: «один угол скруглён, другой срезан» — уже поломка. */
+        const edgeTrays = ['.dt-topbar', '.dt-composer-area'];
+        for (const selector of edgeTrays) {
           const el = app.querySelector(selector);
           if (!el) throw new Error('missing assistant surface: ' + selector);
           const measured = corners(el);
-          const pair = side === 'top'
-            ? [measured.values[0], measured.values[1]]
-            : [measured.values[2], measured.values[3]];
-          if (Math.min(...pair) <= 0)
-            throw new Error('sharp outer corner on ' + selector + ': ' + measured.radius);
-          if (Math.abs(pair[0] - pair[1]) > 0.5)
-            throw new Error('uneven outer corners on ' + selector + ': ' + measured.radius);
+          if (measured.max - measured.min > 0.5)
+            throw new Error('uneven corners on ' + selector + ': ' + measured.radius);
           report[selector] = measured.radius;
         }
         // Message surfaces appear only after a conversation exists: build them
@@ -1100,8 +1100,11 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         holder.className = 'dt-message-list';
         holder.style.cssText = 'position:absolute;left:-10000px;top:0;width:640px';
         app.appendChild(holder);
+        /* .dt-kpi — не карточка, а ячейка внутри скруглённой группы .dt-kpis
+           (волосяные разделители внутри, прямые углы), поэтому в списке её
+           нет: скругление проверяется у самой группы. */
         const messageSurface = ['.dt-user-bubble', '.dt-answer', '.dt-answer-tools',
-                                '.dt-kpi', '.bub', '.bub.me'];
+                                '.bub', '.bub.me'];
         try {
           for (const selector of messageSurface) {
             const probe = document.createElement('div');
@@ -1119,14 +1122,25 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         } finally {
           holder.remove();
         }
-        const rail = app.querySelector('.dt-rail').getBoundingClientRect();
-        const main = app.querySelector('.dt-main').getBoundingClientRect();
+        /* Макет ассистента — macOS Split View: панели стыкуются встык, но
+           обязаны читаться двумя областями. Признак разделения — волосяная
+           линия на стыке (border-right у боковой панели либо border-left у
+           основной), а не зазор: «слипшиеся» панели без линии — поломка. */
+        const railEl = app.querySelector('.dt-rail');
+        const mainEl = app.querySelector('.dt-main');
+        const rail = railEl.getBoundingClientRect();
+        const main = mainEl.getBoundingClientRect();
         const gap = Math.round((main.left - rail.right) * 10) / 10;
-        if (!(gap >= 4))
-          throw new Error('assistant panels are welded together, gap=' + gap);
-        const railStyle = corners(app.querySelector('.dt-rail')).min;
-        if (railStyle < 12)
-          throw new Error('assistant rail is not a rounded card: ' + railStyle);
+        if (gap > 1)
+          throw new Error('assistant panels parted without a reason, gap=' + gap);
+        const railCss = getComputedStyle(railEl), mainCss = getComputedStyle(mainEl);
+        const seam = Math.max(parseFloat(railCss.borderRightWidth) || 0,
+                              parseFloat(mainCss.borderLeftWidth) || 0);
+        if (!(seam >= 0.5))
+          throw new Error('assistant panels merged without a separator seam: ' + seam);
+        const appCss = corners(app);
+        if (appCss.min !== 0)
+          throw new Error('assistant shell is drawn as a card, not a split view: ' + appCss.radius);
         if (restoreThread && restoreThread.id) {
           const back = app.querySelector(
             '[data-act="dtOpen"][data-id="' + restoreThread.id + '"]'

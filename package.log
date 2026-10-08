@@ -1,0 +1,34 @@
+== подпись (ad-hoc), изнутри наружу
+--prepared:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Shelter Helper (GPU).app
+--validated:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Shelter Helper (GPU).app
+--prepared:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Shelter Helper (Alerts).app
+--validated:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Shelter Helper (Alerts).app
+--prepared:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Shelter Helper (Plugin).app
+--validated:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Shelter Helper (Plugin).app
+--prepared:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Shelter Helper.app
+--validated:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Shelter Helper.app
+--prepared:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Chromium Embedded Framework.framework/Versions/Current/.
+--validated:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Chromium Embedded Framework.framework/Versions/Current/.
+--prepared:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app
+--validated:/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app/Contents/Frameworks/Shelter Helper (Renderer).app
+/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app: valid on disk
+/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tmp.VMHuU33tYV/SHELTER.app: satisfies its Designated Requirement
+== создание DMG
+created: /Users/runner/work/shelter/shelter/dist/SHELTER-macos-x64.dmg
+Checksumming Protective Master Boot Record (MBR : 0)…
+Protective Master Boot Record (MBR :: verified   CRC32 $21F3E364
+Checksumming GPT Header (Primary GPT Header : 1)…
+ GPT Header (Primary GPT Header : 1): verified   CRC32 $0114DC87
+Checksumming GPT Partition Data (Primary GPT Table : 2)…
+GPT Partition Data (Primary GPT Tabl: verified   CRC32 $66B7EE35
+Checksumming  (Apple_Free : 3)…
+                    (Apple_Free : 3): verified   CRC32 $00000000
+Checksumming disk image (Apple_HFS : 4)…
+          disk image (Apple_HFS : 4): verified   CRC32 $2517E0BE
+Checksumming GPT Partition Data (Backup GPT Table : 5)…
+GPT Partition Data (Backup GPT Table: verified   CRC32 $66B7EE35
+Checksumming GPT Header (Backup GPT Header : 6)…
+  GPT Header (Backup GPT Header : 6): verified   CRC32 $BE8333A3
+verified   CRC32 $A39B56AB
+hdiutil: verify: checksum of "dist/SHELTER-macos-x64.dmg" is VALID
+-rw-r--r--@ 1 runner  staff  172678151 Oct  8 19:37 dist/SHELTER-macos-x64.dmg

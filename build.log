@@ -1,0 +1,598 @@
+[1/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/shutdown_checker.cc.o
+[2/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/transfer_util.cc.o
+[3/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/base/cef_atomic_flag.cc.o
+[4/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/base/cef_callback_helpers.cc.o
+[5/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/base/cef_dump_without_crashing.cc.o
+[6/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/base/cef_callback_internal.cc.o
+[7/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/base/cef_lock.cc.o
+[8/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/base/cef_lock_impl.cc.o
+[9/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/base/cef_logging.cc.o
+[10/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/base/cef_ref_counted.cc.o
+[11/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/base/cef_thread_checker_impl.cc.o
+[12/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/base/cef_weak_ptr.cc.o
+[13/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/accessibility_handler_cpptoc.cc.o
+[14/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/app_cpptoc.cc.o
+[15/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/audio_handler_cpptoc.cc.o
+[16/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/base_ref_counted_cpptoc.cc.o
+[17/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/base_scoped_cpptoc.cc.o
+[18/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/browser_process_handler_cpptoc.cc.o
+[19/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/client_cpptoc.cc.o
+[20/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/command_handler_cpptoc.cc.o
+[21/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/completion_callback_cpptoc.cc.o
+[22/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/component_update_callback_cpptoc.cc.o
+[23/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/context_menu_handler_cpptoc.cc.o
+[24/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/cookie_access_filter_cpptoc.cc.o
+[25/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/cookie_visitor_cpptoc.cc.o
+[26/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/delete_cookies_callback_cpptoc.cc.o
+[27/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/dev_tools_message_observer_cpptoc.cc.o
+[28/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/dialog_handler_cpptoc.cc.o
+[29/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/display_handler_cpptoc.cc.o
+[30/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/domvisitor_cpptoc.cc.o
+[31/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/download_handler_cpptoc.cc.o
+[32/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/download_image_callback_cpptoc.cc.o
+[33/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/drag_handler_cpptoc.cc.o
+[34/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/end_tracing_callback_cpptoc.cc.o
+[35/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/find_handler_cpptoc.cc.o
+[36/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/focus_handler_cpptoc.cc.o
+[37/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/frame_handler_cpptoc.cc.o
+[38/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/jsdialog_handler_cpptoc.cc.o
+[39/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/keyboard_handler_cpptoc.cc.o
+[40/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/life_span_handler_cpptoc.cc.o
+[41/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/load_handler_cpptoc.cc.o
+[42/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/media_observer_cpptoc.cc.o
+[43/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/media_route_create_callback_cpptoc.cc.o
+[44/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/media_sink_device_info_callback_cpptoc.cc.o
+[45/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/menu_model_delegate_cpptoc.cc.o
+[46/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/navigation_entry_visitor_cpptoc.cc.o
+[47/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/pdf_print_callback_cpptoc.cc.o
+[48/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/permission_handler_cpptoc.cc.o
+[49/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/preference_observer_cpptoc.cc.o
+[50/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/print_handler_cpptoc.cc.o
+[51/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/read_handler_cpptoc.cc.o
+[52/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/render_handler_cpptoc.cc.o
+[53/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/render_process_handler_cpptoc.cc.o
+[54/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/request_context_handler_cpptoc.cc.o
+[55/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/request_handler_cpptoc.cc.o
+[56/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/resolve_callback_cpptoc.cc.o
+[57/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/resource_bundle_handler_cpptoc.cc.o
+[58/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/resource_handler_cpptoc.cc.o
+[59/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/resource_request_handler_cpptoc.cc.o
+[60/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/response_filter_cpptoc.cc.o
+[61/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/run_file_dialog_callback_cpptoc.cc.o
+[62/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/scheme_handler_factory_cpptoc.cc.o
+[63/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/server_handler_cpptoc.cc.o
+[64/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/set_cookie_callback_cpptoc.cc.o
+[65/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/setting_observer_cpptoc.cc.o
+[66/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/string_visitor_cpptoc.cc.o
+[67/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/task_cpptoc.cc.o
+[68/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/urlrequest_client_cpptoc.cc.o
+[69/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/v8_accessor_cpptoc.cc.o
+[70/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/v8_array_buffer_release_callback_cpptoc.cc.o
+[71/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/v8_handler_cpptoc.cc.o
+[72/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/v8_interceptor_cpptoc.cc.o
+[73/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/write_handler_cpptoc.cc.o
+[74/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/api_version_test_ref_ptr_client_child_cpptoc.cc.o
+[75/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/api_version_test_ref_ptr_client_child_v2_cpptoc.cc.o
+[76/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/api_version_test_ref_ptr_client_cpptoc.cc.o
+[77/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/api_version_test_scoped_client_child_cpptoc.cc.o
+[78/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/api_version_test_scoped_client_child_v2_cpptoc.cc.o
+[79/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/api_version_test_scoped_client_cpptoc.cc.o
+[80/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/test_server_handler_cpptoc.cc.o
+[81/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/translator_test_ref_ptr_client_child_cpptoc.cc.o
+[82/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/translator_test_ref_ptr_client_cpptoc.cc.o
+[83/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/translator_test_scoped_client_child_cpptoc.cc.o
+[84/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/test/translator_test_scoped_client_cpptoc.cc.o
+[85/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/views/browser_view_delegate_cpptoc.cc.o
+[86/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/views/button_delegate_cpptoc.cc.o
+[87/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/views/menu_button_delegate_cpptoc.cc.o
+[88/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/views/panel_delegate_cpptoc.cc.o
+[89/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/views/textfield_delegate_cpptoc.cc.o
+[90/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/views/view_delegate_cpptoc.cc.o
+[91/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/cpptoc/views/window_delegate_cpptoc.cc.o
+[92/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/auth_callback_ctocpp.cc.o
+[93/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/before_download_callback_ctocpp.cc.o
+[94/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/binary_value_ctocpp.cc.o
+[95/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/browser_ctocpp.cc.o
+[96/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/browser_host_ctocpp.cc.o
+[97/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/callback_ctocpp.cc.o
+[98/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/command_line_ctocpp.cc.o
+[99/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/component_ctocpp.cc.o
+[100/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/component_updater_ctocpp.cc.o
+[101/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/context_menu_params_ctocpp.cc.o
+[102/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/cookie_manager_ctocpp.cc.o
+[103/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/dictionary_value_ctocpp.cc.o
+[104/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/domdocument_ctocpp.cc.o
+[105/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/domnode_ctocpp.cc.o
+[106/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/download_item_callback_ctocpp.cc.o
+[107/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/download_item_ctocpp.cc.o
+[108/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/drag_data_ctocpp.cc.o
+[109/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/file_dialog_callback_ctocpp.cc.o
+[110/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/frame_ctocpp.cc.o
+[111/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/image_ctocpp.cc.o
+[112/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/jsdialog_callback_ctocpp.cc.o
+[113/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/list_value_ctocpp.cc.o
+[114/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/media_access_callback_ctocpp.cc.o
+[115/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/media_route_ctocpp.cc.o
+[116/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/media_router_ctocpp.cc.o
+[117/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/media_sink_ctocpp.cc.o
+[118/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/media_source_ctocpp.cc.o
+[119/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/navigation_entry_ctocpp.cc.o
+[120/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/menu_model_ctocpp.cc.o
+[121/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/permission_prompt_callback_ctocpp.cc.o
+[122/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/post_data_ctocpp.cc.o
+[123/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/post_data_element_ctocpp.cc.o
+[124/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/preference_manager_ctocpp.cc.o
+[125/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/preference_registrar_ctocpp.cc.o
+[126/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/print_dialog_callback_ctocpp.cc.o
+[127/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/print_job_callback_ctocpp.cc.o
+[128/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/print_settings_ctocpp.cc.o
+[129/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/process_message_ctocpp.cc.o
+[130/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/registration_ctocpp.cc.o
+[131/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/request_context_ctocpp.cc.o
+[132/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/request_ctocpp.cc.o
+[133/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/resource_bundle_ctocpp.cc.o
+[134/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/resource_read_callback_ctocpp.cc.o
+[135/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/resource_skip_callback_ctocpp.cc.o
+[136/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/response_ctocpp.cc.o
+[137/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/run_context_menu_callback_ctocpp.cc.o
+[138/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/run_quick_menu_callback_ctocpp.cc.o
+[139/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/scheme_registrar_ctocpp.cc.o
+[140/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/select_client_certificate_callback_ctocpp.cc.o
+[141/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/server_ctocpp.cc.o
+[142/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/shared_memory_region_ctocpp.cc.o
+[143/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/shared_process_message_builder_ctocpp.cc.o
+[144/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/sslinfo_ctocpp.cc.o
+[145/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/sslstatus_ctocpp.cc.o
+[146/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/stream_reader_ctocpp.cc.o
+[147/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/stream_writer_ctocpp.cc.o
+[148/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/task_manager_ctocpp.cc.o
+[149/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/task_runner_ctocpp.cc.o
+[150/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/thread_ctocpp.cc.o
+[151/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/unresponsive_process_callback_ctocpp.cc.o
+[152/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/urlrequest_ctocpp.cc.o
+[153/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/v8_backing_store_ctocpp.cc.o
+[154/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/v8_context_ctocpp.cc.o
+[155/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/v8_exception_ctocpp.cc.o
+[156/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/v8_stack_frame_ctocpp.cc.o
+[157/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/v8_stack_trace_ctocpp.cc.o
+[158/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/v8_value_ctocpp.cc.o
+[159/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/value_ctocpp.cc.o
+[160/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/waitable_event_ctocpp.cc.o
+[161/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/x509_cert_principal_ctocpp.cc.o
+[162/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/x509_certificate_ctocpp.cc.o
+[163/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/xml_reader_ctocpp.cc.o
+[164/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/zip_reader_ctocpp.cc.o
+[165/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_ctocpp.cc.o
+[166/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_ref_ptr_library_child_child_ctocpp.cc.o
+[167/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_ref_ptr_library_child_child_v1_ctocpp.cc.o
+[168/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_ref_ptr_library_child_child_v2_ctocpp.cc.o
+[169/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_ref_ptr_library_child_ctocpp.cc.o
+[170/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_ref_ptr_library_ctocpp.cc.o
+[171/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_scoped_library_child_child_ctocpp.cc.o
+[172/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_scoped_library_child_child_v1_ctocpp.cc.o
+[173/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_scoped_library_child_child_v2_ctocpp.cc.o
+[174/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_scoped_library_child_ctocpp.cc.o
+[175/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/api_version_test_scoped_library_ctocpp.cc.o
+[176/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/test_server_connection_ctocpp.cc.o
+[177/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/test_server_ctocpp.cc.o
+[178/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/translator_test_ctocpp.cc.o
+[179/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/translator_test_ref_ptr_library_child_child_ctocpp.cc.o
+[180/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/translator_test_ref_ptr_library_child_ctocpp.cc.o
+[181/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/translator_test_ref_ptr_library_ctocpp.cc.o
+[182/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/translator_test_scoped_library_child_child_ctocpp.cc.o
+[183/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/translator_test_scoped_library_child_ctocpp.cc.o
+[184/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/test/translator_test_scoped_library_ctocpp.cc.o
+[185/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/box_layout_ctocpp.cc.o
+[186/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/browser_view_ctocpp.cc.o
+[187/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/button_ctocpp.cc.o
+[188/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/display_ctocpp.cc.o
+[189/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/fill_layout_ctocpp.cc.o
+[190/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/label_button_ctocpp.cc.o
+[191/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/layout_ctocpp.cc.o
+[192/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/menu_button_pressed_lock_ctocpp.cc.o
+[193/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/menu_button_ctocpp.cc.o
+[194/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/overlay_controller_ctocpp.cc.o
+[195/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/panel_ctocpp.cc.o
+[196/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/scroll_view_ctocpp.cc.o
+[197/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/textfield_ctocpp.cc.o
+[198/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/view_ctocpp.cc.o
+[199/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/ctocpp/views/window_ctocpp.cc.o
+[200/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_byte_read_handler.cc.o
+[201/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_closure_task.cc.o
+[202/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_message_router_utils.cc.o
+[203/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_message_router.cc.o
+[204/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_scoped_temp_dir.cc.o
+[205/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_resource_manager.cc.o
+[206/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_stream_resource_handler.cc.o
+[207/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_xml_object.cc.o
+[208/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_zip_archive.cc.o
+[209/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/libcef_dll_wrapper2.cc.o
+[210/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/libcef_dll_wrapper.cc.o
+[211/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_scoped_library_loader_mac.mm.o
+[212/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/cef_scoped_sandbox_context_mac.mm.o
+[213/248] Building CXX object libcef_dll_wrapper/CMakeFiles/libcef_dll_wrapper.dir/wrapper/libcef_dll_dylib.cc.o
+[214/248] Building CXX object CMakeFiles/Shelter_Helper.dir/src/process_helper_mac.cc.o
+[215/248] Building CXX object CMakeFiles/Shelter_Helper.dir/src/renderer_app.cc.o
+[216/248] Building CXX object CMakeFiles/Shelter_Helper.dir/src/common.cc.o
+[217/248] Building CXX object CMakeFiles/Shelter_Helper_alerts.dir/src/process_helper_mac.cc.o
+[218/248] Building CXX object CMakeFiles/Shelter_Helper_alerts.dir/src/renderer_app.cc.o
+[219/248] Building CXX object CMakeFiles/Shelter_Helper_alerts.dir/src/common.cc.o
+[220/248] Building CXX object CMakeFiles/Shelter_Helper_gpu.dir/src/process_helper_mac.cc.o
+[221/248] Building CXX object CMakeFiles/Shelter_Helper_gpu.dir/src/renderer_app.cc.o
+[222/248] Building CXX object CMakeFiles/Shelter_Helper_gpu.dir/src/common.cc.o
+[223/248] Building CXX object CMakeFiles/Shelter_Helper_plugin.dir/src/process_helper_mac.cc.o
+[224/248] Building CXX object CMakeFiles/Shelter_Helper_plugin.dir/src/renderer_app.cc.o
+[225/248] Building CXX object CMakeFiles/Shelter_Helper_plugin.dir/src/common.cc.o
+[226/248] Building CXX object CMakeFiles/Shelter_Helper_renderer.dir/src/process_helper_mac.cc.o
+[227/248] Building CXX object CMakeFiles/Shelter_Helper_renderer.dir/src/renderer_app.cc.o
+[228/248] Building CXX object CMakeFiles/Shelter_Helper_renderer.dir/src/common.cc.o
+[229/248] Linking CXX static library libcef_dll_wrapper/libcef_dll_wrapper.a
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(cef_lock.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_ref_ptr_client_child_cpptoc.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_scoped_client_child_cpptoc.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_ref_ptr_library_child_child_ctocpp.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_ref_ptr_library_child_child_v1_ctocpp.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_scoped_library_child_child_ctocpp.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_scoped_library_child_child_v1_ctocpp.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(libcef_dll_wrapper2.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(cef_lock.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_ref_ptr_client_child_cpptoc.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_scoped_client_child_cpptoc.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_ref_ptr_library_child_child_ctocpp.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_ref_ptr_library_child_child_v1_ctocpp.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_scoped_library_child_child_ctocpp.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(api_version_test_scoped_library_child_child_v1_ctocpp.cc.o) has no symbols
+/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: file: libcef_dll_wrapper/libcef_dll_wrapper.a(libcef_dll_wrapper2.cc.o) has no symbols
+[230/248] Linking CXX executable "Release/Shelter Helper.app/Contents/MacOS/Shelter Helper"
+[231/248] Linking CXX executable "Release/Shelter Helper (Alerts).app/Contents/MacOS/Shelter Helper (Alerts)"
+[232/248] Linking CXX executable "Release/Shelter Helper (GPU).app/Contents/MacOS/Shelter Helper (GPU)"
+[233/248] Linking CXX executable "Release/Shelter Helper (Plugin).app/Contents/MacOS/Shelter Helper (Plugin)"
+[234/248] Linking CXX executable "Release/Shelter Helper (Renderer).app/Contents/MacOS/Shelter Helper (Renderer)"
+[235/248] Building CXX object CMakeFiles/Shelter.dir/src/common.cc.o
+[236/248] Building CXX object CMakeFiles/Shelter.dir/src/secret_key.cc.o
+[237/248] Building CXX object CMakeFiles/Shelter.dir/src/renderer_app.cc.o
+[238/248] Building CXX object CMakeFiles/Shelter.dir/src/ui_scheme.cc.o
+[239/248] Building CXX object CMakeFiles/Shelter.dir/src/key_map.cc.o
+[240/248] Building CXX object CMakeFiles/Shelter.dir/src/blocker.cc.o
+[241/248] Building CXX object CMakeFiles/Shelter.dir/src/clients.cc.o
+[242/248] Building CXX object CMakeFiles/Shelter.dir/src/netguard.cc.o
+[243/248] Building CXX object CMakeFiles/Shelter.dir/src/shell_bridge.cc.o
+/Users/runner/work/shelter/shelter/src/shell_bridge.cc:538:33: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+  538 |       exists = fsb::exists(fsb::u8path(path), ec) && !ec;
+      |                                 ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+1 warning generated.
+[244/248] Building CXX object CMakeFiles/Shelter.dir/src/shell.cc.o
+/Users/runner/work/shelter/shelter/src/shell.cc:378:46: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+  378 |           const fs::path source = (dir / fs::u8path(rel)).lexically_normal();
+      |                                              ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:427:28: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+  427 |     const fs::path p = fs::u8path(cand);
+      |                            ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:630:37: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+  630 |     const fs::path fp = (root / fs::u8path(name)).lexically_normal();
+      |                                     ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:902:36: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+  902 |     const fs::path user_data = fs::u8path(platform::UserDataDir());
+      |                                    ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:1018:34: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 1018 |   const fs::path user_data = fs::u8path(platform::UserDataDir());
+      |                                  ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:1072:34: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 1072 |   const fs::path user_data = fs::u8path(platform::UserDataDir());
+      |                                  ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:1475:36: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 1475 |   std::string ext = PathToUtf8(fs::u8path(name).extension());
+      |                                    ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:1485:34: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 1485 |   const fs::path directory = fs::u8path(dir);
+      |                                  ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:1486:23: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 1486 |   fs::path leaf = fs::u8path(name).filename();
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:1487:63: warning: 'u8path<char[9], 0>' is deprecated [-Wdeprecated-declarations]
+ 1487 |   if (leaf.empty() || leaf == "." || leaf == "..") leaf = fs::u8path("download");
+      |                                                               ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<char[9], 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:1496:25: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 1496 |         directory / fs::u8path(stem + " (" + std::to_string(i) + ")" + ext);
+      |                         ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:1577:30: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 1577 |   fs::create_directories(fs::u8path(directory), ec);
+      |                              ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:1685:38: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 1685 |   const fs::path target = root / fs::u8path(id);
+      |                                      ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:1775:39: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 1775 |     if (!ReadExtensionFileBounded(fs::u8path(path), &bytes)) {
+      |                                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:2154:22: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 2154 |       fs::rename(fs::u8path(temp->second.first), fs::u8path(temp->second.second), rec);
+      |                      ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:2154:54: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 2154 |       fs::rename(fs::u8path(temp->second.first), fs::u8path(temp->second.second), rec);
+      |                                                      ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:2166:22: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 2166 |       fs::remove(fs::u8path(temp->second.first), rec);
+      |                      ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/shell.cc:2171:27: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+ 2171 |     name = PathToUtf8(fs::u8path(path).filename());
+      |                           ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+18 warnings generated.
+[245/248] Building CXX object CMakeFiles/Shelter.dir/src/browser_app.cc.o
+/Users/runner/work/shelter/shelter/src/browser_app.cc:91:60: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+   91 |   const std::filesystem::path root_path = std::filesystem::u8path(root);
+      |                                                            ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+1 warning generated.
+[246/248] Building CXX object CMakeFiles/Shelter.dir/src/main_mac.mm.o
+[247/248] Building CXX object CMakeFiles/Shelter.dir/src/platform_mac.mm.o
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:49:7: warning: 'SecKeychainCopyDefault' is deprecated: first deprecated in macOS 10.10 - SecKeychain is deprecated [-Wdeprecated-declarations]
+   49 |   if (SecKeychainCopyDefault(&kc) != errSecSuccess || !kc) {
+      |       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/Security.framework/Headers/SecKeychain.h:384:10: note: 'SecKeychainCopyDefault' has been explicitly marked deprecated here
+  384 | OSStatus SecKeychainCopyDefault(SecKeychainRef * __nonnull CF_RETURNS_RETAINED keychain)
+      |          ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:54:16: warning: 'SecKeychainGetStatus' is deprecated: first deprecated in macOS 10.10 - SecKeychain is deprecated [-Wdeprecated-declarations]
+   54 |   OSStatus s = SecKeychainGetStatus(kc, &st);
+      |                ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/Security.framework/Headers/SecKeychain.h:462:10: note: 'SecKeychainGetStatus' has been explicitly marked deprecated here
+  462 | OSStatus SecKeychainGetStatus(SecKeychainRef __nullable keychain, SecKeychainStatus *keychainStatus)
+      |          ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:79:44: warning: 'kSecUseAuthenticationUIFail' is deprecated: first deprecated in macOS 11.0 - Instead of kSecUseAuthenticationUI, use kSecUseAuthenticationContext and set LAContext.interactionNotAllowed property [-Wdeprecated-declarations]
+   79 |                         kSecMatchLimitOne, kSecUseAuthenticationUIFail};
+      |                                            ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/Security.framework/Headers/SecItem.h:1077:26: note: 'kSecUseAuthenticationUIFail' has been explicitly marked deprecated here
+ 1077 | extern const CFStringRef kSecUseAuthenticationUIFail
+      |                          ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:118:25: warning: 'kSecUseAuthenticationUIFail' is deprecated: first deprecated in macOS 11.0 - Instead of kSecUseAuthenticationUI, use kSecUseAuthenticationContext and set LAContext.interactionNotAllowed property [-Wdeprecated-declarations]
+  118 |                         kSecUseAuthenticationUIFail};
+      |                         ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/Security.framework/Headers/SecItem.h:1077:26: note: 'kSecUseAuthenticationUIFail' has been explicitly marked deprecated here
+ 1077 | extern const CFStringRef kSecUseAuthenticationUIFail
+      |                          ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:150:17: warning: 'SecAccessCreate' is deprecated: first deprecated in macOS 10.10 - SecKeychain is deprecated [-Wdeprecated-declarations]
+  150 |   OSStatus st = SecAccessCreate(CFSTR("SHELTER"), emptyList, &access);
+      |                 ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/Security.framework/Headers/SecAccess.h:132:10: note: 'SecAccessCreate' has been explicitly marked deprecated here
+  132 | OSStatus SecAccessCreate(CFStringRef descriptor, CFArrayRef __nullable trustedlist, SecAccessRef * __nonnull CF_RETURNS_RETAINED accessRef)
+      |          ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:154:9: warning: 'SecAccessCopyMatchingACLList' is deprecated: first deprecated in macOS 10.10 - SecKeychain is deprecated [-Wdeprecated-declarations]
+  154 |         SecAccessCopyMatchingACLList(access, kSecACLAuthorizationDecrypt);
+      |         ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/Security.framework/Headers/SecAccess.h:223:12: note: 'SecAccessCopyMatchingACLList' has been explicitly marked deprecated here
+  223 | CFArrayRef SecAccessCopyMatchingACLList(SecAccessRef accessRef, CFTypeRef authorizationTag)
+      |            ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:157:26: warning: 'SecACLCopyAuthorizations' is deprecated: first deprecated in macOS 10.10 - SecKeychain is deprecated [-Wdeprecated-declarations]
+  157 |       CFArrayRef auths = SecACLCopyAuthorizations(oldAcl);
+      |                          ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/Security.framework/Headers/SecACL.h:203:13: note: 'SecACLCopyAuthorizations' has been explicitly marked deprecated here
+  203 |         CFArrayRef SecACLCopyAuthorizations(SecACLRef acl)
+      |                    ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:158:7: warning: 'SecACLRemove' is deprecated: first deprecated in macOS 10.10 - SecKeychain is deprecated [-Wdeprecated-declarations]
+  158 |       SecACLRemove(oldAcl);
+      |       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/Security.framework/Headers/SecACL.h:111:11: note: 'SecACLRemove' has been explicitly marked deprecated here
+  111 |         OSStatus SecACLRemove(SecACLRef aclRef)
+      |                  ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:162:11: warning: 'SecACLCreateWithSimpleContents' is deprecated: first deprecated in macOS 10.10 - SecKeychain is deprecated [-Wdeprecated-declarations]
+  162 |       if (SecACLCreateWithSimpleContents(access, nullptr, desc, 0, &newAcl) ==
+      |           ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/Security.framework/Headers/SecACL.h:97:11: note: 'SecACLCreateWithSimpleContents' has been explicitly marked deprecated here
+   97 |         OSStatus SecACLCreateWithSimpleContents(SecAccessRef access,
+      |                  ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:165:20: warning: 'SecACLUpdateAuthorizations' is deprecated: first deprecated in macOS 10.10 - SecKeychain is deprecated [-Wdeprecated-declarations]
+  165 |         if (auths) SecACLUpdateAuthorizations(newAcl, auths);
+      |                    ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/Security.framework/Headers/SecACL.h:229:11: note: 'SecACLUpdateAuthorizations' has been explicitly marked deprecated here
+  229 |         OSStatus SecACLUpdateAuthorizations(SecACLRef acl, CFArrayRef authorizations)
+      |                  ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:213:33: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+  213 |   const fs::path expected = fs::u8path(std::string([expected_string UTF8String]));
+      |                                 ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:214:31: warning: 'u8path<std::string, 0>' is deprecated [-Wdeprecated-declarations]
+  214 |   const fs::path target = fs::u8path(UserDataDir());
+      |                               ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__filesystem/u8path.h:78:23: note: 'u8path<std::string, 0>' has been explicitly marked deprecated here
+   78 | _LIBCPP_HIDE_FROM_ABI _LIBCPP_DEPRECATED_WITH_CHAR8_T path u8path(const _Source& __s) {
+      |                       ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:755:45: note: expanded from macro '_LIBCPP_DEPRECATED_WITH_CHAR8_T'
+  755 | #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
+      |                                             ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/usr/include/c++/v1/__config:696:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  696 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+/Users/runner/work/shelter/shelter/src/platform_mac.mm:238:3: warning: 'NSRunAlertPanel' is deprecated: first deprecated in macOS 10.10 - Use NSAlert instead [-Wdeprecated-declarations]
+  238 |   NSRunAlertPanel(@"SHELTER",
+      |   ^
+/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSPanel.h:28:25: note: 'NSRunAlertPanel' has been explicitly marked deprecated here
+   28 | APPKIT_EXTERN NSInteger NSRunAlertPanel(NSString *title, NSString *msgFormat, NSString *defaultButton, NSString *alternateButton, NSString *otherButton, ...) NS_FORMAT_FUNCTION(2,6) API_DEPRECATED("Use NSAlert instead", macos(10.0,10.10));
+      |                         ^
+13 warnings generated.
+[248/248] Linking CXX executable Release/Shelter.app/Contents/MacOS/Shelter

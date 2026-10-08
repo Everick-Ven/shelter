@@ -1,0 +1,42 @@
+run: 37832326153  sha: 3328a9eb0babd55dc9f3441525debb3d0478edcd  job: macos
+---- ошибки ----
+32:-- C++ compile flags:            -fno-strict-aliasing;-fstack-protector;-funwind-tables;-fvisibility=hidden;-Wall;-Wextra;-Wendif-labels;-Wnewline-eof;-Wno-missing-field-initializers;-Wno-unused-parameter;-mmacosx-version-min=12.0 -fno-exceptions;-fno-rtti;-fno-threadsafe-statics;-fobjc-call-cxx-cdtors;-fvisibility-inlines-hidden;-std=c++20;-Wno-narrowing;-Wsign-compare;-Wno-undefined-var-template
+1:2026-10-08 19:36:18.012 Shelter Helper[7729:24346] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+2:2026-10-08 19:36:18.013 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+3:2026-10-08 19:36:18.054 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+4:2026-10-08 19:36:18.152 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+5:2026-10-08 19:36:18.155 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+6:2026-10-08 19:36:18.158 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+7:2026-10-08 19:36:18.304 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+8:2026-10-08 19:36:18.313 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+9:2026-10-08 19:36:18.320 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+10:2026-10-08 19:36:18.324 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+11:2026-10-08 19:36:26.468 Shelter Helper[7729:24348] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+12:2026-10-08 19:36:26.468 Shelter Helper[7729:24346] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+13:2026-10-08 19:36:26.539 Shelter Helper[7729:24346] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+14:2026-10-08 19:36:26.680 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+15:2026-10-08 19:36:26.683 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+16:2026-10-08 19:36:26.686 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+17:2026-10-08 19:36:26.778 Shelter Helper[7729:24346] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+18:2026-10-08 19:36:26.786 Shelter Helper[7729:24346] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+19:2026-10-08 19:36:26.794 Shelter Helper[7729:24346] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+20:2026-10-08 19:36:26.796 Shelter Helper[7729:24346] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+21:2026-10-08 19:36:27.508 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+22:2026-10-08 19:36:27.522 Shelter Helper[7729:24342] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+16:::error::SHELTER_ACCEPTANCE_FAIL Toolbar buttons are misplaced at 390px: {'viewportWidth': 390, 'dashboardFallbackDisabled': True, 'toolbar': {'settingsBeforeMenu': False, 'fireIsOnlyTile': False, 'shieldBeforeSettings': True, 'extensionsIconPresent': True, 'extraGapBeforeQuick': False, 'quickLabelUpdated': True, 'noHorizontalOverflow': True, 'sidebarClean': True}, 'menuLabels': ['Найти на странице', 'Инструменты разработчика', 'Печать…', 'Горячие клавиши', 'Профиль'], 'visibleForbidden': [], 'profileLast': True, 'palette': {'radiusAfterOpacity': True, 'modeAfterRadius': True, 'paletteAfterMode': True, 'swatchCount': 6, 'leftInset': 8.849411010742188, 'rightInset': 8.849388122558594, 'equalSideInsets': True}}
+24:[10461:32454:1008/193842.692914:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+29:[10472:32633:1008/193852.871540:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+34:[10751:33335:1008/193853.115394:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+35:[10240:32430:1008/193854.147022:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+39:[10240:32430:1008/193854.147451:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+43:[10240:32430:1008/193854.281349:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+47:[10240:32430:1008/193854.281552:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+51:[10463:32512:1008/193854.282306:ERROR:net/socket/ssl_client_socket_impl.cc:949] handshake failed; returned -1, SSL error code 1, net_error -202
+7:[10461:32454:1008/193842.692914:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+12:[10472:32633:1008/193852.871540:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+17:[10751:33335:1008/193853.115394:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+18:[10240:32430:1008/193854.147022:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+22:[10240:32430:1008/193854.147451:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+26:[10240:32430:1008/193854.281349:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+30:[10240:32430:1008/193854.281552:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+34:[10463:32512:1008/193854.282306:ERROR:net/socket/ssl_client_socket_impl.cc:949] handshake failed; returned -1, SSL error code 1, net_error -202

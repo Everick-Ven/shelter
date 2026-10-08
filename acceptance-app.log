@@ -1,0 +1,34 @@
+
+DevTools listening on ws://127.0.0.1:49216/devtools/browser/48c98b14-d16d-4568-8c12-595546e5b620
+[10461:32454:1008/193842.148586:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[10461:32454:1008/193842.151103:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[10461:32454:1008/193842.151383:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[10461:32454:1008/193842.151420:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[10461:32454:1008/193842.692914:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+[10472:32633:1008/193843.765324:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[10472:32633:1008/193843.766232:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[10472:32633:1008/193843.766284:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[10472:32633:1008/193843.766303:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[10472:32633:1008/193852.871540:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+[10751:33335:1008/193853.042831:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[10751:33335:1008/193853.043457:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[10751:33335:1008/193853.043514:ERROR:ui/gl/gl_display.cc:665] Initialization of all (1) EGL display types failed.
+[10751:33335:1008/193853.043541:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[10751:33335:1008/193853.115394:ERROR:components/viz/service/main/viz_main_impl.cc:190] Exiting GPU process due to errors during initialization
+[10240:32430:1008/193854.147022:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+ERROR: Failed parsing Certificate SEQUENCE
+ERROR: Failed parsing Certificate
+
+[10240:32430:1008/193854.147451:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+ERROR: Failed parsing Certificate SEQUENCE
+ERROR: Failed parsing Certificate
+
+[10240:32430:1008/193854.281349:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+ERROR: Failed parsing Certificate SEQUENCE
+ERROR: Failed parsing Certificate
+
+[10240:32430:1008/193854.281552:ERROR:net/cert/internal/cert_issuer_source_aia.cc:36] Error parsing cert retrieved from AIA (as DER):
+ERROR: Failed parsing Certificate SEQUENCE
+ERROR: Failed parsing Certificate
+
+[10463:32512:1008/193854.282306:ERROR:net/socket/ssl_client_socket_impl.cc:949] handshake failed; returned -1, SSL error code 1, net_error -202

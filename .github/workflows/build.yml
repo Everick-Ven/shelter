@@ -261,6 +261,8 @@ jobs:
         run: node tests/download_ui_test.js
       - name: Tracker/ad statistics regression test
         run: node tests/blocked_stats_test.js
+      - name: UI stylesheet integrity test
+        run: node tests/ui_css_test.js
       - name: Compile and run path/archive safety tests
         run: |
           set -euo pipefail

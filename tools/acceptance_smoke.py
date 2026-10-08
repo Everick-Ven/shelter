@@ -58,7 +58,78 @@ class LongPageHandler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(script)))
             self.end_headers()
-            self.wfile.write(script)
+            try:
+                self.wfile.write(script)
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError,
+                    ConnectionAbortedError):
+                pass
+            return
+        if path in ("/consent", "/consent-late"):
+            late = path.endswith("-late")
+            immediate = (
+                '<div id="cmp" class="cookie-consent" role="dialog">'
+                '<p>Мы используем cookies</p>'
+                '<button id="c-min" onclick="window.__answer(\'necessary\')">'
+                'Принять только необходимые</button>'
+                '<button id="c-all" onclick="window.__answer(\'all\')">Принять все</button>'
+                '</div>'
+            )
+            mount = (
+                "" if not late
+                else """<script>
+                  setTimeout(function(){
+                    var box = document.createElement('div');
+                    box.id = 'cmp';
+                    box.className = 'cookie-consent';
+                    box.setAttribute('role', 'dialog');
+                    box.innerHTML = '<p>Мы используем cookies</p>' +
+                      '<button onclick="window.__answer(\\'necessary\\')">Принять только необходимые</button>' +
+                      '<button onclick="window.__answer(\\'all\\')">Принять все</button>';
+                    document.body.appendChild(box);
+                    requestAnimationFrame(function(){
+                      requestAnimationFrame(function(){
+                        var st = getComputedStyle(box);
+                        window.__bannerVisibleLate = !(st.display === 'none' ||
+                          st.visibility === 'hidden');
+                      });
+                    });
+                  }, 700);
+                </script>"""
+            )
+            document = (
+                "<!doctype html><html lang='ru'><head><meta charset='utf-8'>"
+                "<title>Consent fixture</title></head><body>"
+                "<h1>SHELTER consent fixture</h1>"
+                + ("" if late else immediate)
+                + "<script>window.__consent=null;window.__bannerVisible=null;"
+                  "window.__bannerVisibleLate=null;"
+                  "window.__answer=function(kind){window.__consent=kind;"
+                  "var b=document.getElementById('cmp');"
+                  "if(b&&b.parentNode)b.parentNode.removeChild(b);};</script>"
+                + mount
+                + """<script>
+                  requestAnimationFrame(function(){
+                    var box = document.getElementById('cmp');
+                    if (!box) { window.__bannerVisible = false; return; }
+                    var st = getComputedStyle(box);
+                    window.__bannerVisible = !(st.display === 'none' ||
+                      st.visibility === 'hidden');
+                  });
+                </script>"""
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(document)))
+            self.end_headers()
+            try:
+                self.wfile.write(document)
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError,
+                    ConnectionAbortedError):
+                pass
             return
         if path == "/adpage":
             document = (
@@ -77,7 +148,12 @@ class LongPageHandler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(document)))
             self.end_headers()
-            self.wfile.write(document)
+            try:
+                self.wfile.write(document)
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError,
+                    ConnectionAbortedError):
+                pass
             return
         variant = path.rsplit("/", 1)[-1]
         palettes = {
@@ -842,9 +918,9 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
             radius: values.join('/')
           };
         };
-        const surfaces = ['.dt-rail', '.dt-main', '.dt-topbar', '.dt-composer-area',
-                          '.dt-new', '.dt-thread-search', '.dt-welcome-mark',
-                          '.omni.dt-omni', '.dt-privacy-pill', '.dt-private'];
+        const surfaces = ['.dt-rail', '.dt-main', '.dt-new', '.dt-thread-search',
+                          '.dt-welcome-mark', '.omni.dt-omni', '.dt-privacy-pill',
+                          '.dt-private'];
         const report = {};
         for (const selector of surfaces) {
           const el = app.querySelector(selector);
@@ -854,6 +930,22 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
             throw new Error('sharp corner on ' + selector + ': ' + measured.radius);
           if (measured.max - measured.min > 0.5)
             throw new Error('uneven corners on ' + selector + ': ' + measured.radius);
+          report[selector] = measured.radius;
+        }
+        /* Панели-полосы внутри карточки (.dt-main) скругляются только по
+           внешнему краю: внутренний край — линия стыка, а не угол. */
+        const edgeTrays = [['.dt-topbar', 'top'], ['.dt-composer-area', 'bottom']];
+        for (const [selector, side] of edgeTrays) {
+          const el = app.querySelector(selector);
+          if (!el) throw new Error('missing assistant surface: ' + selector);
+          const measured = corners(el);
+          const pair = side === 'top'
+            ? [measured.values[0], measured.values[1]]
+            : [measured.values[2], measured.values[3]];
+          if (Math.min(...pair) <= 0)
+            throw new Error('sharp outer corner on ' + selector + ': ' + measured.radius);
+          if (Math.abs(pair[0] - pair[1]) > 0.5)
+            throw new Error('uneven outer corners on ' + selector + ': ' + measured.radius);
           report[selector] = measured.radius;
         }
         // Message surfaces appear only after a conversation exists: build them
@@ -1396,6 +1488,120 @@ def blocker_probe(
         "counter": counter,
         "original": original,
     }
+
+
+CONSENT_FLAGS = (
+    "JSON.stringify({"
+    "consent:window.__consent||null,"
+    "visible:window.__bannerVisible,"
+    "visibleLate:window.__bannerVisibleLate,"
+    "banner:(function(){var b=document.getElementById('cmp');"
+    "if(!b)return 'removed';var st=getComputedStyle(b);"
+    "return st.display==='none'?'hidden':'shown';})()"
+    "})"
+)
+
+
+def read_consent_flags(page: Cdp) -> Dict[str, Any]:
+    for _ in range(20):
+        try:
+            raw = page.evaluate(CONSENT_FLAGS)
+        except AcceptanceError:
+            time.sleep(0.25)
+            continue
+        if raw:
+            try:
+                return json.loads(raw)
+            except ValueError:
+                pass
+        time.sleep(0.25)
+    return {}
+
+
+def cookie_consent_probe(
+    ui: Cdp,
+    port: int,
+    base: str,
+    process: subprocess.Popen,
+    site_pages: List[Cdp],
+) -> Dict[str, Any]:
+    """Consent banners must be answered before the user can see them.
+
+    The fixture mirrors a real CMP: an immediate banner and a late-mounted one,
+    both offering "only necessary" next to "accept all". The probe checks that
+    the minimal set is chosen, that the banner never became visible, and — with
+    the toggle off — that the same banner stays visible and unanswered.
+    """
+    test = "window.shelterTest"
+    original = ui.evaluate(f"{test}.state().prefs.cookies")
+    ui.evaluate(f"{test}.setPref('cookies', true)")
+    time.sleep(0.8)
+    if ui.evaluate(f"{test}.state().prefs.cookies") is not True:
+        raise AcceptanceError("Cookie auto-consent preference did not turn on")
+
+    results: Dict[str, Any] = {}
+    for name, route in (("immediate", "/consent"), ("late", "/consent-late")):
+        ui.evaluate("window.navigate(" + json.dumps(base + route) + ")")
+        target, page, state = wait_for_site(
+            port, "127.0.0.1", process, path_contains=route
+        )
+        site_pages.append(page)
+        if "consent fixture" not in (state.get("text", "") + state.get("title", "")):
+            raise AcceptanceError(f"Consent fixture {route} did not render: {state}")
+        deadline = time.monotonic() + 8
+        flags = read_consent_flags(page)
+        while time.monotonic() < deadline and not (flags.get("consent") or flags):
+            time.sleep(0.3)
+            flags = read_consent_flags(page)
+        time.sleep(0.6)
+        flags = read_consent_flags(page)
+        if flags.get("consent") != "necessary":
+            raise AcceptanceError(
+                f"Consent banner {route} was not answered with the minimal set: "
+                + json.dumps(flags)
+            )
+        if flags.get("visible") is not False:
+            raise AcceptanceError(
+                f"Consent banner {route} became visible before it was answered: "
+                + json.dumps(flags)
+            )
+        if flags.get("banner") != "removed":
+            raise AcceptanceError(
+                f"Consent banner {route} stayed in the page after consent: "
+                + json.dumps(flags)
+            )
+        if name == "late" and flags.get("visibleLate") is not False:
+            raise AcceptanceError(
+                "Late consent banner stayed visible instead of being hidden and "
+                "answered: " + json.dumps(flags)
+            )
+        results[name] = flags
+
+    control: Dict[str, Any] = {}
+    try:
+        ui.evaluate(f"{test}.setPref('cookies', false)")
+        time.sleep(0.8)
+        ui.evaluate("window.navigate(" + json.dumps(base + "/consent?manual=1") + ")")
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            control = read_consent_flags(page)
+            if control.get("consent") is None and control.get("visible") is True:
+                break
+            time.sleep(0.3)
+        if control.get("consent") is not None:
+            raise AcceptanceError(
+                "Cookie auto-consent kept answering while switched off: "
+                + json.dumps(control)
+            )
+        if control.get("visible") is not True:
+            raise AcceptanceError(
+                "With auto-consent off the banner must stay visible: "
+                + json.dumps(control)
+            )
+    finally:
+        ui.evaluate(f"{test}.setPref('cookies', {json.dumps(original)})")
+        time.sleep(0.4)
+    return {"toggles": results, "control": control, "original": original}
 
 
 def start_scroll_sweep(page: Cdp, frames: int = 48) -> Dict[str, Any]:
@@ -2006,6 +2212,16 @@ def main() -> int:
             )
             print("SHELTER_ACCEPTANCE_BLOCKER_PASS", flush=True)
 
+            consent_result = cookie_consent_probe(
+                ui, port, long_page_base, process, site_pages
+            )
+            print(
+                "SHELTER_ACCEPTANCE_COOKIE_CONSENT "
+                + json.dumps(consent_result, ensure_ascii=False),
+                flush=True,
+            )
+            print("SHELTER_ACCEPTANCE_COOKIE_CONSENT_PASS", flush=True)
+
             tab_probe = tab_width_probe(ui)
             print(
                 "SHELTER_ACCEPTANCE_TAB_WIDTH "
@@ -2030,7 +2246,11 @@ def main() -> int:
             print("SHELTER_ACCEPTANCE_PASS", flush=True)
         return 0
     except Exception as exc:
-        print(f"SHELTER_ACCEPTANCE_FAIL {exc}", file=sys.stderr, flush=True)
+        message = " ".join(str(exc).split())
+        # Короткая строка идёт и в лог, и в аннотацию GitHub Actions: длинные
+        # JSON-дампы обрезаются, а причину падения видно сразу.
+        print(f"SHELTER_ACCEPTANCE_FAIL {message}", file=sys.stderr, flush=True)
+        print(f"::error::SHELTER_ACCEPTANCE_FAIL {message[:900]}", flush=True)
         if process is not None and process.poll() is not None:
             print(
                 f"SHELTER_ACCEPTANCE_APP_EXIT status={process.returncode}",

@@ -636,6 +636,7 @@ void PopupClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
   Shell::Get().OnBrowserCreated();
   Shell::Get().PushFpState(browser);
+  Shell::Get().PushCookieState(browser);
 }
 
 void PopupClient::OnBeforeClose(CefRefPtr<CefBrowser>) {

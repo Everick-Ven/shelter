@@ -140,6 +140,11 @@ class Shell {
   void SetFpEnabled(bool on);
   void PushFpState(CefRefPtr<CefBrowser> browser);
 
+  // Автосогласие cookies: согласие «только необходимое» подтверждается в
+  // рендерере до первого кадра баннера. Состояние тоже уходит сообщением.
+  void SetAutoConsentEnabled(bool on);
+  void PushCookieState(CefRefPtr<CefBrowser> browser);
+
   // HTTPS-only + DoH: настройка из UI («Безопасный HTTPS + приватный DNS»)
   // и применение шифрованного DNS ко всем готовым контекстам (сессиям).
   void SetHttpsOnlyEnabled(bool on);
@@ -270,6 +275,9 @@ class Shell {
   std::map<std::string, ActiveDownload> active_downloads_;
   // Включён ли «Анти-отпечаток» (шум Canvas/WebGL/Audio в рендерере).
   bool fp_enabled_ = false;
+  // Включено ли автосогласие cookies (по умолчанию — да: пользователь не
+  // должен видеть баннер согласия вообще).
+  bool auto_consent_enabled_ = true;
   // id -> {временный путь («не подтверждено», *.crdownload), итоговый путь}.
   // Пока загрузка идёт, файл виден в папке под временным именем и получает
   // окончательное имя только после полного завершения.

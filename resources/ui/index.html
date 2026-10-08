@@ -1431,6 +1431,7 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .set-row:first-child{border-top:0}
 .set-row .tx{flex:1;min-width:0}
 .set-row .tx b{display:block;font-size:13.5px;font-weight:500}
+.set-row .tx b .i{width:15px;height:15px;margin-right:7px;vertical-align:-3px;color:var(--text-3)}
 .set-row .tx span{display:block;font-size:12px;color:var(--text-3);margin-top:2px}
 .set-row .select{width:auto;min-width:180px}
 .theme-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
@@ -4010,7 +4011,7 @@ const GLOW_PALETTE = [
   ['#C4CAD6', 'Жемчуг']
 ];
 const PREF_DEFAULTS = {
-  trackers: true, https: true, fp: true, strict: false,
+  trackers: true, https: true, fp: true, strict: false, cookies: true,
   ruca: true, rucaupd: true, gostbadge: true,
   pinnedProtect: true, dragTabs: true, hoverPreview: false, lazyTabs: true, memSaver: true,
   suggestHistory: true, checkUpdates: true, startup: 'ntp', dns: 'cf', lang: 'ru', motion: 'full', glow: true, gfx: 'balance', askDownload: false,
@@ -4790,7 +4791,7 @@ function syncSwitches() {
   });
   syncControls(); DASH.protUpdate();
 }
-const PREF_TOAST = { trackers: ['Блокировка трекеров включена', 'Блокировка трекеров выключена', 'shield'], https: ['HTTPS-only и DoH включены', 'HTTPS-only выключен', 'lock'], fp: ['Защита от отпечатка включена', 'Защита от отпечатка выключена', 'finger'], strict: ['Строгий режим включён', 'Строгий режим выключен', 'shield-check'],
+const PREF_TOAST = { trackers: ['Блокировка трекеров включена', 'Блокировка трекеров выключена', 'shield'], cookies: ['Cookies принимаются автоматически (только необходимые)', 'Автосогласие cookies выключено', 'cookie'], https: ['HTTPS-only и DoH включены', 'HTTPS-only выключен', 'lock'], fp: ['Защита от отпечатка включена', 'Защита от отпечатка выключена', 'finger'], strict: ['Строгий режим включён', 'Строгий режим выключен', 'shield-check'],
   glow: ['Свечение включено', 'Свечение выключено', 'sparkles'],
   menuAdapt: ['«Адаптация» показана в меню «...»', '«Адаптация» скрыта в меню «...»', 'monitor'],
   menuDev: ['DevTools-пункт показан в меню «...»', 'DevTools-пункт скрыт в меню «...»', 'code'],
@@ -4815,6 +4816,7 @@ function toggleSetting(key, el) {
   syncSwitches();
   if (key === 'glow' || key === 'cleanSurf') applyGlowPrefs();
   if (key === 'trackers') applyBlockerPref();
+  if (key === 'cookies') applyCookiePref();
   if (key === 'fp') applyFpPref();
   if (key === 'https') applyNetPref();
   if (key === 'strict') applyStrictPref();
@@ -6726,7 +6728,7 @@ function timeTableHtml(P) {
     ${arr.length ? `<table class="tbl"><thead><tr><th>Сайт</th><th style="width:42%">Доля времени</th><th style="text-align:right">Время</th></tr></thead><tbody>${arr.map(([h, m], i) => { const inf = siteInfo(h); return `<tr><td><div class="site">${favFor('https://' + h, 'md')}<div style="min-width:0"><b>${esc(inf.t)}</b><small>${esc(inf.cat)}</small></div></div></td><td><div class="pbar"><i style="--w:${(m / max * 100).toFixed(1)}%;--i:${i}"></i></div></td><td style="text-align:right;white-space:nowrap" class="num">${fmtDurS(m)}</td></tr>`; }).join('')}</tbody></table>` : emptyState('clock', 'Пока пусто', 'Время появится после первых визитов')}`;
 }
 const protLevel = () => { const P = S.prefs; return Math.min(100, 30 + (P.trackers ? 25 : 0) + (P.https ? 18 : 0) + (P.fp ? 15 : 0) + (P.strict ? 7 : 0) + (S.ghost ? 5 : 0)); };
-const PROT_ROWS = [['trackers', 'shield', 'Блокировка трекеров', 'EasyPrivacy · CNAME-клоакинг'], ['https', 'lock', 'HTTPS-only + DoH', 'Шифрованный DNS'], ['fp', 'finger', 'Анти-отпечаток', 'Шум Canvas, WebGL, Audio'], ['strict', 'shield-check', 'Строгий режим', 'Сторонние скрипты — только по запросу'], ['ghost', 'ghost', 'Призрак', 'Сессия только в оперативной памяти']];
+const PROT_ROWS = [['trackers', 'shield', 'Блокировка трекеров', 'EasyPrivacy · CNAME-клоакинг'], ['cookies', 'cookie', 'Автосогласие cookies', 'Только необходимые, без окна согласия'], ['https', 'lock', 'HTTPS-only + DoH', 'Шифрованный DNS'], ['fp', 'finger', 'Анти-отпечаток', 'Шум Canvas, WebGL, Audio'], ['strict', 'shield-check', 'Строгий режим', 'Сторонние скрипты — только по запросу'], ['ghost', 'ghost', 'Призрак', 'Сессия только в оперативной памяти']];
 function protHtml() {
   const lvl = protLevel();
   return `<div class="card-h"><h3>${ico('shield-check')}Защита</h3><span class="chip ${lvl >= 80 ? 'up' : lvl >= 55 ? 'warn' : 'down'}" id="protChip">${lvl >= 80 ? 'Высокая' : lvl >= 55 ? 'Средняя' : 'Низкая'}</span></div>
@@ -8407,6 +8409,7 @@ try {
     window.shelterNative.onDownloadPrompt((info) => dlAsk(info));
   }
   applyBlockerPref();
+  applyCookiePref();
   applyFpPref();
   applyNetPref();
   applyStrictPref();
@@ -8416,6 +8419,13 @@ try {
 function applyBlockerPref() {
   const n = window.shelterNative;
   if (n && typeof n.blockSetEnabled === 'function') n.blockSetEnabled(S.prefs.trackers !== false);
+}
+/* «Автосогласие cookies» тоже настоящий: рендерер до первого кадра баннера
+   прячет его и подтверждает минимальный (технический) набор — пользователь
+   никогда не видит окно согласия. */
+function applyCookiePref() {
+  const n = window.shelterNative;
+  if (n && typeof n.cookieSetEnabled === 'function') n.cookieSetEnabled(S.prefs.cookies !== false);
 }
 /* «Анти-отпечаток» тоже настоящий: рендерер до JS страниц встраивает шум
    Canvas/WebGL/Audio и стандартизует navigator-сигналы. */
@@ -10067,6 +10077,7 @@ function openSettings(sec) {
         ${row('HTTPS-only + DNS-over-HTTPS', 'Автоподъём на https:// · DNS шифруется (поставщик ниже)', sw('https'))}
         ${row('Защита от цифрового отпечатка', 'Шум Canvas, WebGL, AudioContext', sw('fp'))}
         ${row('Строгий режим', 'Сторонние скрипты — только по разрешению', sw('strict'))}
+        ${row(ico('cookie') + 'Автосогласие cookies', 'Окно согласия подтверждается само: только необходимые cookies, до первого кадра', sw('cookies'))}
         ${row('Удалить сессии', 'История, cookies, кэш и вкладки', btn('fire', ico('flame') + 'Удалить', 'danger'))}
       </div></section>
       <section class="set-sec" id="set-ruca"><h4>Сертификаты РФ</h4><div class="set-card">
@@ -11021,6 +11032,7 @@ window.shelterTest = {
   setPref: (k, v) => {
     S.prefs[k] = v; persist();
     if (k === 'trackers') applyBlockerPref();
+    if (k === 'cookies') applyCookiePref();
     if (k === 'fp') applyFpPref();
     if (k === 'https') applyNetPref();
     if (k === 'strict') applyStrictPref();

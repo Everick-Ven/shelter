@@ -1052,6 +1052,7 @@ void Shell::OnTabCreated(CefRefPtr<CefBrowser> browser, const std::string& id) {
   t->browser_id = browser->GetIdentifier();
   browser->GetHost()->SetZoomLevel(std::log(zoom_) / std::log(1.2));
   PushFpState(browser);  // рендерер узнаёт состояние «Анти-отпечатка» до загрузки
+  PushCookieState(browser);  // и состояние автосогласия cookies
   if (!t->pending_url.empty()) {
     browser->GetMainFrame()->LoadURL(t->pending_url);
     t->pending_url.clear();
@@ -1813,6 +1814,22 @@ void Shell::SetFpEnabled(bool on) {
   CEF_REQUIRE_UI_THREAD();
   fp_enabled_ = on;
   for (auto& kv : tabs_) PushFpState(kv.second.browser);
+}
+
+// ---- автосогласие cookies ---------------------------------------------------
+
+void Shell::PushCookieState(CefRefPtr<CefBrowser> browser) {
+  if (!browser) return;
+  CefRefPtr<CefProcessMessage> m = CefProcessMessage::Create("shelter.cookies");
+  m->GetArgumentList()->SetBool(0, auto_consent_enabled_);
+  if (auto frame = browser->GetMainFrame())
+    frame->SendProcessMessage(PID_RENDERER, m);
+}
+
+void Shell::SetAutoConsentEnabled(bool on) {
+  CEF_REQUIRE_UI_THREAD();
+  auto_consent_enabled_ = on;
+  for (auto& kv : tabs_) PushCookieState(kv.second.browser);
 }
 
 // ---- HTTPS-only + DoH -------------------------------------------------------

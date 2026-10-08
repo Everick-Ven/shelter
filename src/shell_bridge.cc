@@ -430,6 +430,17 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
+  if (m == "cookie.setEnabled") {
+    // UI-настройка «Автосогласие cookies»: рендерер подтверждает на сайтах
+    // минимальный (технический) набор до появления баннера согласия.
+    if (!browser || !IsUiBrowser(browser)) {
+      cb->Failure(403, "cookie consent control is restricted to the SHELTER UI");
+      return true;
+    }
+    Shell::Get().SetAutoConsentEnabled(Flag(a, "on", false));
+    cb->Success("{}");
+    return true;
+  }
   if (m == "https.setEnabled") {
     // UI-настройка «Безопасный HTTPS + приватный DNS»: автоподъём навигаций
     // на https:// и шифрованный DNS в сетевом стеке профиля.

@@ -1754,6 +1754,29 @@ def read_native_protections(ui: Cdp) -> Dict[str, Any]:
         return {}
 
 
+def evaluate_retry(ui: Cdp, expression: str, timeout: float = 12,
+                   attempts: int = 4) -> Any:
+    """Чтение состояния интерфейса с повтором при обрыве канала.
+
+    Канал DevTools может не ответить, пока приложение занято (нагруженный
+    раннер, тяжёлая страница в соседней вкладке). Это не поведение продукта,
+    поэтому повторяем; если интерфейс молчит все попытки — падаем как раньше.
+    Повторяются только чтения и идемпотентные действия.
+    """
+    last: Optional[Exception] = None
+    for _ in range(max(1, attempts)):
+        try:
+            return ui.evaluate(expression, timeout=timeout)
+        except AcceptanceError as exc:
+            text = f"{exc}"
+            if "timed out" not in text.lower():
+                raise
+            last = exc
+            print("SHELTER_ACCEPTANCE_UI_RETRY " + text[:200], flush=True)
+            time.sleep(1.5)
+    raise AcceptanceError("UI did not answer over CDP: " + f"{last}")
+
+
 def cookie_consent_probe(
     ui: Cdp,
     port: int,
@@ -1768,29 +1791,38 @@ def cookie_consent_probe(
     the minimal set is chosen, that the banner never became visible, and — with
     the toggle off — that the same banner stays visible and unanswered.
 
-    Порядок ног выбран так, чтобы каждая проверяла свой механизм доставки
-    состояния в рендерер: обычные ноги идут по одному сайту подряд (процесс
-    живёт), а свежая нога уходит на другой сайт — там процесс рождается заново
-    и получает защиты из своей командной строки.
+    Три ноги проверяют три разных пути доставки состояния в рендерер:
+    обычные ноги подряд по одному сайту — живой процесс (его догоняет
+    сообщение), нога после перехода на другой сайт — процесс, поднятый заново
+    или взятый из запаса, свежая нога на новом сайте — процесс, рождённый после
+    переключения тумблеров. Требование у всех одно: решение пользователя
+    (или его отсутствие) должно быть видно на каждой странице.
     """
     test = "window.shelterTest"
-    original = ui.evaluate(f"{test}.state().prefs.cookies")
-    original_fp = ui.evaluate(f"{test}.state().prefs.fp")
+    original = evaluate_retry(ui, f"{test}.state().prefs.cookies")
+    original_fp = evaluate_retry(ui, f"{test}.state().prefs.fp")
     native: Dict[str, Any] = {}
-    ui.evaluate(f"{test}.setPref('cookies', true)")
-    time.sleep(0.8)
-    if ui.evaluate(f"{test}.state().prefs.cookies") is not True:
-        raise AcceptanceError("Cookie auto-consent preference did not turn on")
-    native["on"] = read_native_protections(ui)
-    if native["on"].get("cookies") is not True:
-        raise AcceptanceError(
-            "Auto-consent never reached the native layer when switched on: "
-            + json.dumps(native["on"])
-        )
+
+    def set_cookie_pref(value: bool, wait: float = 0.8) -> None:
+        evaluate_retry(ui, f"{test}.setPref('cookies', " + json.dumps(value) + ")")
+        time.sleep(wait)
+        if evaluate_retry(ui, f"{test}.state().prefs.cookies") is not value:
+            raise AcceptanceError(
+                f"Cookie auto-consent preference did not switch to {value}"
+            )
+        flag = read_native_protections(ui)
+        if flag.get("cookies") is not value:
+            raise AcceptanceError(
+                "Auto-consent never reached the native layer when switched to "
+                f"{value}: " + json.dumps(flag)
+            )
+        return flag
+
+    native["on"] = set_cookie_pref(True)
 
     results: Dict[str, Any] = {}
     for name, route in (("immediate", "/consent"), ("late", "/consent-late")):
-        ui.evaluate("window.navigate(" + json.dumps(base + route) + ")")
+        evaluate_retry(ui, "window.navigate(" + json.dumps(base + route) + ")")
         target, page, state = wait_for_site(
             port, "127.0.0.1", process, path_contains=route
         )
@@ -1805,72 +1837,64 @@ def cookie_consent_probe(
             )
         results[name] = flags
 
-    # Тумблер выключается сразу после обычных ног, и контрольная нога идёт по
-    # тому же сайту: процесс рендерера заведомо жив, то есть проверяется ровно
-    # то, что тумблер догоняет уже работающую вкладку.
-    control: Dict[str, Any] = {}
-    try:
-        ui.evaluate(f"{test}.setPref('cookies', false)")
-        time.sleep(0.8)
-        if ui.evaluate(f"{test}.state().prefs.cookies") is not False:
-            raise AcceptanceError("Cookie auto-consent preference did not turn off")
-        native["off"] = read_native_protections(ui)
-        if native["off"].get("cookies") is not False:
-            raise AcceptanceError(
-                "Auto-consent never reached the native layer when switched off: "
-                + json.dumps(native["off"])
-            )
-        ui.evaluate(
-            "window.navigate(" + json.dumps(base + "/consent?manual=1") + ")"
+    def assert_banner_waits(label: str) -> Dict[str, Any]:
+        """Страница не должна ни отвечать за пользователя, ни прятать баннер."""
+        evaluate_retry(
+            ui, "window.navigate(" + json.dumps(base + "/consent?manual=1") + ")"
         )
         try:
-            _target, control_page, _state = wait_for_site(
+            _target, page, _state = wait_for_site(
                 port, "127.0.0.1", process, path_contains="manual=1", timeout=25
             )
         except AcceptanceError as exc:
             raise AcceptanceError(
-                "Control consent page did not load: " + str(exc)
+                f"Control consent page ({label}) did not load: " + str(exc)
             ) from exc
-        site_pages.append(control_page)
+        site_pages.append(page)
+        flags: Dict[str, Any] = {}
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
-            control = read_consent_flags(control_page)
-            if control.get("consent") is None and control.get("visible") is True:
+            flags = read_consent_flags(page)
+            if flags.get("consent") is None and flags.get("visible") is True:
                 break
             time.sleep(0.3)
-        if control.get("consent") is not None:
+        if flags.get("consent") is not None:
             raise AcceptanceError(
-                "Cookie auto-consent kept answering while switched off: "
-                + json.dumps(control, ensure_ascii=False)
+                f"Cookie auto-consent kept answering while switched off ({label}): "
+                + json.dumps(flags, ensure_ascii=False)
                 + " native=" + json.dumps(native.get("off", {}))
             )
-        if control.get("visible") is not True:
+        if flags.get("visible") is not True:
             raise AcceptanceError(
-                "With auto-consent off the banner must stay visible: "
-                + json.dumps(control, ensure_ascii=False)
+                f"With auto-consent off the banner must stay visible ({label}): "
+                + json.dumps(flags, ensure_ascii=False)
             )
-    finally:
-        ui.evaluate(f"{test}.setPref('cookies', {json.dumps(original)})")
-        time.sleep(0.6)
+        return flags
 
-    # Свежий сайт: другой сайт означает новый процесс рендерера, и он обязан
-    # получить состояние защит из командной строки. Метка анти-отпечатка в
-    # документе показывает, что именно применил этот новый процесс: если
-    # тумблер включён, а метки нет — процесс родился со значениями по умолчанию,
-    # то есть на новых страницах защиты не работают. Если площадка недоступна,
-    # это внешняя причина, а не поведение продукта — предупреждаем и идём дальше.
+    # 1. Тумблер выключается сразу после обычных ног, и контрольная нога идёт по
+    #    тому же сайту: процесс заведомо жив — проверяется, что тумблер догоняет
+    #    уже работающую вкладку.
+    native["off"] = set_cookie_pref(False)
+    control = assert_banner_waits("живой процесс")
+
+    # 2. Свежий сайт: другой сайт означает процесс, которого ещё не было, и он
+    #    обязан получить состояние защит при рождении. Метка анти-отпечатка в
+    #    документе показывает, что именно применил этот процесс: если тумблер
+    #    включён, а метки нет — новые страницы защит не получают. Недоступность
+    #    площадки — внешняя причина: тогда предупреждаем и идём дальше.
     fresh: Dict[str, Any] = {}
     fresh_error = ""
     fresh_page: Optional[Cdp] = None
     fresh_state: Dict[str, Any] = {}
     try:
-        ui.evaluate(f"{test}.setPref('cookies', " + json.dumps(True) + ")")
-        ui.evaluate(f"{test}.setPref('fp', " + json.dumps(True) + ")")
+        evaluate_retry(ui, f"{test}.setPref('cookies', " + json.dumps(True) + ")")
+        evaluate_retry(ui, f"{test}.setPref('fp', " + json.dumps(True) + ")")
         time.sleep(0.5)
-        ui.evaluate(
+        evaluate_retry(
+            ui,
             "window.navigate("
             + json.dumps(base.replace("127.0.0.1", "localhost") + "/consent")
-            + ")"
+            + ")",
         )
         _target, fresh_page, fresh_state = wait_for_site(
             port, "localhost", process, path_contains="/consent", timeout=25
@@ -1890,7 +1914,7 @@ def cookie_consent_probe(
         assert_minimal_consent("fresh site", fresh)
         if fresh.get("armedFp") is not True:
             raise AcceptanceError(
-                "A process born after the app started missed fingerprint "
+                "A page opened after the app started missed fingerprint "
                 "protection, so protections do not reach new pages: "
                 + json.dumps(fresh, ensure_ascii=False)
             )
@@ -1900,13 +1924,21 @@ def cookie_consent_probe(
             flush=True,
         )
 
-    ui.evaluate(f"{test}.setPref('cookies', {json.dumps(original)})")
-    ui.evaluate(f"{test}.setPref('fp', {json.dumps(original_fp)})")
+    # 3. Обратный переход на прежний сайт: здесь Chromium может поднять процесс
+    #    заново или взять заранее созданный «запасной». Именно на этом шаге
+    #    раньше и всплыло, что страница отвечает вопреки выключенному тумблеру,
+    #    поэтому проверяем явно.
+    native["off2"] = set_cookie_pref(False)
+    control_return = assert_banner_waits("возврат на прежний сайт")
+
+    set_cookie_pref(original if isinstance(original, bool) else True, wait=0.5)
+    evaluate_retry(ui, f"{test}.setPref('fp', " + json.dumps(original_fp) + ")")
     time.sleep(0.5)
     native["restored"] = read_native_protections(ui)
     return {
         "toggles": results,
         "control": control,
+        "control_return": control_return,
         "fresh": fresh,
         "fresh_error": fresh_error,
         "native": native,

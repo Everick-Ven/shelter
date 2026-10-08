@@ -35,10 +35,18 @@ void BrowserApp::OnBeforeCommandLineProcessing(
   // Ничего из введённого в формы не уходит в сеть: автофилл-сервис Google
   // (метаданные полей), проверка утечек паролей (хеши учётных данных),
   // подсказки популярных адресов, медиа-роутер и новостные фиды выключены.
+  //
+  // SpareRendererForSitePerProcess: «запасной» процесс рендерера создаётся
+  // заранее и переиспользуется для чужих сайтов. Состояние защит приходит в
+  // процесс при рождении и обновляется сообщением при навигации, а запасной
+  // процесс может родиться с одним состоянием тумблеров, а страницу получить
+  // уже после их переключения — то есть применить устаревшее. Отключаем: тогда
+  // процесс под страницу создаётся в момент навигации, со свежим состоянием.
   command_line->AppendSwitchWithValue(
       "disable-features",
       "Translate,AutofillServerCommunication,PasswordLeakDetection,"
-      "OptimizationHints,MediaRouter,InterestFeedContentSuggestions");
+      "OptimizationHints,MediaRouter,InterestFeedContentSuggestions,"
+      "SpareRendererForSitePerProcess");
 }
 
 void BrowserApp::OnBeforeChildProcessLaunch(

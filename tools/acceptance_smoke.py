@@ -351,8 +351,7 @@ def viewport_measurement(ui: Cdp) -> Dict[str, Any]:
         if (!viewport || !page || !top) return null;
         const edge = viewport.getBoundingClientRect().right;
         const dashboard = page.querySelector('.dashboard-page');
-        const dashboardRect = dashboard && dashboard.getBoundingClientRect();
-        const dashboardEdge = dashboardRect ? dashboardRect.right : page.getBoundingClientRect().right;
+        const dashboardEdge = dashboard ? dashboard.getBoundingClientRect().right : page.getBoundingClientRect().right;
         let overflow = 0;
         document.querySelectorAll(
           '.dash-top > *, .dash-right > *, .dash-bottom > *'
@@ -395,42 +394,14 @@ def viewport_measurement(ui: Cdp) -> Dict[str, Any]:
         }).filter(Boolean).sort(function(a, b) {
           return Math.max(b.rightPx, b.scrollPx) - Math.max(a.rightPx, a.scrollPx);
         }).slice(0, 12);
-        const pseudoEffects = [];
-        if (dashboard && window.innerWidth <= 768) {
-          [dashboard].concat(Array.from(dashboard.querySelectorAll('*'))).forEach(function(el) {
-            ['::before', '::after'].forEach(function(which) {
-              try {
-                const ps = getComputedStyle(el, which);
-                if (ps.content === 'none' || ps.content === 'normal' || ps.display === 'none') return;
-                const r = el.getBoundingClientRect();
-                const classes = Array.from(el.classList || []).slice(0, 2).join('.');
-                pseudoEffects.push({
-                  owner: el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (classes ? '.' + classes : ''),
-                  pseudo: which, content: ps.content, position: ps.position,
-                  left: ps.left, right: ps.right, width: ps.width,
-                  transform: ps.transform,
-                  ownerLeft: Math.round(r.left), ownerRight: Math.round(r.right),
-                  ownerWidth: Math.round(r.width), ownerOverflowX: getComputedStyle(el).overflowX
-                });
-              } catch (_) {}
-            });
-          });
-        }
         return JSON.stringify({
           windowWidth: window.innerWidth,
           viewportWidth: viewport.clientWidth,
           pageWidth: page.clientWidth,
           pageScrollWidth: page.scrollWidth,
-          dashboardBounds: dashboardRect ? {
-            left: Math.round(dashboardRect.left), right: Math.round(dashboardRect.right),
-            width: Math.round(dashboardRect.width), clientWidth: dashboard.clientWidth,
-            scrollWidth: dashboard.scrollWidth,
-            tableLayout: dashboard.querySelector('.tbl') ? getComputedStyle(dashboard.querySelector('.tbl')).tableLayout : null
-          } : null,
           documentOverflowPx: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
           overflowPx: Math.max(0, overflow),
-          overflowNodes: overflowNodes,
-          pseudoEffects: pseudoEffects
+          overflowNodes: overflowNodes
         });
       })()
     """

@@ -116,4 +116,11 @@ for (const [fragment, why] of anchors) {
   check('якорь хвоста стилей на месте: ' + why, css.includes(fragment));
 }
 
+// Sticky large-title header bleeds exactly through the page gutter, never past
+// the dashboard's own width (desktop gutter 22 px, compact container 12 px).
+const structureCss = (html.match(/<style id="ux-macos-structure">([\s\S]*?)<\/style>/) || [])[1] || '';
+check('липкая шапка совпадает с полями страницы и не расширяет дашборд',
+  /margin:-6px calc\(-1 \* clamp\(22px,2\.8vw,44px\)\) 18px/.test(structureCss) &&
+  /\.dashboard-page > \.page-h\s*\{\s*margin-left:-12px;\s*margin-right:-12px;\s*padding-left:12px;\s*padding-right:12px;/.test(structureCss));
+
 finish();

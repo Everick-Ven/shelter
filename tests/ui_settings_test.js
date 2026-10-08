@@ -17,7 +17,11 @@
 //      нет обычных строк (у «О SHELTER» их нет);
 //   6) ползунок «Скругления углов» тянет за собой весь интерфейс: точечные
 //      радиусы заданы через множитель --rs (иначе скругления менялись только
-//      у карточек-токенов, а тулбар/меню/поля оставались прежними).
+//      у карточек-токенов, а тулбар/меню/поля оставались прежними);
+//   7) открытие окна не тормозит: позиции сегментов читаются пакетно (девять
+//      «запись → чтение» подряд давали ~70 мс принудительных reflow на первом
+//      открытии), поиск фильтрует с задержкой 150 мс по заранее прочитанному
+//      тексту, а масштаб шрифта не пишет те же значения повторно.
 //
 // Тест читает resources/ui/index.html как текст: без браузера, без зависимостей.
 'use strict';
@@ -58,11 +62,15 @@ check('у строки cookies задана подсказка про автос
   /'cookies', 'cookie', 'Автосогласие cookies/.test(protRows));
 
 // 2. Строка в настройках — без иконки, с тумблером.
+/* Разметку окна собирает settingsHtml(), поведение окна осталось в openSettings():
+   проверки ниже смотрят каждая в свой кусок. */
+const settingsMarkup = cut('function settingsHtml() {', 'function prewarmSettings()');
 const settings = cut('function openSettings(sec) {', 'function applyFontScale()');
 check('панель настроек найдена', settings.length > 0, settings.length + ' символов');
+check('разметка настроек собирается сборщиком', settingsMarkup.length > 0, settingsMarkup.length + ' символов');
 check('строка «Автосогласие cookies» без иконки',
-  /row\('Автосогласие cookies'/.test(settings) && !/row\(ico\('cookie'\) \+ 'Автосогласие cookies'/.test(settings));
-check('у строки «Автосогласие cookies» остался тумблер', /row\('Автосогласие cookies'[^\n]*sw\('cookies'\)/.test(settings));
+  /row\('Автосогласие cookies'/.test(settingsMarkup) && !/row\(ico\('cookie'\) \+ 'Автосогласие cookies'/.test(settingsMarkup));
+check('у строки «Автосогласие cookies» остался тумблер', /row\('Автосогласие cookies'[^\n]*sw\('cookies'\)/.test(settingsMarkup));
 
 // 3. Прокрутка панели без плавной анимации.
 const css = (html.match(/<style[^>]*>([\s\S]*?)<\/style>/) || [])[1] || '';
@@ -106,6 +114,46 @@ const literal = radii.filter(v => /^\d+(\.\d+)?px$/.test(v) && v !== '99px');
 check('литеральные радиусы следуют за множителем', literal.length === 0, literal.join(', ') || 'нет');
 check('пилюли и круги остались полностью скруглёнными',
   radii.includes('99px') && radii.includes('50%'));
+
+// 7. Производительность открытия и поиска.
+const segAll = cut('function segSyncAll(', '\nfunction initSegs');
+check('пакетная синхронизация сегментов есть', segAll.length > 0, segAll.length + ' символов');
+check('геометрия сегментов читается до записей',
+  segAll.indexOf('offsetLeft') >= 0 && segAll.indexOf('offsetLeft') < segAll.indexOf('setProperty'));
+check('initSegs использует пакетный путь', /function initSegs\(root = document\) \{ segSyncAll\(/.test(html));
+const search = cut('const searchIndex = $$', 'const setShown');
+check('поисковый индекс строится заранее', search.length > 0 && /r\.t\.includes\(q\)/.test(html));
+const runSearch = cut('const runSearch = value => {', "$('#setQ', root).addEventListener");
+check('поиск применяется с задержкой 120–180 мс', /\}, 1[2-8][0-9]\);/.test(runSearch), (runSearch.match(/\}, (\d+)\);/) || [])[1] + ' мс');
+check('устаревший результат отбрасывается по номеру запроса', /seq !== searchSeq/.test(runSearch));
+check('очистка поля фильтрует сразу, без задержки', /if \(!q\) \{ clearTimeout\(searchTimer\); searchTimer = 0; searchSeq\+\+; filterSettings\(''\); return; \}/.test(runSearch));
+check('display меняется только при отличии', /if \(el\.style\.display !== v\) el\.style\.display = v;/.test(html));
+const fontFn = cut('function applyFontScale()', '\nfunction installFontScale');
+check('масштаб шрифта не пишет те же значения', /const setVar = \(k, v\) => \{ if \(root\.getPropertyValue\(k\) !== v\) root\.setProperty\(k, v\); \}/.test(fontFn));
+check('масштаб шрифта не переписывает подписи без изменений', /if \(l && l\.textContent !== v \+ ' %'\) l\.textContent/.test(fontFn));
+const sync = cut('function syncSwitches()', 'const PREF_TOAST');
+check('синхронизация тумблеров не пишет совпадающие состояния',
+  /if \(b\.classList\.contains\('on'\) !== on\)/.test(sync) && /if \(b\.getAttribute\('aria-checked'\) !== sa\)/.test(sync));
+
+// 7. Прогрев кешей окна настроек (ТЗ №2). Разметка строится тем же сборщиком
+//    один раз в скрытом контейнере вне потока, контейнер удаляется в той же
+//    синхронной задаче, DOM модалки по-прежнему создаётся только при показе.
+//    Прогрев уходит в простой и не использует таймеров-задержек.
+const pw = cut('function prewarmSettings()', 'function openSettings(sec) {');
+check('окно и прогрев собираются одним сборщиком разметки',
+  /box\.innerHTML = settingsHtml\(\)/.test(pw) && /function settingsHtml\(\)/.test(html) && /return html;/.test(html));
+check('контейнер прогрева скрыт, вне потока и всегда удаляется',
+  /id = 'setPrewarm'/.test(pw) && /visibility:hidden/.test(pw) && /contain:strict/.test(pw) && /finally \{ if \(box\) box\.remove\(\); \}/.test(pw));
+check('прогрев одноразовый и уступает уже открытому окну',
+  /if \(settingsPrewarmDone\) return;/.test(pw) && /if \(\$\('\.settings'\)\) \{ settingsPrewarmDone = true; return; \}/.test(pw));
+check('флаг прогрева ставится только после успеха',
+  /settingsPrewarmDone = true;\n  \} catch/.test(pw));
+check('прогрев запускается в простое и по наведению на кнопку настроек',
+  /requestIdleCallback/.test(html) && /warmSettings, \{ timeout: 2000 \}/.test(html) &&
+  /setBtn\.addEventListener\('pointerenter', warmSettings/.test(html) && /setBtn\.addEventListener\('focus', warmSettings/.test(html));
+check('в прогреве нет таймеров-задержек', !/setTimeout/.test(pw));
+check('окно настроек берёт общую разметку, а не строит её заново',
+  /const html = settingsHtml\(\);/.test(settings));
 
 const failed = results.filter(x => !x).length;
 console.log(failed ? 'UI_SETTINGS_TEST_FAIL ' + failed : 'UI_SETTINGS_TEST_PASS ' + results.length + '/' + results.length);

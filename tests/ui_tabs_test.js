@@ -4,9 +4,10 @@
 //   1) кнопка «+» идёт сразу за вкладками: контейнер полосы вкладок не
 //      растягивается на всю ширину (иначе «+», вставляемый сразу после
 //      контейнера, уезжает к правому краю — так и случилось в 43009c1);
-//   2) закреплённая вкладка — миниатюра: только значок сайта, никакого
-//      заголовка, метки закрепления и крестика закрытия;
-//   3) миниатюра задана и для боковых доков, и для полосы сверху/снизу;
+//   2) закреплённая вкладка — миниатюра только в горизонтальной полосе
+//      (значок сайта без заголовка); в вертикальной панели закрепление
+//      вкладку не сжимает и заголовок остаётся;
+//   3) миниатюра задана только для полосы сверху/снизу;
 //   4) закреплённые вкладки идут первыми в списке;
 //   5) в полосе сверху/снизу «+» вставляется сразу после списка вкладок;
 //   6) значок миниатюры остаётся по центру и в свёрнутой панели: правила
@@ -42,24 +43,27 @@ check('полоса вкладок не растягивается на всю �
   /flex:0 1 auto/.test(tabsRule) && !/flex:1 1 auto/.test(tabsRule));
 check('полоса вкладок остаётся прокручиваемой при переполнении', /overflow-x:auto/.test(tabsRule));
 
-// 2. Миниатюра закреплённой вкладки: только значок.
+// 2. Компактная миниатюра — только у горизонтальной полосы; в вертикальной
+//    панели закрепление вкладку не сжимает (правило .tab.pinned с шириной
+//    38 px удалено: оно давало 38-пиксельный «квадрат» в списке слева/справа).
 const pinnedSide = rule('.tab.pinned');
 const pinnedBar = rule('.tab-mount .tab.pinned');
-check('миниатюра закреплённой вкладки для боковых доков задана', pinnedSide.length > 0, pinnedSide);
+check('общего сжатия .tab.pinned больше нет', pinnedSide.length === 0, pinnedSide || 'нет правила — верно');
 check('миниатюра закреплённой вкладки для полосы сверху/снизу задана', pinnedBar.length > 0, pinnedBar);
-for (const [name, r] of [['боковой док', pinnedSide], ['полоса', pinnedBar]]) {
-  check('миниатюра (' + name + ') фиксирует узкую ширину',
-    /max-width:38px/.test(r) && /min-width:38px/.test(r), r);
-  check('миниатюра (' + name + ') центрирует значок и убирает отступы',
-    /justify-content:center/.test(r) && /padding:0\b/.test(r) && /gap:0\b/.test(r), r);
-}
+check('миниатюра полосы фиксирует узкую ширину',
+  /max-width:38px/.test(pinnedBar) && /min-width:38px/.test(pinnedBar), pinnedBar);
+check('миниатюра полосы центрирует значок и убирает отступы',
+  /justify-content:center/.test(pinnedBar) && /padding:0\b/.test(pinnedBar) && /gap:0\b/.test(pinnedBar), pinnedBar);
 
-// 3. Разметка: у закреплённой вкладки нет заголовка, метки и крестика.
+// 3. Разметка: вид закреплённой вкладки зависит от ориентации панели.
 const render = (html.match(/function renderTabs\(\)[\s\S]*?\n\}/) || [''])[0];
 check('рендер списка вкладок найден', render.length > 0, render.length + ' символов');
 check('закреплённая вкладка получает класс pinned', /t\.pinned \? ' pinned' : ''/.test(render));
-check('у закреплённой вкладки не рисуется заголовок',
-  /t\.pinned \? '' : `<span class="t hc">/.test(render));
+check('ориентация полосы определяется один раз', /const classic = S\.ui\.tabPos === 'top' \|\| S\.ui\.tabPos === 'bottom'/.test(render));
+check('миниатюра только для закреплённых в горизонтальной полосе',
+  /const mini = t => t\.pinned && classic;/.test(render));
+check('в вертикальной панели у закреплённой вкладки есть заголовок',
+  /mini\(t\) \? '' : `<span class="t hc">/.test(render));
 check('у закреплённой вкладки не рисуется крестик закрытия',
   /t\.pinned \? '' : `<button class="x hc"/.test(render));
 check('метка закрепления из разметки убрана', !/ico\('pin', 'pin hc'\)/.test(render));
@@ -75,16 +79,15 @@ check('кнопка «+» вставляется сразу после спис�
 check('кнопка «+» существует в разметке боковых доков',
   /data-act="newTab" aria-label="Новая вкладка"/.test(html));
 
-// 6. Центрирование миниатюры в свёрнутых контекстах.
-const cpAt = css.indexOf('.app.collapsed .tab.pinned,');
+// 6. Свёрнутые контексты: миниатюра остаётся центрированной в горизонтальном
+//    доке; в вертикальной панели закреплённая вкладка — обычная и следует
+//    общим правилам свёртывания (её значок стоит там же, где у соседей).
+const cpAt = css.indexOf('.app.collapsed .tab-mount .tab.pinned');
 const collapsedPin = cpAt < 0 ? '' : css.slice(cpAt, css.indexOf('}', cpAt));
-check('миниатюра центрируется и в свёрнутой панели',
-  /\.app\.collapsed \.tab\.pinned/.test(collapsedPin) && /padding:0/.test(collapsedPin) && /justify-content:center/.test(collapsedPin),
-  collapsedPin.slice(0, 90));
-check('миниатюра в полосе сверху центрируется при свёрнутой панели',
-  /\.app\.collapsed \.tab-mount \.tab\.pinned/.test(collapsedPin));
-check('миниатюра в схлопнутом правом доке центрируется',
-  /#tabRight\.is-collapsed \.tab\.pinned/.test(collapsedPin));
+check('миниатюра полосы центрируется и при свёрнутой панели',
+  cpAt >= 0 && /padding:0/.test(collapsedPin) && /justify-content:center/.test(collapsedPin), collapsedPin.slice(0, 90));
+check('вертикальной миниатюры в свёрнутых контекстах нет',
+  !/\.app\.collapsed \.tab\.pinned/.test(css) && !/#tabRight\.is-collapsed \.tab\.pinned/.test(css));
 
 const failed = results.filter(x => !x).length;
 console.log(failed ? 'UI_TABS_TEST_FAIL ' + failed : 'UI_TABS_TEST_PASS ' + results.length + '/' + results.length);

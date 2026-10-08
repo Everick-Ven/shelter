@@ -421,6 +421,12 @@ body.no-badges .badge{display:none!important}
 .fav.lg .i{width:17px;height:17px}
 .fav.md{width:26px;height:26px;border-radius:calc(8px*var(--rs));font-size:11.5px}
 .fav.md .i{width:14px;height:14px}
+/* Значок сайта: настоящая иконка (её приносит оболочка) живёт внутри бейджа и
+   сжимается до его размера. Раньше это правило было только у панели ссылок,
+   а в истории, закладках, панели вкладок и подсказках крупные favicon (32–180px)
+   растягивали бейдж и перекрывали заголовок и адрес строки. */
+.fav.fimg{position:relative;overflow:hidden}
+.fav.fimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff;border-radius:inherit}
 .tb-ctls{display:flex;align-items:center;gap:2px;flex:none;margin:0 2px}
 .tb-ctls .ctl{position:relative;width:32px;height:32px;border-radius:calc(10px*var(--rs));background:transparent;border:0;display:grid;place-items:center;color:var(--text-3);padding:0;
   transition:background .18s,color .18s,transform .14s}
@@ -476,8 +482,19 @@ body.no-badges .badge{display:none!important}
 .tab-mount .tabs{display:flex;flex-direction:row;align-items:center;gap:4px;margin:0;padding:0;flex:0 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 .tab-mount .tabs::-webkit-scrollbar{display:none}
 .tab-mount .tabs::before{display:none}
-.tab-mount .tab{flex:1 1 0;width:auto;min-width:104px;max-width:216px;height:32px;padding:0 6px 0 10px}
-.tab-mount .tab.pinned{flex:0 0 auto;min-width:38px;max-width:38px;padding:0;justify-content:center;gap:0}
+/* Стандарт горизонтальной полосы (вкладки сверху/снизу): ширина по умолчанию
+   200 px, при нехватке места вкладки сжимаются одинаково до 72 px (дальше полоса
+   прокручивается), высота 32 px, значок сайта и кнопка закрытия — 16×16,
+   горизонтальные отступы 10 и 8 px. Вертикальные панели (слева/справа) живут
+   по своим правилам: их ширина задаётся панелью, а не этим стандартом. */
+.tab-mount .tab{flex:0 1 200px;min-width:72px;max-width:200px;height:32px;padding:0 8px 0 10px}
+.tab-mount .tab .fav{width:16px;height:16px;font-size:9px}
+.tab-mount .tab .fav .i{width:10px;height:10px}
+.tab-mount .tab .x{width:16px;height:16px;border-radius:calc(5px*var(--rs))}
+.tab-mount .tab .x .i{width:10px;height:10px}
+/* Закреплённая вкладка — миниатюра 40 px: по стандарту минимальная ширина
+   вкладки не опускается ниже 40 px, значок стоит по центру. */
+.tab-mount .tab.pinned{flex:0 0 auto;min-width:40px;max-width:40px;padding:0;justify-content:center;gap:0}
 /* Миниатюру центрируем и в свёрнутом горизонтальном доке: правило
    `.app.collapsed .tab-mount .tab` задаёт padding-left и по специфичности
    перебивало её (значок съезжал на 5 px). Вертикальных миниатюр нет — там
@@ -730,8 +747,6 @@ html[data-theme="ivory"] .omni,html[data-theme="porcelain"] .omni,html[data-them
   box-shadow:0 10px 30px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05)}
 /* Пустой бар закладок не оставляет артефакт-«таблетку» — скрываем полностью */
 .hero-links:empty{display:none}
-.qlink .fav.fimg{position:relative;overflow:hidden}
-.qlink .fav.fimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff;border-radius:inherit}
 /* ---------- Сверху/Снизу: отдельная тонкая полоса ВНЕ секции с веб-страницей (не внутри .stage) ---------- */
 .bm-mount{flex:none;width:100%;display:flex;justify-content:center;padding:0 10px;background:transparent}
 .bm-mount .hero-links{width:100%;max-width:none;margin:0;border-radius:0;border:0;padding:4px 10px 6px;background:transparent !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;box-shadow:none !important}
@@ -3630,6 +3645,11 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
     }
   }
 
+  /* Запрос к оболочке по протоколу host-bridge ({m,a}). Возвращает Promise с
+     ответом или null, если оболочки нет (file://-превью): вызывающая сторона
+     не должна отличать «нет оболочки» от «запрос не удался». */
+  window.shelterCefRequest = (method, args) => mq2(method, args);
+
   window.shelterCef = {
     isCef: isCefEnv,
     send: cefSend,
@@ -4462,21 +4482,23 @@ function urlMeta(url) {
   let path = ''; try { const u = new URL(/^[a-z]+:\/\//i.test(url) ? url : 'https://' + url); path = (u.pathname === '/' ? '' : decodeURIComponent(u.pathname)) + u.search; } catch (e) {}
   return { kind: 'site', page: 'site', title: info.t, fav: info.t.charAt(0).toUpperCase(), color: info.c, host, path, cat: info.cat, ru: RU_CA.some(h => host === h || host.endsWith('.' + h)) };
 }
-function favHtml(t, cls = '') {
+/* Значок сайта — это всегда слот слева от заголовка: настоящая иконка сайта,
+   если оболочка уже принесла её (кэш shelter:favcache), иначе буква-заглушка.
+   Буква и иконка живут в одном бейдже, поэтому подмена «буква → иконка»
+   ничего не сдвигает. data-favhost — якорь для favCacheApply: свежая иконка
+   подставляется на месте, без перерисовки списка (и без мигания). */
+function favHtml(t, cls = '', tip = '') {
   const m = urlMeta(t.url || t);
-  if (m.kind === 'internal') return `<span class="fav int ${cls}">${ico(m.icon)}</span>`;
-  return `<span class="fav ${cls}" style="background:${esc(t.color || m.color)}">${esc(t.fav || m.fav || '•')}</span>`;
-}
-function favFor(url, cls = '') {
-  const m = urlMeta(url);
-  if (m.kind === 'internal') return `<span class="fav int ${cls}">${ico(m.icon)}</span>`;
+  if (m.kind === 'internal') return `<span class="fav int ${cls}"${tip ? ` title="${esc(tip)}"` : ''}>${ico(m.icon)}</span>`;
   let cached = '', fh = '';
-  try { fh = hostOf(url) || ''; cached = fh ? FAV_MEM[fh] : ''; } catch (_) { /* кэш ещё не объявлен */ }
-  if (!cached) return `<span class="fav ${cls}" style="background:${m.color}">${esc(m.fav)}</span>`;
-  /* data-favhost — якорь для favCacheApply: свежая иконка подменяется на месте,
-     без перерисовки списка (и без мигания). */
-  return `<span class="fav fimg ${cls}" style="background:${m.color}">${esc(m.fav)}<img src="${esc(cached)}" alt="" data-favhost="${esc(fh)}"></span>`;
+  try { fh = hostOf(t.url || t) || ''; cached = fh ? FAV_MEM[fh] : ''; } catch (_) { /* кэш ещё не объявлен */ }
+  const letter = esc(t.fav || m.fav || '•');
+  const attrs = `${fh ? ` data-favhost="${esc(fh)}"` : ''}${tip ? ` title="${esc(tip)}"` : ''}`;
+  const style = `background:${esc(t.color || m.color)}`;
+  if (!cached) return `<span class="fav ${cls}"${attrs} style="${style}">${letter}</span>`;
+  return `<span class="fav fimg ${cls}"${attrs} style="${style}">${letter}<img src="${esc(cached)}" alt=""></span>`;
 }
+const favFor = (url, cls = '') => favHtml({ url }, cls);
 
 /* =========================================================
    Оверлеи: меню, модальные окна, тосты, подсказки
@@ -6435,7 +6457,14 @@ function favCacheSave() {
 }
 function favCacheApply(host) {
   const url = FAV_MEM[host]; if (!url) return;
-  $$('img[data-favhost="' + host.replace(/"/g, '') + '"]').forEach(im => { im.src = url; });
+  const sel = host.replace(/"/g, '');
+  $$('img[data-favhost="' + sel + '"]').forEach(im => { im.src = url; });
+  /* Бейдж с буквой-заглушкой достраиваем до иконки: иначе значок обновился бы
+     только при следующей перерисовке списка (вкладки, история, закладки). */
+  $$('.fav[data-favhost="' + sel + '"]:not(.fimg)').forEach(b => {
+    b.classList.add('fimg');
+    b.insertAdjacentHTML('beforeend', `<img src="${esc(url)}" alt="">`);
+  });
 }
 /* Событие 'fav' из оболочки: иконка пришла от сайта. Призрачный режим ничего
    не кэширует — иначе остался бы список посещённых сайтов на диске. */
@@ -6446,15 +6475,38 @@ function favCachePut(host, data) {
   favCacheSave();
   favCacheApply(host);
 }
-function bmFavHtml(b, cls = '') {
-  const m = urlMeta(b.url);
-  if (m.kind === 'internal') return favFor(b.url, cls);
-  const host = hostOf(b.url);
-  const letter = m.fav || (host || '?').slice(0, 1).toUpperCase();
-  const cached = FAV_MEM[host];
-  if (cached) return `<span class="fav fimg ${cls}" style="background:${m.color || 'var(--card-3)'}" title="${esc(host)}">${esc(letter)}<img src="${cached}" alt="" data-favhost="${esc(host)}"></span>`;
-  return `<span class="fav ${cls}" style="background:${m.color || 'var(--card-3)'}" title="${esc(host)}">${esc(letter)}</span>`;
+/* Закладка: тот же значок сайта, что и везде; подсказка — домен. */
+/* Догрузка иконок: у хостов, которых нет в кэше (например, закладки по
+   умолчанию, ещё не открывавшиеся), значок остался бы буквой. Собираем такие
+   хосты со всех значков на странице и просим оболочку принести /favicon.ico —
+   она скачает его тем же сетевым контекстом, что и вкладка, и вернёт событием
+   'fav'. Хост спрашиваем один раз за сессию, пачками: новый список появляется
+   после монтирования страницы или модалки. Своей сети у UI нет — в браузере
+   без оболочки (file://-превью) запрос просто не уходит. */
+const favRequested = new Set();
+let favTimer = 0;
+function favPendingHosts() {
+  const out = [];
+  $$('.fav[data-favhost]:not(.fimg)').forEach(b => {
+    const h = b.getAttribute('data-favhost');
+    if (h && !favRequested.has(h)) out.push(h);
+  });
+  return out;
 }
+function ensureFavicons() { clearTimeout(favTimer); favTimer = setTimeout(favFlush, 120); }
+function favFlush() {
+  favTimer = 0;
+  if (S.ghost) return;  /* «Призрак» не ходит в сеть за иконками: кэш не пишется */
+  const pending = favPendingHosts();
+  if (!pending.length) return;
+  const batch = pending.slice(0, 12);           // одна пачка — не больше двенадцати хостов
+  batch.forEach(h => favRequested.add(h));
+  if (typeof window.shelterCefRequest === 'function') {
+    try { window.shelterCefRequest('favicon.ensure', { hosts: batch.join(' ') }); } catch (_) {}
+  }
+  if (pending.length > batch.length) ensureFavicons();  // остаток — следующей пачкой
+}
+function bmFavHtml(b, cls = '') { return favHtml({ url: b.url }, cls, hostOf(b.url)); }
 function toggleBmBar(id) {
   const b = S.bookmarks.find(x => x.id === id); if (!b) return;
   b.inBar = !b.inBar; persist();
@@ -6466,6 +6518,7 @@ function renderHeroLinks() {
   /* В баре — только закладки с флагом «Отобразить в баре» (inBar).
      Кнопки «+ Добавить» здесь больше нет: добавление — в разделе «Закладки». */
   $('#heroLinks').innerHTML = S.bookmarks.filter(b => b.inBar).map(b => `<button class="qlink" draggable="true" data-act="open" data-bm="${b.id}" data-url="${esc(b.url)}">${bmFavHtml(b)}<span>${esc(b.title)}</span></button>`).join('');
+  ensureFavicons();
 }
 function renderHeroFoot() {
   const el = $('#heroFoot');
@@ -11317,6 +11370,16 @@ function init() {
     setBtn.addEventListener('pointerenter', warmSettings, { passive: true });
     setBtn.addEventListener('focus', warmSettings, { passive: true });
   }
+  /* Значки без иконки появляются при смене страницы, модалок и списков:
+     наблюдаем за добавлением бейджей и просим недостающие иконки вскоре после
+     монтирования (см. ensureFavicons — там же разбор про букву-заглушку). */
+  try {
+    new MutationObserver(ms => {
+      for (const m of ms) for (const n of m.addedNodes) {
+        if (n.nodeType === 1 && (n.classList.contains('fav') || n.querySelector('.fav[data-favhost]'))) { ensureFavicons(); return; }
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  } catch (_) {}
 }
 init();
 })();

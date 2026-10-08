@@ -103,6 +103,11 @@ class Shell {
   void UntrackPopupWindow(CefRefPtr<CefWindow> window);
   CefRefPtr<CefWindow> window() const { return window_; }
 
+  // Догрузка иконок сайтов для хостов, которых нет в кэше UI (закладки,
+  // история). Список приходит из UI разделённым пробелами; проверка имени и
+  // запрос — стандартным сетевым контекстом, результат уходит событием 'fav'.
+  void RequestFavicons(const std::string& hosts, CefRefPtr<CefBrowser> ui_browser);
+
   // ---- UI-браузер ----
   CefRefPtr<CefBrowserView> CreateUiView();
   void OnUiCreated(CefRefPtr<CefBrowser> browser);
@@ -287,6 +292,9 @@ class Shell {
   std::map<std::string, PendingDownload> pending_downloads_;
   // Хосты, для которых иконка уже запрошена (в этой сессии), и живые запросы.
   std::set<std::string> favicon_hosts_;
+  // Отдельно — хосты, догруженные по запросу UI: у вкладок лимит общий, а тут
+  // не нужно исключать хост, иконку которого уже принесла навигация.
+  std::set<std::string> ui_favicon_hosts_;
   std::map<std::string, CefRefPtr<CefURLRequest>> favicon_requests_;
   // Загрузки из «призрачных» вкладок: их адрес/путь не пишутся в лог.
   std::set<std::string> private_downloads_;

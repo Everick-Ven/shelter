@@ -820,8 +820,10 @@ def performance_mode_probe(ui: Cdp) -> Dict[str, Any]:
 def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
     """Tabs must share one width (standard browser logic) in every dock.
 
-    Wide windows: equal widths, capped by the layout maximum. Narrow windows:
-    equal widths that may shrink but never below the historical minimum.
+    Wide windows: equal widths, capped by the tab standard (200 px by default).
+    Narrow windows: equal widths that may shrink, but not below the standard
+    minimum of 72 px — the horizontal strip scrolls instead of squeezing tabs
+    further.
     """
     expression = r"""
       (async function() {
@@ -838,7 +840,9 @@ def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
           requestAnimationFrame(() => requestAnimationFrame(finish));
           setTimeout(finish, 300);
         });
-        const MIN = 104, MAX = 216;
+        /* Стандарт горизонтальных вкладок: по умолчанию 200 px, минимум 72 px
+           (см. .tab-mount .tab в resources/ui/index.html). */
+        const MIN = 72, MAX = 200;
         const originalPos = test.state().ui.tabPos;
         const openIds = ids => ids.filter(id => id && id !== test.state().activeTabId);
         const titles = [
@@ -947,7 +951,7 @@ def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
                 ' range in ' + pos
               );
             // Too many tabs: widths must still match and never drop below the
-            // historical minimum of the old content-sized layout.
+            // standard minimum — the strip scrolls instead.
             for (let i = 0; i < 10; i++) window.newTab();
             await frame(); await pause(180);
             /* Новые вкладки перерисовывают список и стирают подставленные

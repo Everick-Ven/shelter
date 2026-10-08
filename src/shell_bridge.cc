@@ -190,6 +190,24 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
+  if (m == "favicon.ensure") {
+    // Догрузка иконок сайтов по запросу UI (закладки/история без иконки в
+    // кэше). Разрешено только UI-странице и только пачкой небольшого размера:
+    // это сетевой запрос, инициированный страницей, поэтому ни сайт, ни
+    // сторонний код не должны иметь возможности его задать.
+    if (!browser || !IsUiBrowser(browser)) {
+      cb->Failure(403, "operation is restricted to the SHELTER UI");
+      return true;
+    }
+    const std::string hosts = Str(a, "hosts");
+    if (hosts.size() > 1024) {
+      cb->Failure(400, "too many hosts in one request");
+      return true;
+    }
+    RequestFavicons(hosts, browser);
+    cb->Success("{}");
+    return true;
+  }
   if (m == "ext.list") {
     ExtList(cb);
     return true;

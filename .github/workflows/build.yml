@@ -277,6 +277,11 @@ jobs:
           set -euo pipefail
           c++ -std=c++17 -Wall -Wextra -Werror -I. tests/protection_flags_test.cc -o protection-flags-test
           ./protection-flags-test
+      - name: Compile and run favicon host tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/favicon_hosts_test.cc -o favicon-hosts-test
+          ./favicon-hosts-test
 
   release:
     name: Release

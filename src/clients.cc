@@ -9,6 +9,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "src/blocker.h"
 #include "src/common.h"
+#include "src/favicon_hosts.h"
 #include "src/netguard.h"
 #include "src/shell.h"
 
@@ -156,6 +157,39 @@ std::string HttpsOnlyInterstitialDataUrl(const std::string& http_url,
 }
 
 }  // namespace
+
+// Догрузка иконок по запросу UI. Callback моста нужно отпустить сразу, а
+// CefURLRequest живёт до завершения в карте Shell (favicon_requests_), поэтому
+// здесь только постановка запросов.
+void Shell::RequestFavicons(const std::string& hosts,
+                            CefRefPtr<CefBrowser> ui_browser) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!ui_browser || hosts.empty() || ui_favicon_hosts_.size() >= 200) return;
+  CefRefPtr<CefRequestContext> ctx =
+      ui_browser->GetHost()->GetRequestContext();
+  std::string host;
+  auto flush = [&]() {
+    if (host.empty()) return;
+    /* Хост пришёл из UI-страницы: в сеть уходит только корректное доменное
+       имя, всё остальное молча отбрасываем (см. src/favicon_hosts.h). */
+    if (!shelter::IsValidFaviconHost(host)) { host.clear(); return; }
+    if (ui_favicon_hosts_.size() < 200 && ui_favicon_hosts_.insert(host).second) {
+      const std::string url = shelter::FaviconUrlForHost(host);
+      CefRefPtr<CefRequest> req = CefRequest::Create();
+      req->SetURL(url);
+      req->SetMethod("GET");
+      CefRefPtr<CefURLRequest> r = CefURLRequest::Create(
+          req, new FaviconRequest("ui:fetch", host, url), ctx);
+      FaviconRequestStarted(url, r);
+    }
+    host.clear();
+  };
+  for (const char c : hosts) {
+    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { flush(); continue; }
+    if (host.size() < shelter::kMaxFaviconHostLength) host.push_back(c);
+  }
+  flush();
+}
 
 // ============================================================================
 // UiClient

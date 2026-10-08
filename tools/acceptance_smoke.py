@@ -264,6 +264,12 @@ class Cdp:
     ) -> Dict[str, Any]:
         self.next_id += 1
         call_id = self.next_id
+        # Лимит ожидания ставится на сокет: соединение создаётся с 12 с, и без
+        # этого recv падал бы раньше, чем истекал запрошенный вызову лимит
+        # (приёмочные пробы местами просят 60-90 с на тяжёлые выражения).
+        # Ответы с чужим id ниже отбрасываются как события, поэтому опоздавший
+        # ответ прежнего вызова не подменит текущий.
+        self.socket.settimeout(timeout)
         self.socket.send(
             json.dumps({"id": call_id, "method": method, "params": params or {}})
         )
@@ -492,9 +498,15 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
     """Verify that toolbar actions and the trimmed overflow menu stay in place."""
     expression = r"""
       (async function() {
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const quick = document.getElementById('quickBtn');
         const settings = document.getElementById('settingsBtn');
         const more = document.getElementById('moreBtn');
@@ -588,9 +600,15 @@ def performance_mode_probe(ui: Cdp) -> Dict[str, Any]:
           throw new Error('performance test surface is missing');
         const original = test.state().prefs.gfx || 'balance';
         const originalGlow = test.state().prefs.glow !== false;
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const quick = document.getElementById('quickBtn');
         if (!quick) throw new Error('quick-menu button is missing');
         quick.click(); await frame();
@@ -797,9 +815,15 @@ def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
         if (!test || !test.setTabPos || !test.state)
           throw new Error('tab position test surface is missing');
         const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const MIN = 104, MAX = 216;
         const originalPos = test.state().ui.tabPos;
         const openIds = ids => ids.filter(id => id && id !== test.state().activeTabId);
@@ -976,9 +1000,15 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
     ui.evaluate("window.openPage('deepthink')")
     expression = r"""
       (async function() {
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         const app = document.getElementById('dtApp');
         if (!app) throw new Error('assistant page did not render');
@@ -1111,9 +1141,15 @@ def quick_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
     expression = r"""
       (async function() {
         const quick = document.getElementById('quickBtn');
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const waitForTheme = async theme => {
           const deadline = performance.now() + 2500;
           while (performance.now() < deadline) {
@@ -1207,9 +1243,15 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
         const original = test.state().prefs.gfx || 'balance';
         const originalGlow = test.state().prefs.glow !== false;
         const originalGlass = Math.max(40, Math.min(100, +test.state().prefs.glassOp || 82));
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const alphaOf = value => {
           const color = String(value || '').trim();
           if (!color || color === 'none') return null;
@@ -1352,9 +1394,15 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
           throw new Error('opacity test surface is missing');
         const originalMode = test.state().prefs.gfx || 'balance';
         const originalGlass = Math.max(40, Math.min(100, +test.state().prefs.glassOp || 82));
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         const storedGlass = () => {
           try {

@@ -289,6 +289,11 @@ jobs:
           set -euo pipefail
           c++ -std=c++17 -Wall -Wextra -Werror -I. tests/extension_match_test.cc -o extension-match-test
           ./extension-match-test
+      - name: Compile and run extension engine tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/extension_engine_test.cc -o extension-engine-test
+          ./extension-engine-test
 
   release:
     name: Release

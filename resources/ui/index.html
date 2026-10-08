@@ -3525,6 +3525,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
       extInstall: src => mq2('ext.install', { src: String(src || '') }),
       extRemove: id => mq2('ext.remove', { id: String(id || '') }),
       extPick: () => mq2('ext.pick'),
+      extSetMode: engine => mq2('ext.setMode', { engine: !!engine }),
       onCtxClose: fn => { if (typeof fn === 'function') listeners.ctxClose.push(fn); },
       onZoom: fn => { if (typeof fn === 'function') listeners.zoom.push(fn); }
     };
@@ -3714,7 +3715,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
           if (typeof window.shelterStrictBlock === 'function') window.shelterStrictBlock(d);
           break;
         case 'ext':
-          if (typeof window.shelterApplyExt === 'function') window.shelterApplyExt(d.list);
+          if (typeof window.shelterApplyExt === 'function') window.shelterApplyExt(d.list, d.mode);
           break;
         case 'ext-toast':
           if (typeof window.toast === 'function') window.toast(d.text || '', { icon: d.err ? 'ban' : 'puzzle' });
@@ -4032,6 +4033,7 @@ const S = {
   theme: 'obsidian', ghost: false, engine: 'google', deep: false,
   spaces: null, currentSpace: 'main', activeTabId: null,
   bookmarks: null, visits: [], board: null, boards: null, boardId: '', ext: [],
+  extMode: 'engine',  // 'engine' — MV3 грузит движок Chromium, 'shell' — только оболочка
   chats: [], messages: {}, downloads: [], passwords: [], blocks: {},
   prefs: Object.assign({}, PREF_DEFAULTS), ui: Object.assign({}, UI_DEFAULTS),
   account: null, closed: [], ai: null
@@ -8717,24 +8719,54 @@ function pwAddModal() {
    Магазин — настоящий Chrome Web Store, открывается вкладкой. */
 const CWS_URL = 'https://chromewebstore.google.com/';
 function extMeta(e) { return { c: e.c || hostColor(e.id || e.name), l: e.l || (e.name || '?').slice(0, 1).toUpperCase() }; }
+/* Статус расширения — это факт, а не обещание:
+   «движок» + путь попал в --load-extension → грузит Chromium;
+   «движок», но путь добавится только при следующем старте → так и написано;
+   MV2 или режим «оболочка» → content-scripts внедряет оболочка. */
+function extStateChip(e, mode) {
+  if (e.engine && e.passed) {
+    // Путь передан движку — но «загружено» пишем только когда движок это
+    // подтвердил (оболочка запросила chrome-extension://<id>/manifest.json).
+    if (e.probe === 'ok') return `<span class="ext-state">${ico('check')}Загружено движком</span>`;
+    if (e.probe === 'fail') return `<span class="chip warn">${ico('layers')}Движок не подтвердил</span>`;
+    return `<span class="chip info">${ico('clock')}Проверяю движок…</span>`;
+  }
+  if (e.engine) return `<span class="chip info">${ico('clock')}Со следующего запуска</span>`;
+  if (mode === 'engine') return `<span class="chip warn">${ico('layers')}Оболочка · MV2</span>`;
+  return `<span class="chip">${ico('layers')}Оболочка · content-scripts</span>`;
+}
 function extCard(e, i) {
   const m = extMeta(e);
-  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div class="tx"><b>${esc(e.name)}</b><small>${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chrome-расширение · content-scripts</small></div><span class="ext-state">${ico('check')}Включено</span></div>
-  <p>${esc(e.desc || 'Content-scripts (JS/CSS) применяются к подходящим страницам и фреймам по правилам манифеста (matches, globs, all_frames). Фоновые service worker и chrome.* API движком не поддерживаются.')}</p>
+  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div class="tx"><b>${esc(e.name)}</b><small>${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chrome-расширение${e.mv ? ' · manifest v' + e.mv : ''}</small></div>${extStateChip(e, S.extMode)}</div>
+  <p>${esc(e.desc || (e.engine
+    ? (e.passed
+      ? (e.probe === 'ok'
+        ? 'Manifest v3: движок Chromium подтвердил загрузку расширения — content-scripts и фон грузит он сам. Неподдерживаемые движком chrome.* API не заработают.'
+        : (e.probe === 'fail'
+          ? 'Manifest v3: путь передан движку аргументом --load-extension, но движок расширение не подтвердил — включите журнал диагностики (SHELTER_DIAG=1) и посмотрите причину.'
+          : 'Manifest v3: путь передан движку, проверяю загрузку…'))
+      : 'Manifest v3: готов к загрузке движком Chromium при следующем запуске. До перезапуска content-scripts применяет оболочка.')
+    : 'Content-scripts (JS/CSS) применяются к подходящим страницам и фреймам по правилам манифеста (matches, globs, all_frames). Фоновые service worker и chrome.* API не поддерживаются.'))}</p>
   <div class="ft"><span class="mono-dim">${e.cs ? e.cs + ' content-scripts · ' : ''}${esc((e.id || '').slice(0, 12))}${(e.id || '').length > 12 ? '…' : ''}</span><span class="sp"></span><button class="btn sm ghost" data-act="extPage" data-id="${esc(e.id)}">${ico('globe')}Страница</button><button class="btn sm ghost" data-act="extRemove" data-id="${esc(e.id)}">Удалить</button></div></div>`;
 }
 RENDER.extensions = () => {
   const inst = S.ext.filter(e => e && e.id && e.name);
-  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div><div class="page-sub">Chrome Web Store или файл .crx: пакет распаковывается локально и применяется на страницах</div></div>
+  const engine = S.extMode !== 'shell';
+  const engineN = inst.filter(e => e.engine).length;
+  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div><div class="page-sub">Chrome Web Store или файл .crx: пакет распаковывается локально${engine ? ', MV3 грузит движок Chromium' : ''}</div></div>
   <div class="page-actions"><button class="btn" data-act="extPick">${ico('file')}Из файла…</button></div></div>
+  <div class="sec-t">Режим <small>${engine ? 'движок Chromium · MV3' : 'оболочка · content-scripts'}</small></div>
+  <div class="set-card"><div class="set-row"><div class="tx"><b>Загружать расширения движком Chromium</b><span>${engine
+    ? 'Manifest v3 передан движку аргументом --load-extension: фон, chrome.* API и content-scripts работают как в Chromium. Загрузку оболочка подтверждает запросом к самому расширению (chrome-extension://…/manifest.json) — статус карточки показывает факт, а не обещание. MV2 движок не грузит политикой Chromium: такие пакеты остаются на оболочке. Список путей фиксируется при запуске, поэтому новое расширение подхватывается после перезапуска (сейчас: ' + engineN + ' из ' + inst.length + ').'
+    : 'Всё выполняет оболочка: content-scripts (JS/CSS) внедряются по правилам манифеста, фон и chrome.* API не поддерживаются. Включите, чтобы MV3-расширения грузил движок Chromium.'}</span></div><button class="sw-t ${engine ? 'on' : ''}" data-act="extEngine" role="switch" aria-checked="${engine}" aria-label="Загружать расширения движком Chromium"><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></button></div></div>
   <div class="sec-t">Установленные <small>${inst.length}</small></div>
   <div class="ext-grid">${inst.length ? inst.map(extCard).join('') : emptyState('puzzle', 'Нет расширений', 'Откройте Chrome Web Store и установите расширение по ID или выберите файл .crx')}</div>
   <div class="sec-t">Магазин <small>Chrome Web Store — официальный магазин расширений Chromium</small></div>
   <div class="card ext-store">
-    <div class="es-row"><span class="wg-ic">${ico('globe')}</span><div class="tx"><b>Chrome Web Store</b><small>Реальный магазин откроется в новой вкладке; из пакета расширения выполняются content-scripts (JS/CSS), фоновые chrome.* API не поддерживаются</small></div><button class="btn sm primary" data-act="extStore">${ico('globe')}Открыть магазин</button></div>
+    <div class="es-row"><span class="wg-ic">${ico('globe')}</span><div class="tx"><b>Chrome Web Store</b><small>Реальный магазин откроется в новой вкладке. ${engine ? 'MV3-расширения после установки грузит движок Chromium при следующем запуске; MV2 выполняет оболочка.' : 'Пакет выполняет оболочка: content-scripts (JS/CSS); фон и chrome.* API не поддерживаются.'}</small></div><button class="btn sm primary" data-act="extStore">${ico('globe')}Открыть магазин</button></div>
     <div class="es-row"><span class="wg-ic">${ico('link')}</span><div class="tx"><b>Установить по ID или ссылке</b><small>ID со страницы магазина (32 символа) или сама ссылка на расширение</small></div><input class="input" id="extSrc" placeholder="например: cjpalhdlnbpafiamekefhncdjljmbd" spellcheck="false" autocomplete="off"><button class="btn sm" data-act="extInstallSrc">Установить</button></div>
   </div></div>`;
-  if (NAT && NAT.extList) Promise.resolve(NAT.extList()).then(r => { if (r && r.list) applyExtList(r.list); }).catch(() => {});
+  if (NAT && NAT.extList) Promise.resolve(NAT.extList()).then(r => { if (r && r.list) applyExtList(r.list, r.mode); }).catch(() => {});
 };
 function extInstallSrc(src, btn) {
   src = String(src || '').trim();
@@ -8755,20 +8787,21 @@ function extListPop(anchor) {
   const list = S.ext.filter(e => e && e.id && e.name);
   openMenu(anchor, null, { place: 'bottom-end', cls: 'pop ext-pop', html:
     `<div class="pop-h"><span class="ic">${ico('puzzle')}</span><div><b>Расширения</b><span>${list.length ? list.length + ' ' + plural(list.length, ['расширение', 'расширения', 'расширений']) : 'ничего не установлено'}</span></div></div>`
-    + (list.length ? list.map(e => { const m = extMeta(e); return `<button class="mi tall" data-act="extPop" data-id="${esc(e.id)}"><span class="ext-ico"><span style="background:${esc(m.c)}">${esc(m.l)}</span></span><span class="lb">${esc(e.name)}<span class="sub">${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chrome-расширение · content-scripts</span></span></button>`; }).join('')
+    + (list.length ? list.map(e => { const m = extMeta(e); return `<button class="mi tall" data-act="extPop" data-id="${esc(e.id)}"><span class="ext-ico"><span style="background:${esc(m.c)}">${esc(m.l)}</span></span><span class="lb">${esc(e.name)}<span class="sub">${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chrome-расширение${e.mv ? ' · manifest v' + e.mv : ''}${e.engine && e.passed && e.probe === 'ok' ? ' · движок' : ''}</span></span></button>`; }).join('')
       : `<div class="ext-none">Расширения не установлены</div>`)
     + `<div class="msep"></div><button class="mi" data-act="page" data-page="extensions"><span class="lb">Все расширения</span>${ico('ext')}</button>` });
 }
 function extPop(anchor) {
   const e = S.ext.find(x => x.id === anchor.dataset.id); if (!e) return;
   const m = extMeta(e);
-  openMenu(anchor, null, { place: 'bottom-end', cls: 'pop', html: `<div class="pop-h"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div><b>${esc(e.name)}</b><span>${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chrome-расширение · content-scripts</span></div></div>
+  openMenu(anchor, null, { place: 'bottom-end', cls: 'pop', html: `<div class="pop-h"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div><b>${esc(e.name)}</b><span>${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}Chrome-расширение${e.mv ? ' · manifest v' + e.mv : ''}</span></div>${extStateChip(e, S.extMode)}</div>
     <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm" style="flex:1" data-act="extPage" data-id="${esc(e.id)}">${ico('globe')}Страница</button><button class="btn sm ghost" style="flex:1" data-act="extRemove" data-id="${esc(e.id)}">Удалить</button></div>` });
 }
-function applyExtList(list) {
+function applyExtList(list, mode) {
+  if (mode === 'engine' || mode === 'shell') S.extMode = mode;
   if (!Array.isArray(list)) return;
   const clean = list.filter(x => x && x.id && x.name);
-  const sig = JSON.stringify(clean.map(x => [x.id, x.name, x.ver || '']));
+  const sig = JSON.stringify([S.extMode, clean.map(x => [x.id, x.name, x.ver || '', x.mv || 0, !!x.engine, !!x.passed, x.probe || 'none'])]);
   if (sig === S.__extSig) return;
   S.__extSig = sig; S.ext = clean; persist();
   const pg = curTab() && urlMeta(curTab().url).page;
@@ -11040,6 +11073,14 @@ const ACT = {
   extList: el => extListPop(el),
   extPop: el => extPop(el),
   extStore: () => { addTab(CWS_URL); toast('Chrome Web Store открыт в новой вкладке', { icon: 'globe' }); },
+  extEngine: async el => {
+    const on = S.extMode === 'shell';  // переключаем в противоположное
+    const r = await (NAT && NAT.extSetMode ? Promise.resolve(NAT.extSetMode(on)).catch(() => null) : null);
+    if (!r || !r.ok) { toast('Не удалось сохранить режим расширений', { icon: 'ban' }); return; }
+    S.extMode = r.mode === 'shell' ? 'shell' : 'engine';
+    refreshPage('extensions');
+    toast(r.restart ? 'Режим изменён: подействует после перезапуска' : (S.extMode === 'engine' ? 'Расширения грузит движок Chromium' : 'Расширения выполняет оболочка'), { icon: 'puzzle' });
+  },
   extPick: () => { if (NAT && NAT.extPick) NAT.extPick(); else toast('Установка из файла доступна в сборке Shelter', { icon: 'file' }); },
   extInstallSrc: el => extInstallSrc(($('#extSrc') || {}).value, el),
   extPage: el => { if (el.dataset.id) addTab(CWS_URL + 'detail/' + el.dataset.id); },
@@ -11325,7 +11366,7 @@ window.shelterTest = {
   },
   openSettings: sec => openSettings(sec)
 };
-window.shelterApplyExt = list => applyExtList(list);
+window.shelterApplyExt = (list, mode) => applyExtList(list, mode);
 window.navBack = goStackBack;
 window.navForward = goStackFwd;
 window.navRefresh = () => { const t = curTab(); if (t) loadUrl(t, t.url, { push: false }); };

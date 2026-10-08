@@ -35,6 +35,7 @@
 #include "src/clients.h"
 #include "src/blocker.h"
 #include "src/common.h"
+#include "src/extension_engine.h"
 #include "src/extension_match.h"
 #include "src/netguard.h"
 #include "src/key_map.h"
@@ -207,11 +208,70 @@ struct ExtEntry {
   std::string name;
   std::string ver;
   std::string path;
+  int mv = 0;             // manifest_version из манифеста
+  bool engine = false;     // отдано движку Chromium (--load-extension)
+  bool passed = false;     // путь реально попал в аргумент этого запуска
   std::vector<ExtContentScript> scripts;
 };
 
+// Режим расширений: «движок» (MV3 отдаём Chromium через --load-extension,
+// MV2 остаются на ручном внедрении) или «оболочка» (всё внедряем сами).
+// Значение читается из файла рядом с данными: аргумент командной строки
+// фиксируется до старта CEF, поэтому настройку нельзя держать в localStorage.
+bool ExtEngineModeOn() {
+  static const bool on = ExtEngineEnabled(platform::UserDataDir());
+  return on;
+}
+
 std::map<std::string, ExtEntry> g_exts;
 bool g_exts_scanned = false;
+
+// Проверка, что движок действительно ЗАГРУЗИЛ расширение, а не просто получил
+// путь в аргументе: запрашиваем chrome-extension://<id>/manifest.json в том же
+// профиле. Ответ 200 с телом = расширение зарегистрировано движком и его
+// обработчик ресурсов живёт; иначе интерфейс не имеет права писать «загружено».
+// Состояния: 0 — проверка идёт, 1 — движок не подтвердил, 2 — подтверждено.
+std::map<std::string, int> g_ext_probe;
+int g_ext_probe_running = 0;
+bool g_ext_probe_started = false;
+
+class ExtEngineProbe : public CefURLRequestClient {
+ public:
+  explicit ExtEngineProbe(std::string id) : id_(std::move(id)) {}
+
+  void Start(CefRefPtr<CefRequestContext> ctx) {
+    CefRefPtr<CefRequest> req = CefRequest::Create();
+    req->SetURL("chrome-extension://" + id_ + "/manifest.json");
+    req->SetMethod("GET");
+    CefURLRequest::Create(req, this, ctx);
+  }
+
+  void OnRequestComplete(CefRefPtr<CefURLRequest> request) override {
+    const bool ok = request && request->GetRequestStatus() == UR_SUCCESS &&
+                    request->GetResponse() &&
+                    request->GetResponse()->GetStatus() == 200 && !buf_.empty();
+    g_ext_probe[id_] = ok ? 2 : 1;
+    if (g_ext_probe_running > 0) --g_ext_probe_running;
+    if (g_ext_probe_running == 0) Shell::Get().ExtPushList();
+  }
+  void OnUploadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+  void OnDownloadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+  void OnDownloadData(CefRefPtr<CefURLRequest>, const void* data,
+                      size_t data_length) override {
+    if (buf_.size() < 4096)
+      buf_.append(static_cast<const char*>(data), data_length);
+  }
+  bool GetAuthCredentials(bool, const CefString&, int, const CefString&,
+                          const CefString&,
+                          CefRefPtr<CefAuthCallback>) override {
+    return false;
+  }
+
+ private:
+  std::string id_;
+  std::string buf_;
+  IMPLEMENT_REFCOUNTING(ExtEngineProbe);
+};
 
 bool ReadFileStr(const fs::path& path, size_t max_bytes, std::string* out) {
   if (!out || !security::IsRegularFileWithoutLink(path)) return false;
@@ -255,6 +315,17 @@ void LoadExtFromDir(const fs::path& dir) {
   if (e.name.empty()) e.name = e.id;
   if (d->HasKey("version") && d->GetType("version") == VTYPE_STRING)
     e.ver = d->GetString("version").ToString();
+  if (d->HasKey("manifest_version") &&
+      d->GetType("manifest_version") == VTYPE_INT) {
+    e.mv = d->GetInt("manifest_version");
+  }
+  // Движок Chromium 154 грузит только manifest v3 (MV2 в нём отключён), а
+  // аргумент --load-extension фиксируется при запуске процесса.
+  e.engine = ExtEngineModeOn() && e.mv >= 3;
+  {
+    const auto passed = ExtEnginePassedIds();
+    e.passed = std::find(passed.begin(), passed.end(), e.id) != passed.end();
+  }
 
   if (d->HasKey("content_scripts") &&
       d->GetType("content_scripts") == VTYPE_LIST) {
@@ -343,32 +414,67 @@ fs::path ExtRootDir() {
   return fs::path(cache) / "Extensions";
 }
 
+// Каталоги, где могут лежать расширения: кэш глобального контекста (как
+// раньше) плюс обе штатные раскладки профиля — та же логика, что в
+// browser_app.cc при сборке --load-extension. Один и тот же id берётся из
+// первого найденного каталога.
+std::vector<fs::path> ExtScanRoots() {
+  std::vector<fs::path> roots;
+  const fs::path primary = ExtRootDir();
+  if (!primary.empty()) roots.push_back(primary);
+  for (const auto& cand : ExtRootCandidates(platform::UserDataDir())) {
+    const fs::path p = fs::u8path(cand);
+    if (std::find(roots.begin(), roots.end(), p) == roots.end())
+      roots.push_back(p);
+  }
+  return roots;
+}
+
 void ExtEnsureScanned() {
   if (g_exts_scanned) return;
   g_exts_scanned = true;
-  const fs::path root = ExtRootDir();
-  if (root.empty() || !security::IsDirectoryWithoutLink(root)) return;
-  std::error_code ec;
-  fs::directory_iterator it(root, ec);
-  const fs::directory_iterator end;
-  if (ec) return;
   size_t scanned = 0;
-  while (it != end) {
-    const fs::path dir = it->path();
-    const std::string id = dir.filename().string();
-    if (id.rfind("_tmp", 0) != 0 && security::IsSafeProfileId(id) &&
-        security::IsDirectoryWithoutLink(dir)) {
-      if (scanned >= kMaxInstalledExtensions) break;
-      ++scanned;
-      LoadExtFromDir(dir);
+  for (const fs::path& root : ExtScanRoots()) {
+    if (!security::IsDirectoryWithoutLink(root)) continue;
+    std::error_code ec;
+    fs::directory_iterator it(root, ec);
+    const fs::directory_iterator end;
+    if (ec) continue;
+    while (it != end) {
+      const fs::path dir = it->path();
+      const std::string id = dir.filename().string();
+      if (id.rfind("_tmp", 0) != 0 && security::IsSafeProfileId(id) &&
+          security::IsDirectoryWithoutLink(dir) && !g_exts.count(id)) {
+        if (scanned >= kMaxInstalledExtensions) break;
+        ++scanned;
+        LoadExtFromDir(dir);
+      }
+      it.increment(ec);
+      if (ec) break;
     }
-    it.increment(ec);
-    if (ec) return;
+  }
+}
+
+// Запуск проверок для расширений, переданных движку в этом запуске. Один раз
+// за процесс: результат не меняется, а лишние запросы не нужны.
+void ExtStartEngineProbes() {
+  if (g_ext_probe_started) return;
+  g_ext_probe_started = true;
+  CefRefPtr<CefRequestContext> ctx = CefRequestContext::GetGlobalContext();
+  if (!ctx) return;
+  for (const auto& kv : g_exts) {
+    const ExtEntry& e = kv.second;
+    if (!e.engine || !e.passed) continue;
+    g_ext_probe[e.id] = 0;
+    ++g_ext_probe_running;
+    CefRefPtr<ExtEngineProbe> probe = new ExtEngineProbe(e.id);
+    probe->Start(ctx);
   }
 }
 
 std::string BuildExtListJson() {
   ExtEnsureScanned();
+  ExtStartEngineProbes();
   std::ostringstream os;
   os << "{\"list\":[";
   bool first = true;
@@ -378,9 +484,20 @@ std::string BuildExtListJson() {
     first = false;
     os << "{\"id\":" << JsString(e.id) << ",\"name\":" << JsString(e.name)
        << ",\"ver\":" << JsString(e.ver) << ",\"path\":" << JsString(e.path)
-       << ",\"cs\":" << e.scripts.size() << "}";
+       << ",\"mv\":" << e.mv << ",\"engine\":" << (e.engine ? "true" : "false")
+       << ",\"passed\":" << (e.passed ? "true" : "false")
+       << ",\"probe\":\"";
+    const auto probe = g_ext_probe.find(e.id);
+    if (!e.engine || !e.passed) {
+      os << "none";
+    } else if (probe == g_ext_probe.end() || probe->second == 0) {
+      os << "pending";
+    } else {
+      os << (probe->second == 2 ? "ok" : "fail");
+    }
+    os << "\",\"cs\":" << e.scripts.size() << "}";
   }
-  os << "]}";
+  os << "],\"mode\":\"" << (ExtEngineModeOn() ? "engine" : "shell") << "\"}";
   return os.str();
 }
 
@@ -393,6 +510,11 @@ void InjectExtScripts(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
   if (url.empty() || url == "about:blank") return;
   const bool is_main_frame = frame->IsMain();
   for (const auto& kv : g_exts) {
+    // Расширение уже отдано движку (--load-extension) — его content-scripts
+    // внедряет Chromium, повторно внедрять нельзя: скрипт выполнился бы дважды.
+    // Пока движок его не взял (установлено в этой сессии, подхватится при
+    // следующем запуске), работает ручное внедрение — расширение не простаивает.
+    if (kv.second.engine && kv.second.passed) continue;
     for (const auto& cs : kv.second.scripts) {
       if (cs.at_start != start_phase) continue;
       // Подфреймы получают скрипты только при all_frames: true — как в Chromium.
@@ -1502,6 +1624,22 @@ void Shell::SetWindowFullscreen(bool on) {
 void Shell::ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb) {
   CEF_REQUIRE_UI_THREAD();
   cb->Success(BuildExtListJson());
+}
+
+void Shell::ExtSetMode(bool engine,
+                       CefRefPtr<CefMessageRouterBrowserSide::Callback> cb) {
+  CEF_REQUIRE_UI_THREAD();
+  // Текущий режим процесса читаем ДО записи: ExtEngineModeOn() кешируется на
+  // первый вызов, иначе после записи мы увидели бы уже новое значение и
+  // потеряли признак «нужен перезапуск».
+  const bool before = ExtEngineModeOn();
+  const bool ok = ExtEngineSetEnabled(platform::UserDataDir(), engine);
+  const bool changed = ok && before != engine;
+  std::ostringstream os;
+  os << "{\"ok\":" << (ok ? "true" : "false")
+     << ",\"mode\":\"" << (engine ? "engine" : "shell") << "\""
+     << ",\"restart\":" << (changed ? "true" : "false") << "}";
+  cb->Success(os.str());
 }
 
 void Shell::ExtPushList() {

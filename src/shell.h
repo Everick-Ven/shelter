@@ -203,6 +203,11 @@ class Shell {
 
   // ---- расширения (Chrome Web Store / .crx) ----
   void ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
+  // Режим расширений: «движок Chromium» (MV3 через --load-extension) или
+  // «оболочка» (ручное внедрение content-scripts). Смена режима действует со
+  // следующего запуска: аргумент командной строки фиксируется до старта CEF.
+  void ExtSetMode(bool engine,
+                  CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
   void ExtInstall(const std::string& src);
   void ExtRemove(const std::string& id);
   void ExtPick();

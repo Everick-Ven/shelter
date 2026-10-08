@@ -640,6 +640,10 @@
     extInstall: function (src) { return q('ext.install', { src: String(src || '') }); },
     extRemove: function (id) { return q('ext.remove', { id: String(id || '') }); },
     extPick: function () { return q('ext.pick'); },
+    // Режим расширений: «движок Chromium» (MV3 через --load-extension) или
+    // «оболочка» (ручное внедрение content-scripts). Действует со следующего
+    // запуска — аргумент командной строки фиксируется до старта CEF.
+    extSetMode: function (engine) { return q('ext.setMode', { engine: !!engine }); },
     fileOpen: function () { return q('file.open'); },  // Ctrl+O: диалог ОС -> file-open
     devTools: function (msg) { return q('devtools', msg || {}); },  // окно DevTools (F12 / ⇧⌘I)
     // authWindow намеренно не определён: вёрстка использует запасной путь.

@@ -6,6 +6,7 @@
 
 #include "include/cef_command_line.h"
 #include "include/wrapper/cef_helpers.h"
+#include "src/extension_engine.h"
 #include "src/platform.h"
 #include "src/protection_flags.h"
 #include "src/security_paths.h"
@@ -27,6 +28,27 @@ void BrowserApp::OnBeforeCommandLineProcessing(
   if (!platform::RunTimed([] { return platform::EnsureCookieKeychain(); }, 3000))
     command_line->AppendSwitch("use-mock-keychain");
 #endif
+  // Расширения: CEF вырезал embedder-API расширений (CefRequestContext::
+  // LoadExtension), поэтому пакеты, распакованные оболочкой, отдаём движку
+  // штатным аргументом Chromium — ExtensionService читает его при
+  // инициализации профиля (для небрендированных сборок это разрешено).
+  // Список фиксируется здесь, до старта CEF: только что установленное
+  // расширение подхватится при следующем запуске (в интерфейсе это написано,
+  // а факт загрузки оболочка проверяет отдельно — chrome-extension://…).
+  // MV2 не передаём: политика Chromium 154 их отключает, такие пакеты
+  // остаются на ручном внедрении content-scripts.
+  {
+    const std::string root = platform::UserDataDir();
+    if (!root.empty() && ExtEngineEnabled(root)) {
+      const auto dirs = ExtEngineCollectDirs(
+          ExtRootCandidates(root), kMaxEngineExtensions);
+      const std::string value = BuildLoadExtensionValue(dirs);
+      if (!value.empty()) {
+        command_line->AppendSwitchWithValue("load-extension", value);
+        ExtEnginePassed() = dirs;
+      }
+    }
+  }
   // Приватный браузер: без фоновых служб Google.
   command_line->AppendSwitch("disable-background-networking");
   command_line->AppendSwitch("disable-sync");

@@ -212,6 +212,10 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     ExtList(cb);
     return true;
   }
+  if (m == "ext.setMode") {
+    ExtSetMode(Flag(a, "engine", true), cb);
+    return true;
+  }
   if (m == "ext.install") {
     ExtInstall(Str(a, "src"));
     cb->Success("{}");

@@ -10222,8 +10222,15 @@ function applyGfx(deferHeavy) {
       try { Hero.clear(); } catch (_) {}
     }
   };
-  if (deferHeavy) requestAnimationFrame(heavy);
-  else heavy();
+  if (deferHeavy) {
+    let done = false;
+    const run = () => { if (done) return; done = true; heavy(); };
+    requestAnimationFrame(run);
+    /* Кадр может не прийти вовсе — окно свёрнуто или скрыто, удалённый
+       раннер без композитора. Тогда режим остался бы применённым наполовину
+       (например, reduce-motion без glow-off), поэтому страхуемся таймером. */
+    setTimeout(run, 50);
+  } else heavy();
 }
 function setGfxMode(value, options = {}) {
   const gfx = ['beauty', 'balance', 'perf'].includes(value) ? value : 'balance';

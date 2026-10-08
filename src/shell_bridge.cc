@@ -11,6 +11,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "src/blocker.h"
 #include "src/clients.h"
+#include "src/color_scheme.h"
 #include "src/common.h"
 #include "src/platform.h"
 #include "src/shell.h"
@@ -421,7 +422,11 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
   if (m == "theme.scheme") {
-    platform::SetColorScheme(Str(a, "mode") != "light");
+    const bool dark = ColorSchemeDarkFromMode(Str(a, "mode"));
+    platform::SetColorScheme(dark);
+    // Тема интерфейса сообщается и Chromium: от режима зависят
+    // prefers-color-scheme на страницах, скроллбары и элементы управления.
+    SetColorSchemeAll(dark);
     cb->Success("{}");
     return true;
   }

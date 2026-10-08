@@ -34,6 +34,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "src/clients.h"
 #include "src/blocker.h"
+#include "src/color_scheme.h"
 #include "src/common.h"
 #include "src/extension_engine.h"
 #include "src/extension_match.h"
@@ -927,11 +928,33 @@ bool Shell::ContextReady(const std::string& partition) const {
   return it != context_ready_.end() && it->second;
 }
 
+void Shell::SetColorSchemeAll(bool dark) {
+  CEF_REQUIRE_UI_THREAD();
+  dark_scheme_ = dark;
+  const cef_color_variant_t variant =
+      dark ? CEF_COLOR_VARIANT_DARK : CEF_COLOR_VARIANT_LIGHT;
+  // Тема общая для окна, а цветовая схема в Chromium живёт в контексте запросов
+  // (у каждого пространства свой) — обновляем все, включая глобальный.
+  for (auto& kv : contexts_) {
+    if (kv.second) kv.second->SetChromeColorScheme(variant, 0);
+  }
+  if (CefRefPtr<CefRequestContext> global =
+          CefRequestContext::GetGlobalContext()) {
+    global->SetChromeColorScheme(variant, 0);
+  }
+}
+
 void Shell::OnContextReady(const std::string& partition) {
   CEF_REQUIRE_UI_THREAD();
   auto ready = context_ready_.find(partition);
   if (ready == context_ready_.end()) return;  // контекст уже выброшен
   ready->second = true;
+  // Новый контекст (например, первое открытие пространства) получает текущую
+  // тему приложения, иначе страницы в нём считали бы схему системной.
+  if (auto ctx = contexts_.find(partition); ctx != contexts_.end()) {
+    ctx->second->SetChromeColorScheme(
+        dark_scheme_ ? CEF_COLOR_VARIANT_DARK : CEF_COLOR_VARIANT_LIGHT, 0);
+  }
   // Профиль инициализирован — применяем шифрованный DNS, если он включён
   // (каждое пространство получает свою копию настроек профиля).
   auto ctx = contexts_.find(partition);

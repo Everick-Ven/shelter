@@ -171,6 +171,11 @@ class Shell {
     return protection_flags_.load(std::memory_order_relaxed);
   }
 
+  // Цветовая схема Chromium для всех контекстов (тема интерфейса). Вызывается
+  // из моста theme.scheme и при инициализации каждого нового контекста, чтобы
+  // страницы получали prefers-color-scheme темы, а не системной схемы.
+  void SetColorSchemeAll(bool dark);
+
   // HTTPS-only + DoH: настройка из UI («Безопасный HTTPS + приватный DNS»)
   // и применение шифрованного DNS ко всем готовым контекстам (сессиям).
   void SetHttpsOnlyEnabled(bool on);
@@ -312,6 +317,9 @@ class Shell {
   // Включено ли автосогласие cookies (по умолчанию — да: пользователь не
   // должен видеть баннер согласия вообще).
   bool auto_consent_enabled_ = true;
+  // Текущая тема приложения в терминах Chromium (тёмная/светлая). Хранится,
+  // чтобы новые контексты (пространства) получали ту же схему, а не системную.
+  bool dark_scheme_ = false;
   // Те же два состояния в одном atomic: значение читает IO-поток, когда
   // запускает GPU-процесс (для render-процессов вызов идёт с UI-потока).
   std::atomic<int> protection_flags_{2};  // бит 1: анти-отпечаток, бит 2: cookies

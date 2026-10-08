@@ -1073,6 +1073,10 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .prot-row .tx{flex:1;min-width:0}
 .prot-row .tx b{display:block;font-size:13px;font-weight:600}
 .prot-row .tx span{display:block;font-size:11.5px;color:var(--text-3)}
+/* Попап «Защита» (иконка щита в тулбаре): строки те же, что в карточке дашборда. */
+.prot-pop{width:340px;padding:10px 14px 12px}
+.ext-pop .ext-ico{flex:none}
+.ext-pop .mi .lb{white-space:normal}
 .meter{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--card-2);border:1px solid var(--line)}
 .meter .pbar{flex:1;height:8px}
 
@@ -3302,10 +3306,10 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
         <div class="suggest" id="tbSuggest" hidden></div>
       </div>
       <div class="tb-g tb-actions" style="gap:6px">
-        <div class="tb-ctls" id="ctlGrid" role="group" aria-label="Защита"></div>
-        <button class="tb-btn" id="schemeModeBtn" data-act="schemeMode" data-tip="Переключить на светлую тему" aria-label="Переключить цветовую схему" aria-pressed="true"><svg class="i"><use href="#i-moon"/></svg></button>
-        <div class="tb-g hide-sm" id="extBar"></div>
+        <div class="tb-ctls" id="ctlGrid" role="group" aria-label="Удаление сессий"></div>
+        <button class="tb-btn" id="extBtn" data-act="extList" data-tip="Расширения" aria-label="Расширения"><svg class="i"><use href="#i-puzzle"/></svg></button>
         <button class="tb-btn" id="quickBtn" data-act="quick" data-tip="Оформление и вкладки" aria-label="Оформление и вкладки"><svg class="i"><use href="#i-sliders"/></svg></button>
+        <button class="tb-btn" id="protBtn" data-act="prot" data-tip="Защита" aria-label="Защита"><svg class="i"><use href="#i-shield-check"/></svg></button>
         <button class="tb-btn" id="settingsBtn" data-act="settings" data-tip="Настройки  ⌘," aria-label="Настройки"><svg class="i"><use href="#i-gear"/></svg></button>
         <button class="tb-btn" id="moreBtn" data-act="more" data-tip="Меню" aria-label="Меню"><svg class="i"><use href="#i-dots"/></svg></button>
         <div class="wctl" id="winCtl" hidden role="group" aria-label="Управление окном">
@@ -3991,7 +3995,7 @@ const PREF_DEFAULTS = {
   ruca: true, rucaupd: true, gostbadge: true,
   pinnedProtect: true, dragTabs: true, hoverPreview: false, lazyTabs: true, memSaver: true,
   suggestHistory: true, checkUpdates: true, startup: 'ntp', dns: 'cf', lang: 'ru', motion: 'full', glow: true, gfx: 'balance', askDownload: false,
-  menuAdapt: true, menuDev: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true, persets: {}, cleanSurf: false, glassOp: 82,
+  menuAdapt: true, menuDev: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true, persets: {}, cleanSurf: false, glassOp: 82, radius: 16,
   uiScale: 100, fontScaleI: 100, fontScaleD: 100, fontScaleM: 100,
   glowMode: 'theme', glowColor: '#5E8BFF', glowIntensity: 45, glowSat: 60
 };
@@ -4840,7 +4844,7 @@ function applyCleanSurf(on) {
 }
 function applyPers() {
   const qb = document.getElementById('quickBtn'); if (qb) qb.hidden = S.prefs.tbQuick === false;
-  const eb = document.getElementById('extBar'); if (eb) eb.hidden = S.prefs.tbExt === false;
+  const eb = document.getElementById('extBtn'); if (eb) eb.hidden = S.prefs.tbExt === false;
   document.body.classList.toggle('no-badges', S.prefs.sbBadges === false);
 }
 function persMatch(set) { return PERS_K.every(k => !!set[k] === !!S.prefs[k]); }
@@ -4945,6 +4949,9 @@ function cancelThemeMotion(finishPending = false) {
     T[k] = 0;
   });
   if (T.vt) {
+    /* skipTransition() отклоняет vt.ready() (AbortError). Обработчик вешаем до
+       отмены: иначе быстрая смена темы даёт необработанный отказ промиса. */
+    try { if (T.vt.ready && T.vt.ready.catch) T.vt.ready.catch(() => {}); } catch (_) {}
     try { if (T.vt.skipTransition) T.vt.skipTransition(); } catch (_) {}
   }
   T.vt = null;
@@ -5061,23 +5068,21 @@ function schemeThemeFor(mode) {
   const key = mode === 'light' ? S.ui.schemeLightTheme : S.ui.schemeDarkTheme;
   return THEMES[key] ? key : fallback;
 }
-function schemeSetMode(mode) {
+function schemeSetMode(mode, origin) {
   const target = schemeThemeFor(mode === 'light' ? 'light' : 'dark');
-  if (target !== S.theme) setTheme(target); else { try { syncWebScheme(); } catch (_) {} }
+  /* origin нужен, чтобы переключение из панели «Оформление и вкладки» не
+     закрывало саму панель: setTheme закрывает меню только для чужих кликов. */
+  if (target !== S.theme) setTheme(target, origin); else { try { syncWebScheme(); } catch (_) {} }
   toast('Режим: ' + (target && THEMES[target].kind === 'Светлая' ? 'светлый' : 'тёмный') + ' · тема «' + THEMES[target].name + '»', { icon: THEMES[target].kind === 'Светлая' ? 'sun' : 'moon' });
 }
 function schemeToggleMode() { schemeSetMode(schemeModeNow() === 'dark' ? 'light' : 'dark'); }
 function syncSchemeBtn() {
-  const dark = schemeModeNow() === 'dark';
-  const button = document.getElementById('schemeModeBtn');
-  if (!button) return;
-  button.setAttribute('aria-pressed', String(dark));
-  button.setAttribute('aria-label', dark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему');
-  button.setAttribute('data-tip', dark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему');
-  const use = button.querySelector('use');
-  if (use) use.setAttribute('href', dark ? '#i-moon' : '#i-sun');
+  /* Кнопки «Светлый / Тёмный» живут в панели «Оформление и вкладки» и в
+     настройках — держим их состояние по текущей теме. */
+  const mode = schemeModeNow();
+  $$('.seg[data-seg="schemeMode"]').forEach(seg => setSegValue(seg, mode));
 }
-SEG.schemeMode = v => schemeSetMode(v);
+SEG.schemeMode = (v, btn) => schemeSetMode(v, btn);
 SEG.schemeDark = v => {
   if (!THEMES[v] || THEMES[v].kind !== 'Тёмная') return;
   S.ui.schemeDarkTheme = v; persist();
@@ -5229,16 +5234,10 @@ function updateNavActive(page) {
 function blocksDay(k) { return S.blocks[k] || { t: 0, a: 0, c: 0, f: 0, h: 0, s: 0 }; }
 function todayBlocked() { const b = blocksDay(dayKey(Date.now())); return b.t + b.a + b.c + b.f + (b.h || 0) + (b.s || 0); }
 function renderControls() {
-  const tiles = [
-    ['ghost', 'ghost', 'Призрак — приватный режим\nНичего не сохраняется: история, cookies и входы на сайтах стираются сразу, как только вы закроете вкладку. Сайты вас «не запомнят».'],
-    ['trackers', 'shield', 'Блокировка трекеров и рекламы\nОтключает рекламные вставки и счётчики, которые следят, что вы смотрите и куда ходите. Страницы грузятся быстрее, вас сложнее вычислить.'],
-    ['https', 'lock', 'Безопасный HTTPS + приватный DNS\nЕсли сайт открывается по незащищённому http://, SHELTER сам переключит на https://. DNS-запросы (куда идёт адрес сайта) шифруются — оператор связи их не видит.'],
-    ['fp', 'finger', 'Анти-отпечаток\nСайты узнают вас по «отпечатку» браузера (шрифты, экран, карта). Эта кнопка немного меняет эти данные, чтобы вас было сложнее узнать и отследить без cookies.'],
-    ['cookies', 'cookie', 'Автосогласие cookies\nОкно согласия подтверждается само: только необходимые (технические) cookies, до первого кадра — баннер никогда не появляется перед вами.']
-  ];
+  /* Переключатели защиты переехали в попап щита, а «Удалить сессии» остаётся
+     плиткой в тулбаре — в том же виде, в каком были кнопки защит. */
   const g = $('#ctlGrid'); if (!g) return;
-  g.innerHTML = tiles.map(t => `<button class="ctl" data-sw="${t[0]}" data-tip="${t[2]}" data-tip-always="1" data-tip-pos="top" aria-label="${t[2].split('\n')[0]}">${ico(t[1])}</button>`).join('')
-    + `<button class="ctl fire" data-act="fire" data-tip="Удалить сессии\nНажмите — и все входы, cookies и данные сайтов будут стёрты во всех пространствах, будто вы заходили в чужой компьютер. Готовые пространства с пометкой «сессии хранятся» не трогаются." data-tip-always="1" data-tip-pos="top" aria-label="Удалить сессии">${ico('flame')}</button>`;
+  g.innerHTML = `<button class="ctl fire" data-act="fire" data-tip="Удалить сессии\nНажмите — и все входы, cookies и данные сайтов будут стёрты во всех пространствах, будто вы заходили в чужой компьютер. Готовые пространства с пометкой «сессии хранятся» не трогаются." data-tip-always="1" data-tip-pos="top" aria-label="Удалить сессии">${ico('flame')}</button>`;
   syncControls(); syncSchemeBtn();
 }
 function syncControls() {
@@ -5685,12 +5684,8 @@ function updateToolbar() {
   star.innerHTML = ico('star', bm ? 'fill' : ''); star.style.color = bm ? 'rgb(var(--ga))' : '';
   star.hidden = m.kind === 'internal';
   const sn = $('#shieldN'); if (sn) sn.textContent = fmtN(todayBlocked());
-  renderExtBar();
 }
 function omniValue(t) { const m = urlMeta(t.url); return m.kind === 'internal' ? (m.page === 'start' ? '' : 'shelter://' + m.page + (m.q ? '?q=' + m.q : '')) : t.url; }
-function renderExtBar() {
-  $('#extBar').innerHTML = S.ext.filter(e => e && e.name && e.on !== false).slice(0, 3).map(e => { const c = e.c || hostColor(e.id || e.name), l = e.l || (e.name || '?').slice(0, 1).toUpperCase(); return `<button class="ext-ico" data-act="extPop" data-id="${esc(e.id)}" data-tip="${esc(e.name)}"><span style="background:${esc(c)}">${esc(l)}</span></button>`; }).join('');
-}
 
 const SG = { tb: { box: '#tbSuggest', items: [], hl: -1, q: '' }, hero: { box: '#heroSuggest', items: [], hl: -1, q: '' } };
 function buildSuggestions(q) {
@@ -6715,9 +6710,10 @@ function protHtml() {
     <div class="meter"><span style="font-size:12.5px;color:var(--text-2)">Уровень защиты</span><div class="pbar"><i id="protBar" style="--w:${lvl}%;transition:width .7s var(--ease)"></i></div><b class="num" id="protVal">${lvl}%</b></div>`;
 }
 DASH.protUpdate = () => {
-  if (!$('#protChip')) return;
+  /* Строки «Защиты» есть и в попапе щита, и на дашборде — состояние ведём в обоих. */
   $$('.prot-row').forEach(r => r.classList.toggle('on', swState(r.dataset.prot)));
-  const lvl = protLevel(), chip = $('#protChip');
+  const chip = $('#protChip'); if (!chip) return;
+  const lvl = protLevel();
   chip.className = 'chip ' + (lvl >= 80 ? 'up' : lvl >= 55 ? 'warn' : 'down'); chip.textContent = lvl >= 80 ? 'Высокая' : lvl >= 55 ? 'Средняя' : 'Низкая';
   $('#protBar').style.width = lvl + '%'; $('#protVal').textContent = lvl + '%';
 };
@@ -8670,6 +8666,22 @@ function extInstallSrc(src, btn) {
   Promise.resolve(NAT && NAT.extInstall ? NAT.extInstall(src) : null).then(() => { if (btn) btn.disabled = false; });
   toast('Запрашиваю пакет расширения…', { icon: 'puzzle' });
 }
+/* «Защита» — попап иконки щита: те же строки, что в карточке «Защита» на
+   дашборде (PROT_ROWS), с их иконками и переключателями. */
+function protPop(anchor) {
+  openMenu(anchor, null, { place: 'bottom-end', cls: 'pop prot-pop', html:
+    PROT_ROWS.map(r => `<div class="prot-row ${swState(r[0]) ? 'on' : ''}" data-prot="${r[0]}"><span class="ic">${ico(r[1])}</span><div class="tx"><b>${r[2]}</b><span>${r[3]}</span></div>${swHtml(r[0], swState(r[0]))}</div>`).join('') });
+}
+/* «Расширения» — попап иконки-пазла: все установленные расширения списком;
+   щелчок по строке открывает то же меню расширения, что и раньше (extPop). */
+function extListPop(anchor) {
+  const list = S.ext.filter(e => e && e.id && e.name);
+  openMenu(anchor, null, { place: 'bottom-end', cls: 'pop ext-pop', html:
+    `<div class="pop-h"><span class="ic">${ico('puzzle')}</span><div><b>Расширения</b><span>${list.length ? list.length + ' ' + plural(list.length, ['расширение', 'расширения', 'расширений']) : 'ничего не установлено'}</span></div></div>`
+    + (list.length ? list.map(e => { const m = extMeta(e); return `<button class="mi tall" data-act="extPop" data-id="${esc(e.id)}"><span class="ext-ico"><span style="background:${esc(m.c)}">${esc(m.l)}</span></span><span class="lb">${esc(e.name)}<span class="sub">${e.ver ? 'v' + esc(e.ver) + ' · ' : ''}расширение Chromium</span></span></button>`; }).join('')
+      : `<div class="ext-none">Расширения не установлены</div>`)
+    + `<div class="msep"></div><button class="mi" data-act="page" data-page="extensions"><span class="lb">Все расширения</span>${ico('ext')}</button>` });
+}
 function extPop(anchor) {
   const e = S.ext.find(x => x.id === anchor.dataset.id); if (!e) return;
   const m = extMeta(e);
@@ -8681,7 +8693,7 @@ function applyExtList(list) {
   const clean = list.filter(x => x && x.id && x.name);
   const sig = JSON.stringify(clean.map(x => [x.id, x.name, x.ver || '']));
   if (sig === S.__extSig) return;
-  S.__extSig = sig; S.ext = clean; persist(); renderExtBar();
+  S.__extSig = sig; S.ext = clean; persist();
   const pg = curTab() && urlMeta(curTab().url).page;
   if (pg === 'extensions') refreshPage('extensions');
 }
@@ -10001,7 +10013,7 @@ function openSettings(sec) {
       <section class="set-sec" id="set-look"><h4>Внешний вид</h4>
         <div class="theme-cards">${THEME_ORDER.map(k => { const t = THEMES[k]; return `<button class="tcard ${k === S.theme ? 'on' : ''}" data-act="theme" data-theme="${k}" style="--p-bg:${t.sw[0]};--p-a:${t.sw[1]};--p-b:${t.sw[2]};--p-bar:${t.bar}"><div class="tprev"><i></i></div><b>${t.name}</b><small>${t.kind}</small></button>`; }).join('')}</div>
         <div class="set-card" style="margin-top:12px">
-          ${row('Режим браузера', 'Светлая или тёмная тема — та же кнопка в панели иконок окна', segHtml('schemeMode', [['light', 'Светлый'], ['dark', 'Тёмный']], schemeModeNow(), 'sm'))}
+          ${row('Режим браузера', 'Светлая или тёмная тема — переключатель также в панели «Оформление и вкладки»', segHtml('schemeMode', [['light', 'Светлый'], ['dark', 'Тёмный']], schemeModeNow(), 'sm'))}
           ${row('Тёмная тема', 'Какая тема применяется в тёмном режиме', segHtml('schemeDark', [['obsidian', 'Обсидиан'], ['amethyst', 'Аметист']], schemeThemeFor('dark'), 'sm'))}
           ${row('Светлая тема', 'Какая тема применяется в светлом режиме', segHtml('schemeLight', [['ivory', 'Слоновая кость'], ['porcelain', 'Фарфор']], schemeThemeFor('light'), 'sm'))}
           ${row('Боковая панель', kb('⌘\\ — свернуть или развернуть'), segHtml('sidebar', [['full', 'Развёрнута'], ['rail', 'Компактная']], $('#app').classList.contains('collapsed') ? 'rail' : 'full', 'sm'))}
@@ -10360,6 +10372,17 @@ SEG.glowMode = v => {
   persist(); applyGlowPrefs();
 };
 function applyGlassOp() { document.documentElement.style.setProperty('--glass-op', clamp(+S.prefs.glassOp || 82, 40, 100)); }
+/* Скругления: ползунок задаёт радиус карточек (--r-m), остальные ступени
+   держат ту же разницу, что и исходные токены (16/20/26/12/9). */
+function applyRadius() {
+  const v = clamp(Math.round(+S.prefs.radius || 16), 10, 30);
+  const st = document.documentElement.style;
+  st.setProperty('--r-m', v + 'px');
+  st.setProperty('--r-l', (v + 4) + 'px');
+  st.setProperty('--r-xl', (v + 10) + 'px');
+  st.setProperty('--r-s', Math.max(2, v - 4) + 'px');
+  st.setProperty('--r-xs', Math.max(2, v - 7) + 'px');
+}
 SEG.tabView = v => { S.ui.tabView = v === 'tiles' ? 'tiles' : 'list'; persist(); syncQuickPanel(true); refreshPage('tabs'); };
 SEG.tabPos = v => { S.ui.tabPos = ['left', 'top', 'right', 'bottom'].includes(v) ? v : 'left'; applyTabPos(); persist(); toast('Вкладки: ' + ({ left: 'слева', top: 'сверху', right: 'справа', bottom: 'снизу' })[S.ui.tabPos], { icon: 'grid' }); };
 SEG.bmPos = v => { S.ui.bmPos = ['top', 'center', 'bottom'].includes(v) ? v : 'center'; persist(); applyBmPos(); toast('Закладки: ' + ({ top: 'сверху', center: 'по центру', bottom: 'снизу' })[S.ui.bmPos], { icon: 'star' }); };
@@ -10672,7 +10695,8 @@ function quickPanelHtml() {
   const bmPos = ['top', 'center', 'bottom'].includes(S.ui.bmPos) ? S.ui.bmPos : 'center';
   const glassOp = clamp(+S.prefs.glassOp || 82, 40, 100);
   const shownOp = isPerf ? 100 : glassOp;
-  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}<div class="q-row ${isPerf ? 'is-disabled' : ''}" id="qGlowRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Свечение</div>${swHtml('glow', S.prefs.glow !== false, isPerf)}</div></div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec q-theme-sec" id="quickThemeSec"><div class="q-h">Цветовая тема</div>${themeSwatchesMarkup()}</div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
+  const radius = clamp(Math.round(+S.prefs.radius || 16), 10, 30);
+  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}<div class="q-row ${isPerf ? 'is-disabled' : ''}" id="qGlowRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Свечение</div>${swHtml('glow', S.prefs.glow !== false, isPerf)}</div></div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec"><div class="q-row"><div class="q-h">Скругления углов</div><b class="q-val" id="radiusVal">${radius}px</b></div><input type="range" class="rng" id="radiusRange" min="10" max="30" step="1" value="${radius}" aria-label="Скругления углов"></div><div class="q-sec">${segHtml('schemeMode', [['light', 'Светлый'], ['dark', 'Тёмный']], schemeModeNow(), 'sm fill')}</div><div class="q-sec q-theme-sec" id="quickThemeSec"><div class="q-h">Цветовая тема</div>${themeSwatchesMarkup()}</div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
 }
 function syncQuickPanel(full) {
   const el = OV.menu && OV.menu.el;
@@ -10715,6 +10739,14 @@ function quickPanel(anchor) {
   }, true);
   const persistSoon = debounce(persist, 250);
   el.addEventListener('input', e => {
+    const radiusR = e.target.closest('#radiusRange');
+    if (radiusR) {
+      const v = clamp(Math.round(+radiusR.value) || 16, 10, 30);
+      S.prefs.radius = v; applyRadius();
+      const lbl = el.querySelector('#radiusVal'); if (lbl) lbl.textContent = v + 'px';
+      persistSoon();
+      return;
+    }
     const glassR = e.target.closest('#glassOpRange');
     if (!glassR || glassR.disabled || S.prefs.gfx === 'perf') return;
     const v = clamp(+glassR.value || 82, 40, 100);
@@ -10851,12 +10883,14 @@ const ACT = {
   pwDel: async el => { const p = S.passwords.find(x => x.id === el.dataset.id); if (!p) return; if (await confirmDlg({ title: 'Удалить пароль для ' + p.site + '?', ok: 'Удалить', danger: true, icon: 'key' })) { S.passwords = S.passwords.filter(x => x !== p); persist(); refreshPage('passwords'); } },
   pwGen: () => pwGenModal(), pwAdd: () => pwAddModal(),
   pwFix: () => { let n = 0; S.passwords.forEach(p => { if (p.strength < 2) { p.pass = genPassword(18); p.strength = 3; n++; } }); persist(); refreshPage('passwords'); toast('Усилено паролей: ' + n + ' · обновите их на сайтах', { icon: 'shield-check' }); },
+  prot: el => protPop(el),
+  extList: el => extListPop(el),
   extPop: el => extPop(el),
   extStore: () => { addTab(CWS_URL); toast('Chrome Web Store открыт в новой вкладке', { icon: 'globe' }); },
   extPick: () => { if (NAT && NAT.extPick) NAT.extPick(); else toast('Установка из файла доступна в сборке Shelter', { icon: 'file' }); },
   extInstallSrc: el => extInstallSrc(($('#extSrc') || {}).value, el),
   extPage: el => { if (el.dataset.id) addTab(CWS_URL + 'detail/' + el.dataset.id); },
-  extRemove: async el => { const e = S.ext.find(x => x.id === el.dataset.id); if (!e) return; if (await confirmDlg({ title: 'Удалить «' + e.name + '»?', ok: 'Удалить', danger: true, icon: 'puzzle' })) { S.ext = S.ext.filter(x => x.id !== el.dataset.id); S.__extSig = ''; persist(); renderExtBar(); refreshPage('extensions'); if (NAT && NAT.extRemove) NAT.extRemove(el.dataset.id); } },
+  extRemove: async el => { const e = S.ext.find(x => x.id === el.dataset.id); if (!e) return; if (await confirmDlg({ title: 'Удалить «' + e.name + '»?', ok: 'Удалить', danger: true, icon: 'puzzle' })) { S.ext = S.ext.filter(x => x.id !== el.dataset.id); S.__extSig = ''; persist(); refreshPage('extensions'); if (NAT && NAT.extRemove) NAT.extRemove(el.dataset.id); } },
   deepAsk: el => navigate('shelter.dev/deepthink?q=' + encodeURIComponent(el.dataset.q)),
   aiModel: async () => { const r = await agentDlg(); if (r) renderHeroBits(); },
   agentApi: async () => { const r = await agentDlg(); if (r) { renderHeroBits(); refreshPage('deepthink'); } },
@@ -11150,7 +11184,7 @@ window.shelter = { version: VERSION, theme: k => setTheme(k), ghost: () => toggl
 function init() {
   load();
   document.documentElement.setAttribute('data-theme', S.theme);
-  applyGfx(); applyGlassOp(); applyGlowPrefs(); installFontScale();
+  applyGfx(); applyGlassOp(); applyRadius(); applyGlowPrefs(); installFontScale();
   const app = $('#app');
   if (S.ui.collapsed || (innerWidth < 980 && innerWidth > 720)) app.classList.add('collapsed');
   const _sbk = document.querySelector('.sb-search .kbd'); if (_sbk) _sbk.textContent = kb(_sbk.textContent);

@@ -1,9 +1,9 @@
 // Регрессия панели настроек и тулбара.
 //
 // Что стережём (каждое — уже случавшаяся или почти случившаяся поломка):
-//   1) иконка автосогласия cookies живёт в тулбаре рядом с остальными
-//      защитными переключателями — кнопку нельзя потерять при правках
-//      разметки тулбара;
+//   1) все переключатели защит (включая автосогласие cookies) живут в попапе
+//      иконки щита в тулбаре — при правках разметки нельзя потерять ни саму
+//      иконку, ни одну из строк PROT_ROWS, ни плитку «Удалить сессии»;
 //   2) в списке настроек строка «Автосогласие cookies» идёт без иконки —
 //      переключатель остаётся, значок убираем;
 //   3) переход по разделам настроек мгновенный: плавная прокрутка на пять
@@ -37,17 +37,22 @@ const cut = (from, to) => {
   return html.slice(i, j < 0 ? html.length : j);
 };
 
-// 1. Тулбар: список плиток защиты.
-const tiles = cut('const tiles = [', '];\n  const g = $(\'#ctlGrid\')');
-check('тулбар защитных переключателей найден', tiles.length > 0, tiles.length + ' символов');
-for (const key of ['ghost', 'trackers', 'https', 'fp', 'cookies']) {
-  check('в тулбаре есть переключатель «' + key + '»', new RegExp("\\['" + key + "', '").test(tiles));
+// 1. Тулбар: плитки-переключатели защит переехали в попап щита (#protBtn),
+//    в тулбаре остаётся только плитка «Удалить сессии». Проверяем, что ни один
+//    переключатель не потерялся: попап щита обязан собрать все строки PROT_ROWS.
+const grid = cut("const g = $('#ctlGrid')", 'function syncControls');
+check('плитка «Удалить сессии» рисуется в тулбаре', /class="ctl fire"/.test(grid) && /data-act="fire"/.test(grid), grid.length + ' символов');
+check('в тулбаре не осталось плиток-переключателей защит', grid.length > 0 && !/data-sw/.test(grid) && !/const tiles = \[/.test(html));
+const shieldBtn = cut('<button class="tb-btn" id="protBtn"', '</button>');
+check('иконка щита в тулбаре открывает попап защит', shieldBtn.length > 0 && /data-act="prot"/.test(shieldBtn));
+const pop = cut('function protPop(anchor) {', '/* «Расширения»');
+check('попап щита собирает строки защит из PROT_ROWS', pop.length > 0 && /PROT_ROWS\.map/.test(pop), pop.length + ' символов');
+const protRows = cut('const PROT_ROWS = [', '\nfunction protHtml');
+for (const key of ['trackers', 'cookies', 'https', 'fp', 'strict', 'ghost']) {
+  check('в попапе щита есть переключатель «' + key + '»', new RegExp("\\['" + key + "', '").test(protRows));
 }
-check('плитка cookies замыкает ряд защитных переключателей, огонь — после неё',
-  tiles.indexOf("['cookies', 'cookie',") > tiles.indexOf("['fp', 'finger',") &&
-  tiles.indexOf("['cookies', 'cookie',") < cut('const tiles = [', '];\n  const g = $(\'#ctlGrid\')').length);
-check('у плитки cookies задана подсказка про автосогласие',
-  /'cookies', 'cookie', 'Автосогласие cookies/.test(tiles));
+check('у строки cookies задана подсказка про автосогласие',
+  /'cookies', 'cookie', 'Автосогласие cookies/.test(protRows));
 
 // 2. Строка в настройках — без иконки, с тумблером.
 const settings = cut('function openSettings(sec) {', 'function applyFontScale()');

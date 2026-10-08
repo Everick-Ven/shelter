@@ -511,13 +511,15 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const settings = document.getElementById('settingsBtn');
         const more = document.getElementById('moreBtn');
         const controls = document.getElementById('ctlGrid');
-        const mode = document.getElementById('schemeModeBtn');
+        const prot = document.getElementById('protBtn');
+        const ext = document.getElementById('extBtn');
         const header = document.querySelector('.tb');
         const fire = controls && controls.querySelector('.ctl.fire');
-        if (!quick || !settings || !more || !controls || !mode || !fire || !header)
+        if (!quick || !settings || !more || !controls || !prot || !ext || !fire || !header)
           return null;
         const fireRect = fire.getBoundingClientRect();
-        const modeRect = mode.getBoundingClientRect();
+        const protRect = prot.getBoundingClientRect();
+        const extRect = ext.getBoundingClientRect();
         const quickRect = quick.getBoundingClientRect();
         const settingsRect = settings.getBoundingClientRect();
         const moreRect = more.getBoundingClientRect();
@@ -527,11 +529,17 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
             settings.nextElementSibling === more &&
             Math.abs(settingsRect.top - moreRect.top) <= 1 &&
             Math.abs(moreRect.left - settingsRect.right) <= 12,
-          themeAfterFire: controls.lastElementChild === fire &&
-            mode.previousElementSibling === controls &&
-            Math.abs(modeRect.top - fireRect.top) <= 1 &&
-            modeRect.left >= fireRect.right - 1,
-          extraGapBeforeQuick: quickRect.left - modeRect.right >= 20,
+          fireIsOnlyTile: controls.children.length === 1 &&
+            controls.firstElementChild === fire &&
+            controls.getAttribute('aria-label') === 'Удаление сессий' &&
+            Math.abs(fireRect.top - quickRect.top) <= 1,
+          shieldBeforeSettings: prot.parentElement === settings.parentElement &&
+            prot.nextElementSibling === settings &&
+            Math.abs(protRect.top - settingsRect.top) <= 1 &&
+            settingsRect.left - protRect.right <= 12,
+          extensionsIconPresent: ext.parentElement === prot.parentElement &&
+            ext.getAttribute('data-act') === 'extList',
+          extraGapBeforeQuick: quickRect.left - extRect.right >= 20,
           quickLabelUpdated: quick.dataset.tip === 'Оформление и вкладки' &&
             quick.getAttribute('aria-label') === 'Оформление и вкладки',
           noHorizontalOverflow: header.scrollWidth <= header.clientWidth + 1 &&
@@ -558,6 +566,10 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const quickMenu = document.querySelector('.menu-quick');
         const opacity = quickMenu && quickMenu.querySelector('#glassOpSec');
         const palette = quickMenu && quickMenu.querySelector('#quickThemeSec');
+        const modeSeg = quickMenu && quickMenu.querySelector('.seg[data-seg="schemeMode"]');
+        const modeSec = modeSeg && modeSeg.closest('.q-sec');
+        const radiusSec = quickMenu && quickMenu.querySelector('#radiusRange') &&
+          quickMenu.querySelector('#radiusRange').closest('.q-sec');
         const swatchWrap = palette && palette.querySelector('.q-theme-swatches');
         const swatches = swatchWrap ? Array.from(swatchWrap.querySelectorAll('.swatch[data-theme]')) : [];
         const wrapRect = swatchWrap && swatchWrap.getBoundingClientRect();
@@ -566,7 +578,9 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const leftInset = wrapRect && firstRect ? firstRect.left - wrapRect.left : null;
         const rightInset = wrapRect && lastRect ? wrapRect.right - lastRect.right : null;
         const paletteState = {
-          immediatelyAfterOpacity: !!opacity && opacity.nextElementSibling === palette,
+          radiusAfterOpacity: !!opacity && !!radiusSec && radiusSec.previousElementSibling === opacity,
+          modeAfterRadius: !!radiusSec && !!modeSec && modeSec.previousElementSibling === radiusSec,
+          paletteAfterMode: !!modeSec && !!palette && modeSec.nextElementSibling === palette,
           swatchCount: swatches.length,
           leftInset: leftInset,
           rightInset: rightInset,
@@ -2489,9 +2503,18 @@ def main() -> int:
                         f"{toolbar_menu}"
                     )
                 palette = toolbar_menu["palette"]
-                if not palette["immediatelyAfterOpacity"] or palette["swatchCount"] != 6 or not palette["equalSideInsets"]:
+                if (
+                    not palette["radiusAfterOpacity"]
+                    or not palette["modeAfterRadius"]
+                    or not palette["paletteAfterMode"]
+                ):
                     raise AcceptanceError(
-                        f"Theme palette is not directly after opacity: {toolbar_menu}"
+                        "Quick panel order changed (opacity -> radius -> mode -> palette): "
+                        f"{toolbar_menu}"
+                    )
+                if palette["swatchCount"] != 6 or not palette["equalSideInsets"]:
+                    raise AcceptanceError(
+                        f"Theme palette is malformed: {toolbar_menu}"
                     )
                 print(
                     "SHELTER_ACCEPTANCE_TOOLBAR_MENU_PASS "

@@ -263,6 +263,8 @@ jobs:
         run: node tests/blocked_stats_test.js
       - name: UI stylesheet integrity test
         run: node tests/ui_css_test.js
+      - name: Settings panel and toolbar regression test
+        run: node tests/ui_settings_test.js
       - name: Compile and run path/archive safety tests
         run: |
           set -euo pipefail

@@ -1404,7 +1404,7 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .set-nav button:hover{background:var(--hover);color:var(--text)}
 .set-nav button.on{background:var(--card);color:var(--text);box-shadow:inset 0 0 0 1px var(--line-2),var(--hi)}
 .set-nav button .i{width:16px;height:16px}
-.set-body{overflow:auto;padding:22px 28px 40px;position:relative;scroll-behavior:smooth}
+.set-body{overflow:auto;padding:22px 28px 40px;position:relative}
 .set-pane{display:grid;grid-template-rows:auto minmax(0,1fr);min-width:0;min-height:0}
 .set-head{min-height:60px;background:var(--card)}
 .set-close{position:absolute;top:13px;right:15px;z-index:5;width:34px;height:34px;border-radius:11px;background:transparent;border:1px solid transparent;color:var(--text-3)}
@@ -5223,7 +5223,8 @@ function renderControls() {
     ['ghost', 'ghost', 'Призрак — приватный режим\nНичего не сохраняется: история, cookies и входы на сайтах стираются сразу, как только вы закроете вкладку. Сайты вас «не запомнят».'],
     ['trackers', 'shield', 'Блокировка трекеров и рекламы\nОтключает рекламные вставки и счётчики, которые следят, что вы смотрите и куда ходите. Страницы грузятся быстрее, вас сложнее вычислить.'],
     ['https', 'lock', 'Безопасный HTTPS + приватный DNS\nЕсли сайт открывается по незащищённому http://, SHELTER сам переключит на https://. DNS-запросы (куда идёт адрес сайта) шифруются — оператор связи их не видит.'],
-    ['fp', 'finger', 'Анти-отпечаток\nСайты узнают вас по «отпечатку» браузера (шрифты, экран, карта). Эта кнопка немного меняет эти данные, чтобы вас было сложнее узнать и отследить без cookies.']
+    ['fp', 'finger', 'Анти-отпечаток\nСайты узнают вас по «отпечатку» браузера (шрифты, экран, карта). Эта кнопка немного меняет эти данные, чтобы вас было сложнее узнать и отследить без cookies.'],
+    ['cookies', 'cookie', 'Автосогласие cookies\nОкно согласия подтверждается само: только необходимые (технические) cookies, до первого кадра — баннер никогда не появляется перед вами.']
   ];
   const g = $('#ctlGrid'); if (!g) return;
   g.innerHTML = tiles.map(t => `<button class="ctl" data-sw="${t[0]}" data-tip="${t[2]}" data-tip-always="1" data-tip-pos="top" aria-label="${t[2].split('\n')[0]}">${ico(t[1])}</button>`).join('')
@@ -10045,7 +10046,7 @@ function openSettings(sec) {
         ${row('HTTPS-only + DNS-over-HTTPS', 'Автоподъём на https:// · DNS шифруется (поставщик ниже)', sw('https'))}
         ${row('Защита от цифрового отпечатка', 'Шум Canvas, WebGL, AudioContext', sw('fp'))}
         ${row('Строгий режим', 'Сторонние скрипты — только по разрешению', sw('strict'))}
-        ${row(ico('cookie') + 'Автосогласие cookies', 'Окно согласия подтверждается само: только необходимые cookies, до первого кадра', sw('cookies'))}
+        ${row('Автосогласие cookies', 'Окно согласия подтверждается само: только необходимые cookies, до первого кадра', sw('cookies'))}
         ${row('Удалить сессии', 'История, cookies, кэш и вкладки', btn('fire', ico('flame') + 'Удалить', 'danger'))}
       </div></section>
       <section class="set-sec" id="set-ruca"><h4>Сертификаты РФ</h4><div class="set-card">
@@ -10081,7 +10082,9 @@ function openSettings(sec) {
   initSegs(root);
   root.addEventListener('click', async e => {
     const nb = e.target.closest('.set-nav [data-sec]');
-    if (nb) { const s = $('#set-' + nb.dataset.sec, root); if (s) body.scrollTo({ top: s.offsetTop - 18, behavior: REDUCED() ? 'auto' : 'smooth' }); return; }
+    /* Раздел открываем прыжком: плавная прокрутка на пять экранов длится
+       около полутора секунд и читается как «настройки грузятся». */
+    if (nb) { const s = $('#set-' + nb.dataset.sec, root); if (s) { body.scrollTo({ top: s.offsetTop - 18 }); syncNav(); } return; }
     const b = e.target.closest('[data-set]'); if (!b) return;
     const a = b.dataset.set;
     if (a === 'close') closeModal(m);
@@ -10107,9 +10110,21 @@ function openSettings(sec) {
   if (pSelEl) { pSelEl.value = persDetect(); pSelEl.addEventListener('change', e => persPick(e.target.value)); persSyncUi(); }
   const pNameEl = $('#persName', root);
   if (pNameEl) pNameEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); persSave(); } });
-  body.addEventListener('scroll', () => { const secs = $$('.set-sec', body).filter(s => s.style.display !== 'none'); let cur = secs[0]; secs.forEach(s => { if (s.offsetTop - body.scrollTop < 90) cur = s; }); if (cur) $$('.set-nav [data-sec]', root).forEach(x => x.classList.toggle('on', 'set-' + x.dataset.sec === cur.id)); }, { passive: true });
-  $('#setQ', root).addEventListener('input', e => { const q = e.target.value.toLowerCase().trim(); $$('.set-sec', body).forEach(s => { const h = s.querySelector('h4').textContent.toLowerCase(); let any = false; $$('.set-row, .tcard, .kbd-grid > div', s).forEach(r => { const ok = !q || h.includes(q) || r.textContent.toLowerCase().includes(q); r.style.display = ok ? '' : 'none'; any = any || ok; }); const fd = s.querySelector('.font-demo'); if (fd) fd.style.display = (!q || any) ? '' : 'none'; s.style.display = any ? '' : 'none'; }); });
-  if (sec) { const s = $('#set-' + sec, root); if (s) setTimeout(() => { body.scrollTo({ top: s.offsetTop - 18 }); }, 40); }
+  /* Подсветка раздела в списке: у последней секции до верхней отметки дойти
+     нельзя — прокрутка кончается раньше, — поэтому в самом низу подсвечиваем
+     её явно. После прыжка зовём сразу, не дожидаясь события прокрутки. */
+  const syncNav = () => {
+    const secs = $$('.set-sec', body).filter(s => s.style.display !== 'none');
+    if (!secs.length) return;
+    const atEnd = body.scrollTop + body.clientHeight >= body.scrollHeight - 2;
+    let cur = secs[0];
+    if (atEnd) cur = secs[secs.length - 1];
+    else secs.forEach(s => { if (s.offsetTop - body.scrollTop < 90) cur = s; });
+    $$('.set-nav [data-sec]', root).forEach(x => x.classList.toggle('on', 'set-' + x.dataset.sec === cur.id));
+  };
+  body.addEventListener('scroll', syncNav, { passive: true });
+  $('#setQ', root).addEventListener('input', e => { const q = e.target.value.toLowerCase().trim(); $$('.set-sec', body).forEach(s => { const h = s.querySelector('h4').textContent.toLowerCase(); let any = !q; $$('.set-row, .tcard, .kbd-grid > div', s).forEach(r => { const ok = !q || h.includes(q) || r.textContent.toLowerCase().includes(q); r.style.display = ok ? '' : 'none'; any = any || ok; }); const fd = s.querySelector('.font-demo'); if (fd) fd.style.display = (!q || any) ? '' : 'none'; s.style.display = any ? '' : 'none'; }); });
+  if (sec) { const s = $('#set-' + sec, root); if (s) setTimeout(() => { body.scrollTo({ top: s.offsetTop - 18 }); syncNav(); }, 40); }
 }
 function applyFontScale() {
   const P = S.prefs || PREF_DEFAULTS;

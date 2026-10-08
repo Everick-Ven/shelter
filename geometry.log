@@ -1,0 +1,4 @@
+launch: build/Release/Shelter.exe
+log: C:\Users\runneradmin\AppData\Local\SHELTER\shelter.log
+geometry: shell: content bounds shown x=85 y=75 w=864 h=554 client_w=960 client_h=640
+OK: content (85,75 864x554) inside client 960x640

@@ -210,8 +210,23 @@ p{{max-width:60ch}}
             pass
 
 
+class QuietThreadingHTTPServer(ThreadingHTTPServer):
+    """Сервер фикстур: оборванное соединение — не ошибка, не сыпем трейсбеки.
+
+    Браузер штатно закрывает сокеты при переходах между страницами, и
+    socketserver печатал на каждое такое закрытие многострочный traceback,
+    который забивал diagnostics-лог приёмочного прогона."""
+
+    def handle_error(self, request, client_address) -> None:  # noqa: D102
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (BrokenPipeError, ConnectionResetError,
+                            ConnectionAbortedError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def start_long_page_server() -> Tuple[ThreadingHTTPServer, threading.Thread, str]:
-    server = ThreadingHTTPServer(("127.0.0.1", 0), LongPageHandler)
+    server = QuietThreadingHTTPServer(("127.0.0.1", 0), LongPageHandler)
     server.daemon_threads = True
     thread = threading.Thread(target=server.serve_forever, name="acceptance-long-pages", daemon=True)
     thread.start()
@@ -1607,12 +1622,22 @@ def cookie_consent_probe(
         site_pages.append(page)
         if "consent fixture" not in (state.get("text", "") + state.get("title", "")):
             raise AcceptanceError(f"Consent fixture {route} did not render: {state}")
-        deadline = time.monotonic() + 8
+        # Ждём именно ответа: у поздней фикстуры баннер появляется через 700 мс,
+        # поэтому «флаги вообще есть» — ещё не повод что-то утверждать.
+        deadline = time.monotonic() + 12
         flags = read_consent_flags(page)
-        while time.monotonic() < deadline and not (flags.get("consent") or flags):
+        if name == "late":
+            while time.monotonic() < deadline and flags.get("lateMounted") is not True:
+                time.sleep(0.3)
+                flags = read_consent_flags(page)
+            if flags.get("lateMounted") is not True:
+                raise AcceptanceError(
+                    "Late consent banner never mounted: " + json.dumps(flags)
+                )
+        while time.monotonic() < deadline and flags.get("consent") is None:
             time.sleep(0.3)
             flags = read_consent_flags(page)
-        time.sleep(0.6)
+        time.sleep(0.4)
         flags = read_consent_flags(page)
         if flags.get("consent") != "necessary":
             raise AcceptanceError(

@@ -257,6 +257,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Version consistency check
+        run: python3 tools/check_version.py
       - name: Download UI regression test
         run: node tests/download_ui_test.js
       - name: Tracker/ad statistics regression test
@@ -269,6 +271,11 @@ jobs:
         run: node tests/ui_tabs_test.js
       - name: Extensions page and bridge regression test
         run: node tests/ui_extensions_test.js
+      - name: Master key persistence test
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/secret_key_test.cc src/secret_key.cc src/platform_linux.cc -pthread -o secret-key-test
+          ./secret-key-test
       - name: Compile and run path/archive safety tests
         run: |
           set -euo pipefail

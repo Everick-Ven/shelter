@@ -3,11 +3,13 @@
 // macOS: login Keychain, запись SHELTER/master-key (без запросов доступа);
 //        файл secret.key 0600 — только fallback и миграция со старых версий.
 // Linux: файл secret.key с правами 0600 в каталоге данных пользователя.
+#include <atomic>
 #include <cstdio>
 #include <filesystem>
 #include <iterator>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <random>
 #include <string>
 
@@ -46,26 +48,71 @@ bool ReadAll(const std::filesystem::path& p, std::string* out) {
   return true;
 }
 
+// Запись «всё или ничего»: сначала во временный файл рядом, затем rename поверх
+// целевого. Обрыв посреди записи (сбой питания, убитый процесс) не оставляет
+// усечённый secret.key — иначе следующий запуск счёл бы его нечитаемым и
+// создал новый ключ, а всё зашифрованное прежним стало бы недоступным.
 bool WriteAll(const std::filesystem::path& p, const std::string& data) {
+  std::error_code ec;
+  std::filesystem::path tmp = p;
+  tmp += ".tmp";
 #if defined(_WIN32)
-  std::ofstream f(p, std::ios::binary | std::ios::trunc);
-  if (!f) return false;
-  f.write(data.data(), (std::streamsize)data.size());
-  return (bool)f;
+  {
+    std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+    if (!f) return false;
+    f.write(data.data(), (std::streamsize)data.size());
+    f.flush();
+    if (!f) {
+      f.close();
+      std::filesystem::remove(tmp, ec);
+      return false;
+    }
+  }
 #else
-  int fd = ::open(p.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
   if (fd < 0) return false;
+  ::fchmod(fd, 0600);
   size_t off = 0;
   while (off < data.size()) {
     ssize_t n = ::write(fd, data.data() + off, data.size() - off);
     if (n <= 0) break;
     off += (size_t)n;
   }
-  ::close(fd);
-  ::chmod(p.c_str(), 0600);
-  return off == data.size();
+  const bool synced = off == data.size() && ::fsync(fd) == 0;
+  const bool closed = ::close(fd) == 0;
+  if (!synced || !closed) {
+    std::filesystem::remove(tmp, ec);
+    return false;
+  }
 #endif
+  std::filesystem::rename(tmp, p, ec);
+  if (ec) {
+    std::filesystem::remove(tmp, ec);
+    return false;
+  }
+  return true;
 }
+
+// Файл ключа есть, но ключ из него получить не удалось (другая учётная запись
+// Windows, повреждение). Затирать его новым ключом нельзя: если доступ к старому
+// вернётся, зашифрованные им данные ещё можно будет расшифровать. Откладываем
+// файл в сторону и только после этого создаём новый ключ.
+void PreserveUnreadable(const std::filesystem::path& p) {
+  std::error_code ec;
+  if (!std::filesystem::exists(p, ec) || ec) return;
+  for (int i = 0; i < 100; ++i) {
+    std::filesystem::path dst = p;
+    dst += i == 0 ? std::string(".unreadable")
+                  : ".unreadable" + std::to_string(i);
+    ec.clear();
+    if (std::filesystem::exists(dst, ec) || ec) continue;
+    std::filesystem::rename(p, dst, ec);
+    return;
+  }
+}
+
+std::mutex g_key_mutex;
+std::atomic<bool> g_key_persistent{true};
 
 #if defined(_WIN32)
 bool Protect(const std::string& in, std::string* out) {
@@ -89,7 +136,15 @@ bool Unprotect(const std::string& in, std::string* out) { *out = in; return true
 
 }  // namespace
 
+bool SecretKeyIsPersistent() {
+  SecretKeyHex();
+  return g_key_persistent.load();
+}
+
 std::string SecretKeyHex() {
+  // Вызывается из потоков отдачи ресурсов UI: без блокировки два одновременных
+  // первых вызова могли создать два разных ключа.
+  std::lock_guard<std::mutex> lock(g_key_mutex);
   static std::string cached;
   static bool done = false;
   if (done) return cached;
@@ -162,7 +217,11 @@ std::string SecretKeyHex() {
     return cached;
   }
   std::string blob;
-  if (Protect(key, &blob)) WriteAll(path, blob);
+  PreserveUnreadable(path);
+  if (!Protect(key, &blob) || !WriteAll(path, blob)) {
+    g_key_persistent = false;
+    std::fprintf(stderr, "SHELTER: master key could not be saved; secrets will not survive restart\n");
+  }
   cached = hex;
   return cached;
 #else
@@ -174,7 +233,11 @@ std::string SecretKeyHex() {
   key.clear();
   for (size_t i = 0; i < kKeyLen; ++i) key.push_back((char)(rd() & 0xff));
   std::string blob;
-  if (Protect(key, &blob)) WriteAll(path, blob);
+  PreserveUnreadable(path);
+  if (!Protect(key, &blob) || !WriteAll(path, blob)) {
+    g_key_persistent = false;
+    std::fprintf(stderr, "SHELTER: master key could not be saved; secrets will not survive restart\n");
+  }
   cached = ToHex(key);
   return cached;
 #endif

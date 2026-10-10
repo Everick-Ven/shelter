@@ -148,6 +148,15 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                          CefRefPtr<Callback> cb) {
   CEF_REQUIRE_UI_THREAD();
 
+  // Единая закрытая по умолчанию граница: ни один метод моста не обслуживает
+  // браузер, который не является UI SHELTER, даже если вызывающий код
+  // (роутер в clients.cc) когда-нибудь перестанет это проверять. Проверки
+  // внутри отдельных методов ниже остаются как вторая линия защиты.
+  if (!browser || !IsUiBrowser(browser)) {
+    cb->Failure(403, "bridge is restricted to the SHELTER UI");
+    return true;
+  }
+
   if (m == "user-data.delete") {
     // Destructive host operations are accepted only from SHELTER's own UI,
     // never from a site that happens to share the CEF message router.

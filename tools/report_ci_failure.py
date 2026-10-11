@@ -32,21 +32,30 @@ def escape_command_data(value: str) -> str:
 
 
 def summarize(lines: list[str]) -> str:
-    """Error matches with context first, then the tail of the file."""
+    """Keep actionable errors and a short tail within GitHub's annotation limit."""
     matches = [i for i, line in enumerate(lines) if ERROR_RE.search(line)]
     context: list[str] = []
     seen: set[int] = set()
-    for idx in matches[:15]:
-        for j in range(max(0, idx - 2), min(len(lines), idx + 5)):
+    for idx in matches[:8]:
+        for j in range(max(0, idx - 1), min(len(lines), idx + 4)):
             if j not in seen:
                 seen.add(j)
                 context.append(f"{j + 1}: {lines[j]}")
-    tail = lines[-60:]
-    parts = []
+    tail = [f"{i + 1}: {lines[i]}" for i in range(max(0, len(lines) - 12), len(lines))]
+    # GitHub truncates annotation messages at 4 KiB. Reserve room for the
+    # source filename and command encoding, and never let a noisy build tail
+    # erase the actual compiler/linker errors.
+    budget = 3000
     if context:
-        parts.append(f"-- error matches ({len(matches)} lines) --\n" + "\n".join(context))
-    parts.append(f"-- tail ({len(tail)} of {len(lines)} lines) --\n" + "\n".join(tail))
-    return "\n".join(parts)[-7000:]
+        error_text = f"-- error matches ({len(matches)} lines) --\n" + "\n".join(context)
+        if len(error_text) > 2200:
+            error_text = error_text[:2199] + "…"
+        tail_text = "-- build tail --\n" + "\n".join(tail)
+        if len(tail_text) > 750:
+            tail_text = "-- build tail --\n" + tail_text[-735:]
+        return (error_text + "\n" + tail_text)[:budget]
+    tail_text = "-- no standard error marker; build tail --\n" + "\n".join(tail)
+    return tail_text[-budget:]
 
 
 def main() -> int:

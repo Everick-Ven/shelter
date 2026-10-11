@@ -40,7 +40,7 @@ int wmain(int argc, wchar_t** argv) {
       argv[1], nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
   if (!source) return Fail(L"LoadLibraryExW");
 
-  HRSRC resource = FindResourceW(source, MAKEINTRESOURCEW(1), RT_VERSION);
+  HRSRC resource = FindResourceW(source, MAKEINTRESOURCEW(1), MAKEINTRESOURCEW(16));
   if (!resource) {
     FreeLibrary(source);
     return Fail(L"FindResourceW");
@@ -54,7 +54,7 @@ int wmain(int argc, wchar_t** argv) {
   }
 
   LanguageResult language;
-  if (!EnumResourceLanguagesW(source, RT_VERSION, MAKEINTRESOURCEW(1),
+  if (!EnumResourceLanguagesW(source, MAKEINTRESOURCEW(16), MAKEINTRESOURCEW(1),
                               FirstLanguage,
                               reinterpret_cast<LONG_PTR>(&language)) ||
       !language.found) {
@@ -68,7 +68,7 @@ int wmain(int argc, wchar_t** argv) {
     return Fail(L"BeginUpdateResourceW");
   }
   const BOOL updated = UpdateResourceW(
-      update, RT_VERSION, MAKEINTRESOURCEW(1), language.language,
+      update, MAKEINTRESOURCEW(16), MAKEINTRESOURCEW(1), language.language,
       const_cast<void*>(bytes), size);
   const DWORD update_error = updated ? ERROR_SUCCESS : GetLastError();
   const BOOL committed = EndUpdateResourceW(update, updated ? FALSE : TRUE);

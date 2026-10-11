@@ -37,7 +37,18 @@ ln -s /Applications "$STAGE/Applications"
 
 echo "== создание DMG"
 rm -f "$OUT"
-hdiutil create -volname "SHELTER $VER" -srcfolder "$STAGE" -ov -format UDZO -fs HFS+ "$OUT"
+for attempt in 1 2 3; do
+  if hdiutil create -volname "SHELTER $VER" -srcfolder "$STAGE" -ov -format UDZO -fs HFS+ "$OUT"; then
+    break
+  else
+    status=$?
+    if [[ $attempt -eq 3 ]]; then
+      exit "$status"
+    fi
+    echo "hdiutil create failed (attempt $attempt/3, exit $status); retrying"
+    sleep "$((attempt * 2))"
+  fi
+done
 hdiutil verify "$OUT"
 ls -la "$OUT"
 rm -rf "$STAGE"

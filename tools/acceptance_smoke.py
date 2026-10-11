@@ -202,7 +202,9 @@ p{{max-width:60ch}}
                     split = len(document) // 4
                 self.wfile.write(document[:split])
                 self.wfile.flush()
-                time.sleep(2.0)
+                # Keep the document loading long enough for slower CI runners
+                # to open the native popup and sample its fallback appearance.
+                time.sleep(8.0)
                 self.wfile.write(document[split:])
             else:
                 self.wfile.write(document)

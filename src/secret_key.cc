@@ -3,6 +3,7 @@
 // 0600 file mirror so ad-hoc re-signing cannot strand the key. Existing unreadable
 // key material is never replaced.
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -10,6 +11,7 @@
 #include <mutex>
 #include <string>
 #include <system_error>
+#include <thread>
 
 #include "src/platform.h"
 #include "src/security_paths.h"
@@ -271,6 +273,9 @@ bool StoreOrReadKeychain(const std::string& proposed, std::string* observed) {
   return true;
 }
 
+bool WaitForMacKeyMirror(const std::filesystem::path& path,
+                         std::string* key_hex, std::string* error);
+
 bool EnsureMacKeyMirror(const std::filesystem::path& path,
                         const std::string& key_hex, std::string* error) {
   const FileState state = InspectFile(path);
@@ -280,7 +285,7 @@ bool EnsureMacKeyMirror(const std::filesystem::path& path,
   }
   if (state == FileState::kRegular) {
     std::string mirror;
-    if (!ReadFileKey(path, &mirror, error)) return false;
+    if (!WaitForMacKeyMirror(path, &mirror, error)) return false;
     const bool matches = mirror == key_hex;
     std::fill(mirror.begin(), mirror.end(), '\0');
     if (!matches) {
@@ -292,19 +297,31 @@ bool EnsureMacKeyMirror(const std::filesystem::path& path,
 
   if (StoreFileKeyExclusive(path, key_hex, nullptr)) return true;
 
-  // Another first-run process may have created the mirror between the check
-  // above and the exclusive file creation. Accept it only if it is identical.
-  const FileState raced_state = InspectFile(path);
-  if (raced_state == FileState::kRegular) {
-    std::string mirror;
-    if (!ReadFileKey(path, &mirror, error)) return false;
-    const bool matches = mirror == key_hex;
-    std::fill(mirror.begin(), mirror.end(), '\0');
-    if (!matches && error)
-      *error = "Keychain and fallback master keys disagree; neither was changed";
-    return matches;
+  // Another first-run process may have created the mirror concurrently.
+  std::string mirror;
+  if (!WaitForMacKeyMirror(path, &mirror, error)) return false;
+  const bool matches = mirror == key_hex;
+  std::fill(mirror.begin(), mirror.end(), '\0');
+  if (!matches && error)
+    *error = "Keychain and fallback master keys disagree; neither was changed";
+  return matches;
+}
+
+bool WaitForMacKeyMirror(const std::filesystem::path& path,
+                         std::string* key_hex, std::string* error) {
+  // Another first-run process may have read Keychain as empty and be writing
+  // the file mirror while this process sees a transient Keychain error.
+  for (int attempt = 0; attempt < 20; ++attempt) {
+    const FileState state = InspectFile(path);
+    if (state == FileState::kRegular && ReadFileKey(path, key_hex, nullptr))
+      return true;
+    if (state == FileState::kError) {
+      if (error) *error = "existing master-key file is not a regular readable file";
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
-  if (error) *error = "Keychain master key could not be mirrored to the 0600 fallback file";
+  if (error) *error = "no valid 0600 master-key mirror became available";
   return false;
 }
 
@@ -330,11 +347,9 @@ bool LoadOrCreateMacKey(const std::filesystem::path& path,
 
   if (kc == KeychainReadResult::kError) {
     // An inaccessible Keychain item is recoverable only from the matching
-    // owner-only mirror. Never invent a replacement key behind it.
-    if (file_state == FileState::kRegular)
-      return ReadFileKey(path, key_hex, error);
-    if (error) *error = "Keychain is unavailable and no persisted fallback key exists";
-    return false;
+    // owner-only mirror. Never invent a replacement key behind it. The short
+    // wait handles another process creating that mirror during first launch.
+    return WaitForMacKeyMirror(path, key_hex, error);
   }
 
   if (file_state == FileState::kRegular) {
@@ -364,8 +379,7 @@ bool LoadOrCreateMacKey(const std::filesystem::path& path,
     return true;
   }
   // Another first-run process may have created the exclusive fallback file.
-  if (InspectFile(path) == FileState::kRegular &&
-      ReadFileKey(path, key_hex, nullptr)) return true;
+  if (WaitForMacKeyMirror(path, key_hex, nullptr)) return true;
   if (error)
     *error = "neither Keychain nor a new fallback file accepted the master key";
   return false;

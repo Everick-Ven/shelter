@@ -241,6 +241,16 @@ jobs:
           ls -la /Applications/SHELTER.app/Contents/Resources
           python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" 2>&1 | tee smoke-run.log
 
+      - name: Inspect macOS master-key mirror
+        if: always()
+        run: |
+          key_file="$HOME/Library/Application Support/SHELTER/secret.key"
+          if [[ -f "$key_file" ]]; then
+            echo "SHELTER_KEY_MIRROR exists mode=$(stat -f '%Lp' "$key_file") size=$(stat -f '%z' "$key_file")"
+          else
+            echo "SHELTER_KEY_MIRROR missing"
+          fi
+
       - name: Verify macOS master-key mirror
         run: |
           set -euo pipefail

@@ -2748,6 +2748,24 @@ def main() -> int:
                     print(tail, file=sys.stderr)
             except OSError:
                 pass
+        if sys.platform == "darwin":
+            keychain_log = (
+                Path.home()
+                / "Library"
+                / "Application Support"
+                / "SHELTER"
+                / "keychain.log"
+            )
+            try:
+                if keychain_log.is_file():
+                    diagnostics = keychain_log.read_text(
+                        encoding="utf-8", errors="replace"
+                    )[-4000:]
+                    if diagnostics:
+                        print("--- native keychain diagnostics ---", file=sys.stderr)
+                        print(diagnostics, file=sys.stderr)
+            except OSError:
+                pass
         return 1
     finally:
         if ui is not None:

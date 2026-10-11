@@ -210,12 +210,37 @@ jobs:
           python3 -m venv .venv
           . .venv/bin/activate
           python -m pip install --disable-pip-version-check websocket-client
+          original_default_keychain="$(security default-keychain -d user | tr -d '"')"
+          declare -a original_keychains=()
+          original_keychain_count=0
+          while IFS= read -r keychain; do
+            if [[ -n "$keychain" ]]; then
+              original_keychains[$original_keychain_count]="$keychain"
+              original_keychain_count=$((original_keychain_count + 1))
+            fi
+          done < <(security list-keychains -d user | sed -E 's/^[[:space:]]*"//; s/"$//')
+          ci_keychain="$HOME/Library/Keychains/SHELTER-CI-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.keychain-db"
+          ci_keychain_password="$(uuidgen)"
           mount_point="$(mktemp -d "${TMPDIR:-/tmp}/shelter-dmg.XXXXXX")"
           cleanup() {
             hdiutil detach "$mount_point" -quiet 2>/dev/null || true
             rmdir "$mount_point" 2>/dev/null || true
+            security default-keychain -d user -s "$original_default_keychain" >/dev/null 2>&1 || true
+            if [[ $original_keychain_count -gt 0 ]]; then
+              security list-keychains -d user -s "${original_keychains[@]}" >/dev/null 2>&1 || true
+            fi
+            security delete-keychain "$ci_keychain" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
+          security create-keychain -p "$ci_keychain_password" "$ci_keychain"
+          security set-keychain-settings -lut 21600 "$ci_keychain"
+          security unlock-keychain -p "$ci_keychain_password" "$ci_keychain"
+          if [[ $original_keychain_count -gt 0 ]]; then
+            security list-keychains -d user -s "$ci_keychain" "${original_keychains[@]}"
+          else
+            security list-keychains -d user -s "$ci_keychain"
+          fi
+          security default-keychain -d user -s "$ci_keychain"
           version="$(tr -d '\r\n' < build/shelter-version.txt)"
           dmg_name="SHELTER-macos-x64-${version}.dmg"
           hdiutil attach "dist/$dmg_name" -nobrowse -mountpoint "$mount_point"
@@ -224,7 +249,6 @@ jobs:
           cp -R "$mount_point/SHELTER.app" /Applications/SHELTER.app
           hdiutil detach "$mount_point" -quiet
           rmdir "$mount_point"
-          trap - EXIT
           ls -la /Applications/SHELTER.app/Contents/Resources
           python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" 2>&1 | tee smoke-run.log
 

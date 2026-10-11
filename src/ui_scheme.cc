@@ -7,8 +7,6 @@
 #include <vector>
 
 #include "include/cef_parser.h"
-#include "include/cef_post_data.h"
-#include "include/cef_post_data_element.h"
 #include "include/cef_request.h"
 #include "include/cef_scheme.h"
 #include "include/wrapper/cef_helpers.h"

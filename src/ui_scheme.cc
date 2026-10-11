@@ -86,7 +86,7 @@ CefRefPtr<CefResourceHandler> SecretResponse(bool ok,
   if (ok) dict->SetString("value", value);
   CefRefPtr<CefValue> json = CefValue::Create();
   json->SetDictionary(dict);
-  const std::string data = CefWriteJSON(json, JSON_WRITER_DEFAULT).ToString();
+  std::string data = CefWriteJSON(json, JSON_WRITER_DEFAULT).ToString();
   CefRefPtr<CefStreamReader> stream =
       CefStreamReader::CreateForData(data.data(), data.size());
   CefResponse::HeaderMap headers;

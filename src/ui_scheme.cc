@@ -1,6 +1,7 @@
 #include "src/ui_scheme.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -102,14 +103,24 @@ CefRefPtr<CefResourceHandler> HandleSecretRequest(
   if (!browser || !frame || !frame->IsMain() || !request ||
       !Shell::Get().IsUiBrowserId(browser->GetIdentifier()) ||
       request->GetMethod().ToString() != "POST") {
+    std::fprintf(stderr, "SHELTER_SECRET_BRIDGE rejected operation=%s\n",
+                 operation.c_str());
     return SecretResponse(false, std::string());
   }
   std::string input, output;
   const bool parsed = ReadPostBody(request, &input);
+  if (!parsed) {
+    std::fprintf(stderr, "SHELTER_SECRET_BRIDGE unreadable-post-body operation=%s\n",
+                 operation.c_str());
+  }
   const bool ok = parsed &&
       (operation == "encrypt"
            ? shelter::secret_crypto::Encrypt(input, &output)
            : shelter::secret_crypto::Decrypt(input, &output));
+  if (parsed && !ok) {
+    std::fprintf(stderr, "SHELTER_SECRET_BRIDGE crypto-failed operation=%s\n",
+                 operation.c_str());
+  }
   std::fill(input.begin(), input.end(), '\0');
   CefRefPtr<CefResourceHandler> response = SecretResponse(ok, ok ? output : "");
   std::fill(output.begin(), output.end(), '\0');

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <string>
 #include <vector>
@@ -404,12 +405,20 @@ bool Encrypt(const std::string& plaintext, std::string* ciphertext) {
   ciphertext->clear();
   if (plaintext.size() > kMaxPayloadBytes) return false;
   std::string key_hex, error, nonce;
-  if (!platform::SecretKeyHex(&key_hex, &error) ||
-      !platform::RandomBytes(kNonceBytes, &nonce)) {
+  if (!platform::SecretKeyHex(&key_hex, &error)) {
+    std::fprintf(stderr, "SHELTER_SECRET_CRYPTO encrypt failed at master-key\n");
+    Wipe(key_hex.data(), key_hex.size());
+    return false;
+  }
+  if (!platform::RandomBytes(kNonceBytes, &nonce)) {
+    std::fprintf(stderr, "SHELTER_SECRET_CRYPTO encrypt failed at os-random\n");
     Wipe(key_hex.data(), key_hex.size());
     return false;
   }
   const bool ok = EncryptWithKey(key_hex, plaintext, nonce, ciphertext);
+  if (!ok) {
+    std::fprintf(stderr, "SHELTER_SECRET_CRYPTO encrypt failed at ss1-core\n");
+  }
   Wipe(key_hex.data(), key_hex.size());
   Wipe(nonce.data(), nonce.size());
   return ok;
@@ -419,8 +428,14 @@ bool Decrypt(const std::string& ciphertext, std::string* plaintext) {
   if (!plaintext) return false;
   plaintext->clear();
   std::string key_hex, error;
-  if (!platform::SecretKeyHex(&key_hex, &error)) return false;
+  if (!platform::SecretKeyHex(&key_hex, &error)) {
+    std::fprintf(stderr, "SHELTER_SECRET_CRYPTO decrypt failed at master-key\n");
+    return false;
+  }
   const bool ok = DecryptWithKey(key_hex, ciphertext, plaintext);
+  if (!ok) {
+    std::fprintf(stderr, "SHELTER_SECRET_CRYPTO decrypt failed at ss1-core\n");
+  }
   Wipe(key_hex.data(), key_hex.size());
   return ok;
 }

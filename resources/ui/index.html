@@ -2,10 +2,10 @@
 <html lang="ru" data-theme="obsidian">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-WNefl76om47D+YlYMEsS2WrqZVT3gZvF68g5cNwPRjc=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
-<meta name="description" content="SHELTER 1.0.165 — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
+<meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
 <meta name="color-scheme" content="dark light">
 <script>
 /* ранний выбор темы — без вспышки */
@@ -945,7 +945,11 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .toast .tb-a:hover{background:rgba(128,128,128,.28)}
 .toast .tb-i{width:26px;padding:0;display:grid;place-items:center}
 .toast .tb-i .i{width:14px;height:14px;opacity:1;color:inherit}
-.toast>span{padding:10px 6px 10px 0}
+.toast .toast-text{display:block;flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;padding:10px 6px 10px 0}
+.toast .toast-marquee-text{display:inline-block;white-space:nowrap}
+.toast .toast-text.marquee .toast-marquee-text{animation:toastMarquee var(--toast-scroll-duration,6s) linear infinite}
+@keyframes toastMarquee{0%,10%{transform:translateX(0)}48%,60%{transform:translateX(var(--toast-shift))}100%{transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.toast .toast-text.marquee .toast-marquee-text{animation:none}}
 @keyframes toastIn{from{opacity:0;transform:translate3d(0,14px,0) scale(.96)}}
 @keyframes toastOut{to{opacity:0;transform:translate3d(0,6px,0) scale(.97)}}
 .tip{position:fixed;z-index:400;padding:8px 11px;border-radius:calc(10px*var(--rs));background:var(--glass-menu);border:1px solid var(--glass-border);color:var(--text);font-size:12px;font-weight:500;pointer-events:none;white-space:pre-line;max-width:340px;line-height:1.4;
@@ -4025,7 +4029,6 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
     </aside>
 </div>
 
-<script src="native.js" onerror="this.remove()"></script>
 <script>
 /* =========================================================
    CEF (Chromium Embedded Framework) Adapter & Viewport Bridge
@@ -4426,13 +4429,20 @@ const fmtN = n => Math.round(n).toLocaleString('ru-RU');
 const rng = seed => { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
 const hashStr = s => { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 const copyText = t => { try { navigator.clipboard.writeText(t).catch(() => {}); } catch (e) {} };
-const secretEnc = s => { try { return (window.shelterNative && typeof window.shelterNative.secretEnc === 'function') ? String(window.shelterNative.secretEnc(s) || '') : ''; } catch (_) { return ''; } };
-const secretDec = s => { try { return (window.shelterNative && typeof window.shelterNative.secretDec === 'function') ? String(window.shelterNative.secretDec(s) || '') : ''; } catch (_) { return ''; } };
+let secretErrorNotified = false;
+function notifySecretStorageError() {
+  if (secretErrorNotified || !window.__shelterSecretFailure) return;
+  secretErrorNotified = true;
+  toast('Не удалось открыть или сохранить защищённые данные. Старый ключ и зашифрованные записи не изменены; проверьте учётную запись Windows или связку ключей macOS.', { icon: 'warn', ms: 10000 });
+}
+const secretEnc = s => { try { const n = window.shelterNative; const v = (n && typeof n.secretEnc === 'function') ? String(n.secretEnc(s) || '') : ''; notifySecretStorageError(); return v; } catch (_) { notifySecretStorageError(); return ''; } };
+const secretDec = s => { try { const n = window.shelterNative; const v = (n && typeof n.secretDec === 'function') ? String(n.secretDec(s) || '') : ''; notifySecretStorageError(); return v; } catch (_) { notifySecretStorageError(); return ''; } };
 function pwToStore(list) {
   if (S.__pwBlob) return S.__pwBlob;
   const arr = Array.isArray(list) ? list : [];
+  if (!arr.length) return arr;
   const b = secretEnc(JSON.stringify(arr));
-  return b ? b : arr;
+  return b || undefined;
 }
 function pwFromStore(v) {
   if (Array.isArray(v)) return v;
@@ -4456,9 +4466,10 @@ function aiFromStore(v) {
   return v;
 }
 function aiToStore(cfg) {
+  if (S.__aiBlob) return S.__aiBlob;
+  if (cfg == null) return cfg;
   const b = secretEnc(JSON.stringify(cfg));
-  S.__aiBlob = '';
-  return b ? b : cfg;
+  return b || undefined;
 }
 /* Шифрование на диске для истории и переписки (тот же мастер-ключ, что у
    паролей). Паттерн как у pwToStore: если расшифровка не удалась (ключ
@@ -4466,11 +4477,14 @@ function aiToStore(cfg) {
    данные не уничтожались. Memo не даёт шифровать неизменённые данные заново. */
 function blobToStore(key, val) {
   if (S[key]) return S[key];
+  const isEmpty = val == null || (Array.isArray(val) && val.length === 0) ||
+    (typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length === 0);
+  if (isEmpty) return val;
   const s = JSON.stringify(val);
   const memo = S.__encMemo || (S.__encMemo = {});
   if (memo[key + ':s'] === s) return memo[key + ':b'];
   const b = secretEnc(s);
-  if (!b) return val; // мост недоступен — как раньше, открыто
+  if (!b) return undefined;
   memo[key + ':s'] = s; memo[key + ':b'] = b;
   return b;
 }
@@ -4532,7 +4546,7 @@ const greeting = () => { const h = new Date().getHours(); return h >= 5 && h < 1
    Константы
    ========================================================= */
 const DEMO = false;             // пустой первый запуск — без демо-пространств и задач
-const VERSION = '1.0.165';
+const VERSION = (window.shelterNative && window.shelterNative.version) || 'dev';
 /* платформа и локализация (1.0.113): Mac и Windows — как русский и английский */
 const IS_MAC = ((window.shelterNative && window.shelterNative.platform) || navigator.platform || '').indexOf('darwin') >= 0 || /^Mac/.test(navigator.platform || '');
 const PLAT_NAME = IS_MAC ? 'macOS (Intel)' : 'Windows 11 x64';
@@ -4992,7 +5006,10 @@ function flushVisits() {
   if (_visitsTail) { clearTimeout(_visitsTail); _visitsTail = 0; }
   if (S.ghost) { _visitsDirty = false; return; }
   if (!_visitsDirty && Date.now() - _visitsAt < 4000) return;
-  try { store.put('shelter:visits', blobToStore('__visitsBlob', S.visits.slice(-4000))); } catch (_) {}
+  try {
+    const visits = blobToStore('__visitsBlob', S.visits.slice(-4000));
+    if (visits !== undefined) store.put('shelter:visits', visits);
+  } catch (_) {}
   _visitsAt = Date.now(); _visitsDirty = false;
 }
 /* Сохранение: в режиме «Призрак» ghost-вкладки (url/stack/title) НЕ должны
@@ -5033,7 +5050,15 @@ function saveNow() {
   store.put('shelter:ext', S.ext);
   /* Загрузки приватной сессии («Призрак») на диск не пишутся — как список
      загрузок инкогнито в больших браузерах; сами файлы остаются в папке. */
-  store.put('shelter:lux', { seeded: true, prefs: S.prefs, ui: S.ui, deep: S.deep, account: S.account, chats: blobToStore('__chatsBlob', S.chats), messages: blobToStore('__messagesBlob', S.messages), downloads: (S.downloads || []).filter(x => x && !x.ghost), passwords: pwToStore(S.passwords), blocks: S.blocks });
+  const oldLux = store.json('shelter:lux', {}) || {};
+  const nextLux = Object.assign({}, oldLux, { seeded: true, prefs: S.prefs, ui: S.ui, deep: S.deep, account: S.account, downloads: (S.downloads || []).filter(x => x && !x.ghost), blocks: S.blocks });
+  const chats = blobToStore('__chatsBlob', S.chats);
+  const messages = blobToStore('__messagesBlob', S.messages);
+  const passwords = pwToStore(S.passwords);
+  if (chats !== undefined) nextLux.chats = chats;
+  if (messages !== undefined) nextLux.messages = messages;
+  if (passwords !== undefined) nextLux.passwords = passwords;
+  store.put('shelter:lux', nextLux);
   if (!S.ghost) {
     const now = Date.now();
     if (now - _visitsAt >= 4000) { flushVisits(); }
@@ -5288,7 +5313,7 @@ function agentDlg() {
       b.disabled = false;
       if (r && r.ok) {
         S.ai = cfg;
-        try { store.put('shelter:ai', aiToStore(cfg)); } catch (_) {}
+        try { const stored = aiToStore(cfg); if (stored !== undefined) store.put('shelter:ai', stored); } catch (_) {}
         if (st) { st.textContent = 'Подключено ✓'; st.style.color = 'rgb(var(--ok, #3DD68C))'; }
         setTimeout(() => { finish(cfg); toast('AI-ассистент подключён', { icon: 'check' }); }, 380);
       } else {
@@ -5309,18 +5334,36 @@ function agentDlg() {
     setTimeout(() => { const f = m.scrim.querySelector('[data-ai="baseUrl"]'); if (f) { f.focus(); f.select(); } }, 50);
   });
 }
+function setupToastMarquee(clip, text) {
+  const systemReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!clip || !text || REDUCED() || systemReduced) return 0;
+  const overflow = Math.ceil(text.scrollWidth - clip.clientWidth);
+  if (overflow < 2) return 0;
+  const duration = Math.min(12, Math.max(4.8, 3.4 + overflow / 62));
+  clip.style.setProperty('--toast-shift', `${-overflow}px`);
+  clip.style.setProperty('--toast-scroll-duration', `${duration.toFixed(2)}s`);
+  clip.classList.add('marquee');
+  return Math.round(duration * 1000);
+}
 function toast(msg, opts = {}) {
   const root = $('#toasts'); const el = document.createElement('div');
   el.className = 'toast';
   const act = opts.action;
-  el.innerHTML = `${opts.icon ? ico(opts.icon) : ''}<span>${esc(msg)}</span>${act ? (act.icon ? `<button class="tb-a tb-i" data-tip="${esc(act.tip || act.label || 'Показать в папке')}" aria-label="${esc(act.label || act.tip || 'Показать в папке')}">${ico(act.icon)}</button>` : `<button class="tb-a">${esc(act.label)}</button>`) : ''}`;
+  el.innerHTML = `${opts.icon ? ico(opts.icon) : ''}<span class="toast-text"><span class="toast-marquee-text">${esc(msg)}</span></span>${act ? (act.icon ? `<button class="tb-a tb-i" data-tip="${esc(act.tip || act.label || 'Показать в папке')}" aria-label="${esc(act.label || act.tip || 'Показать в папке')}">${ico(act.icon)}</button>` : `<button class="tb-a">${esc(act.label)}</button>`) : ''}`;
   if (!opts.action) el.style.paddingRight = '8px';
   root.appendChild(el);
   /* cap только тосты: первым ребёнком #toasts живёт floatStack (float-уведомления) */
   while (root.querySelectorAll(':scope > .toast').length > 3) root.querySelector(':scope > .toast').remove();
   const kill = () => { if (!el.isConnected) return; el.classList.add('out'); setTimeout(() => el.remove(), 260); };
   if (opts.action) el.querySelector('.tb-a').onclick = () => { opts.action.run(); kill(); };
-  setTimeout(kill, opts.ms || (opts.action ? 5200 : 2600));
+  const lifetime = opts.ms || (opts.action ? 5200 : 2600);
+  let timer = setTimeout(kill, lifetime);
+  raf(() => {
+    if (!el.isConnected) return;
+    const cycle = setupToastMarquee(el.querySelector('.toast-text'), el.querySelector('.toast-marquee-text'));
+    const visibleFor = cycle ? Math.min(15000, Math.max(lifetime, cycle + 800)) : lifetime;
+    if (visibleFor > lifetime) { clearTimeout(timer); timer = setTimeout(kill, visibleFor); }
+  });
 }
 
 /* подсказки */
@@ -9449,50 +9492,30 @@ function pwAddModal() {
    Магазин — настоящий Chrome Web Store, открывается вкладкой. */
 const CWS_URL = 'https://chromewebstore.google.com/';
 function extMeta(e) { return { c: e.c || hostColor(e.id || e.name), l: e.l || (e.name || '?').slice(0, 1).toUpperCase() }; }
-/* Статус расширения — это факт, а не обещание: «загружено» пишем только когда
-   движок подтвердил загрузку (оболочка спрашивает у него манифест расширения
-   по chrome-extension://…/manifest.json). Иначе честно: «со следующего
-   запуска» (путь попадёт в --load-extension при рестарте), «Оболочка · MV2»
-   (manifest v2 политика Chromium не грузит) или «Оболочка · content-scripts». */
+/* Статус остаётся коротким; подробности ограничения доступны только как подсказка.
+   «Загружено» показывается лишь после подтверждения через chrome-extension://…/manifest.json. */
 function extStateChip(e, mode) {
   if (e.engine && e.passed) {
-    if (e.probe === 'ok') return `<span class="ext-state">${ico('check')}Загружено движком</span>`;
-    if (e.probe === 'fail') return `<span class="chip warn">${ico('layers')}Движок не подтвердил</span>`;
-    return `<span class="chip info">${ico('clock')}Проверяю движок…</span>`;
+    if (e.probe === 'ok') return `<span class="ext-state" title="Движок подтвердил доступность расширения">${ico('check')}Загружено</span>`;
+    if (e.probe === 'fail') return `<span class="chip warn" title="Движок не подтвердил загрузку">${ico('layers')}Ошибка</span>`;
+    return `<span class="chip info" title="Проверяю загрузку в движке">${ico('clock')}Проверка…</span>`;
   }
-  if (e.engine) return `<span class="chip info">${ico('clock')}Со следующего запуска</span>`;
-  if (mode === 'engine') return `<span class="chip warn">${ico('layers')}Оболочка · MV2</span>`;
-  return `<span class="chip">${ico('layers')}Оболочка · content-scripts</span>`;
+  if (e.engine) return `<span class="chip info" title="Путь будет загружен при следующем запуске">${ico('clock')}Перезапуск</span>`;
+  if (mode === 'engine') return `<span class="chip warn" title="Manifest V2 не загружается движком Chromium">${ico('layers')}MV2</span>`;
+  return `<span class="chip" title="Ограниченный режим: оболочка внедряет только content-scripts">${ico('layers')}Скрипты</span>`;
 }
 function extCard(e, i) {
   const m = extMeta(e);
-  const desc = e.desc || (e.engine
-    ? (e.passed
-      ? (e.probe === 'ok'
-        ? 'Manifest v3: движок Chromium подтвердил загрузку расширения — content-scripts и фон грузит он сам. Неподдерживаемые движком chrome.* API не заработают.'
-        : (e.probe === 'fail'
-          ? 'Manifest v3: путь передан движку аргументом --load-extension, но движок расширение не подтвердил — включите журнал диагностики (SHELTER_DIAG=1) и посмотрите причину.'
-          : 'Manifest v3: путь передан движку, проверяю загрузку…'))
-      : 'Manifest v3: готов к загрузке движком Chromium при следующем запуске. До перезапуска content-scripts применяет оболочка.')
-    : 'Content-scripts (JS/CSS) применяются к подходящим страницам и фреймам по правилам манифеста (matches, globs, all_frames). Фоновые service worker и chrome.* API не поддерживаются.');
-  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div class="tx"><b>${esc(e.name)}</b><small>${e.ver ? 'v' + esc(e.ver) : 'расширение'}${e.mv ? ' · manifest v' + e.mv : ''}</small></div>${extStateChip(e, S.extMode)}</div>
-  <p>${esc(desc)}</p>
+  return `<div class="ext rise" style="--i:${i}"><div class="top"><span class="fav lg" style="background:${esc(m.c)}">${esc(m.l)}</span><div class="tx"><b>${esc(e.name)}</b>${e.ver ? `<small>v${esc(e.ver)}</small>` : ''}</div>${extStateChip(e, S.extMode)}</div>
   <div class="ft"><span class="sp"></span><button class="btn sm ghost" data-act="extPage" data-id="${esc(e.id)}">${ico('globe')}Страница</button><button class="btn sm ghost" data-act="extRemove" data-id="${esc(e.id)}">Удалить</button></div></div>`;
 }
 RENDER.extensions = () => {
-  const inst = S.ext.filter(e => e && e.id && e.name);
-  const engine = S.extMode !== 'shell';
-  const engineN = inst.filter(e => e.engine).length;
-  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div><div class="page-sub">Пакет распаковывается локально: MV3 грузит движок Chromium, MV2 применяет оболочка</div></div>
-  <div class="page-actions"><button class="btn" data-act="extStore">${ico('globe')}Открыть магазин</button><button class="btn" data-act="extInstallPop">${ico('link')}Установить по ID или ссылке</button><button class="btn" data-act="extPick">${ico('file')}Из файла…</button></div></div>
-  <div class="sec-t">Режим <small>${engine ? 'движок Chromium · MV3' : 'оболочка · content-scripts'}</small></div>
-  <div class="set-card"><div class="set-row"><div class="tx"><b>Загружать расширения движком Chromium</b><span>${engine
-    ? 'Manifest v3 передан движку аргументом --load-extension: фон, chrome.* API и content-scripts работают как в Chromium. Загрузку оболочка подтверждает запросом к самому расширению (chrome-extension://…/manifest.json) — статус карточки показывает факт, а не обещание. MV2 движок не грузит политикой Chromium: такие пакеты остаются на оболочке. Список путей фиксируется при запуске, поэтому новое расширение подхватывается после перезапуска (сейчас: ' + engineN + ' из ' + inst.length + ').'
-    : 'Всё выполняет оболочка: content-scripts (JS/CSS) внедряются по правилам манифеста, фон и chrome.* API не поддерживаются. Включите, чтобы MV3-расширения грузил движок Chromium.'}</span></div><button class="sw-t ${engine ? 'on' : ''}" data-act="extEngine" role="switch" aria-checked="${engine}" aria-label="Загружать расширения движком Chromium"><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></button></div></div>
-  <div class="sec-t">Установленные <small>${inst.length}</small></div>
-  <div class="ext-grid">${inst.length ? inst.map(extCard).join('') : emptyState('puzzle', 'Нет расширений', 'Установите из магазина, по ID или ссылке, либо из файла')}</div></div>`;
-  // Список и режим — у оболочки: она же вернёт статусы проверки движка.
   if (NAT && NAT.extList) Promise.resolve(NAT.extList()).then(r => { if (r && r.list) applyExtList(r.list, r.mode); }).catch(() => {});
+  const inst = S.ext.filter(e => e && e.id && e.name);
+  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Расширения</div></div>
+  <div class="page-actions"><button class="btn" data-act="extStore">${ico('globe')}Магазин</button><button class="btn" data-act="extInstallPop">${ico('link')}Установить</button><button class="btn" data-act="extPick">${ico('file')}Из файла</button></div></div>
+  <div class="sec-t">Установленные <small>${inst.length}</small></div>
+  <div class="ext-grid">${inst.length ? inst.map(extCard).join('') : emptyState('puzzle', 'Нет расширений', 'Установите расширение')}</div></div>`;
 };
 /* Установка по ID или ссылке — компактный попап с полем ввода вместо
    постоянно занимающей место строки на странице. */
@@ -9587,8 +9610,15 @@ function profileAvatarSource(custom) {
 function profileAvatarContent(name, src, fallback) {
   if (src === undefined) src = profileAvatarSource();
   const initials = fallback || initialsOf(name);
-  return `<span class="avatar-initials">${esc(initials)}</span>${src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer" onerror="this.remove();this.parentNode.classList.remove('has-photo')">` : ''}`;
+  return `<span class="avatar-initials">${esc(initials)}</span>${src ? `<img class="avatar-photo" src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : ''}`;
 }
+document.addEventListener('error', e => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || !img.classList.contains('avatar-photo')) return;
+  const parent = img.parentNode;
+  img.remove();
+  if (parent && parent.classList) parent.classList.remove('has-photo');
+}, true);
 function profileAvatarMarkup(name, cls = 'profile-avatar', src, fallback) {
   if (src === undefined) src = profileAvatarSource();
   return `<span class="${esc(cls)} ${src ? 'has-photo' : ''}">${profileAvatarContent(name, src, fallback)}<i>${ico('sparkles')}</i></span>`;
@@ -11968,6 +11998,7 @@ function cycleTab(dir) {
 }
 window.getAllTabIds = () => { const a = []; Object.values(S.spaces).forEach(sp => (sp.tabs || []).forEach(t => a.push(t.id))); return a; };
 window.getActiveTabId = () => S.activeTabId;
+window.__shelterTab = id => { const ks = Object.keys(S.spaces || {}); for (const k of ks) { const t = (S.spaces[k].tabs || []).find(x => x.id === id); if (t) return { space: k, ghost: !!(t.ghost || S.ghost) }; } return { space: S.currentSpace, ghost: !!S.ghost }; };
 window.navigate = v => navigate(v);
 window.newTab = u => {
   const url = (u && typeof u === 'object') ? (u.url || 'shelter.dev/start') : (u ? resolveInput(u) : undefined);

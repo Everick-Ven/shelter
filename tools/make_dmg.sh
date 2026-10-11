@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Собирает установочный DMG для macOS: SHELTER.app + ярлык «Applications».
-# usage: make_dmg.sh <path/to/Shelter.app> <out.dmg> [version]
+# usage: make_dmg.sh <path/to/Shelter.app> <out.dmg> <version>
 #
 # Подпись: ad-hoc (без сертификата Apple Developer). Вложенные части подписываются
 # «изнутри наружу»; для распространения без предупреждений Gatekeeper нужна подпись
@@ -9,7 +9,7 @@ set -euo pipefail
 
 APP="$1"
 OUT="$2"
-VER="${3:-1.0.165}"
+VER="${3:?pass version from the configured CMake build}"
 
 [ -d "$APP" ] || { echo "нет приложения: $APP"; exit 1; }
 

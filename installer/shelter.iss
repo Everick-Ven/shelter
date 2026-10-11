@@ -1,10 +1,10 @@
 ; SHELTER — установщик для Windows x64 (Inno Setup 6).
-; Сборка:  ISCC.exe /DSourceDir=..\build\Release /DAppVersion=1.0.165 installer\shelter.iss
+; Сборка передаёт AppVersion из CMakeLists.txt через /DAppVersion.
 ; Установка на пользователя (без прав администратора): %LOCALAPPDATA%\Programs\SHELTER.
 ; Данные профиля (%LOCALAPPDATA%\SHELTER) при удалении программы НЕ стираются.
 
 #ifndef AppVersion
-  #define AppVersion "1.0.165"
+  #error AppVersion must be supplied from the configured CMake version
 #endif
 #ifndef SourceDir
   #define SourceDir "..\build\Release"

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <cstdarg>
 #include <cstdio>
 #include <filesystem>
@@ -128,9 +129,13 @@ bool KeychainDeleteNoPrompt(const char* service, const char* account) {
 
 }  // namespace
 
-bool KeychainGet(const char* service, const char* account, std::string* out) {
-  if (!out) return false;
-  return KeychainReadNoPrompt(service, account, out) == errSecSuccess;
+KeychainReadResult KeychainGet(const char* service, const char* account,
+                               std::string* out) {
+  if (!out) return KeychainReadResult::kError;
+  const OSStatus status = KeychainReadNoPrompt(service, account, out);
+  if (status == errSecSuccess) return KeychainReadResult::kFound;
+  if (status == errSecItemNotFound) return KeychainReadResult::kMissing;
+  return KeychainReadResult::kError;
 }
 
 bool KeychainPutOpen(const char* service, const char* account,
@@ -289,6 +294,18 @@ std::string UserDataDir() {
       NSApplicationSupportDirectory, NSUserDomainMask, YES);
   NSString* base = dirs.count ? dirs[0] : NSHomeDirectory();
   return std::string([base UTF8String]) + "/SHELTER";
+}
+
+bool RandomBytes(size_t size, std::string* out) {
+  if (!out) return false;
+  out->assign(size, '\0');
+  if (size == 0) return true;
+  if (SecRandomCopyBytes(kSecRandomDefault, size,
+                         reinterpret_cast<std::uint8_t*>(out->data())) ==
+      errSecSuccess)
+    return true;
+  out->clear();
+  return false;
 }
 
 std::string DownloadsDir() {

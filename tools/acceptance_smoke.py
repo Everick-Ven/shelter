@@ -8,6 +8,7 @@ viewport sizes and a real HTTPS page loads in a native browser tab.
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import socket
@@ -2340,11 +2341,15 @@ def stop_process(process: subprocess.Popen) -> None:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
-        print("usage: acceptance_smoke.py <packaged-shelter-executable>", file=sys.stderr)
-        return 2
+    parser = argparse.ArgumentParser()
+    parser.add_argument("executable", type=Path)
+    parser.add_argument("--expected-version", required=True)
+    args = parser.parse_args()
 
-    executable = Path(sys.argv[1]).expanduser().resolve()
+    executable = args.executable.expanduser().resolve()
+    expected_version = args.expected_version
+    if not expected_version or not all(part.isdigit() for part in expected_version.split(".")):
+        parser.error("--expected-version must be a dot-separated numeric version")
     if not executable.is_file():
         print(f"Packaged executable not found: {executable}", file=sys.stderr)
         return 2
@@ -2366,7 +2371,7 @@ def main() -> int:
 
     try:
         long_page_server, long_page_thread, long_page_base = start_long_page_server()
-        print(f"SHELTER_ACCEPTANCE_VERSION expected=1.0.165", flush=True)
+        print(f"SHELTER_ACCEPTANCE_VERSION expected={expected_version}", flush=True)
         print(f"SHELTER_ACCEPTANCE_EXECUTABLE {executable}", flush=True)
         with log_path.open("w", encoding="utf-8") as app_log:
             process = subprocess.Popen(
@@ -2406,9 +2411,25 @@ def main() -> int:
                 timeout=45,
             )
             version = ui.evaluate("window.shelter && window.shelter.version")
-            if version != "1.0.165":
+            if version != expected_version:
                 raise AcceptanceError(
-                    f"Packaged UI version mismatch: expected 1.0.165, got {version!r}"
+                    f"Packaged UI version mismatch: expected {expected_version}, got {version!r}"
+                )
+            secret_probe = ui.evaluate(
+                "(() => { const n = window.shelterNative; "
+                "const sample = 'SHELTER native crypto probe · тест'; "
+                "const encrypted = n && n.secretEnc(sample); "
+                "const decrypted = encrypted && n.secretDec(encrypted); "
+                "return { encrypted: typeof encrypted === 'string' && encrypted.startsWith('ss1:'), "
+                "roundTrip: decrypted === sample, keyHidden: !!n && "
+                "typeof n.masterKey === 'undefined' && typeof n.secretKeyHex === 'undefined' }; })()"
+            )
+            if not isinstance(secret_probe, dict) or not all(
+                secret_probe.get(key) is True
+                for key in ("encrypted", "roundTrip", "keyHidden")
+            ):
+                raise AcceptanceError(
+                    f"Native secret crypto bridge failed or exposed key material: {secret_probe!r}"
                 )
             print(f"SHELTER_ACCEPTANCE_UI_READY version={version}", flush=True)
             original_gfx = ui.evaluate("window.shelterTest.state().prefs.gfx || 'balance'")

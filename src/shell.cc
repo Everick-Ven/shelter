@@ -1073,9 +1073,9 @@ void Shell::ApplyPendingWipes() {
   const fs::path list = user_data / "pending-wipe.txt";
   if (!security::IsDirectoryWithoutLink(user_data)) return;
 
-  // Pre-1.0.166 builds nested profiles under Profiles/. Chrome only accepts
-  // profiles that are direct children of the user-data directory and rejected
-  // those paths, so wipe the legacy container wholesale on upgrade.
+  // Older builds kept profiles under the obsolete Profiles/ container.
+  // Chromium requires profile paths to be direct children of the user-data
+  // directory, so remove that unusable legacy container during upgrade.
   std::error_code ec;
   const fs::path legacy_profiles = user_data / "Profiles";
   const fs::file_status legacy_status = fs::symlink_status(legacy_profiles, ec);

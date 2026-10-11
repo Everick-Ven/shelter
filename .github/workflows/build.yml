@@ -17,19 +17,17 @@ jobs:
   windows:
     name: Windows x64
     runs-on: windows-latest
-    permissions:
-      contents: write  # push failure logs to the ci-logs-windows branch
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Cache CEF
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: third_party/cef
           key: ${{ env.CEF_VERSION_KEY }}-windows64-${{ hashFiles('CMakeLists.txt') }}
 
       - name: MSVC environment (x64)
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
         with:
           arch: x64
 
@@ -55,6 +53,14 @@ jobs:
           if (-not (Test-Path build/Release/Shelter.exe) -or -not (Test-Path build/Release/Shelter.dll)) {
             throw "CEF sandbox build must contain bootstrap Shelter.exe and client Shelter.dll"
           }
+          $version = (Get-Content build/shelter-version.txt -Raw).Trim()
+          $expected = '^' + [regex]::Escape($version) + '(\.0)?$'
+          foreach ($path in @('build/Release/Shelter.exe', 'build/Release/Shelter.dll')) {
+            $info = (Get-Item $path).VersionInfo
+            if ($info.FileVersion -notmatch $expected -or $info.ProductVersion -notmatch $expected) {
+              throw "$path version resource mismatch: file=$($info.FileVersion), product=$($info.ProductVersion), expected=$version"
+            }
+          }
 
       - name: Geometry acceptance (strict)
         shell: bash
@@ -69,7 +75,10 @@ jobs:
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
           if (-not (Test-Path $iscc)) { throw "ISCC.exe не найден" }
           New-Item -ItemType Directory -Force dist | Out-Null
-          & $iscc "/DSourceDir=$PWD\build\Release" "/DAppVersion=1.0.165" installer\shelter.iss 2>&1 | Tee-Object -FilePath package.log
+          $version = (Get-Content build/shelter-version.txt -Raw).Trim()
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid configured SHELTER_VERSION: $version" }
+          Set-Content -Path dist/shelter-version.txt -Value $version -NoNewline -Encoding ascii
+          & $iscc "/DSourceDir=$PWD\build\Release" "/DAppVersion=$version" installer\shelter.iss 2>&1 | Tee-Object -FilePath package.log
           if ($LASTEXITCODE -ne 0) { throw "ISCC завершился с кодом $LASTEXITCODE" }
           Get-ChildItem dist | Out-String | Tee-Object -FilePath package.log -Append
 
@@ -88,7 +97,8 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Installed SHELTER executable not found: $exe" }
           "installed executable: $exe" | Tee-Object -FilePath smoke-run.log
           $env:PYTHONIOENCODING = "utf-8"
-          python tools/acceptance_smoke.py $exe 2>&1 | Tee-Object -FilePath smoke-run.log -Append
+          $version = (Get-Content build/shelter-version.txt -Raw).Trim()
+          python tools/acceptance_smoke.py $exe --expected-version $version 2>&1 | Tee-Object -FilePath smoke-run.log -Append
           if ($LASTEXITCODE -ne 0) { throw "Packaged Windows runtime acceptance failed" }
           Get-Process Shelter -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Sleep -Seconds 2
@@ -103,13 +113,6 @@ jobs:
         if: failure()
         shell: pwsh
         run: python tools/report_ci_failure.py configure.log build.log package.log install.log geometry.log geometry-app.log smoke-run.log acceptance-app.log
-
-      - name: Push Windows logs to ci-logs branch
-        if: failure()
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash tools/push_log.sh windows configure.log build.log package.log install.log geometry.log geometry-app.log smoke-run.log acceptance-app.log || true
 
       - name: Portable zip
         shell: pwsh
@@ -129,18 +132,19 @@ jobs:
           }
           $lines | Set-Content -Path dist/SHA256SUMS.txt -Encoding ascii
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: SHELTER-windows-x64
           path: |
             dist/SHELTER-Setup-x64.exe
             dist/SHELTER-windows-x64-portable.zip
             dist/SHA256SUMS.txt
+            dist/shelter-version.txt
           if-no-files-found: error
 
       - name: Upload Windows diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: SHELTER-windows-ci-logs
           path: |
@@ -152,17 +156,16 @@ jobs:
             smoke-run.log
             acceptance-app.log
           if-no-files-found: ignore
+          retention-days: 14
 
   macos:
     name: macOS Intel (x86_64)
     runs-on: macos-15-intel
-    permissions:
-      contents: write  # push failure logs to the ci-logs-macos branch
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Cache CEF
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: third_party/cef
           key: ${{ env.CEF_VERSION_KEY }}-macosx64-${{ hashFiles('CMakeLists.txt') }}
@@ -193,8 +196,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          tools/make_dmg.sh build/Release/SHELTER.app dist/SHELTER-macos-x64.dmg 1.0.165 2>&1 | tee package.log
-          (cd dist && shasum -a 256 SHELTER-macos-x64.dmg > SHA256SUMS.txt)
+          version="$(tr -d '\r\n' < build/shelter-version.txt)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          dmg_name="SHELTER-macos-x64-${version}.dmg"
+          printf '%s' "$version" > dist/shelter-version.txt
+          tools/make_dmg.sh build/Release/SHELTER.app "dist/$dmg_name" "$version" 2>&1 | tee package.log
+          (cd dist && shasum -a 256 "$dmg_name" > SHA256SUMS.txt)
 
       - name: Install and test packaged DMG (strict)
         timeout-minutes: 8
@@ -209,7 +216,9 @@ jobs:
             rmdir "$mount_point" 2>/dev/null || true
           }
           trap cleanup EXIT
-          hdiutil attach dist/SHELTER-macos-x64.dmg -nobrowse -mountpoint "$mount_point"
+          version="$(tr -d '\r\n' < build/shelter-version.txt)"
+          dmg_name="SHELTER-macos-x64-${version}.dmg"
+          hdiutil attach "dist/$dmg_name" -nobrowse -mountpoint "$mount_point"
           test -d "$mount_point/SHELTER.app"
           rm -rf /Applications/SHELTER.app
           cp -R "$mount_point/SHELTER.app" /Applications/SHELTER.app
@@ -217,30 +226,24 @@ jobs:
           rmdir "$mount_point"
           trap - EXIT
           ls -la /Applications/SHELTER.app/Contents/Resources
-          python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee smoke-run.log
+          python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" 2>&1 | tee smoke-run.log
 
       - name: Report macOS failure diagnostics
         if: failure()
         run: python3 tools/report_ci_failure.py configure.log build.log package.log geometry.log geometry-app.log smoke-run.log acceptance-app.log
 
-      - name: Push macOS logs to ci-logs branch
-        if: failure()
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash tools/push_log.sh macos configure.log build.log package.log geometry.log geometry-app.log smoke-run.log acceptance-app.log || true
-
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: SHELTER-macos-x64
           path: |
-            dist/SHELTER-macos-x64.dmg
+            dist/SHELTER-macos-x64-*.dmg
             dist/SHA256SUMS.txt
+            dist/shelter-version.txt
           if-no-files-found: error
 
       - name: Upload macOS diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: SHELTER-macos-ci-logs
           path: |
@@ -251,14 +254,13 @@ jobs:
             smoke-run.log
             acceptance-app.log
           if-no-files-found: ignore
+          retention-days: 14
 
   security-unit:
     name: UI and security regression tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Version consistency check
-        run: python3 tools/check_version.py
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Download UI regression test
         run: node tests/download_ui_test.js
       - name: Tracker/ad statistics regression test
@@ -271,11 +273,19 @@ jobs:
         run: node tests/ui_tabs_test.js
       - name: Extensions page and bridge regression test
         run: node tests/ui_extensions_test.js
-      - name: Master key persistence test
+      - name: Notification marquee regression test
+        run: node tests/ui_toast_marquee_test.js
+      - name: CSP hashes and renderer secret isolation regression test
+        run: node tests/ui_csp_test.js
+      - name: Central UI bridge authorization regression test
+        run: node tests/bridge_authorization_test.js
+      - name: Single-source version propagation regression test
+        run: node tests/app_version_source_test.js
+      - name: Compile and run native secret crypto compatibility tests
         run: |
           set -euo pipefail
-          c++ -std=c++17 -Wall -Wextra -Werror -I. tests/secret_key_test.cc src/secret_key.cc src/platform_linux.cc -pthread -o secret-key-test
-          ./secret-key-test
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/secret_crypto_test.cc src/secret_crypto.cc -o secret-crypto-test
+          ./secret-crypto-test
       - name: Compile and run path/archive safety tests
         run: |
           set -euo pipefail
@@ -316,33 +326,44 @@ jobs:
       actions: read
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: assets
       - name: Generate release SHA-256 checksums
         run: |
           set -euo pipefail
-          cd assets
+          version="$(tr -d '\r\n' < assets/SHELTER-windows-x64/shelter-version.txt)"
+          mac_version="$(tr -d '\r\n' < assets/SHELTER-macos-x64/shelter-version.txt)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$version" == "$mac_version" ]]
+          if [[ "${GITHUB_REF_NAME#v}" != "$version" ]]; then
+            echo "Release tag $GITHUB_REF_NAME does not match configured SHELTER_VERSION $version" >&2
+            exit 1
+          fi
+          dmg="SHELTER-macos-x64-${version}.dmg"
           files=(
-            SHELTER-windows-x64/SHELTER-Setup-x64.exe
-            SHELTER-windows-x64/SHELTER-windows-x64-portable.zip
-            SHELTER-macos-x64/SHELTER-macos-x64.dmg
+            "assets/SHELTER-windows-x64/SHELTER-Setup-x64.exe"
+            "assets/SHELTER-windows-x64/SHELTER-windows-x64-portable.zip"
+            "assets/SHELTER-macos-x64/$dmg"
           )
-          : > SHA256SUMS.txt
+          : > assets/SHA256SUMS.txt
           for file in "${files[@]}"; do
+            test -f "$file"
             hash="$(sha256sum "$file" | cut -d ' ' -f1)"
-            echo "$hash  ${file##*/}" >> SHA256SUMS.txt
+            echo "$hash  ${file##*/}" >> assets/SHA256SUMS.txt
           done
+          echo "SHELTER_VERSION=$version" >> "$GITHUB_ENV"
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           find assets -type f | sort
+          dmg="SHELTER-macos-x64-${SHELTER_VERSION}.dmg"
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "SHELTER ${GITHUB_REF_NAME#v}" \
-            --notes "Установщики: SHELTER-Setup-x64.exe (Windows x64), SHELTER-macos-x64.dmg (macOS Intel). Также portable zip для Windows. SHA256SUMS.txt содержит контрольные суммы. macOS: ad-hoc подпись без Developer ID и нотаризации; при первом запуске Gatekeeper может потребовать «Открыть»." \
+            --title "SHELTER ${SHELTER_VERSION}" \
+            --notes "Установщики: SHELTER-Setup-x64.exe (Windows x64), ${dmg} (macOS Intel). Также portable zip для Windows. SHA256SUMS.txt содержит контрольные суммы. macOS: ad-hoc подпись без Developer ID и нотаризации; при первом запуске Gatekeeper может потребовать «Открыть»." \
             assets/SHELTER-windows-x64/SHELTER-Setup-x64.exe \
             assets/SHELTER-windows-x64/SHELTER-windows-x64-portable.zip \
-            assets/SHELTER-macos-x64/SHELTER-macos-x64.dmg \
+            "assets/SHELTER-macos-x64/${dmg}" \
             assets/SHA256SUMS.txt

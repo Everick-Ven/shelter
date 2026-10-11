@@ -1,15 +1,21 @@
 #include "src/ui_scheme.h"
 
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "include/cef_parser.h"
+#include "include/cef_post_data.h"
+#include "include/cef_post_data_element.h"
+#include "include/cef_request.h"
 #include "include/cef_scheme.h"
 #include "include/wrapper/cef_helpers.h"
 #include "include/wrapper/cef_stream_resource_handler.h"
 #include "src/common.h"
 #include "src/platform.h"
+#include "src/secret_crypto.h"
 #include "src/shell.h"
 
 namespace shelter {
@@ -47,6 +53,71 @@ bool SanitizeRelPath(std::string* rel) {
   return true;
 }
 
+constexpr size_t kMaxSecretRequestBytes = 64u * 1024u * 1024u;
+
+bool ReadPostBody(CefRefPtr<CefRequest> request, std::string* body) {
+  if (!request || !body) return false;
+  CefRefPtr<CefPostData> post = request->GetPostData();
+  if (!post) return false;
+  std::vector<CefRefPtr<CefPostDataElement>> elements;
+  post->GetElements(elements);
+  size_t total = 0;
+  for (const auto& element : elements) {
+    if (!element || element->GetType() != PDE_TYPE_BYTES) return false;
+    const size_t count = element->GetBytesCount();
+    if (count > kMaxSecretRequestBytes - total) return false;
+    total += count;
+  }
+  body->assign(total, '\0');
+  size_t offset = 0;
+  for (const auto& element : elements) {
+    const size_t count = element->GetBytesCount();
+    if (count && element->GetBytes(count, body->data() + offset) != count) {
+      body->clear();
+      return false;
+    }
+    offset += count;
+  }
+  return true;
+}
+
+CefRefPtr<CefResourceHandler> SecretResponse(bool ok,
+                                            const std::string& value) {
+  CefRefPtr<CefDictionaryValue> dict = CefDictionaryValue::Create();
+  dict->SetBool("ok", ok);
+  if (ok) dict->SetString("value", value);
+  CefRefPtr<CefValue> json = CefValue::Create();
+  json->SetDictionary(dict);
+  const std::string data = CefWriteJSON(json, JSON_WRITER_DEFAULT).ToString();
+  CefRefPtr<CefStreamReader> stream =
+      CefStreamReader::CreateForData(data.data(), data.size());
+  CefResponse::HeaderMap headers;
+  headers.insert({"Cache-Control", "no-store"});
+  headers.insert({"X-Content-Type-Options", "nosniff"});
+  return new CefStreamResourceHandler(200, "OK", "application/json", headers,
+                                      stream);
+}
+
+CefRefPtr<CefResourceHandler> HandleSecretRequest(
+    CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+    CefRefPtr<CefRequest> request, const std::string& operation) {
+  if (!browser || !frame || !frame->IsMain() || !request ||
+      !Shell::Get().IsUiBrowserId(browser->GetIdentifier()) ||
+      request->GetMethod().ToString() != "POST") {
+    return SecretResponse(false, std::string());
+  }
+  std::string input, output;
+  const bool parsed = ReadPostBody(request, &input);
+  const bool ok = parsed &&
+      (operation == "encrypt"
+           ? shelter::secret_crypto::Encrypt(input, &output)
+           : shelter::secret_crypto::Decrypt(input, &output));
+  std::fill(input.begin(), input.end(), '\0');
+  CefRefPtr<CefResourceHandler> response = SecretResponse(ok, ok ? output : "");
+  std::fill(output.begin(), output.end(), '\0');
+  return response;
+}
+
 // Мост подключается в index.html без правки самого файла: тег <script>
 // вставляется перед самым первым <script>, то есть до кода UI (но после CSP <meta>).
 std::string InjectBridge(std::string html) {
@@ -56,21 +127,6 @@ std::string InjectBridge(std::string html) {
   if (pos == std::string::npos) return tag + html;
   html.insert(pos, tag);
   return html;
-}
-
-// Небольшой «читающий» хук состояния (space/ghost по id вкладки). Вставляется при отдаче
-// страницы — файл дизайна на диске остаётся нетронутым. Если маркер не найден (дизайн
-// обновили), host-bridge.js работает в упрощённом режиме.
-void InjectStateHook(std::string* html) {
-  const std::string marker = "window.getActiveTabId = () => S.activeTabId;";
-  size_t pos = html->find(marker);
-  if (pos == std::string::npos) return;
-  const std::string hook =
-      "\nwindow.__shelterTab = id => { const ks = Object.keys(S.spaces || {});"
-      " for (const k of ks) { const t = (S.spaces[k].tabs || []).find(x => x.id === id);"
-      " if (t) return { space: k, ghost: !!(t.ghost || S.ghost) }; }"
-      " return { space: S.currentSpace, ghost: !!S.ghost }; };";
-  html->insert(pos + marker.size(), hook);
 }
 
 // Если index.html не найден рядом с exe (запуск прямо из архива без распаковки,
@@ -117,8 +173,8 @@ class UiSchemeHandlerFactory : public CefSchemeHandlerFactory {
                                        CefRefPtr<CefRequest> request) override {
     CEF_REQUIRE_IO_THREAD();
 
-    // The bridge contains the app secret and native UI resources. Do not serve
-    // it to web tabs, popups, or subframes—even if they request shelter:// URLs.
+    // The bridge exposes privileged native UI capabilities and app resources.
+    // Do not serve it to web tabs, popups, or subframes, even on this scheme.
     if (!browser || !frame || !frame->IsMain() || !request ||
         !Shell::Get().IsUiBrowserId(browser->GetIdentifier())) {
       return NotFound();
@@ -129,6 +185,11 @@ class UiSchemeHandlerFactory : public CefSchemeHandlerFactory {
     size_t cut = rel.find_first_of("?#");
     if (cut != std::string::npos) rel.resize(cut);
     if (!SanitizeRelPath(&rel)) return NotFound();
+
+    if (rel == "secret/encrypt" || rel == "secret/decrypt") {
+      return HandleSecretRequest(browser, frame, request,
+                                 rel == "secret/encrypt" ? "encrypt" : "decrypt");
+    }
 
     std::string data;
     if (!ReadFile(platform::UiResourceDir() + "/" + rel, &data)) {
@@ -146,12 +207,10 @@ class UiSchemeHandlerFactory : public CefSchemeHandlerFactory {
     }
 
     if (rel == "index.html") {
-      InjectStateHook(&data);
       data = InjectBridge(std::move(data));
     } else if (rel == "host-bridge.js") {
       ReplaceAll(&data, "__PLATFORM__", kPlatform);
       ReplaceAll(&data, "__APP_VERSION__", kAppVersion);
-      ReplaceAll(&data, "__SECRET_KEY__", platform::SecretKeyHex());
     }
 
     std::string ext;

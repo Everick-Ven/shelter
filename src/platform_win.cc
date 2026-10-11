@@ -2,11 +2,13 @@
 #include "src/security_paths.h"
 
 #include <windows.h>
+#include <bcrypt.h>
 #include <shellapi.h>
 #include <shlobj.h>
 
 #include <cstring>
 #include <cwchar>
+#include <climits>
 #include <filesystem>
 #include <string>
 #include <system_error>
@@ -65,6 +67,18 @@ std::string UserDataDir() {
   std::string base = KnownFolder(FOLDERID_LocalAppData);
   if (base.empty()) base = ".";
   return base + "\\SHELTER";
+}
+
+bool RandomBytes(size_t size, std::string* out) {
+  if (!out || size > static_cast<size_t>(ULONG_MAX)) return false;
+  out->assign(size, '\0');
+  if (size == 0) return true;
+  if (BCryptGenRandom(nullptr, reinterpret_cast<PUCHAR>(out->data()),
+                      static_cast<ULONG>(size),
+                      BCRYPT_USE_SYSTEM_PREFERRED_RNG) == 0)
+    return true;
+  out->clear();
+  return false;
 }
 
 std::string DownloadsDir() {

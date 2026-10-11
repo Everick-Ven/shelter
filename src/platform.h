@@ -3,6 +3,7 @@
 #define SHELTER_PLATFORM_H_
 
 #include <array>
+#include <cstddef>
 #include <functional>
 #include <string>
 #include <vector>
@@ -65,19 +66,20 @@ void WatchMainWindow(void* nswindow, void (*on_mini)(void*),
                      void (*on_demini)(void*), void* ctx);
 void UnwatchMainWindow(void* nswindow);
 
-// Мастер-ключ секретов UI: 32 байта в hex (создаётся при первом запуске).
-std::string SecretKeyHex();
+// OS-CSPRNG, используемый для мастер-ключа и nonce шифрования.
+bool RandomBytes(size_t size, std::string* out);
 
-// false — ключ не удалось сохранить на диск/в Keychain: он живёт только в памяти,
-// и всё зашифрованное им станет недоступным после перезапуска.
-bool SecretKeyIsPersistent();
+// Мастер-ключ секретов остаётся в browser process. false означает, что ключ
+// нельзя безопасно прочитать/сохранить; в этом случае его нельзя использовать.
+bool SecretKeyHex(std::string* out, std::string* error);
 
-// macOS Keychain: чтение/запись generic-пароли БЕЗ запросов доступа
-// (ACL «любое приложение» — тот же модельный уровень, что DPAPI на Windows:
-//  процессы текущего пользователя читают молча, на диске зашифровано ключом
-//  логина). Любая ошибка → false, у вызывающей стороны обязан быть
-//  файловый fallback (secret.key, 0600).
-bool KeychainGet(const char* service, const char* account, std::string* out);
+enum class KeychainReadResult { kFound, kMissing, kError };
+
+// macOS Keychain: чтение generic-пароля без запросов доступа. Результат
+// различает отсутствие записи и ошибку доступа — нельзя заменять неизвестный
+// старый ключ новым.
+KeychainReadResult KeychainGet(const char* service, const char* account,
+                               std::string* out);
 bool KeychainPutOpen(const char* service, const char* account,
                      const std::string& value);
 

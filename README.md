@@ -1,6 +1,6 @@
 # SHELTER — приватный браузер на Chromium Embedded Framework
 
-Десктопная оболочка для дизайна SHELTER (`resources/ui/index.html`, версия 1.0.165).
+Десктопная оболочка для дизайна SHELTER (`resources/ui/index.html`). Единственный источник версии сборки — `SHELTER_VERSION` в `CMakeLists.txt`.
 Платформы: **Windows x64** и **macOS Intel (x86_64)**. CEF 154.0.32 (Chromium 154).
 
 ## Как это устроено
@@ -20,7 +20,9 @@
 
 Локально ничего ставить не нужно — сборки запускает GitHub Actions (`.github/workflows/build.yml`).
 Финальные файлы в Releases: `SHELTER-Setup-x64.exe` и `SHELTER-windows-x64-portable.zip`
-для Windows, `SHELTER-macos-x64.dmg` для macOS. Рядом публикуется `SHA256SUMS.txt`.
+для Windows, `SHELTER-macos-x64-<версия>.dmg` для macOS (суффикс берётся из
+`SHELTER_VERSION` в CMake). Версия для UI, ресурсов Windows, установщика и упаковки
+генерируется из этого единственного значения; рядом публикуется `SHA256SUMS.txt`.
 
 Артефакты вкладки Actions — это ZIP-обёртки GitHub: `SHELTER-windows-x64.zip` содержит
 Windows-файлы сборки, а `SHELTER-macos-x64.zip` содержит DMG и контрольную сумму. На macOS
@@ -44,10 +46,10 @@ CEF скачивается автоматически (`cmake/DownloadCEF.cmake`
 
 ## Установка
 
-Готовые установщики лежат на странице **Releases** репозитория (создаются автоматически при пуше тега `v*`, например `git tag v1.0.165 && git push origin v1.0.165`), а также в артефактах каждого прогона Actions.
+Готовые установщики лежат на странице **Releases** репозитория (создаются автоматически при пуше тега `v*`; номер тега должен совпадать с `SHELTER_VERSION` в `CMakeLists.txt`), а также в артефактах каждого прогона Actions.
 
 - **Windows x64** — `SHELTER-Setup-x64.exe`. Ставится на пользователя без прав администратора в `%LOCALAPPDATA%\Programs\SHELTER`, создаёт ярлык в меню «Пуск» (и на рабочем столе по желанию), удаляется через «Приложения и возможности». Профиль браузера при удалении сохраняется. Также есть `SHELTER-windows-x64-portable.zip`.
-- **macOS (Intel)** — `SHELTER-macos-x64.dmg`: откройте образ и перетащите SHELTER в Applications. Приложение подписано ad-hoc (без Developer ID и нотаризации), поэтому при первом запуске Gatekeeper может ругаться: ПКМ → «Открыть» либо `xattr -dr com.apple.quarantine /Applications/SHELTER.app`.
+- **macOS (Intel)** — `SHELTER-macos-x64-<версия>.dmg` (версия из `CMakeLists.txt`): откройте образ и перетащите SHELTER в Applications. Приложение подписано ad-hoc (без Developer ID и нотаризации), поэтому при первом запуске Gatekeeper может ругаться: ПКМ → «Открыть» либо `xattr -dr com.apple.quarantine /Applications/SHELTER.app`.
 
 CI проверяет оба установщика: устанавливает их так же, как пользователь, запускает браузер из места установки и прогоняет smoke-тест (на Windows — ещё и удаление).
 
@@ -65,8 +67,9 @@ popup → новая вкладка, страница ошибки загруз�
 (через HTML-меню UI), буфер обмена, зум, печать, F12 → DevTools в отдельном окне, «Удалить данные».
 
 Также есть: поиск по странице на нативных страницах (`CefFindHandler`, панель поиска UI сдвигает вид вкладки
-вниз), шифрование секретов UI (`secretEnc/secretDec`: ChaCha20 + HMAC-SHA256, мастер-ключ — DPAPI на
-Windows, файл `secret.key` с правами 0600 на macOS).
+вниз), нативное шифрование секретов (`secretEnc/secretDec`: ChaCha20 + HMAC-SHA256) в browser process;
+мастер-ключ не передаётся renderer’у. На Windows ключ защищён DPAPI, на macOS хранится в Keychain
+с файлом `secret.key` (права 0600) как fallback/путь миграции.
 
 Блокировка трекеров и рекламы работает на сетевом уровне (отменяются рекламные и трекерные запросы,
 включая подресурсы главного фрейма — Yandex RTB/AdFox, googletagservices, SSP-биржи) и косметически

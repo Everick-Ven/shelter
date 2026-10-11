@@ -1,11 +1,11 @@
 #include <windows.h>
 
 // Иконка с наименьшим ID идёт первой — это иконка приложения.
-IDI_SHELTER ICON "shelter.ico"
+IDI_SHELTER ICON "@SHELTER_ICON_RESOURCE@"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,160,0
- PRODUCTVERSION 1,0,160,0
+ FILEVERSION @SHELTER_FILE_VERSION_RC@
+ PRODUCTVERSION @SHELTER_FILE_VERSION_RC@
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0x0L
  FILEOS VOS_NT_WINDOWS32
@@ -18,11 +18,11 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Golubev & Kulkov"
             VALUE "FileDescription", "SHELTER - Private Browser"
-            VALUE "FileVersion", "1.0.163"
+            VALUE "FileVersion", "@SHELTER_VERSION@"
             VALUE "InternalName", "Shelter"
             VALUE "OriginalFilename", "Shelter.exe"
             VALUE "ProductName", "SHELTER"
-            VALUE "ProductVersion", "1.0.163"
+            VALUE "ProductVersion", "@SHELTER_VERSION@"
         END
     END
     BLOCK "VarFileInfo"

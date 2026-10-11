@@ -147,23 +147,15 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                          CefRefPtr<CefDictionaryValue> a,
                          CefRefPtr<Callback> cb) {
   CEF_REQUIRE_UI_THREAD();
-
-  // Единая закрытая по умолчанию граница: ни один метод моста не обслуживает
-  // браузер, который не является UI SHELTER, даже если вызывающий код
-  // (роутер в clients.cc) когда-нибудь перестанет это проверять. Проверки
-  // внутри отдельных методов ниже остаются как вторая линия защиты.
-  if (!browser || !IsUiBrowser(browser)) {
-    cb->Failure(403, "bridge is restricted to the SHELTER UI");
+  // Centralize the renderer-to-host trust boundary so new bridge methods
+  // cannot accidentally omit the UI-browser authorization check.
+  if (!IsUiBrowser(browser)) {
+    cb->Failure(403, "operation is restricted to the SHELTER UI");
     return true;
   }
 
   if (m == "user-data.delete") {
-    // Destructive host operations are accepted only from SHELTER's own UI,
-    // never from a site that happens to share the CEF message router.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "operation is restricted to the SHELTER UI");
-      return true;
-    }
+    // Destructive host operation; UI authorization is enforced above.
     if (closing_ || delete_user_data_on_exit()) {
       cb->Failure(409, "application is already closing");
       return true;
@@ -202,13 +194,8 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   }
   if (m == "favicon.ensure") {
     // Догрузка иконок сайтов по запросу UI (закладки/история без иконки в
-    // кэше). Разрешено только UI-странице и только пачкой небольшого размера:
-    // это сетевой запрос, инициированный страницей, поэтому ни сайт, ни
-    // сторонний код не должны иметь возможности его задать.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "operation is restricted to the SHELTER UI");
-      return true;
-    }
+    // кэше). Разрешено только небольшой пачкой: это сетевой запрос,
+    // инициированный UI, который не должен задаваться сторонним кодом.
     const std::string hosts = Str(a, "hosts");
     if (hosts.size() > 1024) {
       cb->Failure(400, "too many hosts in one request");
@@ -447,10 +434,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   if (m == "block.setEnabled") {
     // UI-настройка «Блокировка трекеров и рекламы»: включаем/выключаем
     // сетевую и косметическую фильтрацию на нативной стороне.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "blocker control is restricted to the SHELTER UI");
-      return true;
-    }
     blocker::SetEnabled(Flag(a, "on", false));
     cb->Success("{}");
     return true;
@@ -458,10 +441,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   if (m == "fp.setEnabled") {
     // UI-настройка «Анти-отпечаток»: состояние уходит рендерерам, где до JS
     // страниц встраивается шум Canvas/WebGL/Audio.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "fingerprint defense is restricted to the SHELTER UI");
-      return true;
-    }
     Shell::Get().SetFpEnabled(Flag(a, "on", false));
     cb->Success("{}");
     return true;
@@ -469,10 +448,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   if (m == "cookie.setEnabled") {
     // UI-настройка «Автосогласие cookies»: рендерер подтверждает на сайтах
     // минимальный (технический) набор до появления баннера согласия.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "cookie consent control is restricted to the SHELTER UI");
-      return true;
-    }
     Shell::Get().SetAutoConsentEnabled(Flag(a, "on", false));
     cb->Success("{}");
     return true;
@@ -480,10 +455,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   if (m == "https.setEnabled") {
     // UI-настройка «Безопасный HTTPS + приватный DNS»: автоподъём навигаций
     // на https:// и шифрованный DNS в сетевом стеке профиля.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "HTTPS-only control is restricted to the SHELTER UI");
-      return true;
-    }
     Shell::Get().SetHttpsOnlyEnabled(Flag(a, "on", false));
     cb->Success("{}");
     return true;
@@ -491,10 +462,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   if (m == "dns.setProvider") {
     // Провайдер DoH (Cloudflare / Google / Quad9 / системный). Применяется
     // сразу ко всем инициализированным контекстам.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "DNS control is restricted to the SHELTER UI");
-      return true;
-    }
     Shell::Get().SetDohProvider(Str(a, "provider"));
     cb->Success("{}");
     return true;
@@ -502,20 +469,12 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   if (m == "strict.setEnabled") {
     // UI-настройка «Строгий режим»: сторонние скрипты блокируются на сетевом
     // уровне, пока сайт не получит разрешение пользователя.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "strict mode control is restricted to the SHELTER UI");
-      return true;
-    }
     Shell::Get().SetStrictEnabled(Flag(a, "on", false));
     cb->Success("{}");
     return true;
   }
   if (m == "strict.allow") {
     // Пользователь разрешил сторонние скрипты сайту из тоста «Разрешить».
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "strict mode control is restricted to the SHELTER UI");
-      return true;
-    }
     Shell::Get().StrictAllow(Str(a, "host"));
     cb->Success("{}");
     return true;
@@ -524,10 +483,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     // Режим «Призрак»: новые вкладки уходят в in-memory профили на стороне
     // моста; нативная часть при выключении сразу освобождает пустые
     // приватные контексты.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "ghost mode control is restricted to the SHELTER UI");
-      return true;
-    }
     Shell::Get().SetGhostMode(Flag(a, "on", false));
     cb->Success("{}");
     return true;
@@ -535,10 +490,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   if (m == "shell.filestate") {
     // Существует ли скачанный файл на диске (для подписи «Файл удалён или
     // перемещён» во вкладке загрузок). Доступно только UI-браузеру.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "file inspection is restricted to the SHELTER UI");
-      return true;
-    }
     namespace fsb = std::filesystem;
     const std::string path = Str(a, "path");
     bool exists = false;
@@ -550,10 +501,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
   if (m == "dl.decision" || m == "dl.control") {
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "download operations are restricted to the SHELTER UI");
-      return true;
-    }
     const std::string id = Str(a, "id");
     const std::string action = Str(a, "action");
     const bool ok = m == "dl.decision"
@@ -576,10 +523,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     // Приёмка обязана уметь отличить «тумблер не дошёл до нативной части» от
     // «дошёл, но рендерер применил старое значение»: без этого сбой в цепочке
     // выглядит одинаково и объясняется догадками.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "protection state is restricted to the SHELTER UI");
-      return true;
-    }
     const int flags = Shell::Get().ProtectionFlags();
     cb->Success(std::string("{\"fp\":") +
                 ((flags & 1) ? "true" : "false") + ",\"cookies\":" +

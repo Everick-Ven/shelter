@@ -5,11 +5,11 @@
 #include <string>
 
 #include "include/cef_values.h"
+#include "src/app_version.h"
 
 namespace shelter {
 
 inline constexpr char kAppName[] = "SHELTER";
-inline constexpr char kAppVersion[] = "1.0.165";
 
 // Внутренняя схема, по которой отдаётся chrome-UI (resources/ui/*).
 // Зарегистрирована как standard + secure + cors + fetch, поэтому у UI есть

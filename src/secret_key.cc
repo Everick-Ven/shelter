@@ -1,6 +1,7 @@
 // SHELTER — safely persisted native master key for secret_crypto.cc.
-// Windows: DPAPI-protected secret.key. macOS: login Keychain, with an exclusive
-// 0600 file fallback/migration. Existing unreadable key material is never replaced.
+// Windows: DPAPI-protected secret.key. macOS: login Keychain plus an exclusive
+// 0600 file mirror so ad-hoc re-signing cannot strand the key. Existing unreadable
+// key material is never replaced.
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
@@ -270,6 +271,43 @@ bool StoreOrReadKeychain(const std::string& proposed, std::string* observed) {
   return true;
 }
 
+bool EnsureMacKeyMirror(const std::filesystem::path& path,
+                        const std::string& key_hex, std::string* error) {
+  const FileState state = InspectFile(path);
+  if (state == FileState::kError) {
+    if (error) *error = "existing master-key file is not a regular readable file";
+    return false;
+  }
+  if (state == FileState::kRegular) {
+    std::string mirror;
+    if (!ReadFileKey(path, &mirror, error)) return false;
+    const bool matches = mirror == key_hex;
+    std::fill(mirror.begin(), mirror.end(), '\0');
+    if (!matches) {
+      if (error) *error = "Keychain and fallback master keys disagree; neither was changed";
+      return false;
+    }
+    return true;
+  }
+
+  if (StoreFileKeyExclusive(path, key_hex, nullptr)) return true;
+
+  // Another first-run process may have created the mirror between the check
+  // above and the exclusive file creation. Accept it only if it is identical.
+  const FileState raced_state = InspectFile(path);
+  if (raced_state == FileState::kRegular) {
+    std::string mirror;
+    if (!ReadFileKey(path, &mirror, error)) return false;
+    const bool matches = mirror == key_hex;
+    std::fill(mirror.begin(), mirror.end(), '\0');
+    if (!matches && error)
+      *error = "Keychain and fallback master keys disagree; neither was changed";
+    return matches;
+  }
+  if (error) *error = "Keychain master key could not be mirrored to the 0600 fallback file";
+  return false;
+}
+
 bool LoadOrCreateMacKey(const std::filesystem::path& path,
                         std::string* key_hex, std::string* error) {
   std::string kc_value;
@@ -285,24 +323,14 @@ bool LoadOrCreateMacKey(const std::filesystem::path& path,
       if (error) *error = "existing Keychain master key has an invalid format";
       return false;
     }
-    if (file_state == FileState::kRegular) {
-      std::string legacy;
-      if (!ReadFileKey(path, &legacy, error)) return false;
-      if (legacy != kc_value) {
-        if (error) *error = "Keychain and fallback master keys disagree; neither was changed";
-        return false;
-      }
-      std::error_code ignored;
-      std::filesystem::remove(path, ignored);
-    }
+    if (!EnsureMacKeyMirror(path, kc_value, error)) return false;
     *key_hex = kc_value;
     return true;
   }
 
   if (kc == KeychainReadResult::kError) {
-    // A pre-migration file is a usable fallback only while it remains readable.
-    // If there is no such file, do not invent a different key behind an
-    // inaccessible Keychain item.
+    // An inaccessible Keychain item is recoverable only from the matching
+    // owner-only mirror. Never invent a replacement key behind it.
     if (file_state == FileState::kRegular)
       return ReadFileKey(path, key_hex, error);
     if (error) *error = "Keychain is unavailable and no persisted fallback key exists";
@@ -313,13 +341,9 @@ bool LoadOrCreateMacKey(const std::filesystem::path& path,
     std::string legacy;
     if (!ReadFileKey(path, &legacy, error)) return false;
     std::string observed;
-    if (StoreOrReadKeychain(legacy, &observed)) {
-      if (observed != legacy) {
-        if (error) *error = "a different Keychain key already exists; the fallback was preserved";
-        return false;
-      }
-      std::error_code ignored;
-      std::filesystem::remove(path, ignored);
+    if (StoreOrReadKeychain(legacy, &observed) && observed != legacy) {
+      if (error) *error = "a different Keychain key already exists; the fallback was preserved";
+      return false;
     }
     *key_hex = legacy;
     return true;
@@ -331,17 +355,18 @@ bool LoadOrCreateMacKey(const std::filesystem::path& path,
   std::fill(raw_key.begin(), raw_key.end(), '\0');
   std::string observed;
   if (StoreOrReadKeychain(proposed, &observed)) {
+    if (!EnsureMacKeyMirror(path, observed, error)) return false;
     *key_hex = observed;
     return true;
   }
-  if (StoreFileKeyExclusive(path, proposed, error)) {
+  if (StoreFileKeyExclusive(path, proposed, nullptr)) {
     *key_hex = proposed;
     return true;
   }
   // Another first-run process may have created the exclusive fallback file.
   if (InspectFile(path) == FileState::kRegular &&
       ReadFileKey(path, key_hex, nullptr)) return true;
-  if (error && error->empty())
+  if (error)
     *error = "neither Keychain nor a new fallback file accepted the master key";
   return false;
 }

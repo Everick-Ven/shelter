@@ -140,10 +140,11 @@ KeychainReadResult KeychainGet(const char* service, const char* account,
 
 bool KeychainPutOpen(const char* service, const char* account,
                      const std::string& value) {
-  // ACL «любое приложение, без запросов» — та же модель, что DPAPI на Windows:
-  // процессы текущего пользователя читают молча, на диске запись защищена
-  // ключом логина. Нужна ещё и потому, что ad-hoc подпись меняет cdhash каждую
-  // сборку — иначе после обновления пришлось бы отвечать на запрос доступа.
+  // Просим ACL «любое приложение, без запросов», но macOS также может
+  // ограничивать запись partition ID конкретной подписью. Для SHELTER master
+  // key поэтому дополнительно хранится 0600 mirror-файл в secret_key.cc:
+  // ad-hoc подпись меняется между сборками и Keychain-запись может стать
+  // недоступной после обновления. Chromium Safe Storage управляется отдельно.
   CFStringRef svc = MakeCF(service);
   CFStringRef acct = MakeCF(account);
   CFStringRef desc = MakeCF(service);

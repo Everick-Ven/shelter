@@ -203,6 +203,17 @@ jobs:
           set -euo pipefail
           python3 tools/check_geometry.py build/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
 
+      - name: Verify macOS master-key mirror
+        run: |
+          set -euo pipefail
+          key_file="$HOME/Library/Application Support/SHELTER/secret.key"
+          test -f "$key_file"
+          key_mode="$(stat -f '%Lp' "$key_file")"
+          [[ "$key_mode" == "600" ]] || {
+            echo "Expected master-key mirror mode 600; found $key_mode" >&2
+            exit 1
+          }
+
       - name: Package DMG
         run: |
           set -euo pipefail

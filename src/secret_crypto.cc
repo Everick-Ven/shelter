@@ -406,7 +406,9 @@ bool Encrypt(const std::string& plaintext, std::string* ciphertext) {
   if (plaintext.size() > kMaxPayloadBytes) return false;
   std::string key_hex, error, nonce;
   if (!platform::SecretKeyHex(&key_hex, &error)) {
-    std::fprintf(stderr, "SHELTER_SECRET_CRYPTO encrypt failed at master-key\n");
+    std::fprintf(stderr,
+                 "SHELTER_SECRET_CRYPTO encrypt failed at master-key: %s\n",
+                 error.c_str());
     Wipe(key_hex.data(), key_hex.size());
     return false;
   }
@@ -429,7 +431,9 @@ bool Decrypt(const std::string& ciphertext, std::string* plaintext) {
   plaintext->clear();
   std::string key_hex, error;
   if (!platform::SecretKeyHex(&key_hex, &error)) {
-    std::fprintf(stderr, "SHELTER_SECRET_CRYPTO decrypt failed at master-key\n");
+    std::fprintf(stderr,
+                 "SHELTER_SECRET_CRYPTO decrypt failed at master-key: %s\n",
+                 error.c_str());
     return false;
   }
   const bool ok = DecryptWithKey(key_hex, ciphertext, plaintext);

@@ -2420,9 +2420,21 @@ def main() -> int:
                 "const sample = 'SHELTER native crypto probe · тест'; "
                 "const encrypted = n && n.secretEnc(sample); "
                 "const decrypted = encrypted && n.secretDec(encrypted); "
-                "return { encrypted: typeof encrypted === 'string' && encrypted.startsWith('ss1:'), "
+                "const probe = { encrypted: typeof encrypted === 'string' && encrypted.startsWith('ss1:'), "
                 "roundTrip: decrypted === sample, keyHidden: !!n && "
-                "typeof n.masterKey === 'undefined' && typeof n.secretKeyHex === 'undefined' }; })()"
+                "typeof n.masterKey === 'undefined' && typeof n.secretKeyHex === 'undefined' }; "
+                "if (!probe.encrypted || !probe.roundTrip) { "
+                "try { const xhr = new XMLHttpRequest(); "
+                "xhr.open('POST', '/secret/encrypt', false); "
+                "xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8'); "
+                "xhr.send(sample); const body = JSON.parse(xhr.responseText || '{}'); "
+                "probe.routeStatus = xhr.status; probe.routeBodyOk = body.ok === true; "
+                "probe.routeHasValue = typeof body.value === 'string'; "
+                "probe.routeValuePrefix = probe.routeHasValue ? body.value.slice(0, 4) : ''; "
+                "probe.routeResponseLength = xhr.responseText.length; "
+                "} catch (e) { probe.routeError = e && e.name || 'Error'; } "
+                "probe.secretFailureFlag = !!window.__shelterSecretFailure; } "
+                "return probe; })()"
             )
             if not isinstance(secret_probe, dict) or not all(
                 secret_probe.get(key) is True

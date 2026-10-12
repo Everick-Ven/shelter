@@ -440,15 +440,26 @@ void InstallInputFixes() {
 }
 
 void ApplyViewClip(void* handle, const double radii[4],
-                   const std::vector<std::array<int, 5>>& holes, int view_w, int view_h) {
+                   const std::vector<std::array<int, 5>>& holes, int /*view_x*/,
+                   int /*view_y*/, int view_w, int view_h, bool visible,
+                   std::uint32_t /*mask_color*/) {
   NSView* v = (NSView*)handle;
   NSWindow* win = v ? v.window : nil;
   if (!win || !win.contentView) return;
+  NSView* root = win.contentView.superview ? win.contentView.superview : win.contentView;
+  if (!visible) {
+    if (root.layer) root.layer.mask = nil;
+    if (g_overlay_win == win) {
+      g_overlay_win = nil;
+      g_holes.clear();
+      g_hole_view_w = g_hole_view_h = 0;
+    }
+    return;
+  }
   g_overlay_win = win;
   g_holes = holes;
   g_hole_view_w = view_w;
   g_hole_view_h = view_h;
-  NSView* root = win.contentView.superview ? win.contentView.superview : win.contentView;
   bool any = !holes.empty();
   for (int i = 0; i < 4; ++i) any = any || radii[i] > 0.5;
   if (!any) {

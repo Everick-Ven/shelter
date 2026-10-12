@@ -1187,6 +1187,9 @@ void Shell::DestroyTab(const std::string& id) {
   auto it = tabs_.find(id);
   if (it == tabs_.end()) return;
   Tab tab = std::move(it->second);
+  const bool was_active = tab.id == active_tab_;
+  tab.view_visible = false;
+  if (was_active) ApplyClip(&tab);
   tabs_.erase(it);
   auto w = context_waiters_.find(tab.partition);
   if (w != context_waiters_.end()) {
@@ -1210,6 +1213,8 @@ void Shell::HideAllTabs() {
     if (kv.second.overlay && kv.second.overlay->IsValid()) {
       kv.second.overlay->SetVisible(false);
     }
+    kv.second.view_visible = false;
+    ApplyClip(&kv.second);
   }
 }
 
@@ -1230,7 +1235,8 @@ void Shell::LayoutTab(Tab* tab, const CefRect& rect, bool visible) {
     tab->overlay->SetBounds(rect);
     last_rect_ = rect;
   }
-  tab->overlay->SetVisible(visible && last_rect_.width > 0);
+  tab->view_visible = visible && tab->id == active_tab_ && last_rect_.width > 0;
+  tab->overlay->SetVisible(tab->view_visible);
   ApplyClip(tab);
   // Приёмочный маркер CI (tools/check_geometry.py): область контента должна
   // оставаться в hero-зоне (сайдбар+тулбар видны) и не перекрывать всё окно.
@@ -1257,8 +1263,10 @@ void Shell::ApplyClip(Tab* tab) {
   if (!tab || !tab->browser || !tab->overlay || !tab->overlay->IsValid()) return;
   void* h = reinterpret_cast<void*>(tab->browser->GetHost()->GetWindowHandle());
   if (!h || last_rect_.width <= 0 || last_rect_.height <= 0) return;
-  platform::ApplyViewClip(h, clip_radii_, clip_holes_, last_rect_.width,
-                          last_rect_.height);
+  platform::ApplyViewClip(h, clip_radii_, clip_holes_, last_rect_.x,
+                          last_rect_.y, last_rect_.width, last_rect_.height,
+                          tab->view_visible && tab->id == active_tab_,
+                          clip_mask_color_);
 }
 
 void Shell::Log(const std::string& line) {

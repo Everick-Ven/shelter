@@ -11,9 +11,12 @@
   if (window.shelterNative) return;
 
   var PLATFORM = '__PLATFORM__';
-  /* «Дыры» и скругление нативного вида вкладки: только macOS (на Windows содержимое рисует
-     общая DirectComposition-поверхность, окнам HWND область не помогает). */
+  /* macOS вырезает «дыры» и радиусы прямо из CALayer. На Windows DirectComposition
+     не уважает HWND-регион, поэтому прозрачные углы рисует click-through слой; для
+     интерактивных «дыр» остаётся snapshot fallback. */
   var USE_HOLES = PLATFORM === 'darwin';
+  var USE_WINDOWS_MASK = PLATFORM === 'win32';
+  var USE_CLIP = USE_HOLES || USE_WINDOWS_MASK;
   var VERSION = '__APP_VERSION__';
   var root = document.documentElement;
 
@@ -124,8 +127,6 @@
   style.textContent =
     (USE_HOLES ? '.sh-snap-wait .menu,.sh-snap-wait .scrim{visibility:hidden!important}'
                : '.sh-snap-wait .menu,.sh-snap-wait .scrim,.sh-snap-wait #toasts,.sh-snap-wait .suggest{visibility:hidden!important}') +
-    /* Windows: пиксели страницы нельзя обрезать по маске окна, поэтому скругление сцены делаем мелким */
-    (USE_HOLES ? '' : '.stage{border-radius:6px!important}') +
     '#shSnap{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:fill;pointer-events:none;z-index:3;background:#fff}' +
     (PLATFORM === 'darwin' ? '#winLights{visibility:hidden!important}' : '');
   (document.head || root).appendChild(style);
@@ -327,15 +328,46 @@
     }
     return out.map(function (a) { return [Math.round(a[0] - vp.x), Math.round(a[1] - vp.y), Math.round(a[2] - a[0]), Math.round(a[3] - a[1]), a[4] || 0]; });
   }
+  var clipColorCanvas = document.createElement('canvas');
+  clipColorCanvas.width = clipColorCanvas.height = 1;
+  var clipColorContext = clipColorCanvas.getContext('2d', { willReadFrequently: true });
+  function readCssColor(value) {
+    if (!clipColorContext || !value) return [14, 15, 19, 255];
+    clipColorContext.clearRect(0, 0, 1, 1);
+    clipColorContext.fillStyle = 'rgba(0,0,0,0)';
+    try { clipColorContext.fillStyle = value; } catch (_) {}
+    clipColorContext.fillRect(0, 0, 1, 1);
+    var px = clipColorContext.getImageData(0, 0, 1, 1).data;
+    return [px[0], px[1], px[2], px[3]];
+  }
+  function clipMaskColor() {
+    if (!USE_WINDOWS_MASK) return 0;
+    var cs = getComputedStyle(byId('stage') || root);
+    var surface = readCssColor(cs.getPropertyValue('--surface').trim());
+    var glass = readCssColor(cs.getPropertyValue('--glass-surface').trim());
+    if (!glass[3]) {
+      var opacity = parseFloat(cs.getPropertyValue('--glass-op'));
+      if (!isFinite(opacity)) opacity = 82;
+      opacity = Math.max(0, Math.min(100, opacity));
+      glass = [surface[0], surface[1], surface[2], Math.round(opacity * 2.55)];
+    }
+    var base = readCssColor(cs.getPropertyValue('--bg').trim());
+    var alpha = glass[3] / 255;
+    var r = Math.round(glass[0] * alpha + base[0] * (1 - alpha));
+    var g = Math.round(glass[1] * alpha + base[1] * (1 - alpha));
+    var b = Math.round(glass[2] * alpha + base[2] * (1 - alpha));
+    return (r << 16) | (g << 8) | b;
+  }
   function syncClip() {
-    if (!USE_HOLES || !st.visible || st.frozen || st.busy) return 0;
+    if (!USE_CLIP || !st.visible || st.frozen || st.busy) return 0;
     var vp = vpRect();
     if (!vp || vp.w < 2) return 0;
-    var rad = computeRadii(vp), holes = holeRects(vp);
-    var key = rad.join(',') + '|' + holes.join(';');
+    var rad = computeRadii(vp), holes = USE_HOLES ? holeRects(vp) : [];
+    var maskColor = clipMaskColor();
+    var key = rad.join(',') + '|' + holes.join(';') + '|' + maskColor;
     if (key !== st.clipKey) {
       st.clipKey = key; perf.clips++; perf.holes = holes.length;
-      q('view.clip', { radii: rad, holes: holes });
+      q('view.clip', { radii: rad, holes: holes, maskColor: maskColor });
     }
     return holes.length;
   }
@@ -355,7 +387,8 @@
     else stopClipLoop();
   }
   function kickClip(settleMs) {
-    if (!USE_HOLES || !st.visible || st.frozen || st.busy) return;
+    if (!USE_CLIP || !st.visible || st.frozen || st.busy) return;
+    if (USE_WINDOWS_MASK) { syncClip(); return; }
     clipCalm = Math.max(clipCalm, 3);
     clipUntil = Math.max(clipUntil, performance.now() + Math.max(0, +settleMs || 0));
     if (!clipLoop) {
@@ -400,10 +433,13 @@
     var k = rectKey(r);
     if (!r || k === st.lastRect || r.w < 2) return;
     st.lastRect = k;
-    st.clipKey = '';
-    kickClip();
+    if (USE_HOLES) {
+      st.clipKey = '';
+      kickClip();
+    }
     perf.layoutRequests++;
-    q('view.layout', { rect: r, visible: true });
+    var layout = q('view.layout', { rect: r, visible: true });
+    if (USE_WINDOWS_MASK) layout.then(syncClip);
   }
   function scheduleRelayout() {
     if (layoutQueued) return;
@@ -754,6 +790,19 @@
     watchOverlayRoot(byId('tbSuggest'), false);
     var tl = byId('tabList');
     if (tl) new MutationObserver(scheduleSync).observe(tl, { childList: true, subtree: true });
+    if (USE_WINDOWS_MASK) {
+      var refreshMask = function () {
+        if (!st.visible || st.frozen || st.busy) return;
+        st.clipKey = '';
+        syncClip();
+      };
+      new MutationObserver(refreshMask).observe(root, {
+        attributes: true, attributeFilter: ['data-theme', 'style', 'class']
+      });
+      if (document.body) new MutationObserver(refreshMask).observe(document.body, {
+        attributes: true, attributeFilter: ['data-gfx']
+      });
+    }
     scheduleSync();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startObservers);

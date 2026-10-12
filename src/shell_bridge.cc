@@ -271,9 +271,12 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     }
     active_tab_ = id;
     for (auto& kv : tabs_) {
-      if (kv.first != id && kv.second.overlay && kv.second.overlay->IsValid()) {
+      if (kv.first == id) continue;
+      if (kv.second.overlay && kv.second.overlay->IsValid()) {
         kv.second.overlay->SetVisible(false);
       }
+      kv.second.view_visible = false;
+      ApplyClip(&kv.second);
     }
     LayoutTab(t, RectOf(a), Flag(a, "visible", true));
     if (Flag(a, "focus", true)) {
@@ -296,8 +299,13 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
-  if (m == "view.clip") {  // скругление углов и «дыры» (оверлеи UI поверх страницы)
+  if (m == "view.clip") {  // скругление сцены и цвет фоновой маски
     for (int i = 0; i < 4; ++i) clip_radii_[i] = 0;
+    if (a->HasKey("maskColor")) {
+      const long long color = std::llround(Num(a, "maskColor", 0));
+      clip_mask_color_ = static_cast<std::uint32_t>(
+          std::clamp<long long>(color, 0, 0x00ffffff));
+    }
     clip_holes_.clear();
     if (a->HasKey("radii") && a->GetType("radii") == VTYPE_LIST) {
       CefRefPtr<CefListValue> l = a->GetList("radii");
@@ -539,8 +547,11 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
       // сбросить область на прежнем окне
       double zr[4] = {0, 0, 0, 0};
       std::vector<std::array<int, 5>> none;
-      platform::ApplyViewClip(reinterpret_cast<void*>(t->browser->GetHost()->GetWindowHandle()), zr, none,
-                              std::max(1, last_rect_.width), std::max(1, last_rect_.height));
+      platform::ApplyViewClip(
+          reinterpret_cast<void*>(t->browser->GetHost()->GetWindowHandle()), zr,
+          none, last_rect_.x, last_rect_.y,
+          std::max(1, last_rect_.width), std::max(1, last_rect_.height), false,
+          clip_mask_color_);
       if (a->HasKey("level")) platform::SetClipLevel(static_cast<int>(Num(a, "level", -1)));
       ApplyClip(t);
       cb->Success(JsString(platform::DumpWindowChain(

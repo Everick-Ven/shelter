@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="obsidian">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-WNefl76om47D+YlYMEsS2WrqZVT3gZvF68g5cNwPRjc=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-cG5up5U07rPRhkFLE0COOFD1/NrRXdldpRiGRyuDFdQ=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -17,10 +17,20 @@
    ========================================================= */
 *{box-sizing:border-box;margin:0;padding:0}
 [hidden]{display:none!important}
+@font-face{
+  font-family:"Shelter Inter";src:url("fonts/InterVariable.woff2") format("woff2");
+  font-style:normal;font-weight:100 900;font-display:swap
+}
+@font-face{
+  font-family:"Shelter Mono";src:url("fonts/JetBrainsMonoVariable.woff2") format("woff2");
+  font-style:normal;font-weight:100 900;font-display:swap
+}
 :root{
-  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI Variable Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  --font-d:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter Display","Inter","Segoe UI Variable Display","Segoe UI",Roboto,sans-serif;
-  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+  /* Одинаковые локальные гарнитуры на Windows и macOS: системные SF Pro / Segoe UI
+     меняли ширины строк и визуальный вес текста между сборками. */
+  --font:"Shelter Inter",Inter,Arial,sans-serif;
+  --font-d:"Shelter Inter",Inter,Arial,sans-serif;
+  --mono:"Shelter Mono","JetBrains Mono",Consolas,monospace;
   --uif:1; --uif-i:1; --uif-d:1; --uif-m:1;
   --ease:cubic-bezier(.22,1,.36,1);
   --ease-s:cubic-bezier(.34,1.45,.64,1);
@@ -296,7 +306,7 @@ body.is-fullscreen .lights{display:none}
 /* Круглые «светофоры» в стиле Mac — единые оконные кнопки на всех платформах.
    На hover, как на macOS, проявляются глифы: ✕, –, стрелки. */
 .lights.live i{position:relative}
-.lights.live i::after{position:absolute;inset:0;display:grid;place-items:center;font:700 9px/1 system-ui,sans-serif;color:rgba(0,0,0,.55);opacity:0;transition:opacity .12s}
+.lights.live i::after{position:absolute;inset:0;display:grid;place-items:center;font:700 9px/1 "Shelter Inter",sans-serif;color:rgba(0,0,0,.55);opacity:0;transition:opacity .12s}
 .lights.live:hover i::after{opacity:1}
 .lights.live i:nth-child(1)::after{content:"×"}
 .lights.live i:nth-child(2)::after{content:"–"}
@@ -311,7 +321,7 @@ body.is-fullscreen .lights{display:none}
 .wctl .wc-min{background:#FEBC2E}
 .wctl .wc-max{background:#28C840}
 .wctl .wc-close{background:#FF5F57}
-.wctl .wc::after{position:absolute;inset:0;display:grid;place-items:center;font:700 9px/1 system-ui,sans-serif;color:rgba(0,0,0,.55);opacity:0;transition:opacity .12s}
+.wctl .wc::after{position:absolute;inset:0;display:grid;place-items:center;font:700 9px/1 "Shelter Inter",sans-serif;color:rgba(0,0,0,.55);opacity:0;transition:opacity .12s}
 .wctl:hover .wc::after{opacity:1}
 .wctl .wc-min::after{content:"–"}
 .wctl .wc-max::after{content:"⤢";font-size:8px}
@@ -5697,23 +5707,20 @@ function setTheme(name, origin) {
     el.style.opacity = String(v);
   };
   const seq = (T.themeSeq = (T.themeSeq || 0) + 1);
-  /* Windows: быстрая смена темы; в режиме Speed — сразу, без перехода. */
-  const sn = window.shelterNative;
-  const fast = !!(sn && sn.isNative && sn.platform !== 'darwin');
   if (REDUCED()) {
     apply(); relayout(); clearThemeInlineStyles(); return;
   }
   // Свечение затухает перед заменой темы. Inline-стили обязательно снимаются
   // после перехода и при любой смене режима (иначе opacity мог застрять на 0).
-  fade(amb, 0, fast ? 150 : 220);
-  fade(fx, 0, fast ? 150 : 220);
+  fade(amb, 0, 220);
+  fade(fx, 0, 220);
   T.glowBack = setTimeout(() => {
     if (seq !== T.themeSeq) return;
     const glowRise = () => {
       clearTimeout(T.glowRise);
       T.glowRise = setTimeout(() => {
         if (seq !== T.themeSeq) return;
-        const duration = fast ? 260 : 420;
+        const duration = 420;
         fade(amb, 1, duration); fade(fx, 1, duration);
         T.glowReset = setTimeout(() => {
           if (seq !== T.themeSeq) return;
@@ -5721,7 +5728,7 @@ function setTheme(name, origin) {
           T.glowReset = 0;
         }, duration + 24);
         T.glowRise = 0;
-      }, fast ? 40 : 70);
+      }, 70);
     };
     const tokenFade = () => {
       apply(); relayout();
@@ -5731,7 +5738,7 @@ function setTheme(name, origin) {
       T.themeAnim = setTimeout(() => {
         if (seq !== T.themeSeq) return;
         root.classList.remove('theme-anim'); relayout(); T.themeAnim = 0;
-      }, fast ? 320 : 560);
+      }, 560);
     };
     if (typeof document.startViewTransition !== 'function') { tokenFade(); return; }
     root.classList.add('vt-theme'); root.classList.remove('theme-anim');
@@ -5752,7 +5759,7 @@ function setTheme(name, origin) {
       glowRise();
     };
     vt.finished.then(waveEnd, waveEnd);
-  }, fast ? 100 : 220);
+  }, 220);
 }
 function syncWebScheme() {
   try { if (window.shelterNative && typeof window.shelterNative.themeScheme === 'function') window.shelterNative.themeScheme(THEMES[S.theme] && THEMES[S.theme].kind === 'Светлая' ? 'light' : 'dark'); } catch (_) {}
@@ -6748,7 +6755,7 @@ const Hero = (() => {
       }
     }
     chars = list;
-    chars.font = '11px ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+    chars.font = '11px "Shelter Mono","JetBrains Mono",Consolas,monospace';
   }
   function ensureCanvas() {
     canvas = $('#heroFx');
@@ -10915,9 +10922,9 @@ function settingsHtml() {
             <div class="fd-m">Моноширинный — 0123456789 · shelter://font-preview</div>
           </div>
           ${row('Масштаб интерфейса', 'Только шрифты: геометрия окна и меню остаётся прежней (50–200 %)', `<div class="uiscale" data-uiscale><button class="icon-btn" data-act="uizM" aria-label="Мельче">−</button><input type="range" class="uiscale-r" min="50" max="200" step="5" value="${clamp(+(P.uiScale) || 100, 50, 200)}" style="accent-color:rgb(var(--accent))"><button class="icon-btn" data-act="uizP" aria-label="Крупнее">+</button><span class="uiscale-v" id="uiScaleVal">${clamp(+(P.uiScale) || 100, 50, 200)} %</span><button class="btn sm" data-act="fsDef" data-fs="ui">По умолчанию</button></div>`)}
-          ${row('Интерфейсный шрифт', 'SF Pro Text / Segoe UI / Roboto — основной текст · 70–150 %', `<div class="uiscale" data-fscale-ctl><input type="range" class="fscale-r" data-fscale="i" min="70" max="150" step="5" value="${clamp(+(P.fontScaleI) || 100, 70, 150)}" style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="fs-i-val">${clamp(+(P.fontScaleI) || 100, 70, 150)} %</span><button class="btn sm" data-act="fsDef" data-fs="i">По умолчанию</button></div>`)}
-          ${row('Дисплейный шрифт', 'SF Pro Display / Inter Display — заголовки и цифры · 70–150 %', `<div class="uiscale" data-fscale-ctl><input type="range" class="fscale-r" data-fscale="d" min="70" max="150" step="5" value="${clamp(+(P.fontScaleD) || 100, 70, 150)}" style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="fs-d-val">${clamp(+(P.fontScaleD) || 100, 70, 150)} %</span><button class="btn sm" data-act="fsDef" data-fs="d">По умолчанию</button></div>`)}
-          ${row('Моноширинный шрифт', 'SF Mono / JetBrains Mono — пароли, коды, консоли · 70–150 %', `<div class="uiscale" data-fscale-ctl><input type="range" class="fscale-r" data-fscale="m" min="70" max="150" step="5" value="${clamp(+(P.fontScaleM) || 100, 70, 150)}" style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="fs-m-val">${clamp(+(P.fontScaleM) || 100, 70, 150)} %</span><button class="btn sm" data-act="fsDef" data-fs="m">По умолчанию</button></div>`)}
+          ${row('Интерфейсный шрифт', 'Inter Variable — общий шрифт интерфейса · 70–150 %', `<div class="uiscale" data-fscale-ctl><input type="range" class="fscale-r" data-fscale="i" min="70" max="150" step="5" value="${clamp(+(P.fontScaleI) || 100, 70, 150)}" style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="fs-i-val">${clamp(+(P.fontScaleI) || 100, 70, 150)} %</span><button class="btn sm" data-act="fsDef" data-fs="i">По умолчанию</button></div>`)}
+          ${row('Дисплейный шрифт', 'Inter Variable — заголовки и цифры · 70–150 %', `<div class="uiscale" data-fscale-ctl><input type="range" class="fscale-r" data-fscale="d" min="70" max="150" step="5" value="${clamp(+(P.fontScaleD) || 100, 70, 150)}" style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="fs-d-val">${clamp(+(P.fontScaleD) || 100, 70, 150)} %</span><button class="btn sm" data-act="fsDef" data-fs="d">По умолчанию</button></div>`)}
+          ${row('Моноширинный шрифт', 'JetBrains Mono Variable — пароли, коды, консоли · 70–150 %', `<div class="uiscale" data-fscale-ctl><input type="range" class="fscale-r" data-fscale="m" min="70" max="150" step="5" value="${clamp(+(P.fontScaleM) || 100, 70, 150)}" style="accent-color:rgb(var(--accent))"><span class="uiscale-v" id="fs-m-val">${clamp(+(P.fontScaleM) || 100, 70, 150)} %</span><button class="btn sm" data-act="fsDef" data-fs="m">По умолчанию</button></div>`)}
         </div>
       </section>
       <section class="set-sec" id="set-pers"><h4>Персонализация</h4><div class="set-card">

@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
@@ -43,12 +44,13 @@ void SetColorScheme(bool dark);
 
 // Скругление углов и «дыры» (прозрачные участки) нативного вида вкладки.
 // handle — CefBrowserHost::GetWindowHandle(); radii = {tl, tr, br, bl} и
-// holes {x, y, w, h, r} задаются в DIP относительно вида вкладки (размер
-// view_w x view_h DIP). r — радиус скругления самой дырки, чтобы попап в ней
-// выглядел закруглённым на фоне страницы, а не квадратным.
+// holes {x, y, w, h, r} задаются в DIP относительно вида вкладки. На Windows
+// holes остаются snapshot-fallback; углы маскируются отдельным click-through
+// слоем поверх DirectComposition-содержимого. mask_color — RGB сцены.
 void ApplyViewClip(void* handle, const double radii[4],
-                   const std::vector<std::array<int, 5>>& holes, int view_w,
-                   int view_h);
+                   const std::vector<std::array<int, 5>>& holes, int view_x,
+                   int view_y, int view_w, int view_h, bool visible,
+                   std::uint32_t mask_color);
 
 // Диагностика (CI): уровень предка окна, которому задаётся область (Windows), и дамп цепочки HWND.
 void SetClipLevel(int level);

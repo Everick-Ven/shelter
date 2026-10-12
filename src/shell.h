@@ -17,6 +17,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <string>
@@ -49,6 +50,7 @@ struct Tab {
   bool find_kick = false;     // после нового запроса выделить первое совпадение
   std::string error_url;      // URL, не открывшийся (показана страница ошибки)
   bool loading = false;
+  bool view_visible = false;
   int browser_id = 0;
   CefRefPtr<CefBrowserView> view;
   CefRefPtr<CefOverlayController> overlay;
@@ -295,6 +297,7 @@ class Shell {
   double clip_radii_[4] = {0, 0, 0, 0};
   // Дырки: {x, y, w, h, радиус скругления} в DIP вида вкладки.
   std::vector<std::array<int, 5>> clip_holes_;
+  std::uint32_t clip_mask_color_ = 0x0e0f13;
   std::map<std::string, CefRefPtr<CefRequestContext>> contexts_;
   std::map<std::string, bool> context_ready_;
   // partition -> id вкладок, ждущих инициализации контекста.

@@ -1489,6 +1489,15 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             return saved && saved.prefs ? +saved.prefs.glassOp : null;
           } catch (_) { return null; }
         };
+        const waitForStoredGlass = async expected => {
+          const deadline = performance.now() + 2500;
+          let saved = storedGlass();
+          while (saved !== expected && performance.now() < deadline) {
+            await pause(25);
+            saved = storedGlass();
+          }
+          return saved;
+        };
         const alphaOf = value => {
           const color = String(value || '').trim();
           if (!color || color === 'none') return null;
@@ -1528,6 +1537,7 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             range.dispatchEvent(new Event('input', {bubbles:true}));
             await frame();
             await pause(500);
+            const persisted = await waitForStoredGlass(value);
             const popup = getComputedStyle(menu);
             const state = test.state();
             const actualAlpha = alphaOf(popup.backgroundColor);
@@ -1536,7 +1546,7 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             checked.push({
               value:value,
               saved:saved,
-              persisted:storedGlass(),
+              persisted:persisted,
               label:label ? label.textContent : '',
               popupAlpha:actualAlpha,
               popupColor:popup.backgroundColor,
@@ -1553,6 +1563,7 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             range.dispatchEvent(new Event('input', {bubbles:true}));
             await frame();
             await pause(500);
+            await waitForStoredGlass(originalGlass);
           }
           test.setGfxMode(originalMode, {persist:false, notify:false});
           await frame();

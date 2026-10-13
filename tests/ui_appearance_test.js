@@ -48,6 +48,7 @@ assert.strictEqual((html.match(/segHtml\('schemeMode'/g) || []).length, 1, 'ligh
 // Planner title, content gutters, and layout respond to the app's own viewport.
 const plannerHeader = section('function wpHeaderControls() {', 'function wpDateControls() {');
 assert(plannerHeader.includes("${ico('tasks')}Задачи"));
+assert(plannerHeader.includes('class="wp-title-marquee-clip"'));
 assert(!plannerHeader.includes('S.board.name'));
 assert(!plannerHeader.includes("ico('layers')"));
 const plannerStyleStart = html.indexOf('<style id="shelter-week-planner-style">');
@@ -68,6 +69,11 @@ assert(plannerCss.includes('.wp-month-grid{display:grid;grid-template-columns:re
 assert(plannerCss.includes('.wp-month-day.is-today{'));
 assert(plannerCss.includes('.wp-month-selected{'));
 assert(plannerCss.includes('.wp-quick-quadrant{'));
+const taskTitleRule = (plannerCss.match(/(?:^|})\.wp-task-title\{([^}]*)\}/) || [])[1] || '';
+assert(taskTitleRule.includes('white-space:nowrap') && taskTitleRule.includes('text-overflow:ellipsis') && !taskTitleRule.includes('overflow-wrap:anywhere'));
+assert(plannerCss.includes('@keyframes wpTaskTitleMarquee'));
+assert(plannerCss.includes('.wp-title-marquee-clip.is-title-overflowing:hover'));
+assert(plannerCss.includes('.wp-task-meta .wp-deadline{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums;'));
 assert(!plannerCss.includes('.wp-destination-hint{') && !plannerCss.includes('.wp-quick-context{'));
 assert(plannerCss.includes('.wp-layout{display:grid;grid-template-columns:170px minmax(0,1fr);gap:22px;align-items:start;width:100%;max-width:none;margin:0}'));
 assert(plannerCss.includes('.wp-week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;min-width:0;overflow:visible;'));

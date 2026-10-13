@@ -38,7 +38,8 @@ const S = __state;
 const RENDER = {}, AFTER = {}, ACT = {}, SEG = {};
 const OV = { stack: [] };
 const document = { activeElement: null, addEventListener() {} };
-const window = {};
+const window = globalThis.__window || {};
+const REDUCED = () => globalThis.__reducedMotion === true;
 const $ = () => null, $$ = () => [];
 const pad2 = n => String(n).padStart(2, '0');
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -81,13 +82,14 @@ const state = {
   taskMigrationPreviewShown: false
 };
 const data = new Map();
-const context = { __state: state, __data: data, __denyBackup: false, console, setTimeout, clearTimeout };
+const context = { __state: state, __data: data, __denyBackup: false, __window: {}, __reducedMotion: false, console, setTimeout, clearTimeout };
 vm.runInNewContext(harness + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpWeekEntities, wpMonthEntities, wpCreateTask, wpApplyTaskForm,
-  wpEditorBodyHtml, wpNavHtml, wpViewHtml, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar,
+  wpDeadlineText, wpTaskCard, wpSetupTaskTitleMarquee, wpEditorBodyHtml, wpNavHtml, wpViewHtml,
+  wpSetCalendarMode, wpCalendarMove, wpToggleSidebar,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
 };`, context, { timeout: 5000 });
 const api = context.__api;
@@ -173,6 +175,41 @@ api.wpApplyTaskForm(applied, { ...formValues, title: 'Метка в проект
 assert.strictEqual(applied.homeType, 'project');
 assert.strictEqual(applied.matrixQuadrant, 0);
 assert.strictEqual(applied.statusKey, 'open');
+assert.strictEqual(api.wpDeadlineText({ deadlineAt: '2026-10-19', statusKey: 'open' }), 'До: 19.10.2026');
+const longTitle = 'Подготовить подробный план запуска нового продукта и проверить все контрольные материалы';
+const taskMarkup = api.wpTaskCard({ id: 'display-task', title: longTitle, homeType: 'personal', assignee: 'Alex', deadlineAt: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true });
+assert(taskMarkup.includes('class="wp-task-title wp-title-marquee-clip"'));
+assert(taskMarkup.includes(`<span class="wp-title-marquee-text">${longTitle}</span>`));
+assert(taskMarkup.includes('До: 19.10.2026'));
+const compactDateMarkup = api.wpTaskCard({ id: 'week-date-task', title: 'Короткая карточка', homeType: 'personal', assignee: 'Alex', deadlineAt: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true, inDay: true });
+assert(compactDateMarkup.includes('title="До: 19.10.2026"') && compactDateMarkup.includes('До: 19.10</span>'), 'week cells keep the date compact while retaining the full numeric deadline on hover');
+const makeTitleClip = (scrollWidth, clientWidth, textContent=longTitle) => {
+  const classes = new Set(), properties = {};
+  const text = { scrollWidth, clientWidth, textContent };
+  const clip = {
+    title: '',
+    style: { setProperty: (key, value) => { properties[key] = value; }, removeProperty: key => { delete properties[key]; } },
+    classList: { add: key => classes.add(key), remove: key => classes.delete(key) },
+    querySelector: selector => selector === '.wp-title-marquee-text' ? text : null,
+    removeAttribute: key => { if (key === 'title') clip.title = ''; }
+  };
+  const root = { querySelectorAll: selector => selector === '.wp-title-marquee-clip' ? [clip] : [] };
+  return { root, clip, classes, properties };
+};
+const overflowingTitle = makeTitleClip(322, 122);
+api.wpSetupTaskTitleMarquee(overflowingTitle.root);
+assert(overflowingTitle.classes.has('is-title-overflowing'));
+assert.strictEqual(overflowingTitle.properties['--wp-title-shift'], '-200px');
+assert(overflowingTitle.properties['--wp-title-duration'].endsWith('s'));
+const fittingTitle = makeTitleClip(120, 122);
+api.wpSetupTaskTitleMarquee(fittingTitle.root);
+assert(!fittingTitle.classes.has('is-title-overflowing'));
+context.__reducedMotion = true;
+const reducedTitle = makeTitleClip(322, 122);
+api.wpSetupTaskTitleMarquee(reducedTitle.root);
+assert(!reducedTitle.classes.has('is-title-overflowing'));
+assert.strictEqual(reducedTitle.clip.title, longTitle, 'reduced-motion users can still reveal the full title');
+context.__reducedMotion = false;
 api.wpSetCalendarMode('month');
 assert.strictEqual(api.WP.calendarMode, 'month');
 assert.strictEqual(state.ui.plannerCalendarMode, 'month');

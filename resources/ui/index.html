@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ru" data-theme="obsidian">
+<html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-xAneAPS1+fMpfl0367hx12A7LM+oigPKHPZ+7MZn7nI=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-wdiDgkDKvzXGwrBrxXb5rmg3kXv5rYcsQDfZHAYDXmI=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -575,10 +575,6 @@ body.no-badges .badge{display:none!important}
 .q-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .q-row .q-h{margin:0}
 .q-sec > .q-h{margin:0 0 10px}
-.q-theme-swatches{flex:0 1 300px;width:min(300px,100%);max-width:100%;height:38px;padding:0 8px;margin:0}
-.q-theme-swatches .swatch{width:24px;height:24px}
-.q-theme-sec{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap}
-.q-theme-sec > .q-h{margin:0;min-width:130px}
 .q-tabs.list{display:flex;flex-direction:column;gap:2px;max-height:min(360px,50vh);overflow:auto}
 .q-li{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 8px;border-radius:calc(10px*var(--rs));color:var(--text);text-align:left;width:100%;background:none;border:0;cursor:pointer}
 .q-li:hover{background:var(--hover)}
@@ -3752,8 +3748,8 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 </style>
 
 <style id="shelter-week-planner-style">
-.planner-page{padding:20px clamp(14px,2.2vw,34px) 34px;max-width:none;min-height:100%;box-sizing:border-box;color:var(--text)}
-.wp-layout{display:grid;grid-template-columns:170px minmax(0,1fr);gap:22px;align-items:start;max-width:1900px;margin:0 auto}
+.planner-page{padding:clamp(22px,2.4vw,38px) clamp(22px,2.8vw,44px) 56px;max-width:none;min-height:100%;box-sizing:border-box;color:var(--text)}
+.wp-layout{display:grid;grid-template-columns:170px minmax(0,1fr);gap:22px;align-items:start;width:100%;max-width:none;margin:0}
 .wp-rail{position:sticky;top:12px;align-self:start;min-height:min(610px,calc(100vh - 175px));display:flex;flex-direction:column;gap:20px;padding:15px 10px;border:1px solid var(--line);border-radius:calc(20px*var(--rs));background:color-mix(in srgb,var(--card) 82%,transparent);box-shadow:var(--hi)}
 .wp-rail-brand{display:flex;align-items:center;gap:11px;padding:2px 6px 9px;border-bottom:1px solid var(--line)}
 .wp-rail-brand>.i{width:22px;height:22px;color:rgb(var(--accent));flex:none}
@@ -3797,8 +3793,8 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 12px}.wp-form-grid .field{min-width:0}.wp-form-grid .field>span{display:block;margin:0 0 5px;color:var(--text-2);font-size:10.5px;font-weight:550}.wp-form-grid .field.full{grid-column:1/-1}.wp-form-grid textarea.input{height:auto;min-height:67px;padding:9px 11px;resize:vertical;line-height:1.45}.wp-editor-section{margin-top:12px;padding:10px 11px;border:1px solid var(--line);border-radius:calc(12px*var(--rs));background:color-mix(in srgb,var(--card-2) 42%,var(--card))}.wp-editor-section>summary{list-style:none;display:flex;align-items:center;min-height:23px;color:var(--text-2);font-size:10.5px;font-weight:600;cursor:pointer}.wp-editor-section>summary::-webkit-details-marker{display:none}.wp-editor-section>summary:after{content:'+';margin-left:auto;color:var(--text-3);font-size:15px}.wp-editor-section[open]>summary:after{content:'−'}.wp-editor-section>.wp-form-grid,.wp-editor-repeat{padding-top:11px}.wp-editor-repeat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}.wp-editor-repeat .field>span{display:block;margin-bottom:5px;font-size:10px;color:var(--text-2)}.wp-repeat-options{display:contents}.wp-repeat-options[hidden]{display:none}.wp-weekdays{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px}.wp-weekdays[hidden]{display:none}.wp-weekdays label{position:relative;cursor:pointer}.wp-weekdays input{position:absolute;opacity:0;pointer-events:none}.wp-weekdays span{display:grid;place-items:center;min-width:34px;height:28px;padding:0 6px;border:1px solid var(--line);border-radius:calc(8px*var(--rs));background:var(--card);color:var(--text-3);font-size:9.5px}.wp-weekdays input:checked+span{border-color:rgb(var(--accent)/.48);background:rgb(var(--accent)/.13);color:var(--text)}.wp-form-hint{grid-column:1/-1;margin:0;color:var(--text-3);font-size:9px;line-height:1.45}.wp-picker-quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.wp-picker-quick .btn{font-size:10px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .wp-task button:focus-visible,.wp-nav button:focus-visible,.wp-icon-btn:focus-visible,.wp-add-day:focus-visible,.wp-filter-pills button:focus-visible,.wp-project-open:focus-visible,.wp-week-controls button:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}
 @media(max-width:1250px){.wp-layout{grid-template-columns:150px minmax(0,1fr);gap:14px}.wp-rail{padding:12px 7px}.wp-week-grid{min-width:1005px}.wp-brandline p{max-width:390px}}
-@media(max-width:900px){.planner-page{padding:14px 12px 26px}.wp-layout{grid-template-columns:1fr;gap:10px}.wp-rail{position:static;min-height:0;padding:7px;border-radius:calc(14px*var(--rs));gap:0}.wp-rail-brand,.wp-rail-footer{display:none}.wp-nav{flex-direction:row;overflow-x:auto;gap:4px;scrollbar-width:none}.wp-nav::-webkit-scrollbar{display:none}.wp-nav-item{flex:none;min-height:35px;padding:0 10px;font-size:10.5px}.wp-nav-item .i{width:14px;height:14px}.wp-week-grid{min-width:1035px}.wp-search{width:min(260px,32vw)}}
-@media(max-width:620px){.planner-page{padding:10px 9px 22px}.wp-topbar{align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:8px}.wp-brandline{flex:1 1 100%}.wp-brandline h1{font-size:22px}.wp-brandline p{font-size:10px}.wp-top-actions{width:100%;gap:6px}.wp-search{flex:1;width:auto;min-width:0;height:35px}.wp-search kbd{display:none}.wp-top-actions>.btn.primary{height:35px;padding:0 9px;font-size:10.5px}.wp-top-actions>.btn.primary .i{width:14px;height:14px}.wp-more{height:35px;min-width:34px}.wp-nav{gap:3px}.wp-nav-item{flex:1;justify-content:center;gap:5px;min-width:max-content;padding:0 8px;font-size:9.5px}.wp-nav-item>i{min-width:16px;height:16px;font-size:8px}.wp-week-controls{padding:7px 8px;gap:4px}.wp-week-controls>div:first-child{gap:4px}.wp-week-controls>div:first-child b{font-size:11px}.wp-week-controls>div:first-child span{display:none}.wp-date-actions{gap:3px}.wp-date-actions .btn{height:29px;padding:0 7px;font-size:9px}.wp-date-actions .wp-icon-btn,.wp-date-jump{width:28px;height:28px}.wp-week-summary{gap:6px 10px;font-size:9px}.wp-week-summary span:last-child{display:none}.wp-review-item{grid-template-columns:20px minmax(0,1fr);gap:6px}.wp-review-actions{grid-column:2;justify-content:flex-start}.wp-review-actions .btn{height:25px}.wp-review-copy b{font-size:10px}.wp-review-copy span{font-size:8.5px}.wp-review-bulk{gap:4px}.wp-review-bulk .btn{height:25px;padding:0 6px;font-size:9px}.wp-mobile-weekstrip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:7px 0 8px;padding:5px;border:1px solid var(--line);border-radius:calc(12px*var(--rs));background:var(--card)}.wp-mobile-weekstrip button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:46px;padding:3px;border:1px solid transparent;border-radius:calc(8px*var(--rs));background:transparent;color:var(--text-3);cursor:pointer}.wp-mobile-weekstrip button small{font-size:8px}.wp-mobile-weekstrip button b{font-size:12px;color:var(--text-2)}.wp-mobile-weekstrip button i{width:3px;height:3px;border-radius:50%;background:transparent}.wp-mobile-weekstrip button.today i{background:rgb(var(--accent))}.wp-mobile-weekstrip button.active{background:rgb(var(--accent)/.12);border-color:rgb(var(--accent)/.25);color:var(--text)}.wp-week-grid{display:none}.wp-week-mobile{display:block}.wp-week-mobile .wp-day{min-height:220px;padding:9px}.wp-week-mobile .wp-day-head{min-height:43px}.wp-week-mobile .wp-day-head>div span{font-size:10px}.wp-week-mobile .wp-day-head>div b{font-size:20px}.wp-week-mobile .wp-day-items{gap:7px}.wp-week-mobile .wp-task{grid-template-columns:19px minmax(0,1fr) 25px;padding:9px 8px}.wp-week-mobile .wp-task-title{font-size:12px}.wp-week-mobile .wp-task-meta{font-size:9px}.wp-add-day{min-height:34px;font-size:10px}.wp-inbox-shelf>summary{padding:0 9px}.wp-inbox-shelf>summary>small{display:none}.wp-task-list>.wp-task{padding:8px 7px}.wp-task-list .wp-task-title{font-size:11px}.wp-subbar{font-size:9px}.wp-project-grid{grid-template-columns:1fr}.wp-matrix-grid{grid-template-columns:1fr}.wp-quadrant{min-height:115px}.wp-unplaced>div:first-child{align-items:flex-start;flex-direction:column;gap:3px}.wp-form-grid,.wp-editor-repeat{grid-template-columns:1fr}.wp-form-grid .field.full{grid-column:auto}.wp-editor-repeat>.field{grid-column:auto}.wp-weekdays,.wp-form-hint{grid-column:auto}.wp-scope-switch button{font-size:9px}.wp-project-head{flex-wrap:wrap}.wp-project-head>span{margin-right:0}.wp-project-head .btn{font-size:9px}.wp-review-bulk>span{width:100%}}
+@media(max-width:900px){.wp-layout{grid-template-columns:1fr;gap:10px}.wp-rail{position:static;min-height:0;padding:7px;border-radius:calc(14px*var(--rs));gap:0}.wp-rail-brand,.wp-rail-footer{display:none}.wp-nav{flex-direction:row;overflow-x:auto;gap:4px;scrollbar-width:none}.wp-nav::-webkit-scrollbar{display:none}.wp-nav-item{flex:none;min-height:35px;padding:0 10px;font-size:10.5px}.wp-nav-item .i{width:14px;height:14px}.wp-week-grid{min-width:1035px}.wp-search{width:min(260px,32vw)}}
+@media(max-width:620px){.wp-topbar{align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:8px}.wp-brandline{flex:1 1 100%}.wp-brandline h1{font-size:22px}.wp-brandline p{font-size:10px}.wp-top-actions{width:100%;gap:6px}.wp-search{flex:1;width:auto;min-width:0;height:35px}.wp-search kbd{display:none}.wp-top-actions>.btn.primary{height:35px;padding:0 9px;font-size:10.5px}.wp-top-actions>.btn.primary .i{width:14px;height:14px}.wp-more{height:35px;min-width:34px}.wp-nav{gap:3px}.wp-nav-item{flex:1;justify-content:center;gap:5px;min-width:max-content;padding:0 8px;font-size:9.5px}.wp-nav-item>i{min-width:16px;height:16px;font-size:8px}.wp-week-controls{padding:7px 8px;gap:4px}.wp-week-controls>div:first-child{gap:4px}.wp-week-controls>div:first-child b{font-size:11px}.wp-week-controls>div:first-child span{display:none}.wp-date-actions{gap:3px}.wp-date-actions .btn{height:29px;padding:0 7px;font-size:9px}.wp-date-actions .wp-icon-btn,.wp-date-jump{width:28px;height:28px}.wp-week-summary{gap:6px 10px;font-size:9px}.wp-week-summary span:last-child{display:none}.wp-review-item{grid-template-columns:20px minmax(0,1fr);gap:6px}.wp-review-actions{grid-column:2;justify-content:flex-start}.wp-review-actions .btn{height:25px}.wp-review-copy b{font-size:10px}.wp-review-copy span{font-size:8.5px}.wp-review-bulk{gap:4px}.wp-review-bulk .btn{height:25px;padding:0 6px;font-size:9px}.wp-mobile-weekstrip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:7px 0 8px;padding:5px;border:1px solid var(--line);border-radius:calc(12px*var(--rs));background:var(--card)}.wp-mobile-weekstrip button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:46px;padding:3px;border:1px solid transparent;border-radius:calc(8px*var(--rs));background:transparent;color:var(--text-3);cursor:pointer}.wp-mobile-weekstrip button small{font-size:8px}.wp-mobile-weekstrip button b{font-size:12px;color:var(--text-2)}.wp-mobile-weekstrip button i{width:3px;height:3px;border-radius:50%;background:transparent}.wp-mobile-weekstrip button.today i{background:rgb(var(--accent))}.wp-mobile-weekstrip button.active{background:rgb(var(--accent)/.12);border-color:rgb(var(--accent)/.25);color:var(--text)}.wp-week-grid{display:none}.wp-week-mobile{display:block}.wp-week-mobile .wp-day{min-height:220px;padding:9px}.wp-week-mobile .wp-day-head{min-height:43px}.wp-week-mobile .wp-day-head>div span{font-size:10px}.wp-week-mobile .wp-day-head>div b{font-size:20px}.wp-week-mobile .wp-day-items{gap:7px}.wp-week-mobile .wp-task{grid-template-columns:19px minmax(0,1fr) 25px;padding:9px 8px}.wp-week-mobile .wp-task-title{font-size:12px}.wp-week-mobile .wp-task-meta{font-size:9px}.wp-add-day{min-height:34px;font-size:10px}.wp-inbox-shelf>summary{padding:0 9px}.wp-inbox-shelf>summary>small{display:none}.wp-task-list>.wp-task{padding:8px 7px}.wp-task-list .wp-task-title{font-size:11px}.wp-subbar{font-size:9px}.wp-project-grid{grid-template-columns:1fr}.wp-matrix-grid{grid-template-columns:1fr}.wp-quadrant{min-height:115px}.wp-unplaced>div:first-child{align-items:flex-start;flex-direction:column;gap:3px}.wp-form-grid,.wp-editor-repeat{grid-template-columns:1fr}.wp-form-grid .field.full{grid-column:auto}.wp-editor-repeat>.field{grid-column:auto}.wp-weekdays,.wp-form-hint{grid-column:auto}.wp-scope-switch button{font-size:9px}.wp-project-head{flex-wrap:wrap}.wp-project-head>span{margin-right:0}.wp-project-head .btn{font-size:9px}.wp-review-bulk>span{width:100%}}
 @media(prefers-reduced-motion:reduce){.wp-task,.wp-nav-item,.wp-day,.wp-icon-btn{transition:none!important}}
 
 /* Clear filtering and task ownership without duplicating list content. */
@@ -3927,6 +3923,71 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .wp-board-column{scroll-snap-align:start;padding:7px}
   .wp-board-task{grid-template-columns:22px minmax(0,1fr) 26px;padding:8px 7px}
 }
+
+
+/* Responsive to the app viewport, including its tablet/phone emulation. */
+@container shelter (max-width:1250px){
+.wp-layout{grid-template-columns:150px minmax(0,1fr);gap:14px}.wp-rail{padding:12px 7px}.wp-week-grid{min-width:1005px}.wp-brandline p{max-width:390px}
+}
+@container shelter (max-width:900px){
+.wp-layout{grid-template-columns:1fr;gap:10px}.wp-rail{position:static;min-height:0;padding:7px;border-radius:calc(14px*var(--rs));gap:0}.wp-rail-brand,.wp-rail-footer{display:none}.wp-nav{flex-direction:row;overflow-x:auto;gap:4px;scrollbar-width:none}.wp-nav::-webkit-scrollbar{display:none}.wp-nav-item{flex:none;min-height:35px;padding:0 10px;font-size:10.5px}.wp-nav-item .i{width:14px;height:14px}.wp-week-grid{min-width:1035px}.wp-search{width:min(260px,32vw)}
+.wp-board-lanes{grid-template-columns:repeat(4,minmax(235px,1fr))}.wp-board-filter-row .wp-filter-select{flex:1 1 145px}
+}
+@container shelter (max-width:720px){
+  .planner-page{padding:22px 16px 40px}
+  .wp-topbar{align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:8px}
+  .wp-brandline{flex:1 1 100%}
+  .wp-brandline h1{font-size:22px}
+  .wp-brandline p{font-size:10px}
+  .wp-top-actions{width:100%;gap:6px}
+  .wp-search{flex:1 1 150px;width:auto;min-width:0;height:35px}
+  .wp-search kbd{display:none}
+  .wp-top-actions>.btn.primary{height:35px;padding:0 9px;font-size:10.5px}
+  .wp-top-actions>.btn.primary .i{width:14px;height:14px}
+  .wp-more{height:35px;min-width:34px}
+  .wp-nav{gap:3px}
+  .wp-nav-item{flex:0 0 auto;justify-content:center;gap:5px;min-width:max-content;padding:0 8px;font-size:9.5px}
+  .wp-nav-item>i{min-width:16px;height:16px;font-size:8px}
+  .wp-week-controls{flex-wrap:wrap}
+  .wp-week-controls>div:first-child{flex:1 1 100%}
+  .wp-date-actions{margin-left:auto;flex-wrap:wrap}
+  .wp-project-grid,.wp-matrix-grid{grid-template-columns:1fr}
+  .wp-form-grid,.wp-editor-repeat{grid-template-columns:1fr}
+  .wp-form-grid .field.full,.wp-editor-repeat>.field,.wp-weekdays,.wp-form-hint{grid-column:auto}
+}
+@container shelter (max-width:620px){
+.wp-topbar{align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:8px}.wp-brandline{flex:1 1 100%}.wp-brandline h1{font-size:22px}.wp-brandline p{font-size:10px}.wp-top-actions{width:100%;gap:6px}.wp-search{flex:1;width:auto;min-width:0;height:35px}.wp-search kbd{display:none}.wp-top-actions>.btn.primary{height:35px;padding:0 9px;font-size:10.5px}.wp-top-actions>.btn.primary .i{width:14px;height:14px}.wp-more{height:35px;min-width:34px}.wp-nav{gap:3px}.wp-nav-item{flex:1;justify-content:center;gap:5px;min-width:max-content;padding:0 8px;font-size:9.5px}.wp-nav-item>i{min-width:16px;height:16px;font-size:8px}.wp-week-controls{padding:7px 8px;gap:4px}.wp-week-controls>div:first-child{gap:4px}.wp-week-controls>div:first-child b{font-size:11px}.wp-week-controls>div:first-child span{display:none}.wp-date-actions{gap:3px}.wp-date-actions .btn{height:29px;padding:0 7px;font-size:9px}.wp-date-actions .wp-icon-btn,.wp-date-jump{width:28px;height:28px}.wp-week-summary{gap:6px 10px;font-size:9px}.wp-week-summary span:last-child{display:none}.wp-review-item{grid-template-columns:20px minmax(0,1fr);gap:6px}.wp-review-actions{grid-column:2;justify-content:flex-start}.wp-review-actions .btn{height:25px}.wp-review-copy b{font-size:10px}.wp-review-copy span{font-size:8.5px}.wp-review-bulk{gap:4px}.wp-review-bulk .btn{height:25px;padding:0 6px;font-size:9px}.wp-mobile-weekstrip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:7px 0 8px;padding:5px;border:1px solid var(--line);border-radius:calc(12px*var(--rs));background:var(--card)}.wp-mobile-weekstrip button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:46px;padding:3px;border:1px solid transparent;border-radius:calc(8px*var(--rs));background:transparent;color:var(--text-3);cursor:pointer}.wp-mobile-weekstrip button small{font-size:8px}.wp-mobile-weekstrip button b{font-size:12px;color:var(--text-2)}.wp-mobile-weekstrip button i{width:3px;height:3px;border-radius:50%;background:transparent}.wp-mobile-weekstrip button.today i{background:rgb(var(--accent))}.wp-mobile-weekstrip button.active{background:rgb(var(--accent)/.12);border-color:rgb(var(--accent)/.25);color:var(--text)}.wp-week-grid{display:none}.wp-week-mobile{display:block}.wp-week-mobile .wp-day{min-height:220px;padding:9px}.wp-week-mobile .wp-day-head{min-height:43px}.wp-week-mobile .wp-day-head>div span{font-size:10px}.wp-week-mobile .wp-day-head>div b{font-size:20px}.wp-week-mobile .wp-day-items{gap:7px}.wp-week-mobile .wp-task{grid-template-columns:19px minmax(0,1fr) 25px;padding:9px 8px}.wp-week-mobile .wp-task-title{font-size:12px}.wp-week-mobile .wp-task-meta{font-size:9px}.wp-add-day{min-height:34px;font-size:10px}.wp-inbox-shelf>summary{padding:0 9px}.wp-inbox-shelf>summary>small{display:none}.wp-task-list>.wp-task{padding:8px 7px}.wp-task-list .wp-task-title{font-size:11px}.wp-subbar{font-size:9px}.wp-project-grid{grid-template-columns:1fr}.wp-matrix-grid{grid-template-columns:1fr}.wp-quadrant{min-height:115px}.wp-unplaced>div:first-child{align-items:flex-start;flex-direction:column;gap:3px}.wp-form-grid,.wp-editor-repeat{grid-template-columns:1fr}.wp-form-grid .field.full{grid-column:auto}.wp-editor-repeat>.field{grid-column:auto}.wp-weekdays,.wp-form-hint{grid-column:auto}.wp-scope-switch button{font-size:9px}.wp-project-head{flex-wrap:wrap}.wp-project-head>span{margin-right:0}.wp-project-head .btn{font-size:9px}.wp-review-bulk>span{width:100%}
+.wp-all-toolbar{padding:7px}
+  .wp-all-filter-row{align-items:stretch;gap:5px}
+  .wp-all-filter-row .wp-filter-pills{width:100%;overflow-x:auto;scrollbar-width:none}
+  .wp-all-filter-row .wp-filter-pills::-webkit-scrollbar{display:none}
+  .wp-filter-select{flex:1 1 135px;min-width:0}
+  .wp-all-filter-row .wp-clear-filters{align-self:flex-end}
+  .wp-filter-count{align-self:flex-start}
+  .wp-quick-context{font-size:8.5px;gap:3px 8px}
+.wp-migration-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .wp-migration-homes ul{grid-template-columns:1fr}
+  .wp-matrix-add{padding:0 7px}
+  .wp-matrix-add span{display:inline}
+.wp-quick-home{width:35%;}.wp-quick-home .select{font-size:8.5px;padding-left:6px}
+.wp-board-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .wp-board-kpi{min-height:44px;padding:7px 9px}
+  .wp-board-kpi span{font-size:9px}
+  .wp-board-kpi b{font-size:18px}
+  .wp-board-toolbar{padding:7px}
+  .wp-board-filter-row{align-items:stretch;gap:5px}
+  .wp-board-filter-row .wp-filter-pills{width:100%;overflow-x:auto;scrollbar-width:none}
+  .wp-board-filter-row .wp-filter-pills::-webkit-scrollbar{display:none}
+  .wp-board-filter-row .wp-filter-select{flex:1 1 135px;min-width:0}
+  .wp-board-filter-row .wp-my-filter{align-self:flex-end}
+  .wp-board-filter-row .wp-clear-filters{align-self:flex-end}
+  .wp-board-lanes{grid-template-columns:repeat(4,minmax(min(82vw,320px),1fr));gap:7px;scroll-snap-type:x proximity}
+  .wp-board-column{scroll-snap-align:start;padding:7px}
+  .wp-board-task{grid-template-columns:22px minmax(0,1fr) 26px;padding:8px 7px}
+}
+@container shelter (max-width:560px){.planner-page{padding:18px 12px 36px}}
+@media(max-width:720px){.planner-page{padding:18px 16px 40px}}
+@media(max-width:560px){.planner-page{padding:18px 12px 36px}}
 </style>
 </head>
 <body>
@@ -4752,7 +4813,7 @@ const THEMES = {
   porcelain: { name: 'Фарфор',         kind: 'Светлая', sw: ['#F1F4F8', '#3D7BFF', '#18BCA6'], bar: '#FFFFFF' },
   bordeaux:  { name: 'Бордо',          kind: 'Светлая', sw: ['#FDEDE7', '#C86A5A', '#9A4454'], bar: '#FFFFFF' }
 };
-const THEME_ORDER = ['obsidian', 'amethyst', 'graphite', 'ivory', 'porcelain', 'bordeaux'];
+const THEME_ORDER = ['graphite', 'obsidian', 'amethyst', 'ivory', 'porcelain', 'bordeaux'];
 const ENGINES = {
   google: { name: 'Google',     l: 'G', c: '#4285F4', url: 'https://www.google.com/search?q=', re: /google\.[a-z.]+\/search\?(?:.*&)?q=([^&#]*)/i },
   yandex: { name: 'Яндекс',     l: 'Я', c: '#FC3F1D', url: 'https://yandex.ru/search/?text=', re: /yandex\.[a-z]+\/search\/?\?(?:.*&)?text=([^&#]*)/i },
@@ -4841,7 +4902,7 @@ const UI_DEFAULTS = {
    Состояние
    ========================================================= */
 const S = {
-  theme: 'obsidian', ghost: false, engine: 'google', deep: false,
+  theme: 'graphite', ghost: false, engine: 'google', deep: false,
   spaces: null, currentSpace: 'main', activeTabId: null,
   bookmarks: null, visits: [], board: null, boards: null, boardsMeta: {}, boardId: '', ext: [],
   taskMigrationOK: true, taskMigrationPending: false, taskMigrationError: '', taskMigrationPendingKeys: [], taskMigrationBackupKey: '',
@@ -5141,7 +5202,7 @@ function clearDemo() {
 /* ---------- загрузка / сохранение ---------- */
 function load() {
   const map = { light: 'ivory', dark: 'obsidian', midnight: 'amethyst' };
-  let th = store.get('shelter:theme'); th = map[th] || th; S.theme = THEMES[th] ? th : 'obsidian';
+  let th = store.get('shelter:theme'); th = map[th] || th; S.theme = THEMES[th] ? th : 'graphite';
   S.ghost = store.get('shelter:ghost') === '1';
   const eng = store.get('shelter:searchEngine'); S.engine = ENGINES[eng] ? eng : 'google';
   S.spaces = store.json('shelter:spaces', null);
@@ -5964,23 +6025,22 @@ function syncWebScheme() {
   try { if (window.shelterNative && typeof window.shelterNative.themeScheme === 'function') window.shelterNative.themeScheme(THEMES[S.theme] && THEMES[S.theme].kind === 'Светлая' ? 'light' : 'dark'); } catch (_) {}
 }
 
-/* ===== 1.0.160: режим «Светлый/Тёмный» (кнопка в панели иконок) + выбор темы под режим ===== */
+/* ===== Настройка светлой/тёмной схемы и темы для каждого режима ===== */
 function schemeModeNow() { return THEMES[S.theme] && THEMES[S.theme].kind === 'Светлая' ? 'light' : 'dark'; }
 function schemeThemeFor(mode) {
-  const fallback = mode === 'light' ? 'ivory' : 'obsidian';
+  const fallback = mode === 'light' ? 'ivory' : 'graphite';
   const key = mode === 'light' ? S.ui.schemeLightTheme : S.ui.schemeDarkTheme;
   return THEMES[key] ? key : fallback;
 }
 function schemeSetMode(mode, origin) {
   const target = schemeThemeFor(mode === 'light' ? 'light' : 'dark');
-  /* origin нужен, чтобы переключение из панели «Оформление и вкладки» не
-     закрывало саму панель: setTheme закрывает меню только для чужих кликов. */
+  /* Режим выбирает сохранённую тему для светлой или тёмной схемы; выбранная
+     пользователем тема для каждого режима остаётся отдельной настройкой. */
   if (target !== S.theme) setTheme(target, origin); else { try { syncWebScheme(); } catch (_) {} }
   toast('Режим: ' + (target && THEMES[target].kind === 'Светлая' ? 'светлый' : 'тёмный') + ' · тема «' + THEMES[target].name + '»', { icon: THEMES[target].kind === 'Светлая' ? 'sun' : 'moon' });
 }
 function syncSchemeBtn() {
-  /* Кнопки «Светлый / Тёмный» живут в панели «Оформление и вкладки» и в
-     настройках — держим их состояние по текущей теме. */
+  /* Сегмент светлого / тёмного режима находится только в Настройках. */
   const mode = schemeModeNow();
   $$('.seg[data-seg="schemeMode"]').forEach(seg => setSegValue(seg, mode));
 }
@@ -5998,22 +6058,10 @@ SEG.schemeLight = v => {
   toast('Светлая тема: ' + THEMES[v].name, { icon: 'sun' });
 };
 function syncThemeUI() {
-  const i = Math.max(0, THEME_ORDER.indexOf(S.theme));
-  const swatches = document.querySelector('.menu-quick:not(.closing) #swatches');
-  const ind = swatches && swatches.querySelector('#swInd');
-  const activeBtn = swatches && swatches.querySelector(`.swatch[data-theme="${S.theme}"]`);
-  if (ind) {
-    const x = (activeBtn && activeBtn.offsetWidth > 0) ? activeBtn.offsetLeft : (8 + i * 38);
-    ind.style.setProperty('--x', x + 'px');
-  }
-  if (swatches) swatches.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', b.dataset.theme === S.theme));
   $$('.tcard').forEach(c => c.classList.toggle('on', c.dataset.theme === S.theme));
   if (typeof applyGlowPrefs === 'function') applyGlowPrefs();
 }
-function themeMenu(anchor, place) {
-  openMenu(anchor, [{ header: 'Цветовая схема' }].concat(THEME_ORDER.map(k => ({ label: THEMES[k].name, sub: THEMES[k].kind, checked: k === S.theme,
-    lead: `<span class="swatch" style="--c1:${THEMES[k].sw[0]};--c2:${THEMES[k].sw[1]};--c3:${THEMES[k].sw[2]};flex:none"><i></i></span>`, run: () => setTheme(k, anchor) }))), { place: place || 'right-end' });
-}
+
 
 /* =========================================================
    Боковая панель
@@ -6181,12 +6229,6 @@ function renderControls() {
   const g = $('#ctlGrid'); if (!g) return;
   g.innerHTML = `<button class="ctl fire" data-act="fire" data-tip="Удалить сессии\nНажмите — и все входы, cookies и данные сайтов будут стёрты во всех пространствах, будто вы заходили в чужой компьютер. Готовые пространства с пометкой «сессии хранятся» не трогаются." data-tip-always="1" data-tip-pos="top" aria-label="Удалить сессии">${ico('flame')}</button>`;
   syncSchemeBtn();
-}
-function themeSwatchesMarkup() {
-  return `<div class="swatches q-theme-swatches" id="swatches"><span class="sw-ind" id="swInd"></span>` + THEME_ORDER.map(k => {
-    const t = THEMES[k];
-    return `<button type="button" class="swatch" data-act="theme" data-theme="${k}" data-q-keep style="--c1:${t.sw[0]};--c2:${t.sw[1]};--c3:${t.sw[2]}" aria-label="Тема: ${t.name}" aria-pressed="${k === S.theme}" title="${t.name}"><i></i></button>`;
-  }).join('') + `</div>`;
 }
 function renderUser() {
   const card = $('#userCard');
@@ -11101,8 +11143,8 @@ function settingsHtml() {
       <section class="set-sec" id="set-look"><h4>Внешний вид</h4>
         <div class="theme-cards">${THEME_ORDER.map(k => { const t = THEMES[k]; return `<button class="tcard ${k === S.theme ? 'on' : ''}" data-act="theme" data-theme="${k}" style="--p-bg:${t.sw[0]};--p-a:${t.sw[1]};--p-b:${t.sw[2]};--p-bar:${t.bar}"><div class="tprev"><i></i></div><b>${t.name}</b><small>${t.kind}</small></button>`; }).join('')}</div>
         <div class="set-card" style="margin-top:12px">
-          ${row('Режим браузера', 'Светлая или тёмная тема — переключатель также в панели «Оформление и вкладки»', segHtml('schemeMode', [['light', 'Светлый'], ['dark', 'Тёмный']], schemeModeNow(), 'sm'))}
-          ${row('Тёмная тема', 'Какая тема применяется в тёмном режиме', segHtml('schemeDark', [['obsidian', 'Обсидиан'], ['amethyst', 'Аметист']], schemeThemeFor('dark'), 'sm'))}
+          ${row('Режим браузера', 'Светлая или тёмная цветовая схема', segHtml('schemeMode', [['light', 'Светлый'], ['dark', 'Тёмный']], schemeModeNow(), 'sm'))}
+          ${row('Тёмная тема', 'Какая тема применяется в тёмном режиме', segHtml('schemeDark', [['graphite', 'Графит'], ['obsidian', 'Обсидиан'], ['amethyst', 'Аметист']], schemeThemeFor('dark'), 'sm'))}
           ${row('Светлая тема', 'Какая тема применяется в светлом режиме', segHtml('schemeLight', [['ivory', 'Слоновая кость'], ['porcelain', 'Фарфор']], schemeThemeFor('light'), 'sm'))}
           ${row('Боковая панель', kb('⌘\\ — свернуть или развернуть'), segHtml('sidebar', [['full', 'Развёрнута'], ['rail', 'Компактная']], $('#app').classList.contains('collapsed') ? 'rail' : 'full', 'sm'))}
           ${row('Режим графики', 'Визуал — анимированное свечение и blur; Баланс — статичное свечение без blur; Скорость — эффекты выключены', segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], P.gfx, 'sm'))}
@@ -11474,7 +11516,7 @@ function applyGlowPrefs() {
     try { if (typeof window.shelterClearGlowSpot === 'function') window.shelterClearGlowSpot(); } catch (_) {}
   }
   const mode = P.glowMode === 'custom' ? 'custom' : 'theme';
-  const th = THEMES[S.theme] || THEMES.obsidian;
+  const th = THEMES[S.theme] || THEMES.graphite;
   const isLight = th.kind === 'Светлая';
   const rawHex = mode === 'custom' ? (P.glowColor || '#5E8BFF') : (th.sw && th.sw[1] ? th.sw[1] : '#FF6B3D');
   const [r0, g0, b0] = hexToRgbTuple(rawHex);
@@ -11560,7 +11602,6 @@ const COMMANDS = () => [
   { icon: 'key', label: 'Пароли', run: () => openPage('passwords') },
   { icon: 'puzzle', label: 'Расширения', kw: 'магазин', run: () => openPage('extensions') },
   { icon: 'award', label: 'Сертификаты РФ', kw: 'минцифры гост', run: () => openPage('certs') },
-  ...THEME_ORDER.map(k => ({ icon: 'palette', label: 'Тема: ' + THEMES[k].name, kw: 'тема цвет theme ' + THEMES[k].kind, run: () => setTheme(k) })),
   { icon: 'sidebar', label: 'Свернуть или развернуть панель', kbd: '⌘\\', run: toggleSidebar },
   { icon: 'search', label: 'Найти на странице', kbd: '⌘F', run: openFind },
   { icon: 'code', label: 'Инструменты разработчика', kbd: '⌥⌘I', kw: 'devtools консоль', run: () => toggleDevtools(true) },
@@ -11848,7 +11889,7 @@ function quickPanelHtml() {
   const glassOp = clamp(+S.prefs.glassOp || 82, 40, 100);
   const shownOp = isPerf ? 100 : glassOp;
   const radius = clamp(Math.round(+S.prefs.radius || 16), 10, 30);
-  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}<div class="q-row ${isPerf ? 'is-disabled' : ''}" id="qGlowRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Свечение</div>${swHtml('glow', S.prefs.glow !== false, isPerf)}</div></div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec"><div class="q-row"><div class="q-h">Скругления углов</div><b class="q-val" id="radiusVal">${radius}px</b></div><input type="range" class="rng" id="radiusRange" min="10" max="30" step="1" value="${radius}" aria-label="Скругления углов"></div><div class="q-sec"><div class="q-h">Режим браузера</div>${segHtml('schemeMode', [['light', 'Светлый'], ['dark', 'Тёмный']], schemeModeNow(), 'sm fill')}</div><div class="q-sec q-theme-sec" id="quickThemeSec"><div class="q-h">Цветовая тема</div>${themeSwatchesMarkup()}</div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
+  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}<div class="q-row ${isPerf ? 'is-disabled' : ''}" id="qGlowRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Свечение</div>${swHtml('glow', S.prefs.glow !== false, isPerf)}</div></div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec"><div class="q-row"><div class="q-h">Скругления углов</div><b class="q-val" id="radiusVal">${radius}px</b></div><input type="range" class="rng" id="radiusRange" min="10" max="30" step="1" value="${radius}" aria-label="Скругления углов"></div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
 }
 function syncQuickPanel(full) {
   const el = OV.menu && OV.menu.el;
@@ -11967,7 +12008,7 @@ function focusOmni() { if (!$('#hero').hidden) { const h = $('#heroInput'); h.fo
    ========================================================= */
 const ACT = {
   palette: () => openPalette(), page: el => openPage(el.dataset.page), newTab: () => (window.newTab ? window.newTab() : addTab()), closeTab: el => (window.closeTab || closeTab)(el.dataset.id), tab: el => (window.activateTab || activateTab)(el.dataset.tab),
-  spaceMenu: el => spaceMenu(el), theme: el => setTheme(el.dataset.theme, el), themeMenu: el => themeMenu(el), settings: el => openSettings(el.dataset.sec), account: () => openPage('profile'), toggleSidebar: () => toggleSidebar(), toggleRail: () => toggleRail(), toggleBm: () => toggleBm(),
+  spaceMenu: el => spaceMenu(el), theme: el => { if (el.closest('.settings')) setTheme(el.dataset.theme, el); }, settings: el => openSettings(el.dataset.sec), account: () => openPage('profile'), toggleSidebar: () => toggleSidebar(), toggleRail: () => toggleRail(), toggleBm: () => toggleBm(),
   back: () => { if (!navArmed()) return; (window.navBack || goStackBack)(); },
   fwd: () => { if (!navArmed()) return; (window.navForward || goStackFwd)(); },
   reload: () => { progress(); const i = $('#btnRef .i'); if (i && !REDUCED()) i.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: 700, easing: 'cubic-bezier(.22,1,.36,1)' }); const tR = curTab(); const mR = urlMeta(tR ? tR.url : ''); if (tR && (mR.kind === 'site' || mR.kind === 'search') && window.shelterReload && window.shelterReload(tR.id)) return; renderView(false); },
@@ -13217,10 +13258,9 @@ function wpContextAddTitle() {
   return 'Создать задачу: место назначения видно до сохранения';
 }
 function wpHeaderControls() {
-  const board=(S.board && S.board.name)||'Моя доска';
   const addButton=['week','matrix'].includes(WP.view) ? '' : `<button type="button" class="btn primary" data-act="wpQuickGlobal" title="${esc(wpContextAddTitle())}" aria-label="${esc(wpContextAddTitle())}">${ico('plus')}<span>${esc(wpContextAddLabel())}</span></button>`;
   return `<div class="wp-topbar">
-    <div class="wp-brandline"><span class="wp-eyebrow">${ico('layers')} ${esc(board)}</span><h1>${esc(wpViewTitle())}</h1></div>
+    <div class="wp-brandline"><span class="wp-eyebrow">${ico('tasks')}Задачи</span><h1>${esc(wpViewTitle())}</h1></div>
     <div class="wp-top-actions">
       <label class="wp-search">${ico('search')}<input class="input" id="wpSearch" value="${esc(WP.query)}" placeholder="Найти задачу" autocomplete="off" aria-label="Поиск задач"><kbd>${esc(kb('⌘⇧K'))}</kbd></label>
       ${addButton}

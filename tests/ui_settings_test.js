@@ -47,7 +47,7 @@ const cut = (from, to) => {
 // 1. Тулбар: плитки-переключатели защит переехали в попап щита (#protBtn),
 //    в тулбаре остаётся только плитка «Удалить сессии». Проверяем, что ни один
 //    переключатель не потерялся: попап щита обязан собрать все строки PROT_ROWS.
-const grid = cut("const g = $('#ctlGrid')", 'function themeSwatchesMarkup');
+const grid = cut("const g = $('#ctlGrid')", 'function renderUser() {');
 check('плитка «Удалить сессии» рисуется в тулбаре', /class="ctl fire"/.test(grid) && /data-act="fire"/.test(grid), grid.length + ' символов');
 check('в тулбаре не осталось плиток-переключателей защит', grid.length > 0 && !/data-sw/.test(grid) && !/const tiles = \[/.test(html));
 const shieldBtn = cut('<button class="tb-btn" id="protBtn"', '</button>');

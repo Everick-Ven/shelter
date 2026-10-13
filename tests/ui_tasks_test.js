@@ -87,8 +87,9 @@ vm.runInNewContext(harness + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
-  wpTaskHomeType, wpIsMine, wpWeekEntities, wpMonthEntities, wpCreateTask, wpApplyTaskForm,
-  wpDeadlineText, wpTaskCard, wpSetupTaskTitleMarquee, wpEditorBodyHtml, wpNavHtml, wpViewHtml,
+  wpTaskHomeType, wpIsMine, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
+  wpTaskCoversDate, wpTaskHasDateSpan, wpCalendarSpanLayout, wpEffectiveOccurrence, wpApplySchedule,
+  wpDeadlineText, wpTaskCard, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpNavHtml, wpViewHtml,
   wpSetCalendarMode, wpCalendarMove, wpToggleSidebar,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
 };`, context, { timeout: 5000 });
@@ -124,7 +125,7 @@ state.board = {
     { id: 'self-next-week', title: 'Следующая неделя', homeType: 'personal', assignee: 'Я', scheduledDate: '2026-10-20', statusKey: 'open', priorityKey: 'normal', order: 6 },
     { id: 'other-person', title: 'Чужая задача', homeType: 'personal', assignee: 'Другой исполнитель', scheduledDate: '2026-10-13', statusKey: 'open', priorityKey: 'normal', order: 7 },
     { id: 'unassigned', title: 'Без исполнителя', homeType: 'personal', assignee: '', scheduledDate: '2026-10-13', statusKey: 'open', priorityKey: 'normal', order: 8 },
-    { id: 'recurring-self', title: 'Повтор личной задачи', homeType: 'personal', assignee: 'я', scheduledDate: '2026-10-05', recurrenceRuleId: 'weekly-self', statusKey: 'open', priorityKey: 'normal', order: 9 },
+    { id: 'recurring-self', title: 'Повтор личной задачи', homeType: 'personal', assignee: 'я', scheduledDate: '2026-10-05', scheduledEndDate: '2026-10-06', recurrenceRuleId: 'weekly-self', statusKey: 'open', priorityKey: 'normal', order: 9 },
     { id: 'recurring-other', title: 'Повтор чужой задачи', homeType: 'personal', assignee: 'Другой исполнитель', scheduledDate: '2026-10-05', recurrenceRuleId: 'weekly-other', statusKey: 'open', priorityKey: 'normal', order: 10 }
   ]
 };
@@ -143,11 +144,50 @@ assert(monthIds.has('self-next-week'), 'month view must include all of the curre
 assert(monthIds.has('recurring-self::2026-10-26'), 'month view must materialize weekly recurring tasks');
 assert(!monthIds.has('other-person') && !monthIds.has('recurring-other::2026-10-12'), 'neither one-off nor recurring tasks for other assignees belong in the personal calendar');
 assert(!monthIds.has('unassigned'), 'the calendar must not treat an unassigned task as the signed-in user’s task');
+const recurrenceOverlapIds = new Set(Array.from(api.wpRangeEntities('2026-10-06', '2026-10-12'), task => task.id));
+assert(recurrenceOverlapIds.has('recurring-self::2026-10-05'), 'a repeating multi-day task remains visible when its start is before the requested range');
+const recurringSpan = state.board.tasks.find(task => task.id === 'recurring-self');
+assert.strictEqual(api.wpEffectiveOccurrence(recurringSpan, '2026-10-19', null).scheduledEndDate, '2026-10-20', 'recurrence instances inherit the series span');
+assert.strictEqual(api.wpEffectiveOccurrence(recurringSpan, '2026-10-19', { id: 'recurring-self::2026-10-19', scheduledDate: '2026-10-19', scheduledEndDate: null }).scheduledEndDate, null, 'an occurrence can explicitly clear its inherited end date');
 api.WP.calendarMode = 'month';
 const monthMarkup = api.wpViewHtml();
 assert(monthMarkup.includes('wp-month-grid') && monthMarkup.includes('Октябрь 2026'));
 assert(monthMarkup.includes('Исполнитель Я') && !monthMarkup.includes('Чужая задача'));
 assert(!api.wpNavHtml().includes('data-view="matrix"') && !api.wpNavHtml().includes('label:"Матрица"'), 'Matrix must no longer be a planner navigation destination');
+const rangeTasks = [
+  { id: 'span-before-month', title: 'Срок на границе месяца', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-09-25', scheduledEndDate: '2026-10-02', deadlineAt: '2026-10-03', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 1, order: 20, tags: [] },
+  { id: 'week-span', title: 'Задача на несколько дней', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-10', scheduledEndDate: '2026-10-13', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 0, order: 21, tags: [] },
+  { id: 'month-span-a', title: 'Подготовка A', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-14', scheduledEndDate: '2026-10-16', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 1, order: 22, tags: [] },
+  { id: 'month-span-b', title: 'Подготовка B', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-14', scheduledEndDate: '2026-10-17', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 2, order: 23, tags: [] },
+  { id: 'single-day-task', title: 'Однодневная задача', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-15', scheduledEndDate: null, statusKey: 'open', priorityKey: 'normal', matrixQuadrant: null, order: 24, tags: [] }
+];
+state.board.tasks.push(...rangeTasks);
+assert(api.wpTaskCoversDate(rangeTasks[0], '2026-10-01'));
+assert(!api.wpTaskCoversDate(rangeTasks[0], '2026-10-03'));
+assert(api.wpTaskHasDateSpan(rangeTasks[0]));
+const monthRangeIds = new Set(Array.from(api.wpMonthEntities('2026-10-01'), task => task.id));
+assert(monthRangeIds.has('span-before-month'), 'month view must include ranges that begin before its visible grid');
+api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
+const rangeMonthMarkup = api.wpViewHtml();
+assert(rangeMonthMarkup.includes('wp-month-span-layer') && rangeMonthMarkup.includes('wp-calendar-span--month'));
+assert(rangeMonthMarkup.includes('Задача на несколько дней'), 'ranges scheduled in October are rendered as continuous month bars');
+assert(rangeMonthMarkup.includes('Срок на границе месяца') && rangeMonthMarkup.includes('25 сент. 2026 — 2 окт. 2026'), 'month bars show a task that crosses into October and retain its full range');
+assert(rangeMonthMarkup.includes('wp-month-selected') && rangeMonthMarkup.includes('Срок на границе месяца'), 'a range task is listed when the selected date is inside its span');
+const weekDays = Array.from({ length: 7 }, (_, i) => api.wpAddDays('2026-10-12', i));
+const weekSpanEntities = api.wpWeekEntities('2026-10-12');
+const weekLayout = api.wpCalendarSpanLayout(weekDays, weekSpanEntities);
+assert.strictEqual(weekLayout.laneCount, 2, 'overlapping all-day ranges occupy separate lanes');
+assert(weekLayout.segments.find(segment => segment.task.id === 'week-span').continuesBefore, 'week range bars clip at the week boundary');
+api.WP.weekStart = '2026-10-12'; api.WP.mobileDate = '2026-10-14'; api.WP.calendarMode = 'week';
+const rangeWeekMarkup = api.wpViewHtml();
+assert(rangeWeekMarkup.includes('wp-week-grid is-all-day') && rangeWeekMarkup.includes('wp-week-span-layer'));
+assert(rangeWeekMarkup.includes('Однодневная задача') && rangeWeekMarkup.includes('Задача на несколько дней'));
+assert(rangeWeekMarkup.includes('Многодневные задачи на весь день'), 'date-only tasks remain in all-day lanes without invented time slots');
+assert.strictEqual(api.wpApplySchedule({ id: 'week-span', entityType: 'task' }, '2026-10-12'), true);
+assert.strictEqual(state.board.tasks.find(task => task.id === 'week-span').scheduledDate, '2026-10-12');
+assert.strictEqual(state.board.tasks.find(task => task.id === 'week-span').scheduledEndDate, '2026-10-15', 'moving a task preserves its calendar span');
+assert.strictEqual(api.wpApplySchedule({ id: 'week-span', entityType: 'task' }, null), true);
+assert.strictEqual(state.board.tasks.find(task => task.id === 'week-span').scheduledEndDate, null, 'clearing a plan clears its separate end date');
 
 // Classification stays independent of a task's normal destination; creation has no status control, but editing does.
 state.board.tasks = [];
@@ -157,13 +197,14 @@ assert.strictEqual(createdPersonal.homeType, 'personal');
 assert.strictEqual(createdPersonal.matrixQuadrant, 2);
 assert.strictEqual(createdPersonal.statusKey, 'open');
 const formValues = {
-  title: 'Новая задача', kind: 'personal', projectId: '', assignee: 'Я', scheduledDate: '2026-10-13', deadlineAt: '',
+  title: 'Новая задача', kind: 'personal', projectId: '', assignee: 'Я', scheduledDate: '2026-10-13', scheduledEndDate: '2026-10-15', deadlineAt: '',
   statusKey: 'open', priorityKey: 'normal', quadrant: '1', description: '', tags: '', durationEstimateMinutes: '',
   waitingReason: '', reviewAt: '', frequency: 'none', interval: 1, intervalDays: 1, weekdays: [1], mode: 'calendar', endDate: ''
 };
 const createForm = api.wpEditorBodyHtml(null, 'series', true, formValues, false, null);
 assert(!createForm.includes('id="wpStatus"') && !createForm.includes('option value="matrix"'));
 assert(createForm.includes('id="wpQuadrant"') && createForm.includes('Метка Матрицы'));
+assert(createForm.includes('id="wpScheduledEnd"') && createForm.includes('value="2026-10-15"'), 'the separate calendar end date is editable independently of the deadline');
 assert(!createForm.includes('wpDestinationHint') && !createForm.includes('Задача будет добавлена'));
 const existingTask = { id: 'existing-task', title: 'Уже создана', homeType: 'personal', assignee: 'Я', statusKey: 'waiting', priorityKey: 'normal', scheduledDate: null, tags: [], matrixQuadrant: null };
 const editForm = api.wpEditorBodyHtml(existingTask, 'task', false, { ...formValues, title: existingTask.title, statusKey: 'waiting' }, false, existingTask);
@@ -175,6 +216,7 @@ api.wpApplyTaskForm(applied, { ...formValues, title: 'Метка в проект
 assert.strictEqual(applied.homeType, 'project');
 assert.strictEqual(applied.matrixQuadrant, 0);
 assert.strictEqual(applied.statusKey, 'open');
+assert.strictEqual(applied.scheduledEndDate, '2026-10-15');
 assert.strictEqual(api.wpDeadlineText({ deadlineAt: '2026-10-19', statusKey: 'open' }), 'До: 19.10.2026');
 const longTitle = 'Подготовить подробный план запуска нового продукта и проверить все контрольные материалы';
 const taskMarkup = api.wpTaskCard({ id: 'display-task', title: longTitle, homeType: 'personal', assignee: 'Alex', deadlineAt: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true });
@@ -236,7 +278,7 @@ const legacyBoard = {
   tasks: [
     { id: 'project-task', title: 'Проектная', kind: 'project', projectId: 'project-1', project: 'Проект', inbox: true, status: 'Готово', prio: 'Выполнено', prevPrio: 'Критично', deadline: '20.10.2026' },
     { id: 'inbox-task', title: 'Входящая', inbox: true, status: 'В работе' },
-    { id: 'personal-task', title: 'Личная', kind: 'personal', qm: 0, customField: 'keep me' }
+    { id: 'personal-task', title: 'Личная', kind: 'personal', qm: 0, scheduledDate: '2026-10-10', scheduledEndDate: '2026-10-12', customField: 'keep me' }
   ],
   eisenTasks: [{ id: 'matrix-task', title: 'Из старой матрицы', qm: 1 }], invites: [], ownerEmail: 'owner@example.test'
 };
@@ -276,6 +318,8 @@ assert.strictEqual(projectTask.priorityKey, 'critical');
 assert.strictEqual(api.wpTaskHomeType(inboxTask), 'inbox');
 assert.strictEqual(api.wpTaskHomeType(personalTask), 'personal', 'a quadrant alone must not move a personal task into Matrix');
 assert.strictEqual(personalTask.legacy.customField, 'keep me', 'unknown legacy fields must survive migration');
+assert.strictEqual(personalTask.scheduledEndDate, '2026-10-12', 'the new calendar end date survives task migration');
+assert(!Object.prototype.hasOwnProperty.call(personalTask.legacy, 'scheduledEndDate'), 'the end date is a first-class task field, not opaque legacy metadata');
 assert.strictEqual(api.wpTaskHomeType(tasks.find(t => t.id === 'matrix-task')), 'matrix');
 assert.strictEqual(api.wpTaskHomeType(tasks.find(t => t.id === 'loose-matrix-task')), 'matrix');
 assert.strictEqual(state.board.taskSchemaVersion, 6);

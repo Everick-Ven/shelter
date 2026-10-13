@@ -307,6 +307,8 @@ jobs:
         run: node tests/ui_tabs_test.js
       - name: Extensions page and bridge regression test
         run: node tests/ui_extensions_test.js
+      - name: Task planner and migration regression test
+        run: node tests/ui_tasks_test.js
       - name: Notification marquee regression test
         run: node tests/ui_toast_marquee_test.js
       - name: CSP hashes and renderer secret isolation regression test

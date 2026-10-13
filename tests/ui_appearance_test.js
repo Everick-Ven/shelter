@@ -54,12 +54,27 @@ const plannerStyleStart = html.indexOf('<style id="shelter-week-planner-style">'
 const plannerStyleEnd = html.indexOf('</style>', plannerStyleStart);
 assert(plannerStyleStart >= 0 && plannerStyleEnd > plannerStyleStart);
 const plannerCss = html.slice(plannerStyleStart, plannerStyleEnd);
-assert(plannerCss.includes('.planner-page{padding:clamp(22px,2.4vw,38px) clamp(22px,2.8vw,44px) 56px;'));
+const plannerPageRules = [...plannerCss.matchAll(/\.planner-page\{([^}]*)\}/g)].map(match => match[1]);
+assert(plannerPageRules.length >= 5, 'planner padding must be responsive across the supported breakpoints');
+assert(plannerPageRules.every(rule => {
+  const padding = (rule.match(/(?:^|;)padding:([^;]+)/) || [])[1] || '';
+  const values = padding.trim().split(/\s+/);
+  return values.length === 3 && values[1] === '0';
+}), 'the task page must not add broad horizontal gutters');
 assert(plannerCss.includes('.wp-layout{display:grid;grid-template-columns:170px minmax(0,1fr);gap:22px;align-items:start;width:100%;max-width:none;margin:0}'));
+assert(plannerCss.includes('.wp-week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;min-width:0;overflow:visible;'));
+assert(!plannerCss.includes('.wp-week-grid{min-width:1005px') && !plannerCss.includes('.wp-week-grid{min-width:1035px'), 'the weekly calendar must not force horizontal overflow');
+assert(plannerCss.includes('.wp-day{display:flex;flex-direction:column;gap:6px;min-width:0;min-height:420px;padding:10px 8px;border:1px solid var(--line);border-radius:calc(16px*var(--rs));background:var(--card);'));
+assert(plannerCss.includes('.wp-week-grid .wp-task{grid-template-columns:26px minmax(0,1fr) 30px;padding:7px 8px;border:0;border-left:2px solid rgb(var(--accent));border-radius:calc(10px*var(--rs));background:var(--card-2);'));
+assert(plannerCss.includes('@container shelter (max-width:1250px){'));
 assert(plannerCss.includes('@container shelter (max-width:900px){'));
 assert(plannerCss.includes('@container shelter (max-width:720px){'));
 assert(plannerCss.includes('@container shelter (max-width:620px){'));
-assert(plannerCss.includes('.wp-week-grid{display:none}.wp-week-mobile{display:block}'));
-assert(plannerCss.includes('@container shelter (max-width:560px){.planner-page{padding:18px 12px 36px}}'));
+assert(plannerCss.includes('.wp-week-grid{grid-template-columns:repeat(4,minmax(0,1fr))}'));
+assert(plannerCss.includes('.wp-week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}'));
+assert(plannerCss.includes('.wp-week-grid{grid-template-columns:1fr}.wp-week-grid .wp-day{min-height:220px}.wp-week-mobile{display:none}'));
+assert(plannerCss.includes('.wp-week-grid{display:grid;grid-template-columns:1fr;min-width:0;overflow:visible}.wp-week-mobile{display:none}'));
+assert(!plannerCss.includes('.wp-week-grid{display:none}.wp-week-mobile{display:block}'));
+assert(plannerCss.includes('@container shelter (max-width:560px){.planner-page{padding:18px 0 36px}}'));
 
 console.log('UI appearance defaults, Settings-only theme controls, and planner responsiveness tests passed');

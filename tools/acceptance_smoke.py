@@ -577,26 +577,18 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         await frame();
         const quickMenu = document.querySelector('.menu-quick');
         const opacity = quickMenu && quickMenu.querySelector('#glassOpSec');
-        const palette = quickMenu && quickMenu.querySelector('#quickThemeSec');
-        const modeSeg = quickMenu && quickMenu.querySelector('.seg[data-seg="schemeMode"]');
-        const modeSec = modeSeg && modeSeg.closest('.q-sec');
-        const radiusSec = quickMenu && quickMenu.querySelector('#radiusRange') &&
-          quickMenu.querySelector('#radiusRange').closest('.q-sec');
-        const swatchWrap = palette && palette.querySelector('.q-theme-swatches');
-        const swatches = swatchWrap ? Array.from(swatchWrap.querySelectorAll('.swatch[data-theme]')) : [];
-        const wrapRect = swatchWrap && swatchWrap.getBoundingClientRect();
-        const firstRect = swatches[0] && swatches[0].getBoundingClientRect();
-        const lastRect = swatches[swatches.length - 1] && swatches[swatches.length - 1].getBoundingClientRect();
-        const leftInset = wrapRect && firstRect ? firstRect.left - wrapRect.left : null;
-        const rightInset = wrapRect && lastRect ? wrapRect.right - lastRect.right : null;
-        const paletteState = {
+        const radiusRange = quickMenu && quickMenu.querySelector('#radiusRange');
+        const radiusSec = radiusRange && radiusRange.closest('.q-sec');
+        const tabPosition = quickMenu && quickMenu.querySelector('.seg[data-seg="tabPos"]');
+        const bookmarkPosition = quickMenu && quickMenu.querySelector('.seg[data-seg="bmPos"]');
+        const hasQuickSchemeMode = !!(quickMenu && quickMenu.querySelector('.seg[data-seg="schemeMode"]'));
+        const hasQuickThemePalette = !!(quickMenu && quickMenu.querySelector(
+          '#quickThemeSec, .q-theme-swatches, .swatch[data-theme]'));
+        const quickAppearanceState = {
           radiusAfterOpacity: !!opacity && !!radiusSec && radiusSec.previousElementSibling === opacity,
-          modeAfterRadius: !!radiusSec && !!modeSec && modeSec.previousElementSibling === radiusSec,
-          paletteAfterMode: !!modeSec && !!palette && modeSec.nextElementSibling === palette,
-          swatchCount: swatches.length,
-          leftInset: leftInset,
-          rightInset: rightInset,
-          equalSideInsets: leftInset !== null && rightInset !== null && Math.abs(leftInset - rightInset) <= 1.5
+          tabPositionAvailable: !!tabPosition,
+          bookmarkPositionAvailable: !!bookmarkPosition,
+          themeControlsHidden: !hasQuickSchemeMode && !hasQuickThemePalette
         };
         quick.click();
         await frame();
@@ -607,7 +599,7 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           menuLabels: labels,
           visibleForbidden: visibleForbidden,
           profileLast: profileLast,
-          palette: paletteState
+          quickAppearance: quickAppearanceState
         });
       })()
     """
@@ -1200,55 +1192,78 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
     return data
 
 
-def quick_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
-    """Verify quick-menu theme changes keep the menu open and can be restored."""
+def settings_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
+    """Verify the quick panel cannot change themes and Settings can change/restore one."""
     expression = r"""
       (async function() {
         const quick = document.getElementById('quickBtn');
-        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
-           requestAnimationFrame может не сработать вовсе, и проба обязана
-           либо измерить раскладку после паузы, либо честно упасть. */
+        const settingsButton = document.getElementById('settingsBtn');
+        if (!quick || !settingsButton) throw new Error('appearance/settings buttons are missing');
         const frame = () => new Promise(resolve => {
           let done = false;
           const finish = () => { if (!done) { done = true; resolve(); } };
           requestAnimationFrame(() => requestAnimationFrame(finish));
           setTimeout(finish, 300);
         });
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         const waitForTheme = async theme => {
           const deadline = performance.now() + 2500;
           while (performance.now() < deadline) {
             if (document.documentElement.getAttribute('data-theme') === theme) return true;
-            await new Promise(resolve => setTimeout(resolve, 25));
+            await pause(25);
           }
           return false;
         };
         const original = document.documentElement.getAttribute('data-theme');
+        if (original !== 'graphite') throw new Error('fresh install did not default to Graphite: ' + original);
         quick.click(); await frame();
-        let menu = document.querySelector('.menu-quick:not(.closing)');
-        if (!menu) throw new Error('quick menu did not open');
-        const swatches = Array.from(menu.querySelectorAll('.swatch[data-theme]'));
-        const target = swatches.find(button => button.dataset.theme !== original);
-        if (!target) throw new Error('alternate theme is missing');
+        const quickMenu = document.querySelector('.menu-quick:not(.closing)');
+        if (!quickMenu) throw new Error('quick menu did not open');
+        const quickThemeControlsAbsent = !quickMenu.querySelector(
+          '.seg[data-seg="schemeMode"], #quickThemeSec, .q-theme-swatches, .swatch[data-theme]');
+        quick.click(); await frame();
+        if (!quickThemeControlsAbsent) throw new Error('quick panel still exposes theme-changing controls');
+
+        settingsButton.click(); await frame();
+        let settings = document.querySelector('.settings.settings-page');
+        if (!settings) throw new Error('Settings page did not open');
+        let cards = Array.from(settings.querySelectorAll('.theme-cards .tcard[data-theme]'));
+        const originalCard = cards.find(button => button.dataset.theme === original);
+        const target = cards.find(button => button.dataset.theme !== original);
+        if (cards.length !== 6 || !originalCard || !originalCard.classList.contains('on') || !target)
+          throw new Error('Settings theme cards do not match the active theme');
+        const settingsModePresent = !!settings.querySelector('.seg[data-seg="schemeMode"]');
+        const graphiteDarkOptionPresent = !!settings.querySelector(
+          '.seg[data-seg="schemeDark"] button[data-v="graphite"]');
         const selected = target.dataset.theme;
         target.click();
-        const applied = await waitForTheme(selected); await frame();
-        menu = document.querySelector('.menu-quick:not(.closing)');
-        const stayedOpen = !!menu;
-        const selectedState = menu && menu.querySelector('.swatch[data-theme="' + selected + '"]')?.getAttribute('aria-pressed') === 'true';
-        if (!applied || !stayedOpen || !selectedState)
-          throw new Error('theme change did not preserve/update quick menu');
-        menu.querySelector('.swatch[data-theme="' + original + '"]').click();
-        const restored = await waitForTheme(original); await frame();
-        const menuAfterRestore = !!document.querySelector('.menu-quick:not(.closing)');
-        quick.click(); await frame();
-        if (!restored || !menuAfterRestore) throw new Error('original theme could not be restored in open menu');
-        return JSON.stringify({original:original, selected:selected, stayedOpen:stayedOpen,
-          selectedState:selectedState, restored:restored, menuAfterRestore:menuAfterRestore});
+        const applied = await waitForTheme(selected); await pause(620); await frame();
+        settings = document.querySelector('.settings.settings-page');
+        cards = settings ? Array.from(settings.querySelectorAll('.theme-cards .tcard[data-theme]')) : [];
+        const stayedOpen = !!settings;
+        const selectedState = !!cards.find(button =>
+          button.dataset.theme === selected && button.classList.contains('on'));
+        const selectedStored = localStorage.getItem('shelter:theme') === selected;
+
+        const restoreCard = cards.find(button => button.dataset.theme === original);
+        if (restoreCard) restoreCard.click();
+        const restored = await waitForTheme(original); await pause(620); await frame();
+        const restoredStored = localStorage.getItem('shelter:theme') === original;
+        const stateRestored = !!(window.shelterTest && window.shelterTest.state().theme === original);
+        window.openPage('start'); await frame();
+        if (!applied || !stayedOpen || !selectedState || !selectedStored || !restored ||
+            !restoredStored || !stateRestored || !settingsModePresent || !graphiteDarkOptionPresent)
+          throw new Error('Settings-only theme selection or preference restore failed');
+        return JSON.stringify({original:original, selected:selected, quickThemeControlsAbsent:quickThemeControlsAbsent,
+          settingsThemeCards:cards.length, settingsModePresent:settingsModePresent,
+          graphiteDarkOptionPresent:graphiteDarkOptionPresent, applied:applied, stayedOpen:stayedOpen,
+          selectedState:selectedState, selectedStored:selectedStored, restored:restored,
+          restoredStored:restoredStored, stateRestored:stateRestored});
       })()
     """
-    raw = ui.evaluate(expression, timeout=20)
+    raw = ui.evaluate(expression, timeout=30)
     if not raw:
-        raise AcceptanceError("Quick-menu theme probe returned no result")
+        raise AcceptanceError("Settings theme probe returned no result")
     return json.loads(raw)
 
 def bridge_state(ui: Cdp) -> Dict[str, Any]:
@@ -2584,19 +2599,16 @@ def main() -> int:
                         "Profile with avatar is not the last burger-menu item: "
                         f"{toolbar_menu}"
                     )
-                palette = toolbar_menu["palette"]
+                quick_appearance = toolbar_menu["quickAppearance"]
                 if (
-                    not palette["radiusAfterOpacity"]
-                    or not palette["modeAfterRadius"]
-                    or not palette["paletteAfterMode"]
+                    not quick_appearance["radiusAfterOpacity"]
+                    or not quick_appearance["tabPositionAvailable"]
+                    or not quick_appearance["bookmarkPositionAvailable"]
+                    or not quick_appearance["themeControlsHidden"]
                 ):
                     raise AcceptanceError(
-                        "Quick panel order changed (opacity -> radius -> mode -> palette): "
+                        "Quick panel must keep appearance controls but leave theme changes to Settings: "
                         f"{toolbar_menu}"
-                    )
-                if palette["swatchCount"] != 6 or not palette["equalSideInsets"]:
-                    raise AcceptanceError(
-                        f"Theme palette is malformed: {toolbar_menu}"
                     )
                 print(
                     "SHELTER_ACCEPTANCE_TOOLBAR_MENU_PASS "
@@ -2604,9 +2616,9 @@ def main() -> int:
                     flush=True,
                 )
 
-            theme_probe = quick_theme_switch_probe(ui)
-            print("SHELTER_ACCEPTANCE_QUICK_THEME " + json.dumps(theme_probe, ensure_ascii=False), flush=True)
-            print("SHELTER_ACCEPTANCE_QUICK_THEME_PASS", flush=True)
+            theme_probe = settings_theme_switch_probe(ui)
+            print("SHELTER_ACCEPTANCE_SETTINGS_THEME " + json.dumps(theme_probe, ensure_ascii=False), flush=True)
+            print("SHELTER_ACCEPTANCE_SETTINGS_THEME_PASS", flush=True)
 
             mode_probe = performance_mode_probe(ui)
             print("SHELTER_ACCEPTANCE_PERFORMANCE " + json.dumps(mode_probe, ensure_ascii=False), flush=True)

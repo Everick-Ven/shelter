@@ -58,9 +58,17 @@ const plannerPageRules = [...plannerCss.matchAll(/\.planner-page\{([^}]*)\}/g)].
 assert(plannerPageRules.length >= 5, 'planner padding must be responsive across the supported breakpoints');
 assert(plannerPageRules.every(rule => {
   const padding = (rule.match(/(?:^|;)padding:([^;]+)/) || [])[1] || '';
-  const values = padding.trim().split(/\s+/);
-  return values.length === 3 && values[1] === '0';
-}), 'the task page must not add broad horizontal gutters');
+  const values = padding.replace(/clamp\([^)]*\)/g, 'clamp').trim().split(/\s+/);
+  return values.length === 3 && ['12px', 'clamp'].includes(values[1]);
+}), 'the task page must keep a modest responsive horizontal gutter');
+assert(plannerCss.includes('.planner-page{padding:clamp(22px,2.4vw,38px) clamp(12px,1.3vw,18px) 56px;'));
+assert(plannerCss.includes('.wp-layout.is-sidebar-collapsed{grid-template-columns:68px minmax(0,1fr);gap:16px}'));
+assert(plannerCss.includes('.wp-rail-toggle{display:grid;place-items:center;'));
+assert(plannerCss.includes('.wp-month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}'));
+assert(plannerCss.includes('.wp-month-day.is-today{'));
+assert(plannerCss.includes('.wp-month-selected{'));
+assert(plannerCss.includes('.wp-quick-quadrant{'));
+assert(!plannerCss.includes('.wp-destination-hint{') && !plannerCss.includes('.wp-quick-context{'));
 assert(plannerCss.includes('.wp-layout{display:grid;grid-template-columns:170px minmax(0,1fr);gap:22px;align-items:start;width:100%;max-width:none;margin:0}'));
 assert(plannerCss.includes('.wp-week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;min-width:0;overflow:visible;'));
 assert(!plannerCss.includes('.wp-week-grid{min-width:1005px') && !plannerCss.includes('.wp-week-grid{min-width:1035px'), 'the weekly calendar must not force horizontal overflow');
@@ -75,6 +83,15 @@ assert(plannerCss.includes('.wp-week-grid{grid-template-columns:repeat(2,minmax(
 assert(plannerCss.includes('.wp-week-grid{grid-template-columns:1fr}.wp-week-grid .wp-day{min-height:220px}.wp-week-mobile{display:none}'));
 assert(plannerCss.includes('.wp-week-grid{display:grid;grid-template-columns:1fr;min-width:0;overflow:visible}.wp-week-mobile{display:none}'));
 assert(!plannerCss.includes('.wp-week-grid{display:none}.wp-week-mobile{display:block}'));
-assert(plannerCss.includes('@container shelter (max-width:560px){.planner-page{padding:18px 0 36px}}'));
+assert(plannerCss.includes('@container shelter (max-width:560px){.planner-page{padding:18px 12px 36px}}'));
+const plannerNav = section('function wpNavHtml() {', 'function wpContextAddLabel() {');
+assert(!plannerNav.includes('Матрица') && !plannerNav.includes("wpSetView('matrix')"), 'Matrix must not remain a standalone navigation destination');
+const plannerViewConfig = section('const WP_VIEWS=[', 'function wpViewTitle() {');
+assert(plannerViewConfig.includes("['week','calendar','Календарь']") && !plannerViewConfig.includes("['matrix'"));
+const plannerMoreMenu = section('function wpMoreMenu(anchor) {', 'function taskExport() {');
+assert(plannerMoreMenu.includes("label:'Календарь'") && !plannerMoreMenu.includes('Матрица') && !plannerMoreMenu.includes("wpSetView('matrix')"));
+const legacyMovePicker = section('function wpMoveHomePicker(ref,opts={}) {', 'function wpMoveToQuadrant(ref,q) {');
+assert(legacyMovePicker.includes("value=\"legacy-matrix\"") && legacyMovePicker.includes('selected disabled'));
+assert(!legacyMovePicker.includes("['matrix','Матрица']"), 'legacy Matrix tasks must not restore Matrix as a move destination');
 
 console.log('UI appearance defaults, Settings-only theme controls, and planner responsiveness tests passed');

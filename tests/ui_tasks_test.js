@@ -35,7 +35,7 @@ const store = {
   put(k, v) { this.set(k, JSON.stringify(v)); }
 };
 const S = __state;
-const RENDER = {}, AFTER = {}, ACT = {};
+const RENDER = {}, AFTER = {}, ACT = {}, SEG = {};
 const OV = { stack: [] };
 const document = { activeElement: null, addEventListener() {} };
 const window = {};
@@ -85,7 +85,9 @@ const context = { __state: state, __data: data, __denyBackup: false, console, se
 vm.runInNewContext(harness + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, actions: ACT, render: RENDER, after: AFTER,
-  wpDateKey, wpWeekStart, wpAddDays, wpMatchRuleDate, wpTaskHomeType,
+  wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
+  wpTaskHomeType, wpIsMine, wpWeekEntities, wpMonthEntities, wpCreateTask, wpApplyTaskForm,
+  wpEditorBodyHtml, wpNavHtml, wpViewHtml, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
 };`, context, { timeout: 5000 });
 const api = context.__api;
@@ -95,6 +97,89 @@ assert.strictEqual(api.wpDateKey('13.10.2026'), '2026-10-13');
 assert.strictEqual(api.wpDateKey('2026-02-30'), '');
 assert.strictEqual(api.wpWeekStart('2026-10-13'), '2026-10-12');
 assert.strictEqual(api.wpAddDays('2026-12-31', 1), '2027-01-01');
+assert.strictEqual(api.wpMonthStart('2026-10-13'), '2026-10-01');
+assert.strictEqual(api.wpFmtMonth('2026-10-13'), 'Октябрь 2026');
+const octoberGrid = Array.from(api.wpMonthKeys('2026-10-01'));
+assert.strictEqual(octoberGrid.length, 35);
+assert.strictEqual(octoberGrid[0], '2026-09-28');
+assert.strictEqual(octoberGrid.at(-1), '2026-11-01');
+
+// Calendar views include only the signed-in person's tasks, while accepting the Russian self-assignee aliases.
+state.account = { name: 'Alex', email: 'alex@example.test' };
+state.board = {
+  id: 'calendar-board', ownerEmail: 'alex@example.test', projects: [{ id: 'project-1', name: 'Проект', members: [] }],
+  people: [], invites: [], occurrences: [],
+  recurrenceRules: [
+    { id: 'weekly-self', taskId: 'recurring-self', frequency: 'weekly', interval: 1, weekdays: [1], startDate: '2026-10-05', endDate: null, active: true },
+    { id: 'weekly-other', taskId: 'recurring-other', frequency: 'weekly', interval: 1, weekdays: [1], startDate: '2026-10-05', endDate: null, active: true }
+  ],
+  tasks: [
+    { id: 'self-you', title: 'Исполнитель You', homeType: 'personal', assignee: 'YOU', scheduledDate: '2026-10-12', statusKey: 'open', priorityKey: 'normal', order: 1 },
+    { id: 'self-ya', title: 'Исполнитель Я', homeType: 'inbox', assignee: 'я', scheduledDate: '2026-10-13', statusKey: 'open', priorityKey: 'normal', order: 2 },
+    { id: 'self-name', title: 'Имя учётной записи', homeType: 'project', projectId: 'project-1', assignee: 'Alex', scheduledDate: '2026-10-14', statusKey: 'open', priorityKey: 'normal', order: 3 },
+    { id: 'self-email', title: 'Почта учётной записи', homeType: 'personal', assignee: 'ALEX@example.test', scheduledDate: '2026-10-15', statusKey: 'open', priorityKey: 'normal', order: 4 },
+    { id: 'self-legacy-matrix', title: 'Старая задача Матрицы', homeType: 'matrix', assignee: 'Вы', scheduledDate: '2026-10-16', statusKey: 'open', priorityKey: 'normal', qm: 1, order: 5 },
+    { id: 'self-next-week', title: 'Следующая неделя', homeType: 'personal', assignee: 'Я', scheduledDate: '2026-10-20', statusKey: 'open', priorityKey: 'normal', order: 6 },
+    { id: 'other-person', title: 'Чужая задача', homeType: 'personal', assignee: 'Другой исполнитель', scheduledDate: '2026-10-13', statusKey: 'open', priorityKey: 'normal', order: 7 },
+    { id: 'unassigned', title: 'Без исполнителя', homeType: 'personal', assignee: '', scheduledDate: '2026-10-13', statusKey: 'open', priorityKey: 'normal', order: 8 },
+    { id: 'recurring-self', title: 'Повтор личной задачи', homeType: 'personal', assignee: 'я', scheduledDate: '2026-10-05', recurrenceRuleId: 'weekly-self', statusKey: 'open', priorityKey: 'normal', order: 9 },
+    { id: 'recurring-other', title: 'Повтор чужой задачи', homeType: 'personal', assignee: 'Другой исполнитель', scheduledDate: '2026-10-05', recurrenceRuleId: 'weekly-other', statusKey: 'open', priorityKey: 'normal', order: 10 }
+  ]
+};
+api.WP.query = '';
+api.WP.mobileDate = '2026-10-13'; api.WP.weekStart = '2026-10-12'; api.WP.monthStart = '2026-10-01';
+api.WP.calendarMode = 'week'; api.WP.view = 'week'; api.WP._calendarModeRestored = true;
+assert.strictEqual(api.wpIsMine({ assignee: 'ВЫ' }), true);
+assert.strictEqual(api.wpIsMine({ assignee: 'Я' }), true);
+assert.strictEqual(api.wpIsMine({ assignee: 'Alex' }), true);
+assert.strictEqual(api.wpIsMine({ assignee: 'alex@example.test' }), true);
+assert.strictEqual(api.wpIsMine({ assignee: 'Другой исполнитель' }), false);
+const weekIds = new Set(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id));
+assert.deepStrictEqual([...weekIds].sort(), ['recurring-self::2026-10-12', 'self-email', 'self-legacy-matrix', 'self-name', 'self-ya', 'self-you'].sort());
+const monthIds = new Set(Array.from(api.wpMonthEntities('2026-10-01'), task => task.id));
+assert(monthIds.has('self-next-week'), 'month view must include all of the current month, beyond the selected week');
+assert(monthIds.has('recurring-self::2026-10-26'), 'month view must materialize weekly recurring tasks');
+assert(!monthIds.has('other-person') && !monthIds.has('recurring-other::2026-10-12'), 'neither one-off nor recurring tasks for other assignees belong in the personal calendar');
+assert(!monthIds.has('unassigned'), 'the calendar must not treat an unassigned task as the signed-in user’s task');
+api.WP.calendarMode = 'month';
+const monthMarkup = api.wpViewHtml();
+assert(monthMarkup.includes('wp-month-grid') && monthMarkup.includes('Октябрь 2026'));
+assert(monthMarkup.includes('Исполнитель Я') && !monthMarkup.includes('Чужая задача'));
+assert(!api.wpNavHtml().includes('data-view="matrix"') && !api.wpNavHtml().includes('label:"Матрица"'), 'Matrix must no longer be a planner navigation destination');
+
+// Classification stays independent of a task's normal destination; creation has no status control, but editing does.
+state.board.tasks = [];
+const createdPersonal = api.wpCreateTask('Личная с меткой', '2026-10-13', null, 2, 'Я', false, 'personal');
+assert(createdPersonal);
+assert.strictEqual(createdPersonal.homeType, 'personal');
+assert.strictEqual(createdPersonal.matrixQuadrant, 2);
+assert.strictEqual(createdPersonal.statusKey, 'open');
+const formValues = {
+  title: 'Новая задача', kind: 'personal', projectId: '', assignee: 'Я', scheduledDate: '2026-10-13', deadlineAt: '',
+  statusKey: 'open', priorityKey: 'normal', quadrant: '1', description: '', tags: '', durationEstimateMinutes: '',
+  waitingReason: '', reviewAt: '', frequency: 'none', interval: 1, intervalDays: 1, weekdays: [1], mode: 'calendar', endDate: ''
+};
+const createForm = api.wpEditorBodyHtml(null, 'series', true, formValues, false, null);
+assert(!createForm.includes('id="wpStatus"') && !createForm.includes('option value="matrix"'));
+assert(createForm.includes('id="wpQuadrant"') && createForm.includes('Метка Матрицы'));
+assert(!createForm.includes('wpDestinationHint') && !createForm.includes('Задача будет добавлена'));
+const existingTask = { id: 'existing-task', title: 'Уже создана', homeType: 'personal', assignee: 'Я', statusKey: 'waiting', priorityKey: 'normal', scheduledDate: null, tags: [], matrixQuadrant: null };
+const editForm = api.wpEditorBodyHtml(existingTask, 'task', false, { ...formValues, title: existingTask.title, statusKey: 'waiting' }, false, existingTask);
+assert(editForm.includes('id="wpStatus"'), 'editing an existing task must preserve status changes');
+const legacyMatrixForm = api.wpEditorBodyHtml({ ...existingTask, homeType: 'matrix' }, 'task', false, { ...formValues, kind: 'matrix' }, false, { ...existingTask, homeType: 'matrix' });
+assert(legacyMatrixForm.includes('Матрица · прежний список'), 'legacy Matrix tasks remain editable without restoring Matrix navigation');
+const applied = { id: 'new-project-task', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null };
+api.wpApplyTaskForm(applied, { ...formValues, title: 'Метка в проекте', kind: 'project', projectId: 'project-1', quadrant: 0, statusKey: 'open' }, { newTask: true });
+assert.strictEqual(applied.homeType, 'project');
+assert.strictEqual(applied.matrixQuadrant, 0);
+assert.strictEqual(applied.statusKey, 'open');
+api.wpSetCalendarMode('month');
+assert.strictEqual(api.WP.calendarMode, 'month');
+assert.strictEqual(state.ui.plannerCalendarMode, 'month');
+api.wpToggleSidebar();
+assert.strictEqual(state.ui.plannerSidebarCollapsed, true);
+api.wpToggleSidebar();
+assert.strictEqual(state.ui.plannerSidebarCollapsed, false);
 
 // Recurrence rules respect the start anchor, interval, weekday selection and month-end clamping.
 const weekly = { frequency: 'weekly', interval: 2, weekdays: [1, 3], startDate: '2026-10-05', endDate: null };

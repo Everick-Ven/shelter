@@ -581,14 +581,19 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const radiusSec = radiusRange && radiusRange.closest('.q-sec');
         const tabPosition = quickMenu && quickMenu.querySelector('.seg[data-seg="tabPos"]');
         const bookmarkPosition = quickMenu && quickMenu.querySelector('.seg[data-seg="bmPos"]');
-        const hasQuickSchemeMode = !!(quickMenu && quickMenu.querySelector('.seg[data-seg="schemeMode"]'));
+        const quickSchemeMode = quickMenu && quickMenu.querySelector('.seg[data-seg="schemeMode"]');
+        const quickSchemeModeAvailable = !!(quickSchemeMode &&
+          quickSchemeMode.querySelector('button[data-v="light"]') &&
+          quickSchemeMode.querySelector('button[data-v="dark"]') &&
+          quickSchemeMode.querySelectorAll('button[data-v]').length === 2);
         const hasQuickThemePalette = !!(quickMenu && quickMenu.querySelector(
-          '#quickThemeSec, .q-theme-swatches, .swatch[data-theme]'));
+          '#quickThemeSec, .q-theme-swatches, .swatch[data-theme], .theme-cards, .tcard, [data-act="theme"]'));
         const quickAppearanceState = {
           radiusAfterOpacity: !!opacity && !!radiusSec && radiusSec.previousElementSibling === opacity,
           tabPositionAvailable: !!tabPosition,
           bookmarkPositionAvailable: !!bookmarkPosition,
-          themeControlsHidden: !hasQuickSchemeMode && !hasQuickThemePalette
+          themeModeSwitchAvailable: quickSchemeModeAvailable,
+          themePaletteHidden: !hasQuickThemePalette
         };
         quick.click();
         await frame();
@@ -1193,7 +1198,7 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
 
 
 def settings_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
-    """Verify the quick panel cannot change themes and Settings can change/restore one."""
+    """Verify the quick panel switches light/dark while Settings selects and restores palettes."""
     expression = r"""
       (async function() {
         const quick = document.getElementById('quickBtn');
@@ -1219,15 +1224,45 @@ def settings_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
         quick.click(); await frame();
         const quickMenu = document.querySelector('.menu-quick:not(.closing)');
         if (!quickMenu) throw new Error('quick menu did not open');
-        const quickThemeControlsAbsent = !quickMenu.querySelector(
-          '.seg[data-seg="schemeMode"], #quickThemeSec, .q-theme-swatches, .swatch[data-theme]');
+        const quickSchemeMode = quickMenu.querySelector('.seg[data-seg="schemeMode"]');
+        const quickLight = quickSchemeMode && quickSchemeMode.querySelector('button[data-v="light"]');
+        const quickDark = quickSchemeMode && quickSchemeMode.querySelector('button[data-v="dark"]');
+        const quickModeSwitchAvailable = !!(quickLight && quickDark &&
+          quickSchemeMode.querySelectorAll('button[data-v]').length === 2);
+        const quickPaletteHidden = !quickMenu.querySelector(
+          '#quickThemeSec, .q-theme-swatches, .swatch[data-theme], .theme-cards, .tcard, [data-act="theme"]');
+        if (!quickModeSwitchAvailable || !quickPaletteHidden)
+          throw new Error('quick panel must expose only the light/dark switch, not named theme palettes');
+        const uiPrefs = window.shelterTest.state().ui || {};
+        const lightTheme = uiPrefs.schemeLightTheme || 'ivory';
+        const darkTheme = uiPrefs.schemeDarkTheme || original;
+        quickLight.click();
+        const lightModeApplied = await waitForTheme(lightTheme); await pause(620); await frame();
+        const lightModeSelected = quickLight.classList.contains('on');
+        const quickOpenInLightMode = !!document.querySelector('.menu-quick:not(.closing)');
+        quickDark.click();
+        const darkModeApplied = await waitForTheme(darkTheme); await pause(620); await frame();
+        const darkModeSelected = quickDark.classList.contains('on');
+        const quickOpenInDarkMode = !!document.querySelector('.menu-quick:not(.closing)');
         quick.click(); await frame();
-        if (!quickThemeControlsAbsent) throw new Error('quick panel still exposes theme-changing controls');
+        if (!lightModeApplied || !darkModeApplied || !lightModeSelected || !darkModeSelected ||
+            !quickOpenInLightMode || !quickOpenInDarkMode ||
+            document.documentElement.getAttribute('data-theme') !== darkTheme)
+          throw new Error('quick light/dark switch did not apply the selected schemes');
 
         settingsButton.click(); await frame();
         let settings = document.querySelector('.settings.settings-page');
         if (!settings) throw new Error('Settings page did not open');
         let cards = Array.from(settings.querySelectorAll('.theme-cards .tcard[data-theme]'));
+        if (document.documentElement.getAttribute('data-theme') !== original) {
+          const restoreOriginalCard = cards.find(button => button.dataset.theme === original);
+          if (!restoreOriginalCard) throw new Error('Settings could not restore the initial theme');
+          restoreOriginalCard.click();
+          const initialThemeRestored = await waitForTheme(original); await pause(620); await frame();
+          settings = document.querySelector('.settings.settings-page');
+          cards = settings ? Array.from(settings.querySelectorAll('.theme-cards .tcard[data-theme]')) : [];
+          if (!initialThemeRestored || !settings) throw new Error('Settings did not restore the initial theme');
+        }
         const originalCard = cards.find(button => button.dataset.theme === original);
         const target = cards.find(button => button.dataset.theme !== original);
         if (cards.length !== 6 || !originalCard || !originalCard.classList.contains('on') || !target)
@@ -1253,8 +1288,12 @@ def settings_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
         window.openPage('start'); await frame();
         if (!applied || !stayedOpen || !selectedState || !selectedStored || !restored ||
             !restoredStored || !stateRestored || !settingsModePresent || !graphiteDarkOptionPresent)
-          throw new Error('Settings-only theme selection or preference restore failed');
-        return JSON.stringify({original:original, selected:selected, quickThemeControlsAbsent:quickThemeControlsAbsent,
+          throw new Error('Settings palette selection or preference restore failed');
+        return JSON.stringify({original:original, selected:selected,
+          quickModeSwitchAvailable:quickModeSwitchAvailable, quickPaletteHidden:quickPaletteHidden,
+          lightModeApplied:lightModeApplied, darkModeApplied:darkModeApplied,
+          lightModeSelected:lightModeSelected, darkModeSelected:darkModeSelected,
+          quickOpenInLightMode:quickOpenInLightMode, quickOpenInDarkMode:quickOpenInDarkMode,
           settingsThemeCards:cards.length, settingsModePresent:settingsModePresent,
           graphiteDarkOptionPresent:graphiteDarkOptionPresent, applied:applied, stayedOpen:stayedOpen,
           selectedState:selectedState, selectedStored:selectedStored, restored:restored,
@@ -2615,10 +2654,11 @@ def main() -> int:
                     not quick_appearance["radiusAfterOpacity"]
                     or not quick_appearance["tabPositionAvailable"]
                     or not quick_appearance["bookmarkPositionAvailable"]
-                    or not quick_appearance["themeControlsHidden"]
+                    or not quick_appearance["themeModeSwitchAvailable"]
+                    or not quick_appearance["themePaletteHidden"]
                 ):
                     raise AcceptanceError(
-                        "Quick panel must keep appearance controls but leave theme changes to Settings: "
+                        "Quick panel must offer a light/dark switch without a named color palette: "
                         f"{toolbar_menu}"
                     )
                 print(

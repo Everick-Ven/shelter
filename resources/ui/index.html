@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-idWUuomhHo7sH5+8r4F1bph8QLsV3Vfu05UAy/T1HEs=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-+miJPcjFUlLOwKuM6Db4LLns6kiIk0UUIUElsNDg9Us=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -3822,7 +3822,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-my-filter .i{width:12px;height:12px}
 .wp-my-filter:hover,.wp-my-filter.active{border-color:color-mix(in srgb,rgb(var(--accent)) 38%,var(--line));background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card));color:var(--text)}
 
-/* SHELTER v6 · home labels, transparent migration, explicit move targets */
+/* SHELTER v7 · deadline-backed calendar ranges */
 .wp-chip.home{flex:0 1 auto;min-width:0;max-width:100%;overflow:hidden;background:color-mix(in srgb,rgb(var(--accent)) 10%,var(--card-2));color:var(--text-2);border:1px solid color-mix(in srgb,rgb(var(--accent)) 20%,var(--line));font-size:8.5px;font-weight:550;white-space:nowrap}
 .wp-chip.home .i{color:rgb(var(--accent));width:10px;height:10px;flex:none}.wp-chip.home .wp-home-label{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wp-matrix-add{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:32px;margin-left:auto;padding:0 9px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 28%,var(--line));border-radius:calc(9px*var(--rs));background:color-mix(in srgb,rgb(var(--accent)) 8%,var(--card));color:var(--text-2);font:550 10px var(--font);cursor:pointer;white-space:nowrap}
@@ -4152,8 +4152,8 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-calendar-span.dragging{opacity:.45}
 .wp-week-grid.is-all-day{position:relative;display:block;min-width:0;overflow:visible;padding:0;border:1px solid var(--line);border-radius:calc(15px*var(--rs));background:var(--card);box-shadow:var(--hi);isolation:isolate}
 .wp-week-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));min-width:0;overflow:hidden;border-radius:inherit}
-.wp-week-grid.is-all-day .wp-day{gap:0;min-width:0;min-height:300px;padding:0;border:0;border-right:1px solid var(--line);border-radius:0;background:transparent;box-shadow:none;transition:background .15s}
-.wp-week-grid.is-all-day .wp-day:last-child{border-right:0}
+/* Day columns stay open; multi-day task bars are the only cross-day connectors. */
+.wp-week-grid.is-all-day .wp-day{gap:0;min-width:0;min-height:300px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;transition:background .15s}
 .wp-week-grid.is-all-day .wp-day:hover{transform:none;border-color:var(--line);background:color-mix(in srgb,var(--card-2) 24%,transparent)}
 .wp-week-grid.is-all-day .wp-day.is-today,.wp-week-grid.is-all-day .wp-day.is-selected:not(.is-today){border:0;box-shadow:none}
 .wp-week-grid.is-all-day .wp-day-head{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:60px;min-height:60px;padding:5px 4px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--card-2) 55%,transparent)}
@@ -12642,10 +12642,10 @@ function init() {
   } catch (_) {}
 }
 /* =========================================================
-   SHELTER · Планировщик задач (v6 · списки и проекты)
+   SHELTER · Планировщик задач (v7 · дедлайн завершает диапазон)
    Vanilla JS; единая модель — S.board.tasks.
    ========================================================= */
-const WP_SCHEMA = 6;
+const WP_SCHEMA = 7;
 const WP = {
   view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '',
   sidebarCollapsed: false, allFilter: 'active', allAssigneeFilter: 'all', allProjectFilter: 'all', quick: null, reviewSelected: [],
@@ -12777,12 +12777,12 @@ function wpDeadlineText(t,compact=false) {
 }
 function wpTaskScheduleStart(task) { return wpDateKey(task && task.scheduledDate) || ''; }
 function wpTaskScheduleEnd(task) {
-  const start=wpTaskScheduleStart(task), end=wpDateKey(task && task.scheduledEndDate);
+  const start=wpTaskScheduleStart(task), end=wpDeadlineKey(task && task.deadlineAt);
   return end && start && end>=start ? end : start;
 }
 function wpTaskScheduleOffset(task) {
-  const start=wpTaskScheduleStart(task), end=wpDateKey(task && task.scheduledEndDate);
-  return start && end && end>=start ? wpDayDiff(start,end) : null;
+  const start=wpTaskScheduleStart(task), end=wpTaskScheduleEnd(task);
+  return start && end && end>start ? wpDayDiff(start,end) : null;
 }
 function wpTaskHasDateSpan(task) {
   const start=wpTaskScheduleStart(task), end=wpTaskScheduleEnd(task);
@@ -12797,8 +12797,7 @@ function wpTaskOverlapsRange(task,from,to) {
   return !!(start && end && start<=to && end>=from);
 }
 function wpShiftScheduleRange(task,target) {
-  const start=wpDateKey(target)||null, offset=wpTaskScheduleOffset(task);
-  return {scheduledDate:start,scheduledEndDate:start && offset!=null ? wpAddDays(start,offset) : null};
+  return {scheduledDate:wpDateKey(target)||null};
 }
 function wpSpanDateLabel(start,end) {
   const a=wpDateParts(start), b=wpDateParts(end); if(!a||!b) return '';
@@ -12847,9 +12846,9 @@ function wpMapLegacyTask(task,index,board) {
   let prio=t.prio;
   if(prio==='Выполнено') { legacy.completedPriorityLabel='Выполнено'; prio=t.prevPrio || 'Не срочные'; }
   const priorityKey=['none','normal','high','critical'].includes(t.priorityKey) ? t.priorityKey : ({'Критично':'critical','Срочно':'high','Не срочные':'normal'}[prio] || 'normal');
-  const deadline=wpDeadlineKey(t.deadlineAt || t.deadline);
   const scheduled=wpDateKey(t.scheduledDate || t.plannedDate || t.planDate || t.scheduledAt);
-  const scheduledEnd=wpDateKey(t.scheduledEndDate);
+  const legacyEnd=wpDateKey(t.scheduledEndDate);
+  const deadline=wpDeadlineKey(t.deadlineAt) || wpDeadlineKey(t.deadline) || (scheduled && legacyEnd && legacyEnd>=scheduled ? legacyEnd : '');
   const kind=t.kind || (t.project ? 'project' : 'personal');
   const explicitHome=WP_HOME_TYPES.includes(t.homeType) ? t.homeType : '';
   let projectId=t.homeType==='project' ? (t.homeId||t.projectId||'') : (t.projectId || '');
@@ -12886,7 +12885,6 @@ function wpMapLegacyTask(task,index,board) {
     homeId:homeType==='project' ? projectId : '',
     projectId:homeType==='project' ? projectId : '',
     scheduledDate:scheduled || null,
-    scheduledEndDate:scheduled && scheduledEnd && scheduledEnd>=scheduled ? scheduledEnd : null,
     deadlineAt:deadline || null,
     inbox:homeType==='inbox',
     statusKey,
@@ -12908,6 +12906,7 @@ function wpMapLegacyTask(task,index,board) {
     order:Number.isFinite(+t.order) ? +t.order : index,
     legacy
   });
+  delete out.scheduledEndDate;
   if(homeType!=='project') { out.project=''; out.projectId=''; out.homeId=''; }
   else if(out.projectId) { const pr=(board.projects||[]).find(x=>x && x.id===out.projectId); if(pr) out.project=pr.name || out.project || ''; }
   if(out.assignee==null) out.assignee='';
@@ -12997,6 +12996,9 @@ function wpNormalizeBoard(board) {
     const q=wpIsObj(o.overrides) ? o.overrides : {};
     const scheduledDate=Object.prototype.hasOwnProperty.call(o,'scheduledDate') ? (wpDateKey(o.scheduledDate)||null) : originalDate;
     const linkedTask=taskMap.get(seriesTaskId);
+    const legacyOverrideEnd=wpDateKey(q.scheduledEndDate);
+    if(!wpDeadlineKey(q.deadlineAt) && legacyOverrideEnd && scheduledDate && legacyOverrideEnd>=scheduledDate) q.deadlineAt=legacyOverrideEnd;
+    delete q.scheduledEndDate;
     if(q.projectId && !q.homeType) { q.homeType='project'; q.homeId=q.projectId; }
     if(!Object.prototype.hasOwnProperty.call(q,'matrixQuadrant')) { const qLegacy=typeof q.importance==='boolean'&&typeof q.urgency==='boolean'?(q.importance?0:2)+(q.urgency?0:1):wpValidQuadrant(q.qm); if(qLegacy!=null) q.matrixQuadrant=qLegacy; }
     const explicitOverride=WP_HOME_TYPES.includes(q.homeType) || !!q.projectId;
@@ -13009,11 +13011,12 @@ function wpNormalizeBoard(board) {
     if(occurrenceHome==='project' && !(b.projects||[]).some(p=>p&&p.id===occurrenceHomeId)) b.projects.push({id:occurrenceHomeId,name:String(q.project||o.project||'Проект'),members:[]});
     if(occurrenceHome!=='project') occurrenceHomeId='';
     const result=Object.assign({},o,{id:stableId,seriesTaskId,originalDate,scheduledDate,homeType:occurrenceHome,homeId:occurrenceHomeId,homeTypeInherited:inherited,inbox:occurrenceHome==='inbox',statusKey,completedAt:o.completedAt||null,overrides:q,lastReviewedWeekStart:wpDateKey(o.lastReviewedWeekStart)||null});
-    if(Object.prototype.hasOwnProperty.call(o,'deadlineAt')) result.deadlineAt=wpDateKey(o.deadlineAt)||null; else delete result.deadlineAt;
-    if(Object.prototype.hasOwnProperty.call(o,'scheduledEndDate')) {
-      const scheduledEndDate=wpDateKey(o.scheduledEndDate);
-      result.scheduledEndDate=scheduledEndDate && scheduledDate && scheduledEndDate>=scheduledDate ? scheduledEndDate : null;
-    } else delete result.scheduledEndDate;
+    const legacyOccurrenceEnd=wpDateKey(o.scheduledEndDate);
+    const migratedDeadline=wpDeadlineKey(o.deadlineAt) || (legacyOccurrenceEnd && scheduledDate && legacyOccurrenceEnd>=scheduledDate ? legacyOccurrenceEnd : '');
+    if(migratedDeadline) result.deadlineAt=migratedDeadline;
+    else if(Object.prototype.hasOwnProperty.call(o,'deadlineAt')) result.deadlineAt=null;
+    else delete result.deadlineAt;
+    delete result.scheduledEndDate;
     return result;
   }).filter(Boolean);
   b.taskSchemaVersion=WP_SCHEMA;
@@ -13038,7 +13041,7 @@ function wpMigrateTaskStores(registry) {
   S.taskMigrationOK=true; S.taskMigrationError=''; S.taskMigrationPendingKeys=[]; S.taskMigrationBackupKey='';
   if(!needs) return true;
   const keys=['shelter:board','shelter:boards','shelter:eisenTasks','eisenTasks'];
-  const backupKey='shelter:planner:migration-backup:v5';
+  const backupKey='shelter:planner:migration-backup:v6';
   const raw={}; keys.forEach(k=>raw[k]=store.get(k));
   let backupValid=false;
   try { const old=store.get(backupKey), parsed=old&&JSON.parse(old); backupValid=!!(parsed && parsed.kind==='SHELTER_PLANNER_MIGRATION_BACKUP' && parsed.schemaVersion===WP_SCHEMA && wpIsObj(parsed.raw) && keys.every(k=>Object.prototype.hasOwnProperty.call(parsed.raw,k) && parsed.raw[k]===raw[k])); } catch(_){}
@@ -13101,9 +13104,9 @@ function wpMigrateTaskStores(registry) {
   S.board=out.find(b=>String(b.id||'')===String(activeId)) || out[0] || wpNormalizeBoard(S.board||{});
   S.boardId=S.board.id || activeId || '';
   if(extraLists.some(Array.isArray) && extraLists.some(x=>Array.isArray(x)&&x.length)) S.taskMigrationPendingKeys=['shelter:eisenTasks','eisenTasks'];
-  // The verified source backup is ready. Keep the v5 strings untouched until the user reviews the migration preview.
+  // The verified source backup is ready. Keep source strings untouched until the user reviews the migration preview.
   S.taskMigrationOriginalRaw=raw; S.taskMigrationPending=true; S.taskMigrationOK=false;
-  S.taskMigrationError='Просмотрите сводку перехода v5 → v6. До подтверждения исходные строки не заменяются; задачи доступны только для чтения.';
+  S.taskMigrationError='Просмотрите сводку перехода на схему v7. До подтверждения исходные строки не заменяются; задачи доступны только для чтения.';
   return true;
 }
 function wpFinalizeTaskMigration() {
@@ -13120,7 +13123,7 @@ function wpFinalizeTaskMigration() {
     ['shelter:board','shelter:boards'].forEach(k=>{if(raw[k]==null)store.del(k);else store.set(k,raw[k]);});
     const restored=store.get('shelter:board')===raw['shelter:board']&&store.get('shelter:boards')===raw['shelter:boards'];
     S.taskMigrationOK=false;
-    S.taskMigrationError=restored?'Не удалось проверить запись v6. Исходные данные восстановлены; задачи остаются только для чтения. Можно повторить подтверждение после освобождения места.':'Запись v6 не проверена и автоматический откат не подтверждён. Исходные строки также сохранены в резервной копии миграции; не закрывайте страницу.';
+    S.taskMigrationError=restored?'Не удалось проверить запись v7. Исходные данные восстановлены; задачи остаются только для чтения. Можно повторить подтверждение после освобождения места.':'Запись v7 не проверена и автоматический откат не подтверждён. Исходные строки также сохранены в резервной копии миграции; не закрывайте страницу.';
     return false;
   }
   S.taskMigrationOK=true; S.taskMigrationPending=false; S.taskMigrationError=''; S.taskMigrationOriginalRaw=null;
@@ -13210,18 +13213,11 @@ function wpEffectiveOccurrence(task,originalDate,rec) {
   const overrides=rec && wpIsObj(rec.overrides) ? rec.overrides : {};
   const rule=wpTaskRule(task);
   let deadline;
-  if(rec && Object.prototype.hasOwnProperty.call(rec,'deadlineAt')) deadline=rec.deadlineAt || null;
+  if(rec && Object.prototype.hasOwnProperty.call(rec,'deadlineAt')) deadline=wpDeadlineKey(rec.deadlineAt) || null;
+  else if(Object.prototype.hasOwnProperty.call(overrides,'deadlineAt')) deadline=wpDeadlineKey(overrides.deadlineAt) || null;
   else if(rule && rule.deadlineOffsetDays!=null && Number.isFinite(+rule.deadlineOffsetDays) && (rule.startDate || task.scheduledDate)) deadline=wpAddDays(originalDate,+rule.deadlineOffsetDays);
   else deadline=task.deadlineAt || null;
   const occurrenceStart=rec && Object.prototype.hasOwnProperty.call(rec,'scheduledDate') ? wpDateKey(rec.scheduledDate) : wpDateKey(originalDate);
-  let scheduledEndDate;
-  if(rec && Object.prototype.hasOwnProperty.call(rec,'scheduledEndDate')) {
-    const end=wpDateKey(rec.scheduledEndDate); scheduledEndDate=end && occurrenceStart && end>=occurrenceStart ? end : null;
-  } else if(Object.prototype.hasOwnProperty.call(overrides,'scheduledEndDate')) {
-    const end=wpDateKey(overrides.scheduledEndDate); scheduledEndDate=end && occurrenceStart && end>=occurrenceStart ? end : null;
-  } else {
-    const offset=wpTaskScheduleOffset(task); scheduledEndDate=offset!=null && occurrenceStart ? wpAddDays(occurrenceStart,offset) : null;
-  }
   const inherited=!!(rec&&rec.homeTypeInherited===true&&!WP_HOME_TYPES.includes(overrides.homeType));
   const homeType=WP_HOME_TYPES.includes(overrides.homeType)?overrides.homeType:(inherited?wpTaskHomeType(task):(rec&&WP_HOME_TYPES.includes(rec.homeType)?rec.homeType:wpTaskHomeType(task)));
   const homeId=homeType==='project' ? (inherited?(task.homeId||task.projectId||''):(overrides.homeId||overrides.projectId||rec&&rec.homeId||task.homeId||task.projectId||'')) : '';
@@ -13230,7 +13226,6 @@ function wpEffectiveOccurrence(task,originalDate,rec) {
     taskId:task.id, originalDate,
     homeType,homeId,kind:homeType==='project'?'project':'personal',projectId:homeType==='project'?homeId:'',project:homeType==='project'?(overrides.project||task.project||''):'',
     scheduledDate:occurrenceStart || null,
-    scheduledEndDate,
     inbox:homeType==='inbox',
     statusKey:rec && rec.statusKey ? rec.statusKey : (overrides.statusKey || 'open'),
     completedAt:rec && rec.completedAt || null,
@@ -13535,7 +13530,7 @@ function wpCreateTask(title,date=null,projectId=null,quadrant=null,assignee=wpCu
   const id=uid('task'), pr=suggestedHome==='project' ? (S.board.projects||[]).find(p=>p && p.id===projectId) : null;
   const resolvedHome= suggestedHome==='project' && !pr ? 'personal' : (WP_HOME_TYPES.includes(suggestedHome)?suggestedHome:'personal');
   const scheduledDate=wpDateKey(date)||null, q=wpValidQuadrant(quadrant);
-  const data={id,title:text,kind:resolvedHome==='project'?'project':'personal',homeType:resolvedHome,homeId:resolvedHome==='project'?pr.id:'',project:resolvedHome==='project'?pr.name:'',projectId:resolvedHome==='project'?pr.id:'',inbox:resolvedHome==='inbox',assignee:assignee||wpCurrentAssignee(),ownerEmail:accountEmail()||(S.board.ownerEmail||''),scheduledDate,scheduledEndDate:null,deadlineAt:null,statusKey:'open',status:'В работе',priorityKey:'normal',prio:'Не срочные',prevPrio:'Не срочные',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:null,description:'',comment:'',tags:[],matrixQuadrant:q,importance:q==null?null:q<2,urgency:q==null?null:(q===0||q===2),recurrenceRuleId:null,parentTaskId:null,durationEstimateMinutes:null,reminderAt:null,waitingReason:'',reviewAt:null,order:Date.now(),schemaVersion:WP_SCHEMA,legacy:{}};
+  const data={id,title:text,kind:resolvedHome==='project'?'project':'personal',homeType:resolvedHome,homeId:resolvedHome==='project'?pr.id:'',project:resolvedHome==='project'?pr.name:'',projectId:resolvedHome==='project'?pr.id:'',inbox:resolvedHome==='inbox',assignee:assignee||wpCurrentAssignee(),ownerEmail:accountEmail()||(S.board.ownerEmail||''),scheduledDate,deadlineAt:null,statusKey:'open',status:'В работе',priorityKey:'normal',prio:'Не срочные',prevPrio:'Не срочные',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:null,description:'',comment:'',tags:[],matrixQuadrant:q,importance:q==null?null:q<2,urgency:q==null?null:(q===0||q===2),recurrenceRuleId:null,parentTaskId:null,durationEstimateMinutes:null,reminderAt:null,waitingReason:'',reviewAt:null,order:Date.now(),schemaVersion:WP_SCHEMA,legacy:{}};
   wpSyncTaskAliases(data); S.board.tasks.push(data); return data;
 }
 function wpRefFromElement(el) {
@@ -13579,7 +13574,7 @@ function wpContextAddTitle() {
   return 'Создать задачу';
 }
 function wpHeaderControls() {
-  const addButton=`<button type="button" class="btn primary" data-act="wpQuickGlobal" title="${esc(wpContextAddTitle())}" aria-label="${esc(wpContextAddTitle())}">${ico('plus')}<span>${esc(wpContextAddLabel())}</span></button>`;
+  const addButton=WP.view==='week'?'':`<button type="button" class="btn primary" data-act="wpQuickGlobal" title="${esc(wpContextAddTitle())}" aria-label="${esc(wpContextAddTitle())}">${ico('plus')}<span>${esc(wpContextAddLabel())}</span></button>`;
   return `<div class="wp-topbar">
     <div class="wp-brandline"><span class="wp-eyebrow">${ico('tasks')}Задачи</span><h1 class="wp-title-marquee-clip"><span class="wp-title-marquee-text">${esc(wpViewTitle())}</span></h1></div>
     <div class="wp-top-actions">
@@ -13968,10 +13963,10 @@ function wpApplySchedule(ref,date) {
   const next=wpShiftScheduleRange(ent,date);
   if(ent.entityType==='occurrence') {
     const task=(S.board.tasks||[]).find(t=>t && t.id===ent.seriesTaskId); if(!task) return false;
-    const rec=wpMaterializeOccurrence(task,ent.originalDate); rec.scheduledDate=next.scheduledDate; rec.scheduledEndDate=next.scheduledEndDate; rec.lastReviewedWeekStart=null; rec.updatedAt=new Date().toISOString();
+    const rec=wpMaterializeOccurrence(task,ent.originalDate); rec.scheduledDate=next.scheduledDate; delete rec.scheduledEndDate; rec.lastReviewedWeekStart=null; rec.updatedAt=new Date().toISOString();
   } else {
     const task=(S.board.tasks||[]).find(t=>t && t.id===ent.id); if(!task) return false;
-    task.scheduledDate=next.scheduledDate; task.scheduledEndDate=next.scheduledEndDate; task.reviewedWeekStart=null; task.updatedAt=new Date().toISOString();
+    task.scheduledDate=next.scheduledDate; delete task.scheduledEndDate; task.reviewedWeekStart=null; task.updatedAt=new Date().toISOString();
     wpSyncTaskAliases(task);
   }
   return true;
@@ -14018,8 +14013,8 @@ function wpApplyReviewChoice(ref,choice,date,weekStart) {
     else if(choice==='keep') { rec.lastReviewedWeekStart=weekStart; }
     else {
       rec.statusKey=wpTaskStatus(ent); rec.completedAt=rec.statusKey==='done'?(rec.completedAt||ent.completedAt||null):null;
-      if(choice==='today'||choice==='date'||choice==='clear') { const next=wpShiftScheduleRange(ent,target); rec.scheduledDate=next.scheduledDate; rec.scheduledEndDate=next.scheduledEndDate; }
-      if(choice==='inbox') { rec.scheduledDate=null; rec.scheduledEndDate=null; rec.homeType='inbox'; rec.homeId=''; rec.homeTypeInherited=false; rec.inbox=true; rec.overrides=Object.assign({},rec.overrides||{},{homeType:'inbox',homeId:'',kind:'personal',projectId:'',project:'',inbox:true}); }
+      if(choice==='today'||choice==='date'||choice==='clear') { const next=wpShiftScheduleRange(ent,target); rec.scheduledDate=next.scheduledDate; delete rec.scheduledEndDate; }
+      if(choice==='inbox') { rec.scheduledDate=null; delete rec.scheduledEndDate; rec.homeType='inbox'; rec.homeId=''; rec.homeTypeInherited=false; rec.inbox=true; rec.overrides=Object.assign({},rec.overrides||{},{homeType:'inbox',homeId:'',kind:'personal',projectId:'',project:'',inbox:true}); }
       else if(choice==='today'||choice==='date'||choice==='clear') { rec.inbox=wpTaskHomeType(task)==='inbox'; }
       rec.lastReviewedWeekStart=null;
     }
@@ -14038,8 +14033,8 @@ function wpApplyReviewChoice(ref,choice,date,weekStart) {
     else if(choice==='cancel') wpSetTaskStatus(task,'cancelled');
     else if(choice==='keep') task.reviewedWeekStart=weekStart;
     else {
-      if(choice==='inbox') { wpApplyEntityHome({id:task.id,entityType:'task'},'inbox'); task.scheduledDate=null; task.scheduledEndDate=null; }
-      if(choice==='today'||choice==='date'||choice==='clear') { const next=wpShiftScheduleRange(ent,target); task.scheduledDate=next.scheduledDate; task.scheduledEndDate=next.scheduledEndDate; }
+      if(choice==='inbox') { wpApplyEntityHome({id:task.id,entityType:'task'},'inbox'); task.scheduledDate=null; delete task.scheduledEndDate; }
+      if(choice==='today'||choice==='date'||choice==='clear') { const next=wpShiftScheduleRange(ent,target); task.scheduledDate=next.scheduledDate; delete task.scheduledEndDate; }
       task.reviewedWeekStart=null; task.updatedAt=new Date().toISOString();
     }
     wpSyncTaskAliases(task);
@@ -14159,7 +14154,7 @@ async function wpDeleteTask(taskId) {
 function wpDuplicateTask(taskId) {
   const src=(S.board.tasks||[]).find(t=>t && t.id===taskId); if(!src || wpTaskRule(src)) { toast('Серию можно изменить, но не дублировать как один экземпляр.',{icon:'info'}); return; }
   wpCommit('Задача продублирована',()=>{
-    const copy=wpClone(src); copy.id=uid('task'); copy.title=(src.title||'')+' (копия)'; copy.createdAt=new Date().toISOString(); copy.updatedAt=new Date().toISOString(); copy.completedAt=null; copy.statusKey='open'; copy.status='В работе'; copy.recurrenceRuleId=null; copy.parentTaskId=null; copy.scheduledDate=null; copy.scheduledEndDate=null; copy.order=Date.now();
+    const copy=wpClone(src); copy.id=uid('task'); copy.title=(src.title||'')+' (копия)'; copy.createdAt=new Date().toISOString(); copy.updatedAt=new Date().toISOString(); copy.completedAt=null; copy.statusKey='open'; copy.status='В работе'; copy.recurrenceRuleId=null; copy.parentTaskId=null; copy.scheduledDate=null; delete copy.scheduledEndDate; copy.order=Date.now();
     S.board.tasks.splice(S.board.tasks.indexOf(src)+1,0,copy); wpSyncTaskAliases(copy);
   });
 }
@@ -14344,7 +14339,7 @@ function wpEditorValues(root) {
   const weekdays=$$('#wpWeekdays input[type="checkbox"]',root).filter(x=>x.checked).map(x=>+x.value);
   return {
     title:String((g('#wpTitle')||{}).value||'').trim(),kind:(g('#wpKind')||{}).value||'personal',projectId:(g('#wpProject')||{}).value||'',assignee:(g('#wpAssignee')||{}).value||'',
-    scheduledDate:wpDateKey((g('#wpScheduled')||{}).value)||null,scheduledEndDate:wpDateKey((g('#wpScheduledEnd')||{}).value)||null,deadlineAt:wpDateKey((g('#wpDeadline')||{}).value)||null,
+    scheduledDate:wpDateKey((g('#wpScheduled')||{}).value)||null,deadlineAt:wpDateKey((g('#wpDeadline')||{}).value)||null,
     statusKey:(g('#wpStatus')||{}).value||'open',priorityKey:(g('#wpPriority')||{}).value||'normal',
     description:String((g('#wpDescription')||{}).value||'').trim(),tags,waitingReason:String((g('#wpWaitingReason')||{}).value||'').trim(),
     reviewAt:wpDateKey((g('#wpReviewAt')||{}).value)||null,
@@ -14365,7 +14360,7 @@ function wpEditorBaseValues(task,scope,recurring) {
   const quadrant=wpQuadrant(raw);
   return {
     title:raw.title||'',kind:wpTaskHomeType(raw),projectId:raw.homeId||raw.projectId||'',assignee:wpAssigneeLabel(raw)||'',
-    scheduledDate:wpDateKey(raw.scheduledDate)||null,scheduledEndDate:wpDateKey(raw.scheduledEndDate)||null,deadlineAt:wpDeadlineKey(raw.deadlineAt)||null,
+    scheduledDate:wpDateKey(raw.scheduledDate)||null,deadlineAt:wpDeadlineKey(raw.deadlineAt)||null,
     statusKey:wpTaskStatus(raw),priorityKey:wpPriority(raw),description:raw.description||raw.comment||'',
     tags:Array.isArray(raw.tags)?raw.tags.join(', '):'',waitingReason:raw.waitingReason||'',reviewAt:wpDateKey(raw.reviewAt)||'',
     durationEstimateMinutes:raw.durationEstimateMinutes||'',quadrant:quadrant==null?'':String(quadrant),
@@ -14399,7 +14394,6 @@ function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
       <label class="field" id="wpProjectWrap" ${values.kind==='project'?'':'hidden'}><span>Проект</span><select class="select" id="wpProject">${projectOptions}</select></label>
       <label class="field"><span>Исполнитель</span><select class="select" id="wpAssignee">${assigneeOptions}</select></label>
       <label class="field"><span>Плановая дата</span><input class="input" id="wpScheduled" type="date" value="${esc(values.scheduledDate||'')}"></label>
-      <label class="field"><span>Дата окончания · для календаря</span><input class="input" id="wpScheduledEnd" type="date" value="${esc(values.scheduledEndDate||'')}"></label>
       <label class="field"><span>Крайний срок</span><input class="input" id="wpDeadline" type="date" value="${esc(values.deadlineAt||'')}"></label>
       ${statusField}
       <label class="field"><span>Приоритет</span><select class="select" id="wpPriority">${[['none','Без приоритета'],['normal','Обычный'],['high','Срочный'],['critical','Критичный']].map(([v,l])=>`<option value="${v}" ${values.priorityKey===v?'selected':''}>${l}</option>`).join('')}</select></label>
@@ -14436,7 +14430,7 @@ function wpApplyTaskForm(task,v,{series=false,newTask=false}={}) {
   if(homeType==='project' && !pr) throw new Error('missing project destination');
   if(!wpSetTaskHome(task,homeType,pr?pr.id:'')) throw new Error('invalid task home');
   task.title=v.title; task.assignee=v.assignee||'';
-  task.scheduledDate=v.scheduledDate; task.scheduledEndDate=v.scheduledEndDate; task.deadlineAt=v.deadlineAt;
+  task.scheduledDate=v.scheduledDate; delete task.scheduledEndDate; task.deadlineAt=v.deadlineAt;
   task.priorityKey=v.priorityKey; task.description=v.description; task.comment=v.description;
   task.tags=v.tags; task.durationEstimateMinutes=v.durationEstimateMinutes; task.waitingReason=v.waitingReason; task.reviewAt=v.reviewAt;
   wpApplyQuadrant(task,v.quadrant);
@@ -14451,9 +14445,9 @@ function wpReconcileSubtasks(parent,lines) {
   lines.forEach((title,i)=>{
     let child=current[i];
     if(!child) {
-      child={id:uid('task'),title,kind:parent.kind,homeType:wpTaskHomeType(parent),homeId:parent.homeId||parent.projectId||'',project:parent.project||'',projectId:parent.projectId||'',parentTaskId:parent.id,scheduledDate:parent.scheduledDate||null,scheduledEndDate:parent.scheduledEndDate||null,inbox:wpTaskHomeType(parent)==='inbox',deadlineAt:null,statusKey:'open',priorityKey:'normal',prio:'Не срочные',status:'В работе',assignee:parent.assignee||'Вы',ownerEmail:parent.ownerEmail||'',description:'',comment:'',tags:[],matrixQuadrant:null,importance:null,urgency:null,recurrenceRuleId:null,completedAt:null,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),order:Date.now()+i,schemaVersion:WP_SCHEMA,legacy:{}};
+      child={id:uid('task'),title,kind:parent.kind,homeType:wpTaskHomeType(parent),homeId:parent.homeId||parent.projectId||'',project:parent.project||'',projectId:parent.projectId||'',parentTaskId:parent.id,scheduledDate:parent.scheduledDate||null,inbox:wpTaskHomeType(parent)==='inbox',deadlineAt:null,statusKey:'open',priorityKey:'normal',prio:'Не срочные',status:'В работе',assignee:parent.assignee||'Вы',ownerEmail:parent.ownerEmail||'',description:'',comment:'',tags:[],matrixQuadrant:null,importance:null,urgency:null,recurrenceRuleId:null,completedAt:null,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),order:Date.now()+i,schemaVersion:WP_SCHEMA,legacy:{}};
       S.board.tasks.push(child);
-    } else { child.title=title; child.kind=parent.kind; child.homeType=wpTaskHomeType(parent); child.homeId=parent.homeId||parent.projectId||''; child.projectId=parent.projectId||''; child.project=parent.project||''; child.scheduledDate=parent.scheduledDate||null; child.scheduledEndDate=parent.scheduledEndDate||null; child.inbox=wpTaskHomeType(parent)==='inbox'; child.statusKey='open'; child.status='В работе'; child.updatedAt=new Date().toISOString(); }
+    } else { child.title=title; child.kind=parent.kind; child.homeType=wpTaskHomeType(parent); child.homeId=parent.homeId||parent.projectId||''; child.projectId=parent.projectId||''; child.project=parent.project||''; child.scheduledDate=parent.scheduledDate||null; delete child.scheduledEndDate; child.inbox=wpTaskHomeType(parent)==='inbox'; child.statusKey='open'; child.status='В работе'; child.updatedAt=new Date().toISOString(); }
   });
   current.slice(lines.length).forEach(child=>{child.statusKey='cancelled';child.status='Отменена';child.updatedAt=new Date().toISOString();});
 }
@@ -14470,7 +14464,7 @@ function wpApplyOccurrenceForm(task,ent,v) {
     const a=JSON.stringify(next[k]===undefined?null:next[k]), b=JSON.stringify(base[k]===undefined?null:base[k]);
     if(a===b) delete rec.overrides[k]; else rec.overrides[k]=next[k];
   });
-  rec.scheduledDate=v.scheduledDate; rec.scheduledEndDate=v.scheduledEndDate; rec.deadlineAt=v.deadlineAt; rec.statusKey=v.statusKey;
+  rec.scheduledDate=v.scheduledDate; delete rec.scheduledEndDate; rec.deadlineAt=v.deadlineAt; rec.statusKey=v.statusKey;
   rec.completedAt=v.statusKey==='done' ? (rec.completedAt||new Date().toISOString()) : null;
   rec.updatedAt=new Date().toISOString();
 }
@@ -14511,7 +14505,7 @@ function wpOpenEditor(ref=null,opts={}) {
     const base=taskForScope();
     const vals=wpEditorBaseValues(base,scope,rec && rec.active);
     if(isNew) {
-      vals.title=''; vals.scheduledDate=null; vals.scheduledEndDate=null; vals.deadlineAt=null; vals.statusKey='open'; vals.priorityKey='normal';
+      vals.title=''; vals.scheduledDate=null; vals.deadlineAt=null; vals.statusKey='open'; vals.priorityKey='normal';
       const requestedHome=opts.homeType||opts.kind||'personal';
       vals.kind=['personal','inbox','project'].includes(requestedHome)?requestedHome:'personal';
       vals.projectId=''; vals.assignee=opts.assignee||wpCurrentAssignee(); vals.quadrant=opts.quadrant==null?'':String(opts.quadrant);
@@ -14519,7 +14513,7 @@ function wpOpenEditor(ref=null,opts={}) {
       if(opts.scheduledDate) vals.scheduledDate=wpDateKey(opts.scheduledDate)||null;
       if(opts.projectId) { vals.projectId=opts.projectId; vals.kind='project'; }
     }
-    if(scope==='instance' && ent) { vals.scheduledDate=wpDateKey(ent.scheduledDate)||null; vals.scheduledEndDate=wpDateKey(ent.scheduledEndDate)||null; vals.deadlineAt=wpDeadlineKey(ent.deadlineAt)||null; vals.statusKey=wpTaskStatus(ent); vals.title=ent.title||''; }
+    if(scope==='instance' && ent) { vals.scheduledDate=wpDateKey(ent.scheduledDate)||null; vals.deadlineAt=wpDeadlineKey(ent.deadlineAt)||null; vals.statusKey=wpTaskStatus(ent); vals.title=ent.title||''; }
     mount.innerHTML=wpEditorBodyHtml(base,scope,isNew,vals,!!(recurring && scope==='series'),sourceTask);
     if($('#wpProject',root)) $('#wpProject',root).value=vals.projectId||'';
     wpSyncEditorUI(root,vals.frequency);
@@ -14547,8 +14541,6 @@ function wpOpenEditor(ref=null,opts={}) {
     if(b.dataset.wpEditor!=='save') return;
     const v=wpEditorValues(root); if(!v.title) { $('#wpTitle',root).focus(); toast('Укажите название задачи.',{icon:'info'}); return; }
     if(v.kind==='project' && !v.projectId) { toast('Выберите проект для задачи.',{icon:'info'}); $('#wpProject',root).focus(); return; }
-    if(v.scheduledEndDate && !v.scheduledDate) { toast('Для даты окончания задайте плановую дату.',{icon:'info'}); $('#wpScheduled',root).focus(); return; }
-    if(v.scheduledEndDate && v.scheduledDate && v.scheduledEndDate<v.scheduledDate) { toast('Дата окончания не может быть раньше плановой даты.',{icon:'info'}); $('#wpScheduledEnd',root).focus(); return; }
     if(scope!=='instance' && v.frequency!=='none' && !v.scheduledDate) { toast('Для серии задайте плановую дату первого экземпляра. Дедлайн её не заменяет.',{icon:'info'}); $('#wpScheduled',root).focus(); return; }
     if(scope!=='instance' && v.frequency==='weekly' && !v.weekdays.length) { toast('Выберите хотя бы один день недели.',{icon:'info'}); return; }
     const before=wpClone(S.board), newId=isNew?uid('task'):sourceTask.id;
@@ -14556,7 +14548,7 @@ function wpOpenEditor(ref=null,opts={}) {
     const ok=wpCommit(saveLabel,()=>{
       let task=sourceTask;
       if(isNew) {
-        task={id:newId,title:'',kind:'personal',homeType:'personal',homeId:'',project:'',projectId:'',inbox:false,matrixQuadrant:null,assignee:v.assignee||wpCurrentAssignee(),ownerEmail:accountEmail()||(S.board.ownerEmail||''),scheduledDate:null,scheduledEndDate:null,deadlineAt:null,statusKey:'open',priorityKey:'normal',status:'В работе',prio:'Не срочные',prevPrio:'Не срочные',completedAt:null,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),description:'',comment:'',tags:[],importance:null,urgency:null,recurrenceRuleId:null,parentTaskId:null,durationEstimateMinutes:null,reminderAt:null,waitingReason:'',reviewAt:null,order:Date.now(),schemaVersion:WP_SCHEMA,legacy:{}};
+        task={id:newId,title:'',kind:'personal',homeType:'personal',homeId:'',project:'',projectId:'',inbox:false,matrixQuadrant:null,assignee:v.assignee||wpCurrentAssignee(),ownerEmail:accountEmail()||(S.board.ownerEmail||''),scheduledDate:null,deadlineAt:null,statusKey:'open',priorityKey:'normal',status:'В работе',prio:'Не срочные',prevPrio:'Не срочные',completedAt:null,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),description:'',comment:'',tags:[],importance:null,urgency:null,recurrenceRuleId:null,parentTaskId:null,durationEstimateMinutes:null,reminderAt:null,waitingReason:'',reviewAt:null,order:Date.now(),schemaVersion:WP_SCHEMA,legacy:{}};
         S.board.tasks.push(task);
       }
       if(scope==='instance' && ent && ent.entityType==='occurrence') {
@@ -14581,10 +14573,10 @@ function wpMigrationPreviewData() {
 }
 function wpOpenTaskMigrationPreview() {
   if(!S.taskMigrationPending) return;
-  const x=wpMigrationPreviewData(), backup=S.taskMigrationBackupKey||'shelter:planner:migration-backup:v5';
-  const m=openModal({width:590,html:`<div class="modal-h"><div class="mi-ic">${ico('shield')}</div><h3>Переход задач v5 → v6</h3><button type="button" class="icon-btn" data-wp-migration="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><p class="wp-form-hint">Перед изменением создана и проверена копия исходных строк. Ключ копии: <code>${esc(backup)}</code>. До подтверждения схема в хранилище не меняется.</p><div class="wp-migration-stats"><div><b>${x.boards}</b><span>досок</span></div><div><b>${x.projects}</b><span>проектов</span></div><div><b>${x.tasks}</b><span>задач</span></div><div><b>${x.series}</b><span>правил повторения</span></div><div><b>${x.occurrences}</b><span>записей истории</span></div></div><div class="wp-migration-homes"><b>Куда попадут задачи после перехода</b><ul><li>Входящие: ${x.inbox}</li><li>Личные: ${x.personal}</li><li>Матрица: ${x.matrix}${x.eisen?` (включая ${x.eisen} задач из отдельного старого списка Eisenhower)`:''}</li><li>Проекты: ${x.project}</li></ul></div><p class="wp-form-hint">Задачи с проектом останутся в проектах; явные <code>inbox:true</code> без проекта — во Входящих; остальные старые непроектные задачи — в «Личных». Старые <code>importance / urgency / qm</code> сохраняются как классификация, но сами по себе не перемещают задачу в Матрицу. Плановая дата и дедлайн останутся отдельными.</p>${x.inboxProjectFlags?`<p class="wp-form-hint">${x.inboxProjectFlags} старых задач имели одновременно проект и Inbox-флаг. В v6 задача останется в проекте; прежний флаг сохранён в legacy-метаданных и проверенной копии.</p>`:''}${x.quadrantOnly?`<p class="wp-form-hint">Задач с квадрантом, которые останутся в других списках: ${x.quadrantOnly}. Они останутся в прежних местах; проверьте их через «Список задач».</p>`:''}<p id="wpMigrationResult" class="wp-migration-result" aria-live="polite"></p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-migration="close">Пока оставить только чтение</button><button type="button" class="btn primary" data-wp-migration="continue">${ico('check')}Подтвердить и записать v6</button></div>`});
+  const x=wpMigrationPreviewData(), backup=S.taskMigrationBackupKey||'shelter:planner:migration-backup:v6';
+  const m=openModal({width:590,html:`<div class="modal-h"><div class="mi-ic">${ico('shield')}</div><h3>Переход задач на схему v7</h3><button type="button" class="icon-btn" data-wp-migration="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><p class="wp-form-hint">Перед изменением создана и проверена копия исходных строк. Ключ копии: <code>${esc(backup)}</code>. До подтверждения схема в хранилище не меняется.</p><div class="wp-migration-stats"><div><b>${x.boards}</b><span>досок</span></div><div><b>${x.projects}</b><span>проектов</span></div><div><b>${x.tasks}</b><span>задач</span></div><div><b>${x.series}</b><span>правил повторения</span></div><div><b>${x.occurrences}</b><span>записей истории</span></div></div><div class="wp-migration-homes"><b>Куда попадут задачи после перехода</b><ul><li>Входящие: ${x.inbox}</li><li>Личные: ${x.personal}</li><li>Матрица: ${x.matrix}${x.eisen?` (включая ${x.eisen} задач из отдельного старого списка Eisenhower)`:''}</li><li>Проекты: ${x.project}</li></ul></div><p class="wp-form-hint">Задачи с проектом останутся в проектах; явные <code>inbox:true</code> без проекта — во Входящих; остальные старые непроектные задачи — в «Личных». Старые <code>importance / urgency / qm</code> сохраняются как классификация, но сами по себе не перемещают задачу в Матрицу. Плановая дата задаёт начало календарного диапазона, а «Крайний срок» — его конец; старое поле даты окончания объединяется с дедлайном, существующий дедлайн при конфликте сохраняется.</p>${x.inboxProjectFlags?`<p class="wp-form-hint">${x.inboxProjectFlags} старых задач имели одновременно проект и Inbox-флаг. После перехода задача останется в проекте; прежний флаг сохранён в legacy-метаданных и проверенной копии.</p>`:''}${x.quadrantOnly?`<p class="wp-form-hint">Задач с квадрантом, которые останутся в других списках: ${x.quadrantOnly}. Они останутся в прежних местах; проверьте их через «Список задач».</p>`:''}<p id="wpMigrationResult" class="wp-migration-result" aria-live="polite"></p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-migration="close">Пока оставить только чтение</button><button type="button" class="btn primary" data-wp-migration="continue">${ico('check')}Подтвердить и записать v7</button></div>`});
   const root=m.scrim; m.guard=null;
-  root.addEventListener('click',e=>{const b=e.target.closest('[data-wp-migration]');if(!b)return;if(b.dataset.wpMigration==='close'){closeModal(m);return;}if(b.dataset.wpMigration!=='continue')return;if(wpFinalizeTaskMigration()){closeModal(m);wpRenderTaskPageFull();toast('Схема v6 записана и проверена. Резервная копия доступна в меню действий.',{icon:'check'});}else{const result=$('#wpMigrationResult',root);if(result)result.textContent=S.taskMigrationError||'Не удалось проверить запись. Исходные данные восстановлены.';const preview=$('#wpView');if(preview)preview.querySelectorAll('.wp-migration-error').forEach(el=>el.textContent=S.taskMigrationError);}});
+  root.addEventListener('click',e=>{const b=e.target.closest('[data-wp-migration]');if(!b)return;if(b.dataset.wpMigration==='close'){closeModal(m);return;}if(b.dataset.wpMigration!=='continue')return;if(wpFinalizeTaskMigration()){closeModal(m);wpRenderTaskPageFull();toast('Схема v7 записана и проверена. Резервная копия доступна в меню действий.',{icon:'check'});}else{const result=$('#wpMigrationResult',root);if(result)result.textContent=S.taskMigrationError||'Не удалось проверить запись. Исходные данные восстановлены.';const preview=$('#wpView');if(preview)preview.querySelectorAll('.wp-migration-error').forEach(el=>el.textContent=S.taskMigrationError);}});
 }
 function wpOpenTaskDicts() { if(S.taskMigrationOK===false) {toast(S.taskMigrationError||'Настройки задач доступны только для чтения.',{icon:'ban'});return;} return taskDicts(); }
 function wpSafeProjectInvite(projectId='') { if(S.taskMigrationOK===false) {toast(S.taskMigrationError||'Приглашения недоступны в режиме защиты данных.',{icon:'ban'});return;} return projectInvite(projectId); }
@@ -14603,9 +14595,9 @@ function wpExportTasks() {
 }
 function wpDownloadMigrationBackup() {
   const latest=store.get('shelter:planner:migration-backup:latest');
-  let raw=(latest&&store.get(latest))||store.get('shelter:planner:migration-backup:v5')||store.get('shelter:planner:migration-backup:v4');
+  let raw=(latest&&store.get(latest))||store.get('shelter:planner:migration-backup:v6')||store.get('shelter:planner:migration-backup:v5')||store.get('shelter:planner:migration-backup:v4');
   if(!raw) {
-    try { const keys=Object.keys(window.localStorage||{}).filter(k=>k.startsWith('shelter:planner:migration-backup:v5:')||k.startsWith('shelter:planner:migration-backup:v4:')); const candidates=keys.map(k=>({key:k,value:store.get(k)})).filter(x=>x.value).sort((a,b)=>{try{return JSON.parse(b.value).createdAt.localeCompare(JSON.parse(a.value).createdAt)}catch(_){return b.key.localeCompare(a.key)}}); raw=candidates[0]&&candidates[0].value; } catch(_) {}
+    try { const keys=Object.keys(window.localStorage||{}).filter(k=>k.startsWith('shelter:planner:migration-backup:v6:')||k.startsWith('shelter:planner:migration-backup:v5:')||k.startsWith('shelter:planner:migration-backup:v4:')); const candidates=keys.map(k=>({key:k,value:store.get(k)})).filter(x=>x.value).sort((a,b)=>{try{return JSON.parse(b.value).createdAt.localeCompare(JSON.parse(a.value).createdAt)}catch(_){return b.key.localeCompare(a.key)}}); raw=candidates[0]&&candidates[0].value; } catch(_) {}
   }
   if(!raw) { toast('Копия миграции пока не создавалась.',{icon:'info'}); return; }
   downloadFile('shelter-planner-migration-backup.json',raw);

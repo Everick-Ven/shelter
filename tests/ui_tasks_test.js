@@ -93,7 +93,7 @@ globalThis.__api = {
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
-  wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle,
+  wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
 };`, context, { timeout: 5000 });
 const api = context.__api;
@@ -222,8 +222,11 @@ assert.strictEqual(countId(rangeWeekCards, 'single-day-task', 'data-task-id'), 1
 assert(rangeWeekCards.includes('wp-calendar-span wp-calendar-span--week p-high'), 'week span color follows urgency rather than its Matrix quadrant');
 assert(rangeWeekCards.includes('wp-day-span-spacer'), 'week days reserve room for the horizontal range lanes');
 const desktopDay = api.wpDayColumn('2026-10-15', rangeTasks);
+assert(desktopDay.includes('data-act="wpCalendarSelectDate" data-date="2026-10-15"'), 'clicking the whole week day selects it, not just its date label');
 assert.strictEqual(countId(desktopDay, 'month-span-a'), 0, 'desktop date cells do not duplicate a range that is shown in the span layer');
 assert.strictEqual(countId(desktopDay, 'single-day-task', 'data-task-id'), 1);
+const monthDayCell = api.wpMonthDay('2026-10-15', rangeTasks);
+assert(monthDayCell.includes('data-act="wpCalendarSelectDate" data-date="2026-10-15"'), 'clicking anywhere in a month day cell selects its date');
 const selectedMobileDay = api.wpDayColumn('2026-10-15', rangeTasks, { includeMultiDay: true });
 assert.strictEqual(countId(selectedMobileDay, 'month-span-a', 'data-task-id'), 1, 'the selected/mobile day list may keep ordinary multi-day cards');
 assert.strictEqual(api.WP.showCompleted, true, 'completed calendar tasks remain visible by default');
@@ -262,16 +265,25 @@ assert(monthView.includes('wp-month-span-layer') && monthView.includes('wp-calen
 const rangeMonthWeek = monthView.slice(monthView.indexOf('<div class="wp-month-grid"'));
 assert.strictEqual(countId(rangeMonthWeek, 'span-before-month'), 1, 'a range starting before the month grid is clipped and shown once');
 assert(rangeMonthWeek.includes('continues-before'), 'a clipped month row indicates continuation from the previous week');
-api.WP.weekStart = '2026-10-12'; api.WP.mobileDate = '2026-10-14'; api.WP.calendarMode = 'week';
+api.WP.weekStart = '2026-10-12'; api.WP.mobileDate = '2026-10-15'; api.WP.calendarMode = 'week';
 const rangeWeekMarkup = api.wpViewHtml();
 assert(rangeWeekMarkup.includes('wp-week-grid is-all-day') && rangeWeekMarkup.includes('wp-week-span-layer'));
+assert(!rangeWeekMarkup.includes('Входящие без плана') && !rangeWeekMarkup.includes('wp-inbox-shelf'), 'the week view replaces the unplanned inbox shelf');
+const weekSelectedAt = rangeWeekMarkup.indexOf('<section class="wp-week-selected"');
+assert(weekSelectedAt >= 0, 'the week view shows a selected-day list below the calendar');
+const weekSelectedPanel = rangeWeekMarkup.slice(weekSelectedAt, rangeWeekMarkup.indexOf('</section>', weekSelectedAt) + '</section>'.length);
+assert(weekSelectedPanel.includes('month-span-a') && weekSelectedPanel.includes('month-span-b') && weekSelectedPanel.includes('single-day-task'), 'the week selected-day list includes every task covering that date, including multi-day tasks');
 assert(rangeWeekMarkup.includes('Однодневная задача') && rangeWeekMarkup.includes('Задача на несколько дней'));
-const desktopWeekGrid = rangeWeekMarkup.slice(rangeWeekMarkup.indexOf('<div class="wp-week-grid is-all-day">'));
+const desktopWeekGrid = rangeWeekMarkup.slice(rangeWeekMarkup.indexOf('<div class="wp-week-grid is-all-day">'), weekSelectedAt);
 assert.strictEqual(countId(desktopWeekGrid, 'week-span'), 1, 'the desktop week grid displays a range as one horizontal row');
 assert.strictEqual(countId(desktopWeekGrid, 'month-span-a'), 1);
 assert.strictEqual(countId(desktopWeekGrid, 'single-day-task', 'data-task-id'), 1);
 assert(rangeWeekMarkup.includes('Многодневные задачи на весь день'), 'multi-day tasks remain date-only and use no invented time slots');
 assert(rangeWeekMarkup.includes('data-act="wpCalendarToggleCompleted"') && rangeWeekMarkup.includes('Скрыть выполненные задачи'), 'week calendar offers the completed-task visibility toggle');
+api.wpSelectCalendarDate('2026-10-16');
+assert.strictEqual(api.WP.mobileDate, '2026-10-16', 'selecting a day updates the week’s bottom list target');
+assert.strictEqual(api.WP.weekStart, '2026-10-12');
+api.WP.mobileDate = '2026-10-15';
 assert(rangeWeekMarkup.includes('data-act="wpQuickDay"'), 'week days retain their own add-task controls');
 api.WP.view = 'week';
 assert(!api.wpHeaderControls().includes('data-act="wpQuickGlobal"'), 'the global add button is hidden in week mode');

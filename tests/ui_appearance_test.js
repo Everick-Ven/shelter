@@ -22,9 +22,11 @@ const themeOrder = html.match(/const THEME_ORDER = \[[^\]]+\];/);
 assert(themeOrder && themeOrder[0].includes("'graphite'"));
 assert(themeOrder[0].indexOf("'graphite'") < themeOrder[0].indexOf("'obsidian'"));
 
-// Named themes and light/dark mode can be changed through Settings only.
+// Quick appearance exposes only the light/dark switch; named palettes remain in Settings.
 const quickPanel = section('function quickPanelHtml() {', 'function syncQuickPanel(full) {');
-assert(!quickPanel.includes('schemeMode'));
+assert(quickPanel.includes("segHtml('schemeMode', [['light', 'Светлая'], ['dark', 'Тёмная']]"));
+assert(quickPanel.includes('Тема интерфейса'));
+assert(!quickPanel.includes('THEME_ORDER') && !quickPanel.includes('theme-cards'));
 assert(!quickPanel.includes('Цветовая тема'));
 assert(!quickPanel.includes('data-act="theme"'));
 const commands = section('const COMMANDS = () => [', 'function paletteItems(q) {');
@@ -43,7 +45,7 @@ const themeActionAt = html.indexOf('data-act="theme"');
 assert(themeActionAt > settingsStart && themeActionAt < settingsEnd, 'the theme picker must be rendered inside Settings');
 assert.strictEqual(html.indexOf('data-act="theme"', themeActionAt + 1), -1, 'no second theme-picker entry point should remain');
 assert.match(html, /theme: el => \{ if \(el\.closest\('\.settings'\)\) setTheme\(el\.dataset\.theme, el\); \}/);
-assert.strictEqual((html.match(/segHtml\('schemeMode'/g) || []).length, 1, 'light/dark mode is rendered only in Settings');
+assert.strictEqual((html.match(/segHtml\('schemeMode'/g) || []).length, 2, 'light/dark mode is available in Settings and the quick appearance menu');
 
 // Planner title, content gutters, and layout respond to the app's own viewport.
 const plannerHeader = section('function wpHeaderControls() {', 'function wpDateControls() {');
@@ -81,6 +83,10 @@ assert(plannerCss.includes('.wp-week-grid.is-all-day .wp-task.is-done{border-col
 assert(plannerCss.includes('.wp-calendar-completed-toggle{flex:none;display:inline-flex;'));
 assert(plannerCss.includes('.wp-month-day.is-today{'));
 assert(plannerCss.includes('.wp-month-selected{'));
+assert(plannerCss.includes('.wp-week-selected{margin-top:13px;padding:11px 12px;'));
+assert(plannerCss.includes('.wp-week-selected .wp-task-list{gap:6px}'));
+assert(plannerCss.includes('.wp-day{display:flex;flex-direction:column;gap:6px;min-width:0;min-height:420px;padding:10px 8px;border:1px solid var(--line);border-radius:calc(16px*var(--rs));background:var(--card);cursor:pointer;'));
+assert(plannerCss.includes('.wp-month-day{position:relative;display:flex;flex-direction:column;gap:5px;min-width:0;min-height:126px;padding:7px;border:1px solid var(--line);border-radius:calc(14px*var(--rs));background:var(--card);box-shadow:var(--hi);overflow:hidden;cursor:pointer;'));
 assert(plannerCss.includes('.wp-month-event.p-critical') && plannerCss.includes('.wp-month-event.p-high') && plannerCss.includes('.wp-month-event.p-normal') && plannerCss.includes('.wp-month-event.p-none'), 'month task colors must map to urgency rather than Matrix quadrants');
 assert(plannerCss.includes('.wp-week-grid.is-all-day{position:relative;display:block;'));
 assert(plannerCss.includes('.wp-week-grid.is-all-day .wp-day-head{'));
@@ -119,9 +125,13 @@ assert(!plannerNav.includes('Матрица') && !plannerNav.includes("wpSetView
 const plannerViewConfig = section('const WP_VIEWS=[', 'function wpViewTitle() {');
 assert(plannerViewConfig.includes("['week','calendar','Календарь']") && !plannerViewConfig.includes("['matrix'"));
 const plannerMoreMenu = section('function wpMoreMenu(anchor) {', 'function taskExport() {');
-assert(plannerMoreMenu.includes("label:'Календарь'") && !plannerMoreMenu.includes('Матрица') && !plannerMoreMenu.includes("wpSetView('matrix')"));
+assert(plannerMoreMenu.includes('const boards=current?[current,...allBoards.filter(board=>board!==current)]:allBoards;'));
+assert.match(plannerMoreMenu, /const items=\[\s*\.\.\.boards\.map\(b=>\(\{label:b\.name\|\|'Моя доска'/);
+assert(!plannerMoreMenu.includes("label:'Календарь'") && !plannerMoreMenu.includes('Матрица') && !plannerMoreMenu.includes("wpSetView('matrix')"), 'the task more menu begins with the current board, not Calendar');
+const plannerPageRenderer = section('function wpRenderTaskPage() {', 'function wpSetView(');
+assert(plannerPageRenderer.includes('Локально на устройстве') && !plannerPageRenderer.includes('Q · быстро добавить'), 'remove the quick-add caption but keep the local-storage notice');
 const legacyMovePicker = section('function wpMoveHomePicker(ref,opts={}) {', 'function wpMoveToQuadrant(ref,q) {');
 assert(legacyMovePicker.includes("value=\"legacy-matrix\"") && legacyMovePicker.includes('selected disabled'));
 assert(!legacyMovePicker.includes("['matrix','Матрица']"), 'legacy Matrix tasks must not restore Matrix as a move destination');
 
-console.log('UI appearance defaults, Settings-only theme controls, and planner responsiveness tests passed');
+console.log('UI appearance defaults, light/dark quick switch, and planner responsiveness tests passed');

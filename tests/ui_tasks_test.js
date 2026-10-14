@@ -26,6 +26,8 @@ assert(planner.includes("if(page && page.querySelector('#wpView') && !page.query
 assert(planner.includes('restored.focus({preventScroll:true})') && planner.includes('setSelectionRange(focusState.start,focusState.end)'), 'planner updates restore focused controls and text selection');
 assert(planner.includes("const search=page&&page.querySelector('#wpSearch'); if(search&&search.value!==WP.query) search.value=WP.query;"), 'view changes preserve the planner search query');
 assert(planner.includes("kb('⌘⇧K')"), 'the task search shortcut label must adapt to the platform');
+assert(planner.includes('plannerCalendarShowCompletedTasks') && planner.includes('plannerBoardShowCompletedTasks'), 'calendar and board completed-visibility preferences persist independently');
+assert(!planner.includes('WP.showCompleted'), 'completed-visibility state is not shared across planner views');
 
 const harness = String.raw`
 const DAY = 86400000;
@@ -99,7 +101,7 @@ globalThis.__api = {
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
-  wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
+  wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpBoardEntities, wpBoardToolbar, wpAllFilterToolbar, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
 };`, context, { timeout: 5000 });
@@ -236,7 +238,11 @@ const monthDayCell = api.wpMonthDay('2026-10-15', rangeTasks);
 assert(monthDayCell.includes('data-act="wpCalendarSelectDate" data-date="2026-10-15"'), 'clicking anywhere in a month day cell selects its date');
 const selectedMobileDay = api.wpDayColumn('2026-10-15', rangeTasks, { includeMultiDay: true });
 assert.strictEqual(countId(selectedMobileDay, 'month-span-a', 'data-task-id'), 1, 'the selected/mobile day list may keep ordinary multi-day cards');
-assert.strictEqual(api.WP.showCompleted, true, 'completed calendar tasks remain visible by default');
+state.ui = { plannerShowCompletedTasks: true };
+api.WP._completedVisibilityRestored = false;
+api.wpEnsureState();
+assert.strictEqual(api.WP.calendarShowCompleted, true, 'completed calendar tasks remain visible by default');
+assert.strictEqual(api.WP.boardShowCompleted, true, 'completed board tasks remain visible by default');
 const completedCalendarTasks = [
   { id: 'done-span', title: 'Завершённый диапазон', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-14', deadlineAt: '2026-10-16', statusKey: 'done', priorityKey: 'high', matrixQuadrant: 0, order: 25, tags: [] },
   { id: 'done-single', title: 'Завершённый день', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-15', deadlineAt: null, statusKey: 'done', priorityKey: 'normal', matrixQuadrant: 2, order: 26, tags: [] }
@@ -250,24 +256,48 @@ const completedMonthMarkup = api.wpMonthWeek(octoberGrid.slice(14, 21), complete
 assert(completedMonthMarkup.includes('wp-calendar-span wp-calendar-span--month p-high is-done'));
 assert(completedMonthMarkup.includes('wp-month-event wp-title-marquee-clip p-normal is-done'), 'completed one-day month events keep their task state');
 assert(completedMonthMarkup.includes('Статус: выполнена'), 'calendar controls announce completed status to assistive technology');
-assert(api.wpCalendarCompletedToggle().includes('Скрыть выполненные задачи') && api.wpCalendarCompletedToggle().includes('aria-pressed="true"'));
-api.WP.showCompleted = false;
+assert(api.wpCalendarCompletedToggle('calendar').includes('data-scope="calendar"') && api.wpCalendarCompletedToggle('calendar').includes('aria-pressed="true"'));
+assert(api.wpCalendarCompletedToggle('board').includes('data-scope="board"') && api.wpCalendarCompletedToggle('board').includes('aria-pressed="true"'));
+api.WP.calendarShowCompleted = false;
 const hiddenCompletedWeek = api.wpWeekCalendar(weekDays, completedCalendarTasks);
 const hiddenCompletedMonth = api.wpMonthWeek(octoberGrid.slice(14, 21), completedCalendarTasks);
 const hiddenCompletedMobile = api.wpDayColumn('2026-10-15', completedCalendarTasks, { includeMultiDay: true });
 assert(!hiddenCompletedWeek.includes('done-span') && !hiddenCompletedWeek.includes('done-single'), 'the calendar toggle hides completed week rows and cards');
 assert(!hiddenCompletedMonth.includes('done-span') && !hiddenCompletedMonth.includes('done-single'), 'the calendar toggle hides completed month rows and events');
 assert(!hiddenCompletedMobile.includes('done-span') && !hiddenCompletedMobile.includes('done-single'), 'the calendar toggle also applies to the selected mobile day');
-assert(api.wpCalendarCompletedToggle().includes('Показать выполненные задачи') && api.wpCalendarCompletedToggle().includes('aria-pressed="false"'));
-api.actions.wpCalendarToggleCompleted();
-assert.strictEqual(api.WP.showCompleted, true, 'the calendar action reveals completed tasks again');
-assert.strictEqual(state.ui.plannerShowCompletedTasks, true, 'the calendar visibility preference is persisted');
-api.actions.wpCalendarToggleCompleted();
-assert.strictEqual(api.WP.showCompleted, false);
-assert.strictEqual(state.ui.plannerShowCompletedTasks, false);
-api.actions.wpCalendarToggleCompleted();
+assert(api.wpCalendarCompletedToggle('calendar').includes('Показать выполненные задачи') && api.wpCalendarCompletedToggle('calendar').includes('aria-pressed="false"'));
+assert(api.wpCalendarCompletedToggle('board').includes('Скрыть выполненные задачи') && api.wpCalendarCompletedToggle('board').includes('aria-pressed="true"'), 'hiding calendar completions does not change the Board button');
+api.actions.wpCalendarToggleCompleted({ dataset: { scope: 'calendar' } });
+assert.strictEqual(api.WP.calendarShowCompleted, true, 'the calendar action reveals completed tasks again');
+assert.strictEqual(state.ui.plannerCalendarShowCompletedTasks, true, 'the calendar visibility preference is persisted separately');
+assert.strictEqual(api.WP.boardShowCompleted, true, 'toggling calendar visibility leaves the board unchanged');
+api.actions.wpCalendarToggleCompleted({ dataset: { scope: 'calendar' } });
+assert.strictEqual(api.WP.calendarShowCompleted, false);
+api.actions.wpCalendarToggleCompleted({ dataset: { scope: 'board' } });
+assert.strictEqual(api.WP.boardShowCompleted, false, 'the board has its own completed-task toggle');
+assert.strictEqual(api.WP.calendarShowCompleted, false, 'toggling the board leaves calendar visibility unchanged');
+assert.strictEqual(state.ui.plannerBoardShowCompletedTasks, false, 'the board visibility preference is persisted separately');
+api.actions.wpCalendarToggleCompleted({ dataset: { scope: 'board' } });
+assert.strictEqual(api.WP.boardShowCompleted, true);
+assert.strictEqual(api.WP.calendarShowCompleted, false);
+api.actions.wpCalendarToggleCompleted({ dataset: { scope: 'calendar' } });
+assert.strictEqual(api.WP.calendarShowCompleted, true);
 
-// The board shares the calendar's completed visibility setting, but cancelled cards remain visible.
+// A legacy single visibility preference seeds both independent view preferences once.
+state.ui = { plannerShowCompletedTasks: false };
+api.WP._completedVisibilityRestored = false;
+api.wpEnsureState();
+assert.strictEqual(api.WP.calendarShowCompleted, false);
+assert.strictEqual(api.WP.boardShowCompleted, false);
+state.ui = { plannerShowCompletedTasks: true, plannerCalendarShowCompletedTasks: false, plannerBoardShowCompletedTasks: true };
+api.WP._completedVisibilityRestored = false;
+api.wpEnsureState();
+assert.strictEqual(api.WP.calendarShowCompleted, false, 'a new calendar preference takes precedence over the legacy shared value');
+assert.strictEqual(api.WP.boardShowCompleted, true, 'a new board preference takes precedence independently');
+api.WP.calendarShowCompleted = true;
+api.WP.boardShowCompleted = true;
+
+// Board completion visibility is independent from the calendar, and cancelled cards are not treated as completed.
 const priorBoardTasks=state.board.tasks, priorOccurrences=state.board.occurrences;
 state.board.tasks=[
   { id:'board-open',title:'В работе',homeType:'personal',assignee:'Alex',statusKey:'open',priorityKey:'normal',order:1 },
@@ -275,22 +305,23 @@ state.board.tasks=[
   { id:'board-cancelled',title:'Отменена',homeType:'personal',assignee:'Alex',statusKey:'cancelled',priorityKey:'normal',order:3 }
 ];
 state.board.occurrences=[]; api.WP.query=''; api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardFocus='all';
-api.WP.allFilter='cancelled'; api.WP.showCompleted=true;
+api.WP.allFilter='cancelled'; api.WP.calendarShowCompleted=true; api.WP.boardShowCompleted=true;
 let boardIds=api.wpBoardEntities().map(task=>task.id);
-assert(boardIds.includes('board-done') && boardIds.includes('board-cancelled'), 'the board shows completed and cancelled tasks when the shared toggle is on');
-api.WP.showCompleted=false;
+assert(boardIds.includes('board-done') && boardIds.includes('board-cancelled'), 'the board shows completed and cancelled tasks when its own toggle is on');
+api.WP.boardShowCompleted=false;
 boardIds=api.wpBoardEntities().map(task=>task.id);
 assert(!boardIds.includes('board-done'), 'hiding completed tasks filters only the done status on the board');
 assert(boardIds.includes('board-open') && boardIds.includes('board-cancelled'), 'open and cancelled tasks remain visible when done tasks are hidden');
 assert(boardIds.includes('board-open'), 'board visibility is independent of the separate all-tasks status filter');
 const boardToolbar=api.wpBoardToolbar(api.wpBoardEntities());
 assert(boardToolbar.includes('wp-filter-layout wp-board-filter-row') && boardToolbar.includes('wp-filter-main'), 'the board uses the shared filter-grid structure');
-assert(boardToolbar.includes('Показать выполненные задачи') && boardToolbar.includes('aria-pressed="false"'));
+assert(boardToolbar.includes('Показать выполненные задачи') && boardToolbar.includes('aria-pressed="false"') && boardToolbar.includes('data-scope="board"'));
+assert(api.WP.calendarShowCompleted, 'the board toolbar keeps the completed calendar filter untouched');
 const allToolbar=api.wpAllFilterToolbar();
 assert(allToolbar.includes('wp-filter-layout wp-all-filter-row') && allToolbar.includes('wp-filter-main'), 'all tasks uses the same filter-grid structure');
 assert(allToolbar.indexOf('wp-filter-assignee')<allToolbar.indexOf('wp-filter-project'), 'assignee and project filters keep the same order in both views');
 assert(boardToolbar.indexOf('wp-filter-assignee')<boardToolbar.indexOf('wp-filter-project'));
-api.WP.allFilter='active'; api.WP.showCompleted=true; state.board.tasks=priorBoardTasks; state.board.occurrences=priorOccurrences;
+api.WP.allFilter='active'; api.WP.boardShowCompleted=true; state.board.tasks=priorBoardTasks; state.board.occurrences=priorOccurrences;
 
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
 const monthView = api.wpViewHtml();

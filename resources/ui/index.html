@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-VCMuxASXJFAEf+U/4d9q+LMeUVLqgnmnb3N6fORcSSo=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-2p1OEqj5sGTom8uGHyZKDzP9TwBhJxstAg8YknsfENI=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -8991,7 +8991,7 @@ function pomoFinishPhase(P, at = Date.now(), { quiet = false, forceStop = false 
     P.mode = P.cycles % 4 === 0 ? 'long' : 'short';
   } else P.mode = 'work';
   P.remain = pomoDur(P.mode);
-  P.running = completed === 'work' && !forceStop && widgetPrefs().pomodoro.autoBreak && widgetHasAccess();
+  P.running = completed === 'work' && !forceStop && widgetPrefs().pomodoro.autoBreak;
   P.endsAt = P.running ? at + P.remain * 1000 : 0; P.updatedAt = at;
   if (!quiet) toast(completed === 'work' ? 'Фокус-сессия завершена' : 'Перерыв завершён', { icon: 'timer' });
   saveNow();
@@ -9003,12 +9003,7 @@ function pomoState() {
   P.cycles = Math.max(0, Math.floor(Number(P.cycles) || 0));
   const today = dayKey(Date.now()); if (P.cycleDay !== today) { P.cycles = 0; P.cycleDay = today; }
   P.running = P.running === true; P.endsAt = Number(P.endsAt) || 0;
-  if (P.running && !widgetHasAccess()) {
-    const access = widgetAccessState(), now = Date.now();
-    const stopAt = Number(access.until) > 0 && Number(access.until) < now ? Number(access.until) : now;
-    if (P.endsAt && P.endsAt <= stopAt) pomoFinishPhase(P, P.endsAt, { quiet: true, forceStop: true });
-    else { P.remain = P.endsAt ? clamp(Math.ceil((P.endsAt - stopAt) / 1000), 0, pomoDur(P.mode)) : P.remain; P.running = false; P.endsAt = 0; P.updatedAt = now; saveNow(); }
-  } else if (P.running && !P.endsAt) P.endsAt = Date.now() + P.remain * 1000;
+  if (P.running && !P.endsAt) P.endsAt = Date.now() + P.remain * 1000;
   else if (P.running && P.endsAt <= Date.now()) {
     pomoFinishPhase(P, P.endsAt, { quiet: true });
     if (P.running && P.endsAt <= Date.now()) pomoFinishPhase(P, P.endsAt, { quiet: true, forceStop: true });
@@ -9018,19 +9013,13 @@ function pomoState() {
   return P;
 }
 const pomoBusy = () => { const P = pomoState(); return P.running || P.remain < pomoDur(P.mode) - 0.5; };
-function widgetShowAccessNudge() {
-  toast('Виджеты Premium доступны в режиме просмотра. Оформите Premium, чтобы управлять ими.', {
-    icon: 'lock', ms: 7000, action: { label: 'Premium', run: () => openPremiumDialog() }
-  });
-}
-function requireWidgetAccess() { if (widgetHasAccess()) return true; widgetShowAccessNudge(); return false; }
 function pomoGuardSwitch() {
   if (!pomoBusy()) return Promise.resolve(true);
   return confirmDlg({ title: 'Таймер уже запущен', text: 'Сессия помодоро не завершена — переключение сбросит текущий прогресс. Действительно переключить таймер?', ok: 'Переключить', cancel: 'Остаться', danger: true, icon: 'timer' });
 }
 function pomoFinishCurrent() { pomoFinishPhase(pomoState(), Date.now(), { quiet: true, forceStop: true }); }
 function pomoTick() {
-  const P = pomoState(); if (!widgetHasAccess() || !P.running) return;
+  const P = pomoState(); if (!P.running) return;
   P.remain = Math.max(0, Math.ceil((P.endsAt - Date.now()) / 1000));
   if (P.remain <= 0) pomoFinishPhase(P, P.endsAt || Date.now());
   pomoRenderTick();
@@ -9046,32 +9035,36 @@ function pomoRenderTick() {
   const btn = $('#pomoToggleBtn'); if (btn) btn.innerHTML = (P.running ? ico('pause') : ico('play')) + `<span>${P.running ? 'Пауза' : 'Старт'}</span>`;
   const tile = $('.pomo-tile'); if (tile) tile.classList.toggle('is-break', P.mode !== 'work');
 }
+function pomoWidgetHtml() {
+  const P = pomoState(), dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100)), C = 2 * Math.PI * 52;
+  return `<div class="card wg-tile pomo-tile ${P.mode !== 'work' ? 'is-break' : ''}">
+    <div class="wg-head"><span class="wg-ic pomo">${ico('timer')}</span><div class="wg-tt"><b>Помодоро</b><small>Фокус-сессии с перерывами</small></div><button type="button" class="pomo-status ${P.mode !== 'work' ? 'break' : ''}" id="pomoStatusBtn" data-act="pomoStatus" data-tip="Режим: ${esc(POMO_LABEL[P.mode])}. Нажмите, чтобы сменить"><i></i><span>${POMO_LABEL[P.mode]}</span></button><button type="button" class="icon-btn sm" data-act="pomoSettings" data-tip="Настройки Помодоро" aria-label="Настройки Помодоро">${ico('gear')}</button><button type="button" class="icon-btn sm" data-act="pomoReset" data-tip="Сбросить" aria-label="Сбросить таймер">${ico('ref')}</button></div>
+    <div class="pomo-body"><div class="pomo-ring" id="pomoRing"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52"/><circle class="val" cx="60" cy="60" r="52" style="stroke-dasharray:${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="pomo-time-wrap"><b id="pomoTime" class="num">${pomoFmt(P.remain)}</b></div></div><div class="pomo-side"><button type="button" class="btn primary" id="pomoToggleBtn" data-act="pomoToggle">${P.running ? ico('pause') : ico('play')}<span>${P.running ? 'Пауза' : 'Старт'}</span></button><button type="button" class="btn ghost sm" data-act="pomoSkip">${ico('fwd')}<span>Дальше</span></button><div class="pomo-cycles" id="pomoCycles">${ico('activity')}<span>Циклы сегодня: <b>${P.cycles}</b></span></div></div></div>
+  </div>`;
+}
 function pomoToggle() {
-  if (!requireWidgetAccess()) return;
   const P = pomoState();
   if (P.running) { P.remain = clamp(Math.ceil((P.endsAt - Date.now()) / 1000), 0, pomoDur(P.mode)); P.running = false; P.endsAt = 0; }
   else { if (P.remain <= 0) P.remain = pomoDur(P.mode); P.running = true; P.endsAt = Date.now() + P.remain * 1000; }
   P.updatedAt = Date.now(); saveNow(); pomoRenderTick();
 }
 async function pomoChangeMode() {
-  if (!requireWidgetAccess() || !(await pomoGuardSwitch())) return;
+  if (!(await pomoGuardSwitch())) return;
   const P = pomoState(); P.mode = P.mode === 'work' ? 'short' : P.mode === 'short' ? 'long' : 'work';
   P.remain = pomoDur(P.mode); P.running = false; P.endsAt = 0; P.updatedAt = Date.now();
   saveNow(); pomoRenderTick(); toast('Режим: ' + POMO_LABEL[P.mode], { icon: 'timer' });
 }
 async function pomoReset() {
-  if (!requireWidgetAccess()) return;
   const P = pomoState();
   if (pomoBusy() && !(await confirmDlg({ title: 'Сбросить помодоро?', text: 'Текущий прогресс сессии и счётчик циклов за сегодня будут сброшены.', ok: 'Сбросить', danger: true, icon: 'ref' }))) return;
   P.mode = 'work'; P.remain = pomoDur('work'); P.running = false; P.endsAt = 0; P.cycles = 0; P.cycleDay = dayKey(Date.now()); P.updatedAt = Date.now();
   saveNow(); pomoRenderTick();
 }
 async function pomoSkip() {
-  if (!requireWidgetAccess() || !(await pomoGuardSwitch())) return;
+  if (!(await pomoGuardSwitch())) return;
   pomoFinishCurrent(); pomoRenderTick();
 }
 async function openPomodoroSettings() {
-  if (!requireWidgetAccess()) return;
   const pref = widgetPrefs().pomodoro;
   const modal = openModal({ width: 460, html: `<div class="modal-h"><div class="mi-ic">${ico('timer')}</div><h3>Настройки Помодоро</h3><button class="icon-btn" data-pomo-settings-close aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="pomo-settings-grid"><label class="field"><span>Фокус · 15–60 минут</span><input class="input" id="pomoWorkMinutes" type="number" min="15" max="60" step="1" value="${pref.workMinutes}"></label><label class="field"><span>Короткий перерыв · 3–20 минут</span><input class="input" id="pomoShortMinutes" type="number" min="3" max="20" step="1" value="${pref.shortBreakMinutes}"></label><label class="field"><span>Длинный перерыв · 10–30 минут</span><input class="input" id="pomoLongMinutes" type="number" min="10" max="30" step="1" value="${pref.longBreakMinutes}"></label><label class="pomo-auto-break"><input id="pomoAutoBreak" type="checkbox" ${pref.autoBreak ? 'checked' : ''}><span>Автоматически начинать перерыв после фокуса</span></label></div><p class="wp-form-hint">По умолчанию: 25 / 5 / 15 минут, автоматический перерыв выключен. Изменения сохраняются на этом устройстве.</p></div><div class="modal-f"><button class="btn ghost" data-pomo-settings-close>Отмена</button><button class="btn primary" data-pomo-settings-save>${ico('check')}Сохранить</button></div>` });
   modal.scrim.addEventListener('click', e => {
@@ -9100,7 +9093,7 @@ const EFF_BAD = ['Видео', 'Музыка', 'Общение'];
 const effBucket = cat => EFF_GOOD.includes(cat) ? 'good' : EFF_BAD.includes(cat) ? 'bad' : 'neutral';
 const effPeriod = () => widgetPrefs().efficiency.period;
 function efficiencyCanTrack() {
-  if (S.ghost || document.hidden || T.effWindowFocused === false || !widgetHasAccess()) return false;
+  if (S.ghost || document.hidden || T.effWindowFocused === false) return false;
   if (!(S.ui.widgets || {}).eff || OV.stack.length) return false;
   const native = window.shelterNative;
   if (native && typeof native.isContentVisible === 'function' && !native.isContentVisible()) return false;
@@ -9187,13 +9180,13 @@ function effBodyHtml(d) {
   const note = d.estimatedTotal > 0
     ? `<div class="eff-note">Часть старых записей — приблизительные данные по длительности визита. Новые значения считают активную вкладку, а не внимание к странице и не системный Screen Time.</div>`
     : `<div class="eff-note">Считается активная вкладка SHELTER при видимом окне приложения. Это не измерение внимания к странице и не системный Screen Time.</div>`;
-  if (!d.total) return `${emptyState('monitor', 'Пока нет измерений', 'Активное время будет учитываться для сайтов при доступе Premium.')} ${note}`;
+  if (!d.total) return `${emptyState('monitor', 'Пока нет измерений', 'Активное время будет учитываться для сайтов при видимом активном окне SHELTER.')} ${note}`;
   const C = 2 * Math.PI * 27, tier = d.score >= 70 ? 'hi' : d.score >= 40 ? 'mid' : 'lo';
   return `<div class="eff-top"><div class="eff-score"><svg viewBox="0 0 64 64"><circle class="trk" cx="32" cy="32" r="27"/><circle class="val ${tier}" cx="32" cy="32" r="27" style="stroke-dasharray:${(d.score / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="eff-score-txt"><b>${d.score}%</b></div></div><div class="eff-bar-wrap"><div class="eff-bar">${EFF_SEGS.map(([k]) => `<span class="eff-seg ${k}" style="--w:${(d.total ? d.sums[k] / d.total * 100 : 0).toFixed(2)}%"></span>`).join('')}</div><div class="eff-legend">${EFF_SEGS.map(([k, l]) => `<span class="eff-leg ${k}"><i></i>${l}<b>${fmtDurS(d.sums[k])}</b></span>`).join('')}</div></div></div><div class="eff-list">${d.arr.map(x => `<div class="eff-row"><span class="eff-dot ${x.bucket}"></span>${favFor('https://' + x.host, 'sm')}<span class="nm">${esc(x.title)}</span><div class="pbar"><i style="--w:${(d.max ? x.m / d.max * 100 : 0).toFixed(1)}%"></i></div><b class="num">${fmtDurS(x.m)}</b></div>`).join('')}</div>${note}`;
 }
 function effWidgetHtml() {
-  const P = effPeriod(), d = effData(P), locked = !widgetHasAccess();
-  return `<div class="card wg-tile eff-tile ${locked ? 'is-readonly' : ''}"><div class="wg-head"><span class="wg-ic eff">${ico('monitor')}</span><div class="wg-tt"><b>Менеджер эффективности</b><small>${locked ? 'Статистика сохранена · только просмотр' : 'Активность вкладки SHELTER · без блокировки сайтов'}</small></div>${segHtml('effPeriod', [['day', 'Сегодня'], ['week', 'Неделя']], P, 'sm')}</div><div class="eff-body" id="effBody">${effBodyHtml(d)}</div></div>`;
+  const P = effPeriod(), d = effData(P);
+  return `<div class="card wg-tile eff-tile"><div class="wg-head"><span class="wg-ic eff">${ico('monitor')}</span><div class="wg-tt"><b>Менеджер эффективности</b><small>Активность вкладки SHELTER · без блокировки сайтов</small></div>${segHtml('effPeriod', [['day', 'Сегодня'], ['week', 'Неделя']], P, 'sm')}</div><div class="eff-body" id="effBody">${effBodyHtml(d)}</div></div>`;
 }
 SEG.effPeriod = v => {
   const pref = widgetPrefs().efficiency; pref.period = ['day', 'week'].includes(v) ? v : 'day';
@@ -9202,12 +9195,11 @@ SEG.effPeriod = v => {
 };
 RENDER.widgets = () => {
   const W = S.ui.widgets || (S.ui.widgets = { pomo: true, eff: true, vk: false, telemost: false });
-  const total = 2, shown = (W.pomo ? 1 : 0) + (W.eff ? 1 : 0), hasAny = W.pomo || W.eff, locked = !widgetHasAccess();
-  const notice = locked ? `<div class="wg-access-notice" role="status"><span class="wg-access-ic">${ico('lock')}</span><div><b>Виджеты доступны в режиме просмотра</b><small>Состояние таймера и выбранный период сохранены. Управление требует Premium.</small></div><button type="button" class="btn sm primary" data-act="premiumDialog">${ico('crown')}Premium</button></div>` : '';
-  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Виджеты</div><div class="page-sub">Внутренние приложения SHELTER</div></div></div>${notice}<div class="wg-bar"><button type="button" class="btn wg-show-btn" id="wgShowBtn" data-act="wgShowMenu">${ico('layers')}<span>Показать виджет</span><span class="chip">${shown}/${total}</span>${ico('chev', 'chev')}</button><button type="button" class="btn sm icon wg-add-sm" id="wgAddBtn" data-act="wgAdd" data-tip="Добавить виджет" aria-label="Добавить виджет">${ico('plus')}</button><span class="wg-bar-hint">Управляйте отображением виджетов через чеклист</span></div>${hasAny ? `<div class="wg-grid">${W.pomo ? pomoWidgetHtml() : ''}${W.eff ? effWidgetHtml() : ''}</div>` : emptyState('timer', 'Все виджеты скрыты', 'Откройте «Показать виджет» на верхней панели и отметьте нужные виджеты.', `<button class="btn sm primary" data-act="wgShowMenu">${ico('layers')}Показать виджет</button>`)}</div>`;
+  const total = 2, shown = (W.pomo ? 1 : 0) + (W.eff ? 1 : 0), hasAny = W.pomo || W.eff;
+  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Виджеты</div><div class="page-sub">Внутренние приложения SHELTER</div></div></div><div class="wg-bar"><button type="button" class="btn wg-show-btn" id="wgShowBtn" data-act="wgShowMenu">${ico('layers')}<span>Показать виджет</span><span class="chip">${shown}/${total}</span>${ico('chev', 'chev')}</button><button type="button" class="btn sm icon wg-add-sm" id="wgAddBtn" data-act="wgAdd" data-tip="Добавить виджет" aria-label="Добавить виджет">${ico('plus')}</button><span class="wg-bar-hint">Управляйте отображением виджетов через чеклист</span></div>${hasAny ? `<div class="wg-grid">${W.pomo ? pomoWidgetHtml() : ''}${W.eff ? effWidgetHtml() : ''}</div>` : emptyState('timer', 'Все виджеты скрыты', 'Откройте «Показать виджет» на верхней панели и отметьте нужные виджеты.', `<button class="btn sm primary" data-act="wgShowMenu">${ico('layers')}Показать виджет</button>`)}</div>`;
 };
 AFTER.widgets = () => {
-  if ((S.ui.widgets || {}).pomo && widgetHasAccess()) pageTimer(pomoTick, 1000, true);
+  if ((S.ui.widgets || {}).pomo) pageTimer(pomoTick, 1000, true);
   efficiencyTrackingSync();
 };
 T.effWindowFocused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
@@ -10695,8 +10687,6 @@ function premiumState() {
   if (isDevelopmentBuild() && mock && mock.active === true && (!mock.until || mock.until > Date.now())) return Object.assign({ source: 'dev-mock' }, mock);
   return { active: false, expired: !!(server && server.verified && server.until && server.until <= Date.now()), verified: !!(server && server.verified), firstPaymentConfirmed: !!(server && server.firstPaymentConfirmed), legacy: !!(S.ui.premium && S.ui.premium.active), verificationStatus: T.premiumVerificationStatus || 'unknown' };
 }
-function widgetHasAccess() { return premiumState().active === true; }
-function widgetAccessState() { return premiumState(); }
 function isPremium() { return premiumState().active === true; }
 function premiumTimeValue(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -12974,7 +12964,7 @@ function init() {
    ========================================================= */
 const WP_SCHEMA = 7;
 const WP = {
-  view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', showCompleted: true,
+  view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', calendarShowCompleted: true, boardShowCompleted: true,
   sidebarCollapsed: false, allFilter: 'active', allAssigneeFilter: 'all', allProjectFilter: 'all', quick: null, reviewSelected: [],
   boardHomeFilter: 'all', boardAssigneeFilter: 'all', boardFocus: 'all',
   _calendarModeRestored: false, _completedVisibilityRestored: false, _sidebarRestored: false, _touchX: null, _undoToken: 0
@@ -13470,7 +13460,9 @@ function wpEnsureState() {
     WP._calendarModeRestored=true;
   }
   if(!WP._completedVisibilityRestored) {
-    WP.showCompleted=typeof S.ui.plannerShowCompletedTasks==='boolean' ? S.ui.plannerShowCompletedTasks : true;
+    const legacy=typeof S.ui.plannerShowCompletedTasks==='boolean' ? S.ui.plannerShowCompletedTasks : true;
+    WP.calendarShowCompleted=typeof S.ui.plannerCalendarShowCompletedTasks==='boolean' ? S.ui.plannerCalendarShowCompletedTasks : legacy;
+    WP.boardShowCompleted=typeof S.ui.plannerBoardShowCompletedTasks==='boolean' ? S.ui.plannerBoardShowCompletedTasks : legacy;
     WP._completedVisibilityRestored=true;
   }
   if(!WP._sidebarRestored) {
@@ -13656,7 +13648,7 @@ function wpCalendarEntities(start,end) {
 }
 function wpCalendarShownEntities(entities) {
   const rows=Array.isArray(entities) ? entities : [];
-  return WP.showCompleted===false ? rows.filter(task=>wpTaskStatus(task)!=='done') : rows;
+  return WP.calendarShowCompleted===false ? rows.filter(task=>wpTaskStatus(task)!=='done') : rows;
 }
 function wpWeekEntities(start) {
   return wpCalendarEntities(start,wpAddDays(start,6));
@@ -13998,18 +13990,24 @@ function wpDayColumn(date,entities,{spanSpace=0,includeMultiDay=false}={}) {
   return `<section class="wp-day ${date===keyToday?'is-today':''} ${date===WP.mobileDate?'is-selected':''}" data-drop-date="${date}" data-act="wpCalendarSelectDate" data-date="${date}" aria-label="${WP_WEEKDAYS[idx]} ${wpFmtDate(date,true)}, ${covering.length} задач">
     <header class="wp-day-head"><div><span>${WP_WEEKDAYS[idx]}</span><b>${wpDateParts(date).d}</b><small>${WP_MONTHS[wpDateParts(date).m-1]}</small></div><span class="wp-day-count" aria-label="${activeCount} незавершённых">${activeCount||''}</span></header>
     <div class="wp-day-span-spacer" aria-hidden="true" style="--wp-day-span-space:${spanSpace}px"></div>
-    <div class="wp-day-items">${open.map(t=>wpTaskCard(t,{inDay:true,compact:true})).join('')}${!open.length&&!done.length&&!covering.length?`<p class="wp-day-empty">Пока свободно</p>`:''}${done.length?`<details class="wp-done-fold" ${WP.showCompleted!==false?'open':''}><summary>Готово · ${done.length}</summary><div>${done.map(t=>wpTaskCard(t,{inDay:true,compact:true})).join('')}</div></details>`:''}</div>
+    <div class="wp-day-items">${open.map(t=>wpTaskCard(t,{inDay:true,compact:true})).join('')}${!open.length&&!done.length&&!covering.length?`<p class="wp-day-empty">Пока свободно</p>`:''}${done.length?`<details class="wp-done-fold" ${WP.calendarShowCompleted!==false?'open':''}><summary>Готово · ${done.length}</summary><div>${done.map(t=>wpTaskCard(t,{inDay:true,compact:true})).join('')}</div></details>`:''}</div>
     <button type="button" class="wp-add-day" data-act="wpQuickDay" data-date="${date}">${ico('plus')} Добавить</button>
   </section>`;
 }
-function wpCalendarCompletedToggle() {
-  const shown=WP.showCompleted!==false, label=shown?'Скрыть выполненные задачи':'Показать выполненные задачи';
-  return `<button type="button" class="btn sm ghost wp-calendar-completed-toggle ${shown?'is-active':''}" data-act="wpCalendarToggleCompleted" aria-pressed="${shown}" aria-label="${label}" title="${label}">${ico(shown?'eye-off':'eye')}<span>${label}</span></button>`;
+function wpCalendarCompletedToggle(scope='calendar') {
+  const shown=scope==='board' ? WP.boardShowCompleted!==false : WP.calendarShowCompleted!==false;
+  const label=shown?'Скрыть выполненные задачи':'Показать выполненные задачи';
+  return `<button type="button" class="btn sm ghost wp-calendar-completed-toggle ${shown?'is-active':''}" data-act="wpCalendarToggleCompleted" data-scope="${scope==='board'?'board':'calendar'}" aria-pressed="${shown}" aria-label="${label}" title="${label}">${ico(shown?'eye-off':'eye')}<span>${label}</span></button>`;
 }
-function wpToggleCalendarCompleted() {
-  WP.showCompleted=WP.showCompleted===false;
+function wpToggleCalendarCompleted(scope='calendar') {
   if(!wpIsObj(S.ui)) S.ui={};
-  S.ui.plannerShowCompletedTasks=WP.showCompleted;
+  if(scope==='board') {
+    WP.boardShowCompleted=WP.boardShowCompleted===false;
+    S.ui.plannerBoardShowCompletedTasks=WP.boardShowCompleted;
+  } else {
+    WP.calendarShowCompleted=WP.calendarShowCompleted===false;
+    S.ui.plannerCalendarShowCompletedTasks=WP.calendarShowCompleted;
+  }
   persist(); wpRenderView();
 }
 function wpSelectedDayPanel(date,entities,mode) {
@@ -14093,7 +14091,7 @@ function wpBoardEntities() {
   else if(String(who).startsWith('person:')) { const target=String(who).slice(7).toLocaleLowerCase(); items=items.filter(t=>wpAssigneeLabel(t).toLocaleLowerCase()===target); }
   if(WP.boardFocus==='urgent') items=items.filter(t=>['high','critical'].includes(wpPriority(t)));
   else if(WP.boardFocus==='overdue') items=items.filter(t=>wpDeadlineOverdue(t));
-  if(WP.showCompleted===false) items=items.filter(t=>wpTaskStatus(t)!=='done');
+  if(WP.boardShowCompleted===false) items=items.filter(t=>wpTaskStatus(t)!=='done');
   return wpSortEntities(items);
 }
 function wpBoardSummary(items) {
@@ -14110,7 +14108,7 @@ function wpBoardToolbar(items) {
   const focus=[['all','Все'],['urgent','Срочные'],['overdue','Просроченные']];
   const dirty=home!=='all'||who!=='all'||WP.boardFocus!=='all';
   const total=wpAllEntities({ignoreFilters:true}).length;
-  return `<div class="wp-board-toolbar"><div class="wp-filter-layout wp-board-filter-row"><div class="wp-filter-main"><div class="wp-filter-pills" role="group" aria-label="Фильтр по приоритету и сроку">${focus.map(([v,label])=>`<button type="button" class="${WP.boardFocus===v?'active':''}" data-act="wpBoardFocus" data-filter="${v}" aria-pressed="${WP.boardFocus===v}">${label}</button>`).join('')}</div>${wpCalendarCompletedToggle()}</div><button type="button" class="wp-my-filter ${who==='mine'?'active':''}" data-act="wpBoardMineToggle" aria-pressed="${who==='mine'}">${ico('user')}Мои задачи</button><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-board-filter="assignee" aria-label="Фильтр по исполнителю">${whoOptions.map(([v,l])=>`<option value="${esc(v)}" ${whoSelected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-board-filter="home" aria-label="Фильтр по списку и проекту">${homeOptions.map(([v,l])=>`<option value="${esc(v)}" ${home===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpBoardReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${items.length}</b> из ${total}</div></div>`;
+  return `<div class="wp-board-toolbar"><div class="wp-filter-layout wp-board-filter-row"><div class="wp-filter-main"><div class="wp-filter-pills" role="group" aria-label="Фильтр по приоритету и сроку">${focus.map(([v,label])=>`<button type="button" class="${WP.boardFocus===v?'active':''}" data-act="wpBoardFocus" data-filter="${v}" aria-pressed="${WP.boardFocus===v}">${label}</button>`).join('')}</div>${wpCalendarCompletedToggle('board')}</div><button type="button" class="wp-my-filter ${who==='mine'?'active':''}" data-act="wpBoardMineToggle" aria-pressed="${who==='mine'}">${ico('user')}Мои задачи</button><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-board-filter="assignee" aria-label="Фильтр по исполнителю">${whoOptions.map(([v,l])=>`<option value="${esc(v)}" ${whoSelected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-board-filter="home" aria-label="Фильтр по списку и проекту">${homeOptions.map(([v,l])=>`<option value="${esc(v)}" ${home===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpBoardReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${items.length}</b> из ${total}</div></div>`;
 }
 function wpBoardView() {
   const items=wpBoardEntities(), columns=[['open','В работе'],['waiting','Ожидание'],['done','Готово'],['cancelled','Отменённые']];
@@ -15200,7 +15198,7 @@ Object.assign(ACT,{
   wpQuickCancel:()=>wpQuickCancel(),
   wpWeekMove:el=>wpNavWeek(el.dataset.delta),
   wpCalendarMove:el=>wpCalendarMove(el.dataset.delta),
-  wpCalendarToggleCompleted:()=>wpToggleCalendarCompleted(),
+  wpCalendarToggleCompleted:el=>wpToggleCalendarCompleted(el.dataset.scope),
   wpWeekToday:()=>wpGoToday(),
   wpMobileDay:el=>wpSetMobileDay(el.dataset.date),
   wpCalendarSelectDate:el=>wpSelectCalendarDate(el.dataset.date),

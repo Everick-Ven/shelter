@@ -41,8 +41,6 @@ const fmtDurS = value => String(Math.round(value)) + ' мин';
 const segHtml = () => '<segmented-control>';
 const emptyState = () => '<empty-state>';
 const favFor = () => '<favorite>';
-const widgetHasAccess = () => globalThis.__hasAccess;
-const widgetAccessState = () => globalThis.__accessState || { until: 0 };
 const curTab = () => globalThis.__tab;
 const urlMeta = url => ({ kind: /^shelter\.dev\//.test(String(url)) ? 'internal' : 'web' });
 const histNorm = url => String(url || '').trim().toLowerCase();
@@ -72,8 +70,6 @@ function boot(state = { ui: { widgets: { pomo: true, eff: true } }, visits: [], 
     __transient: {},
     __document: { hidden: false, hasFocus: () => true, addEventListener() {} },
     __window: { addEventListener() {}, shelterNative: options.native || null },
-    __hasAccess: options.access !== false,
-    __accessState: options.accessState || { until: 0 },
     __tab: options.tab || null,
     __effBody: { innerHTML: '' },
     __counts: { saves: 0, persists: 0, flushes: 0, refreshes: 0 },
@@ -87,10 +83,10 @@ function boot(state = { ui: { widgets: { pomo: true, eff: true } }, visits: [], 
   };
   vm.runInNewContext(harness + '\n' + moduleSource + `
 globalThis.__api = {
-  POMO_DUR, widgetPrefs, pomoDur, pomoState, pomoToggle, pomoChangeMode, pomoReset,
+  POMO_DUR, widgetPrefs, pomoDur, pomoState, pomoWidgetHtml, pomoToggle, pomoChangeMode, pomoReset,
   pomoFinishPhase, efficiencyCanTrack, efficiencyCurrentVisit, efficiencyAddActiveMs,
   efficiencyPendingByDay, efficiencyFlushActiveSegment, efficiencyTrackingSync,
-  efficiencyCheckpoint, effData, effBodyHtml, effPeriod, periodRange, dayKey, segments: SEG, transient: T
+  efficiencyCheckpoint, effData, effBodyHtml, effWidgetHtml, effPeriod, periodRange, dayKey, render: RENDER, segments: SEG, transient: T
 };`, context, { timeout: 5000 });
   return { context, state, api: context.__api };
 }
@@ -117,6 +113,11 @@ globalThis.__api = {
   assert.equal(prefs.shortBreakMinutes, 20);
   assert.equal(prefs.longBreakMinutes, 30);
   prefs.workMinutes = 25; prefs.shortBreakMinutes = 5; prefs.longBreakMinutes = 15;
+  const widgetPage = first.api.render.widgets();
+  assert(widgetPage.includes('class="page"') && widgetPage.includes('class="wg-grid"'), 'the Widgets page renders its configured cards');
+  assert(widgetPage.includes('wg-tile pomo-tile'), 'the Pomodoro card has a concrete renderer');
+  assert(widgetPage.includes('id="pomoToggleBtn"') && widgetPage.includes('data-act="pomoSettings"'), 'Pomodoro start and settings controls are present in the page');
+  assert(widgetPage.includes('id="effBody"'), 'the Efficiency Manager card renders with its update target');
 
   const startedAt = clock;
   first.api.pomoToggle();
@@ -195,9 +196,10 @@ globalThis.__api = {
   assert(legacy.context.__counts.refreshes === 0, 'period changes do not redraw the whole page');
   assert(legacy.context.__effBody.innerHTML.length > 0, 'period updates replace only the widget body');
 
-  const guard = boot({ ui: { widgets: { pomo: true, eff: true } }, visits: [], ghost: false }, { access: false, tab: { id: 'tab-1', url: 'https://focus.example' } });
-  assert.equal(guard.api.efficiencyCanTrack(), false, 'Efficiency tracking requires verified Premium access');
-  guard.context.__hasAccess = true;
+  const guard = boot({ ui: { widgets: { pomo: true, eff: true } }, visits: [], ghost: false }, { tab: { id: 'tab-1', url: 'https://focus.example' } });
+  assert.equal(guard.api.efficiencyCanTrack(), true, 'basic widget tracking is available without Premium');
+  guard.api.pomoToggle();
+  assert.equal(guard.api.widgetPrefs().pomodoro.session.running, true, 'Pomodoro controls remain interactive without a paid entitlement');
   guard.context.__document.hidden = true;
   assert.equal(guard.api.efficiencyCanTrack(), false, 'hidden documents are not tracked');
   guard.context.__document.hidden = false;
@@ -229,7 +231,7 @@ const notifyNewProfileAchievements = () => {};
       Date: TestDate,
       console
     };
-    vm.runInNewContext(premiumHarness + '\n' + premiumSource + `\nglobalThis.__premiumApi = { isDevelopmentBuild, isBetaBuild, canRedeemPromo, premiumState, refreshPremiumEntitlement, widgetHasAccess: () => premiumState().active === true, transient: T };`, context, { timeout: 5000 });
+    vm.runInNewContext(premiumHarness + '\n' + premiumSource + `\nglobalThis.__premiumApi = { isDevelopmentBuild, isBetaBuild, canRedeemPromo, premiumState, refreshPremiumEntitlement, transient: T };`, context, { timeout: 5000 });
     return { context, api: context.__premiumApi };
   }
   const release = bootPremium({
@@ -275,15 +277,15 @@ const notifyNewProfileAchievements = () => {};
   assert.equal(requests.length, 2);
   requests[1]({ ok: true, entitlement: { verified: true, status: 'active', planId: 'monthly', expiresAt: clock + 60_000, paidOrderCount: 1 } });
   await latestRequest;
-  assert.equal(racing.api.widgetHasAccess(), true);
+  assert.equal(racing.api.premiumState().active, true);
   assert.equal(racing.api.transient.premiumServerEntitlement.firstPaymentConfirmed, true, 'payment history comes from the verified server response');
   requests[0]({ ok: false, verified: false, status: 'unavailable' });
   await staleRequest;
-  assert.equal(racing.api.widgetHasAccess(), true, 'a stale verification result cannot overwrite the latest entitlement');
+  assert.equal(racing.api.premiumState().active, true, 'a stale verification result cannot overwrite the latest entitlement');
   racing.context.__window.shelterNative = null;
   await racing.api.refreshPremiumEntitlement();
   assert.equal(racing.api.transient.premiumServerEntitlement, null, 'missing native verification clears cached access');
-  assert.equal(racing.api.widgetHasAccess(), false);
+  assert.equal(racing.api.premiumState().active, false);
 
   const profile = html.slice(html.indexOf('function storedProfileUnlocks()'), html.indexOf('function captureProfileUnlocks()'));
   assert(profile.includes("id !== 'firstPayment' || paymentVerified"), 'a legacy local first-payment unlock requires a verified server record');

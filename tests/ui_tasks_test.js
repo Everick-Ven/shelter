@@ -87,7 +87,7 @@ vm.runInNewContext(harness + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
-  wpTaskHomeType, wpIsMine, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
+  wpTaskHomeType, wpIsMine, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
   wpTaskCoversDate, wpTaskHasDateSpan, wpCalendarSpanLayout, wpEffectiveOccurrence, wpApplySchedule,
   wpDeadlineText, wpTaskCard, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpNavHtml, wpViewHtml,
   wpSetCalendarMode, wpCalendarMove, wpToggleSidebar,
@@ -110,7 +110,7 @@ assert.strictEqual(octoberGrid.at(-1), '2026-11-01');
 // Calendar views include only the signed-in person's tasks, while accepting the Russian self-assignee aliases.
 state.account = { name: 'Alex', email: 'alex@example.test' };
 state.board = {
-  id: 'calendar-board', ownerEmail: 'alex@example.test', projects: [{ id: 'project-1', name: 'Проект', members: [] }],
+  id: 'calendar-board', ownerEmail: 'alex@example.test', projects: [{ id: 'project-1', name: 'Проект', members: [] }, { id: 'project-2', name: 'Другой проект', members: [] }],
   people: [], invites: [], occurrences: [],
   recurrenceRules: [
     { id: 'weekly-self', taskId: 'recurring-self', frequency: 'weekly', interval: 1, weekdays: [1], startDate: '2026-10-05', endDate: null, active: true },
@@ -126,7 +126,10 @@ state.board = {
     { id: 'other-person', title: 'Чужая задача', homeType: 'personal', assignee: 'Другой исполнитель', scheduledDate: '2026-10-13', statusKey: 'open', priorityKey: 'normal', order: 7 },
     { id: 'unassigned', title: 'Без исполнителя', homeType: 'personal', assignee: '', scheduledDate: '2026-10-13', statusKey: 'open', priorityKey: 'normal', order: 8 },
     { id: 'recurring-self', title: 'Повтор личной задачи', homeType: 'personal', assignee: 'я', scheduledDate: '2026-10-05', scheduledEndDate: '2026-10-06', recurrenceRuleId: 'weekly-self', statusKey: 'open', priorityKey: 'normal', order: 9 },
-    { id: 'recurring-other', title: 'Повтор чужой задачи', homeType: 'personal', assignee: 'Другой исполнитель', scheduledDate: '2026-10-05', recurrenceRuleId: 'weekly-other', statusKey: 'open', priorityKey: 'normal', order: 10 }
+    { id: 'recurring-other', title: 'Повтор чужой задачи', homeType: 'personal', assignee: 'Другой исполнитель', scheduledDate: '2026-10-05', recurrenceRuleId: 'weekly-other', statusKey: 'open', priorityKey: 'normal', order: 10 },
+    { id: 'project-assigned-you', title: 'Проектная задача Вы', homeType: 'project', projectId: 'project-1', project: 'Проект', assignee: 'Вы', scheduledDate: '2026-10-13', statusKey: 'open', priorityKey: 'normal', order: 11 },
+    { id: 'project-assigned-ya', title: 'Задача второго проекта Я', homeType: 'project', projectId: 'project-2', project: 'Другой проект', assignee: 'Я', scheduledDate: '2026-10-14', statusKey: 'open', priorityKey: 'normal', order: 12 },
+    { id: 'project-other-assignee', title: 'Чужая задача второго проекта', homeType: 'project', projectId: 'project-2', project: 'Другой проект', assignee: 'Другой исполнитель', scheduledDate: '2026-10-14', statusKey: 'open', priorityKey: 'normal', order: 13 }
   ]
 };
 api.WP.query = '';
@@ -137,9 +140,15 @@ assert.strictEqual(api.wpIsMine({ assignee: 'Я' }), true);
 assert.strictEqual(api.wpIsMine({ assignee: 'Alex' }), true);
 assert.strictEqual(api.wpIsMine({ assignee: 'alex@example.test' }), true);
 assert.strictEqual(api.wpIsMine({ assignee: 'Другой исполнитель' }), false);
+// Both calendar modes span every visible project on the active board, even if a project detail was open previously.
+api.WP.projectId = 'project-1';
 const weekIds = new Set(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id));
-assert.deepStrictEqual([...weekIds].sort(), ['recurring-self::2026-10-12', 'self-email', 'self-legacy-matrix', 'self-name', 'self-ya', 'self-you'].sort());
+assert.deepStrictEqual([...weekIds].sort(), ['project-assigned-ya', 'project-assigned-you', 'recurring-self::2026-10-12', 'self-email', 'self-legacy-matrix', 'self-name', 'self-ya', 'self-you'].sort());
+assert(!weekIds.has('project-other-assignee'), 'week view must exclude project tasks assigned to another person');
 const monthIds = new Set(Array.from(api.wpMonthEntities('2026-10-01'), task => task.id));
+assert(monthIds.has('project-assigned-you') && monthIds.has('project-assigned-ya'), 'month view must include the signed-in user’s tasks from multiple projects');
+assert(!monthIds.has('project-other-assignee'), 'month view must exclude project tasks assigned to another person');
+api.WP.projectId = '';
 assert(monthIds.has('self-next-week'), 'month view must include all of the current month, beyond the selected week');
 assert(monthIds.has('recurring-self::2026-10-26'), 'month view must materialize weekly recurring tasks');
 assert(!monthIds.has('other-person') && !monthIds.has('recurring-other::2026-10-12'), 'neither one-off nor recurring tasks for other assignees belong in the personal calendar');
@@ -149,10 +158,13 @@ assert(recurrenceOverlapIds.has('recurring-self::2026-10-05'), 'a repeating mult
 const recurringSpan = state.board.tasks.find(task => task.id === 'recurring-self');
 assert.strictEqual(api.wpEffectiveOccurrence(recurringSpan, '2026-10-19', null).scheduledEndDate, '2026-10-20', 'recurrence instances inherit the series span');
 assert.strictEqual(api.wpEffectiveOccurrence(recurringSpan, '2026-10-19', { id: 'recurring-self::2026-10-19', scheduledDate: '2026-10-19', scheduledEndDate: null }).scheduledEndDate, null, 'an occurrence can explicitly clear its inherited end date');
+api.WP.calendarMode = 'week';
+const weekMarkup = api.wpViewHtml();
+assert(weekMarkup.includes('Проектная задача Вы') && weekMarkup.includes('Задача второго проекта Я') && !weekMarkup.includes('Чужая задача второго проекта'), 'week markup must show the signed-in user’s assigned tasks across projects only');
 api.WP.calendarMode = 'month';
 const monthMarkup = api.wpViewHtml();
 assert(monthMarkup.includes('wp-month-grid') && monthMarkup.includes('Октябрь 2026'));
-assert(monthMarkup.includes('Исполнитель Я') && !monthMarkup.includes('Чужая задача'));
+assert(monthMarkup.includes('Исполнитель Я') && monthMarkup.includes('Проектная задача Вы') && monthMarkup.includes('Задача второго проекта Я') && !monthMarkup.includes('Чужая задача'));
 assert(!api.wpNavHtml().includes('data-view="matrix"') && !api.wpNavHtml().includes('label:"Матрица"'), 'Matrix must no longer be a planner navigation destination');
 const rangeTasks = [
   { id: 'span-before-month', title: 'Срок на границе месяца', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-09-25', scheduledEndDate: '2026-10-02', deadlineAt: '2026-10-03', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 1, order: 20, tags: [] },

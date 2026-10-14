@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-/M+S3Zt183lJHXjy5o9f7Kip3U+p2wDKBknYcLT/vls=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-idWUuomhHo7sH5+8r4F1bph8QLsV3Vfu05UAy/T1HEs=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -13323,12 +13323,16 @@ function wpRangeEntities(start,end) {
   });
   return wpSortEntities(out.filter(wpSearchMatch));
 }
+function wpCalendarEntities(start,end) {
+  // The calendar is project-agnostic: range over all visible projects on the active board, then keep the browser user's tasks.
+  return wpRangeEntities(start,end).filter(wpIsMine);
+}
 function wpWeekEntities(start) {
-  return wpRangeEntities(start,wpAddDays(start,6)).filter(wpIsMine);
+  return wpCalendarEntities(start,wpAddDays(start,6));
 }
 function wpMonthEntities(start) {
   const days=wpMonthKeys(start); if(!days.length) return [];
-  return wpRangeEntities(days[0],days[days.length-1]).filter(wpIsMine);
+  return wpCalendarEntities(days[0],days[days.length-1]);
 }
 function wpInboxEntities() {
   const out=[];

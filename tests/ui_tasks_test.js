@@ -91,9 +91,9 @@ globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
-  wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule,
+  wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
-  wpSetCalendarMode, wpCalendarMove, wpToggleSidebar,
+  wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
 };`, context, { timeout: 5000 });
 const api = context.__api;
@@ -194,6 +194,7 @@ api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calen
 const rangeMonthMarkup = api.wpViewHtml();
 assert(rangeMonthMarkup.includes('wp-month-span-layer') && rangeMonthMarkup.includes('wp-calendar-span--month'));
 assert(rangeMonthMarkup.includes('wp-calendar-span wp-calendar-span--month p-normal'), 'the month range row is tinted by task priority');
+assert(rangeMonthMarkup.includes('data-act="wpCalendarToggleCompleted"') && rangeMonthMarkup.includes('Скрыть выполненные задачи'), 'month calendar offers the completed-task visibility toggle');
 assert(rangeMonthMarkup.includes('Задача на несколько дней'), 'month mode shows a continuous row for each multi-day task');
 assert(rangeMonthMarkup.includes('Срок на границе месяца') && rangeMonthMarkup.includes('25 сент. 2026 — 2 окт. 2026'), 'month rows show ranges that cross the month boundary and retain the full deadline range');
 assert(rangeMonthMarkup.includes('wp-month-selected') && rangeMonthMarkup.includes('Срок на границе месяца'), 'the selected-date list may keep a normal card for a task inside its span');
@@ -225,6 +226,36 @@ assert.strictEqual(countId(desktopDay, 'month-span-a'), 0, 'desktop date cells d
 assert.strictEqual(countId(desktopDay, 'single-day-task', 'data-task-id'), 1);
 const selectedMobileDay = api.wpDayColumn('2026-10-15', rangeTasks, { includeMultiDay: true });
 assert.strictEqual(countId(selectedMobileDay, 'month-span-a', 'data-task-id'), 1, 'the selected/mobile day list may keep ordinary multi-day cards');
+assert.strictEqual(api.WP.showCompleted, true, 'completed calendar tasks remain visible by default');
+const completedCalendarTasks = [
+  { id: 'done-span', title: 'Завершённый диапазон', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-14', deadlineAt: '2026-10-16', statusKey: 'done', priorityKey: 'high', matrixQuadrant: 0, order: 25, tags: [] },
+  { id: 'done-single', title: 'Завершённый день', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-15', deadlineAt: null, statusKey: 'done', priorityKey: 'normal', matrixQuadrant: 2, order: 26, tags: [] }
+];
+const completedWeekMarkup = api.wpWeekCalendar(weekDays, completedCalendarTasks);
+assert(completedWeekMarkup.includes('wp-calendar-span wp-calendar-span--week p-high is-done'), 'completed multi-day tasks keep their horizontal rows');
+assert.strictEqual(countId(completedWeekMarkup, 'done-span'), 1);
+assert.strictEqual(countId(completedWeekMarkup, 'done-single', 'data-task-id'), 1, 'completed single-day tasks remain in their date cell');
+assert(completedWeekMarkup.includes('<details class="wp-done-fold" open>'), 'visible completed single-day tasks are expanded in the week calendar');
+const completedMonthMarkup = api.wpMonthWeek(octoberGrid.slice(14, 21), completedCalendarTasks);
+assert(completedMonthMarkup.includes('wp-calendar-span wp-calendar-span--month p-high is-done'));
+assert(completedMonthMarkup.includes('wp-month-event wp-title-marquee-clip p-normal is-done'), 'completed one-day month events keep their task state');
+assert(completedMonthMarkup.includes('Статус: выполнена'), 'calendar controls announce completed status to assistive technology');
+assert(api.wpCalendarCompletedToggle().includes('Скрыть выполненные задачи') && api.wpCalendarCompletedToggle().includes('aria-pressed="true"'));
+api.WP.showCompleted = false;
+const hiddenCompletedWeek = api.wpWeekCalendar(weekDays, completedCalendarTasks);
+const hiddenCompletedMonth = api.wpMonthWeek(octoberGrid.slice(14, 21), completedCalendarTasks);
+const hiddenCompletedMobile = api.wpDayColumn('2026-10-15', completedCalendarTasks, { includeMultiDay: true });
+assert(!hiddenCompletedWeek.includes('done-span') && !hiddenCompletedWeek.includes('done-single'), 'the calendar toggle hides completed week rows and cards');
+assert(!hiddenCompletedMonth.includes('done-span') && !hiddenCompletedMonth.includes('done-single'), 'the calendar toggle hides completed month rows and events');
+assert(!hiddenCompletedMobile.includes('done-span') && !hiddenCompletedMobile.includes('done-single'), 'the calendar toggle also applies to the selected mobile day');
+assert(api.wpCalendarCompletedToggle().includes('Показать выполненные задачи') && api.wpCalendarCompletedToggle().includes('aria-pressed="false"'));
+api.actions.wpCalendarToggleCompleted();
+assert.strictEqual(api.WP.showCompleted, true, 'the calendar action reveals completed tasks again');
+assert.strictEqual(state.ui.plannerShowCompletedTasks, true, 'the calendar visibility preference is persisted');
+api.actions.wpCalendarToggleCompleted();
+assert.strictEqual(api.WP.showCompleted, false);
+assert.strictEqual(state.ui.plannerShowCompletedTasks, false);
+api.actions.wpCalendarToggleCompleted();
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
 const monthView = api.wpViewHtml();
 assert(monthView.includes('wp-month-span-layer') && monthView.includes('wp-calendar-span--month'));
@@ -240,6 +271,7 @@ assert.strictEqual(countId(desktopWeekGrid, 'week-span'), 1, 'the desktop week g
 assert.strictEqual(countId(desktopWeekGrid, 'month-span-a'), 1);
 assert.strictEqual(countId(desktopWeekGrid, 'single-day-task', 'data-task-id'), 1);
 assert(rangeWeekMarkup.includes('Многодневные задачи на весь день'), 'multi-day tasks remain date-only and use no invented time slots');
+assert(rangeWeekMarkup.includes('data-act="wpCalendarToggleCompleted"') && rangeWeekMarkup.includes('Скрыть выполненные задачи'), 'week calendar offers the completed-task visibility toggle');
 assert(rangeWeekMarkup.includes('data-act="wpQuickDay"'), 'week days retain their own add-task controls');
 api.WP.view = 'week';
 assert(!api.wpHeaderControls().includes('data-act="wpQuickGlobal"'), 'the global add button is hidden in week mode');

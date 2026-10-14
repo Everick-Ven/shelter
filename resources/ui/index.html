@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-zO8ZGusOpigUPgTOAAZkWRuIxzZrKBg9JgLaiJjSfxU=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-BNCXTsl/dK77FsurT4CEkVVOvXIW57RDKPJmUt4MrE0=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4054,7 +4054,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-month-event.p-high{border-left-color:rgb(var(--warn));background:color-mix(in srgb,rgb(var(--warn)) 12%,var(--card-2))}.wp-month-event.p-high>i{background:rgb(var(--warn))}
 .wp-month-event.p-normal{border-left-color:rgb(var(--accent));background:color-mix(in srgb,rgb(var(--accent)) 9%,var(--card-2))}.wp-month-event.p-normal>i{background:rgb(var(--accent))}
 .wp-month-event.p-none{border-left-color:var(--text-4);background:var(--card-2)}.wp-month-event.p-none>i{background:var(--text-4)}
-.wp-month-event.is-done{opacity:.65}.wp-month-event.is-done>span{text-decoration:line-through}
+.wp-month-event.is-done{opacity:1;border-left-color:rgb(var(--ok));background:color-mix(in srgb,rgb(var(--ok)) 12%,var(--card-2));color:rgb(var(--ok))}.wp-month-event.is-done>i{background:rgb(var(--ok))}.wp-month-event.is-done>span{color:rgb(var(--ok));text-decoration:line-through}.wp-month-event.is-done>small{color:color-mix(in srgb,rgb(var(--ok)) 72%,var(--text-3))}
 .wp-month-event>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wp-month-event>small{flex:none;color:var(--text-4);font-size:8px}
 .wp-month-more{align-self:flex-start;padding:2px 4px;border:0;border-radius:calc(4px*var(--rs));background:transparent;color:var(--text-3);font:500 8.5px var(--font);cursor:pointer}
@@ -4145,7 +4145,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-calendar-span.p-high{border-color:color-mix(in srgb,rgb(var(--warn)) 30%,var(--line));background:color-mix(in srgb,rgb(var(--warn)) 13%,var(--card-2))}
 .wp-calendar-span.p-normal{border-color:color-mix(in srgb,rgb(var(--accent)) 24%,var(--line));background:color-mix(in srgb,rgb(var(--accent)) 10%,var(--card-2))}
 .wp-calendar-span.p-none{border-color:var(--line);background:var(--card-2)}
-.wp-calendar-span.is-done{opacity:.62}.wp-calendar-span.is-done>span{text-decoration:line-through}
+.wp-calendar-span.is-done{opacity:1;border-color:color-mix(in srgb,rgb(var(--ok)) 42%,var(--line));background:color-mix(in srgb,rgb(var(--ok)) 14%,var(--card-2));color:rgb(var(--ok))}.wp-calendar-span.is-done>span{color:rgb(var(--ok));text-decoration:line-through}.wp-calendar-span.is-done>small{color:color-mix(in srgb,rgb(var(--ok)) 72%,var(--text-3))}
 .wp-calendar-span.continues-before{border-top-left-radius:5px;border-bottom-left-radius:5px}
 .wp-calendar-span.continues-after{border-top-right-radius:5px;border-bottom-right-radius:5px}
 .wp-calendar-span.dragging{opacity:.45}
@@ -4183,7 +4183,12 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-task.p-normal{border-color:color-mix(in srgb,rgb(var(--accent)) 24%,var(--line));border-left:3px solid rgb(var(--accent));background:color-mix(in srgb,rgb(var(--accent)) 7%,var(--card))}
 .wp-task.p-none{border-color:var(--line);border-left:3px solid var(--line-3);background:var(--card)}
 .wp-task.is-overdue{border-left-color:rgb(var(--danger))}
+.wp-task.is-done{border-color:color-mix(in srgb,rgb(var(--ok)) 36%,var(--line));background:color-mix(in srgb,rgb(var(--ok)) 10%,var(--card));opacity:.92}
+.wp-task.is-done .wp-task-title{color:rgb(var(--ok));text-decoration:line-through}
+.wp-week-grid.is-all-day .wp-task.is-done{border-color:color-mix(in srgb,rgb(var(--ok)) 36%,var(--line));border-left-color:rgb(var(--ok));background:color-mix(in srgb,rgb(var(--ok)) 10%,var(--card));opacity:.92}
 .wp-week-span-layer{top:60px;left:0;right:0;column-gap:0}
+.wp-calendar-completed-toggle{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:27px;margin-left:auto;white-space:nowrap}
+.wp-calendar-completed-toggle .i{width:13px;height:13px}
 .wp-calendar-span--week{height:20px;margin:0 2px;border-radius:calc(7px*var(--rs));font-size:8px;padding:1px 5px;z-index:1}
 .wp-calendar-span--week>small{font-size:7px}
 @container shelter (max-width:620px){
@@ -12655,10 +12660,10 @@ function init() {
    ========================================================= */
 const WP_SCHEMA = 7;
 const WP = {
-  view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '',
+  view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', showCompleted: true,
   sidebarCollapsed: false, allFilter: 'active', allAssigneeFilter: 'all', allProjectFilter: 'all', quick: null, reviewSelected: [],
   boardHomeFilter: 'all', boardAssigneeFilter: 'all', boardFocus: 'all',
-  _calendarModeRestored: false, _sidebarRestored: false, _touchX: null, _undoToken: 0
+  _calendarModeRestored: false, _completedVisibilityRestored: false, _sidebarRestored: false, _touchX: null, _undoToken: 0
 };
 const WP_STATUS = { open: 'В работе', waiting: 'Пауза', done: 'Готово', cancelled: 'Отменена' };
 const WP_STATUS_RU = { open: 'Открыта', waiting: 'Ожидание', done: 'Выполнена', cancelled: 'Отменена' };
@@ -13150,6 +13155,10 @@ function wpEnsureState() {
     WP.calendarMode=S.ui.plannerCalendarMode==='month'?'month':'week';
     WP._calendarModeRestored=true;
   }
+  if(!WP._completedVisibilityRestored) {
+    WP.showCompleted=typeof S.ui.plannerShowCompletedTasks==='boolean' ? S.ui.plannerShowCompletedTasks : true;
+    WP._completedVisibilityRestored=true;
+  }
   if(!WP._sidebarRestored) {
     WP.sidebarCollapsed=S.ui.plannerSidebarCollapsed===true;
     WP._sidebarRestored=true;
@@ -13330,6 +13339,10 @@ function wpRangeEntities(start,end) {
 function wpCalendarEntities(start,end) {
   // The calendar is project-agnostic: range over all visible projects on the active board, then keep the browser user's tasks.
   return wpRangeEntities(start,end).filter(wpIsMine);
+}
+function wpCalendarShownEntities(entities) {
+  const rows=Array.isArray(entities) ? entities : [];
+  return WP.showCompleted===false ? rows.filter(task=>wpTaskStatus(task)!=='done') : rows;
 }
 function wpWeekEntities(start) {
   return wpCalendarEntities(start,wpAddDays(start,6));
@@ -13626,7 +13639,7 @@ function wpEntityDataAttrs(task) {
 function wpCalendarSpanLayout(days,entities) {
   if(!days || !days.length) return {segments:[],laneCount:0,space:0};
   const first=days[0], last=days[days.length-1], segments=[];
-  entities.forEach(task=>{
+  wpCalendarShownEntities(entities).forEach(task=>{
     if(!wpTaskHasDateSpan(task)) return;
     const start=wpTaskScheduleStart(task), end=wpTaskScheduleEnd(task);
     if(end<first || start>last) return;
@@ -13652,7 +13665,7 @@ function wpCalendarSpanEvent(segment,mode) {
   const fullRange=`${wpFmtDate(start,true)} — ${wpFmtDate(end,true)}`;
   const priorityLabel=WP_PRIORITY_RU[priority] || 'Обычный';
   const quadrant=wpQuadrant(task);
-  const aria=`${title} · ${fullRange} · Приоритет: ${priorityLabel}${quadrant==null?'':` · Матрица: ${WP_QUADRANTS[quadrant][1]}`}`;
+  const aria=`${title} · ${fullRange}${status==='done'?' · Статус: выполнена':''} · Приоритет: ${priorityLabel}${quadrant==null?'':` · Матрица: ${WP_QUADRANTS[quadrant][1]}`}`;
   const classes=['wp-calendar-span',`wp-calendar-span--${mode}`,`p-${priority}`,status==='done'?'is-done':'',status==='waiting'?'is-waiting':'',segment.continuesBefore?'continues-before':'',segment.continuesAfter?'continues-after':''].filter(Boolean).join(' ');
   const style=`grid-column:${segment.startColumn+1}/${segment.endColumn+2};grid-row:${segment.lane+1}`;
   return `<button type="button" class="${classes}" data-act="taskEdit" ${wpEntityDataAttrs(task)} draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}" style="${style}"><span>${esc(title)}</span><small>${esc(range)}</small></button>`;
@@ -13663,7 +13676,7 @@ function wpWeekCalendar(days,entities) {
   return `<div class="wp-week-grid is-all-day"><div class="wp-week-days">${days.map(date=>wpDayColumn(date,entities,{spanSpace:layout.space})).join('')}</div>${spans}</div>`;
 }
 function wpDayColumn(date,entities,{spanSpace=0,includeMultiDay=false}={}) {
-  const covering=entities.filter(t=>wpTaskCoversDate(t,date));
+  const covering=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date));
   const all=includeMultiDay?covering:covering.filter(t=>!wpTaskHasDateSpan(t));
   const open=all.filter(t=>wpTaskStatus(t)!=='done'), done=all.filter(t=>wpTaskStatus(t)==='done');
   const activeCount=covering.filter(t=>!['done','cancelled'].includes(wpTaskStatus(t))).length;
@@ -13671,16 +13684,26 @@ function wpDayColumn(date,entities,{spanSpace=0,includeMultiDay=false}={}) {
   return `<section class="wp-day ${date===keyToday?'is-today':''} ${date===WP.mobileDate?'is-selected':''}" data-drop-date="${date}" aria-label="${WP_WEEKDAYS[idx]} ${wpFmtDate(date,true)}, ${covering.length} задач">
     <header class="wp-day-head"><div><span>${WP_WEEKDAYS[idx]}</span><b>${wpDateParts(date).d}</b><small>${WP_MONTHS[wpDateParts(date).m-1]}</small></div><span class="wp-day-count" aria-label="${activeCount} незавершённых">${activeCount||''}</span></header>
     <div class="wp-day-span-spacer" aria-hidden="true" style="--wp-day-span-space:${spanSpace}px"></div>
-    <div class="wp-day-items">${open.map(t=>wpTaskCard(t,{inDay:true,compact:true})).join('')}${!open.length&&!done.length&&!covering.length?`<p class="wp-day-empty">Пока свободно</p>`:''}${done.length?`<details class="wp-done-fold"><summary>Готово · ${done.length}</summary><div>${done.map(t=>wpTaskCard(t,{inDay:true,compact:true})).join('')}</div></details>`:''}</div>
+    <div class="wp-day-items">${open.map(t=>wpTaskCard(t,{inDay:true,compact:true})).join('')}${!open.length&&!done.length&&!covering.length?`<p class="wp-day-empty">Пока свободно</p>`:''}${done.length?`<details class="wp-done-fold" ${WP.showCompleted!==false?'open':''}><summary>Готово · ${done.length}</summary><div>${done.map(t=>wpTaskCard(t,{inDay:true,compact:true})).join('')}</div></details>`:''}</div>
     <button type="button" class="wp-add-day" data-act="wpQuickDay" data-date="${date}">${ico('plus')} Добавить</button>
   </section>`;
+}
+function wpCalendarCompletedToggle() {
+  const shown=WP.showCompleted!==false, label=shown?'Скрыть выполненные задачи':'Показать выполненные задачи';
+  return `<button type="button" class="btn sm ghost wp-calendar-completed-toggle" data-act="wpCalendarToggleCompleted" aria-pressed="${shown}" aria-label="${label}" title="${label}">${ico(shown?'eye-off':'eye')}<span>${label}</span></button>`;
+}
+function wpToggleCalendarCompleted() {
+  WP.showCompleted=WP.showCompleted===false;
+  if(!wpIsObj(S.ui)) S.ui={};
+  S.ui.plannerShowCompletedTasks=WP.showCompleted;
+  persist(); wpRenderView();
 }
 function wpWeekSummary(entities) {
   const active=entities.filter(t=>['open','waiting'].includes(wpTaskStatus(t))).length;
   const done=entities.filter(t=>wpTaskStatus(t)==='done').length;
   const overdue=entities.filter(wpDeadlineOverdue).length;
   const mins=entities.filter(t=>['open','waiting'].includes(wpTaskStatus(t))).reduce((s,t)=>s+(+t.durationEstimateMinutes||0),0);
-  return `<div class="wp-week-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${mins?`<span>${ico('timer')}~${esc(fmtDur(mins))} оценки</span>`:''}</div>`;
+  return `<div class="wp-week-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${mins?`<span>${ico('timer')}~${esc(fmtDur(mins))} оценки</span>`:''}${wpCalendarCompletedToggle()}</div>`;
 }
 function wpMobileStrip() {
   return `<div class="wp-mobile-weekstrip" role="tablist" aria-label="День недели">${wpWeekKeys(WP.weekStart).map((date,i)=>`<button type="button" class="${WP.mobileDate===date?'active':''} ${wpDateKey(Date.now())===date?'today':''}" data-act="wpMobileDay" data-date="${date}" role="tab" aria-selected="${WP.mobileDate===date}"><small>${WP_WEEKDAYS[i]}</small><b>${wpDateParts(date).d}</b><i></i></button>`).join('')}</div>`;
@@ -13693,11 +13716,11 @@ function wpMonthEvent(task) {
   const status=wpTaskStatus(task), q=wpQuadrant(task), priority=wpPriority(task);
   const qShort=['Сейчас','Запланировать','Делегировать','Отложить'];
   const priorityLabel=WP_PRIORITY_RU[priority] || 'Обычный';
-  const title=`${task.title||'Без названия'} · Приоритет: ${priorityLabel}${q==null?'':` · Матрица: ${WP_QUADRANTS[q][1]}`}`;
+  const title=`${task.title||'Без названия'}${status==='done'?' · Статус: выполнена':''} · Приоритет: ${priorityLabel}${q==null?'':` · Матрица: ${WP_QUADRANTS[q][1]}`}`;
   return `<button type="button" class="wp-month-event wp-title-marquee-clip p-${esc(priority)} ${status==='done'?'is-done':''} ${status==='waiting'?'is-waiting':''}" data-act="taskEdit" ${wpEntityDataAttrs(task)} aria-label="${esc(title)}"><i></i><span class="wp-title-marquee-text">${esc(task.title||'Без названия')}</span>${q==null?'':`<small>${qShort[q]}</small>`}</button>`;
 }
 function wpMonthDay(date,entities,spanSpace=0) {
-  const list=entities.filter(t=>wpTaskCoversDate(t,date)), single=list.filter(t=>!wpTaskHasDateSpan(t));
+  const list=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date)), single=list.filter(t=>!wpTaskHasDateSpan(t));
   const visible=single.slice(0,3), more=single.length-visible.length, p=wpDateParts(date), outside=wpMonthStart(date)!==WP.monthStart, today=date===wpDateKey(Date.now()), selected=date===WP.mobileDate;
   return `<section class="wp-month-day ${outside?'is-out':''} ${today?'is-today':''} ${selected?'is-selected':''}" role="gridcell" style="--wp-month-span-space:${spanSpace}px" data-drop-date="${date}" aria-label="${esc(wpDateLabel(date))}, ${list.length} задач">
     <header class="wp-month-day-head"><button type="button" class="wp-month-date ${today?'today':''}" data-act="wpCalendarSelectDate" data-date="${date}" aria-label="Выбрать ${esc(wpDateLabel(date))}">${p?p.d:''}</button>${list.length?`<span class="wp-month-count">${list.length}</span>`:''}<button type="button" class="wp-month-add" data-act="wpQuickDay" data-date="${date}" aria-label="Добавить задачу на ${esc(wpDateLabel(date))}">${ico('plus')}</button></header>
@@ -13711,13 +13734,13 @@ function wpMonthWeek(days,entities) {
 }
 function wpMonthSummary(entities) {
   const active=entities.filter(t=>['open','waiting'].includes(wpTaskStatus(t))).length, done=entities.filter(t=>wpTaskStatus(t)==='done').length, overdue=entities.filter(wpDeadlineOverdue).length;
-  return `<div class="wp-month-summary"><span>${ico('list')}<b>${active+done}</b> задач</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span></div>`;
+  return `<div class="wp-month-summary"><span>${ico('list')}<b>${active+done}</b> задач</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${wpCalendarCompletedToggle()}</div>`;
 }
 function wpMonthView() {
   if(wpMonthStart(WP.mobileDate)!==WP.monthStart) WP.mobileDate=WP.monthStart;
   const days=wpMonthKeys(WP.monthStart), entities=wpMonthEntities(WP.monthStart), monthEnd=wpAddDays(wpShiftMonth(WP.monthStart,1),-1);
   const inMonth=entities.filter(t=>wpTaskOverlapsRange(t,WP.monthStart,monthEnd));
-  const selected=entities.filter(t=>wpTaskCoversDate(t,WP.mobileDate)), label=wpDateLabel(WP.mobileDate);
+  const selected=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,WP.mobileDate)), label=wpDateLabel(WP.mobileDate);
   const weeks=Array.from({length:Math.ceil(days.length/7)},(_,i)=>days.slice(i*7,i*7+7));
   return `${wpMonthSummary(inMonth)}${wpQuickGlobalArea()}<div class="wp-month-calendar"><div class="wp-month-dows" role="row">${WP_WEEKDAYS.map(d=>`<div role="columnheader">${d}</div>`).join('')}</div><div class="wp-month-grid" role="grid" aria-label="${esc(wpFmtMonth(WP.monthStart))}">${weeks.map(week=>wpMonthWeek(week,entities)).join('')}</div></div><section class="wp-month-selected"><header><div><h2>${esc(label)}</h2><span>${selected.length} ${plural(selected.length,['задача','задачи','задач'])}</span></div><button type="button" class="btn sm ghost" data-act="wpQuickDay" data-date="${esc(WP.mobileDate)}">${ico('plus')}Добавить</button></header><div class="wp-task-list">${selected.map(t=>wpTaskCard(t,{compact:true})).join('')||wpEmpty('calendar','На этот день задач нет','Выберите дату в календаре, чтобы посмотреть её задачи.')}</div></section>`;
 }
@@ -14825,6 +14848,7 @@ Object.assign(ACT,{
   wpQuickCancel:()=>wpQuickCancel(),
   wpWeekMove:el=>wpNavWeek(el.dataset.delta),
   wpCalendarMove:el=>wpCalendarMove(el.dataset.delta),
+  wpCalendarToggleCompleted:()=>wpToggleCalendarCompleted(),
   wpWeekToday:()=>wpGoToday(),
   wpMobileDay:el=>wpSetMobileDay(el.dataset.date),
   wpCalendarSelectDate:el=>wpSelectCalendarDate(el.dataset.date),

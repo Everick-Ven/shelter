@@ -72,6 +72,13 @@ assert(plannerCss.includes('.wp-month-span-layer{top:40px;left:8px;right:8px}'))
 assert(plannerCss.includes('.wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));'));
 assert(plannerCss.includes('.wp-calendar-span.continues-before') && plannerCss.includes('.wp-calendar-span.continues-after'));
 assert(plannerCss.includes('.wp-calendar-span.p-critical') && plannerCss.includes('.wp-calendar-span.p-high') && plannerCss.includes('.wp-calendar-span.p-normal') && plannerCss.includes('.wp-calendar-span.p-none'), 'horizontal range row tints map to urgency, not Matrix quadrants');
+assert(plannerCss.includes('.wp-calendar-span.is-done{opacity:1;border-color:color-mix(in srgb,rgb(var(--ok))'));
+assert(plannerCss.includes('.wp-calendar-span.is-done>span{color:rgb(var(--ok));text-decoration:line-through}'));
+assert(plannerCss.includes('.wp-month-event.is-done{opacity:1;border-left-color:rgb(var(--ok))'));
+assert(plannerCss.includes('.wp-month-event.is-done>span{color:rgb(var(--ok));text-decoration:line-through}'));
+assert(plannerCss.includes('.wp-task.is-done{border-color:color-mix(in srgb,rgb(var(--ok)) 36%,var(--line))') && plannerCss.includes('.wp-task.is-done .wp-task-title{color:rgb(var(--ok));text-decoration:line-through}'), 'completed task cards use green and a strike-through');
+assert(plannerCss.includes('.wp-week-grid.is-all-day .wp-task.is-done{border-color:color-mix(in srgb,rgb(var(--ok)) 36%,var(--line));border-left-color:rgb(var(--ok));background:color-mix(in srgb,rgb(var(--ok)) 10%,var(--card))'), 'week-card priority tints do not override the completed green state');
+assert(plannerCss.includes('.wp-calendar-completed-toggle{flex:none;display:inline-flex;'));
 assert(plannerCss.includes('.wp-month-day.is-today{'));
 assert(plannerCss.includes('.wp-month-selected{'));
 assert(plannerCss.includes('.wp-month-event.p-critical') && plannerCss.includes('.wp-month-event.p-high') && plannerCss.includes('.wp-month-event.p-normal') && plannerCss.includes('.wp-month-event.p-none'), 'month task colors must map to urgency rather than Matrix quadrants');

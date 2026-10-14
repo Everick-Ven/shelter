@@ -309,6 +309,8 @@ jobs:
         run: node tests/ui_extensions_test.js
       - name: Task planner and migration regression test
         run: node tests/ui_tasks_test.js
+      - name: UI appearance regression test
+        run: node tests/ui_appearance_test.js
       - name: Notification marquee regression test
         run: node tests/ui_toast_marquee_test.js
       - name: CSP hashes and renderer secret isolation regression test

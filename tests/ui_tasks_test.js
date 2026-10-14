@@ -15,7 +15,7 @@ const planner = html.slice(start, end);
 
 assert(html.includes('<style id="shelter-week-planner-style">'), 'the task planner stylesheet must be present');
 const weekDayCss = html.match(/\.wp-week-grid\.is-all-day \.wp-day\{([^}]*)\}/);
-assert(weekDayCss && /border:0/.test(weekDayCss[1]) && !/border-right:1px/.test(weekDayCss[1]), 'week columns must not leave orphan vertical day separators outside spanning task bars');
+assert(weekDayCss && /border:0/.test(weekDayCss[1]) && !/border-right:1px/.test(weekDayCss[1]), 'week columns must remain open without permanent day separators');
 assert(html.includes('wpMigrateTaskStores(breg)'), 'legacy task migration must run during load');
 assert(planner.includes('function wpFinalizeTaskMigration()'), 'migration must require an explicit confirmation step');
 assert(planner.includes('debounce(e=>{WP.query=e.target.value;wpRenderView();},150)'), 'task search must be debounced by 150 ms');
@@ -90,9 +90,9 @@ vm.runInNewContext(harness + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
-  wpTaskHomeType, wpIsMine, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
-  wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpCalendarSpanLayout, wpEffectiveOccurrence, wpApplySchedule,
-  wpDeadlineText, wpTaskCard, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
+  wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
+  wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule,
+  wpDeadlineText, wpTaskCard, wpDayColumn, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpSetCalendarMode, wpCalendarMove, wpToggleSidebar,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
 };`, context, { timeout: 5000 });
@@ -143,6 +143,14 @@ assert.strictEqual(api.wpIsMine({ assignee: 'Я' }), true);
 assert.strictEqual(api.wpIsMine({ assignee: 'Alex' }), true);
 assert.strictEqual(api.wpIsMine({ assignee: 'alex@example.test' }), true);
 assert.strictEqual(api.wpIsMine({ assignee: 'Другой исполнитель' }), false);
+assert.strictEqual(api.wpAssigneeLabel({ assignee: 'Я' }), 'Alex');
+assert.strictEqual(api.wpAssigneeLabel({ assignee: 'ВЫ' }), 'Alex');
+assert.strictEqual(api.wpAssigneeLabel({ assignee: 'ALEX@example.test' }), 'Alex');
+const assigneeChoices = Array.from(api.wpAssigneeChoices());
+assert.strictEqual(assigneeChoices.filter(name => name === 'Alex').length, 1, 'self aliases collapse into one account-name option');
+for (const alias of ['Вы', 'Я', 'вы', 'я', 'YOU', 'me', 'alex@example.test']) assert(!assigneeChoices.includes(alias), `assignee choices must not expose the self alias ${alias}`);
+const selfAliasCard = api.wpTaskCard(state.board.tasks.find(task => task.id === 'self-ya'), { compact: true });
+assert(selfAliasCard.includes('Исполнитель: Alex') && selfAliasCard.includes('<span>Alex</span>'), "compact cards display the signed-in user's name instead of Вы/Я");
 // Both calendar modes span every visible project on the active board, even if a project detail was open previously.
 api.WP.projectId = 'project-1';
 const weekIds = new Set(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id));
@@ -171,9 +179,9 @@ assert(monthMarkup.includes('Исполнитель Я') && monthMarkup.includes
 assert(!api.wpNavHtml().includes('data-view="matrix"') && !api.wpNavHtml().includes('label:"Матрица"'), 'Matrix must no longer be a planner navigation destination');
 const rangeTasks = [
   { id: 'span-before-month', title: 'Срок на границе месяца', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-09-25', deadlineAt: '2026-10-02', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 1, order: 20, tags: [] },
-  { id: 'week-span', title: 'Задача на несколько дней', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-10', deadlineAt: '2026-10-13', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 0, order: 21, tags: [] },
-  { id: 'month-span-a', title: 'Подготовка A', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-14', deadlineAt: '2026-10-16', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 1, order: 22, tags: [] },
-  { id: 'month-span-b', title: 'Подготовка B', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-14', deadlineAt: '2026-10-17', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 2, order: 23, tags: [] },
+  { id: 'week-span', title: 'Задача на несколько дней', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-10', deadlineAt: '2026-10-13', statusKey: 'open', priorityKey: 'high', matrixQuadrant: 0, order: 21, tags: [] },
+  { id: 'month-span-a', title: 'Подготовка A', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-14', deadlineAt: '2026-10-16', statusKey: 'open', priorityKey: 'critical', matrixQuadrant: 1, order: 22, tags: [] },
+  { id: 'month-span-b', title: 'Подготовка B', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-14', deadlineAt: '2026-10-17', statusKey: 'open', priorityKey: 'none', matrixQuadrant: 2, order: 23, tags: [] },
   { id: 'single-day-task', title: 'Однодневная задача', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-15', deadlineAt: null, statusKey: 'open', priorityKey: 'normal', matrixQuadrant: null, order: 24, tags: [] }
 ];
 state.board.tasks.push(...rangeTasks);
@@ -184,21 +192,28 @@ const monthRangeIds = new Set(Array.from(api.wpMonthEntities('2026-10-01'), task
 assert(monthRangeIds.has('span-before-month'), 'month view must include ranges that begin before its visible grid');
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
 const rangeMonthMarkup = api.wpViewHtml();
-assert(rangeMonthMarkup.includes('wp-month-span-layer') && rangeMonthMarkup.includes('wp-calendar-span--month'));
-assert(rangeMonthMarkup.includes('Задача на несколько дней'), 'ranges scheduled in October are rendered as continuous month bars');
-assert(rangeMonthMarkup.includes('Срок на границе месяца') && rangeMonthMarkup.includes('25 сент. 2026 — 2 окт. 2026'), 'month bars show a task that crosses into October and retain its full range');
+assert(!rangeMonthMarkup.includes('wp-month-span-layer') && !rangeMonthMarkup.includes('wp-calendar-span'), 'month mode must not use thin spanning ribbons');
+assert(rangeMonthMarkup.includes('Задача на несколько дней'), 'multi-day ranges appear as normal task entries inside covered date cells');
 assert(rangeMonthMarkup.includes('wp-month-selected') && rangeMonthMarkup.includes('Срок на границе месяца'), 'a range task is listed when the selected date is inside its span');
 assert(rangeMonthMarkup.includes('data-act="wpQuickDay"'), 'month dates retain their own add-task controls');
 const weekDays = Array.from({ length: 7 }, (_, i) => api.wpAddDays('2026-10-12', i));
-const weekSpanEntities = api.wpWeekEntities('2026-10-12');
-const weekLayout = api.wpCalendarSpanLayout(weekDays, weekSpanEntities);
-assert.strictEqual(weekLayout.laneCount, 2, 'overlapping all-day ranges occupy separate lanes');
-assert(weekLayout.segments.find(segment => segment.task.id === 'week-span').continuesBefore, 'week range bars clip at the week boundary');
+const monthWeekMarkup = api.wpMonthWeek(octoberGrid.slice(14, 21), rangeTasks);
+const countId = (markup, id, attribute='data-id') => (markup.match(new RegExp(`${attribute}="${id}"`, 'g')) || []).length;
+assert.strictEqual(countId(monthWeekMarkup, 'week-span'), 2, 'a week-crossing task is rendered as a full card in each covered date');
+assert.strictEqual(countId(monthWeekMarkup, 'month-span-a'), 3, 'month cells repeat a multi-day card once for each covered date');
+assert.strictEqual(countId(monthWeekMarkup, 'month-span-b'), 4, 'the end date is included when repeating a task card across month cells');
+assert(monthWeekMarkup.includes('wp-month-event wp-title-marquee-clip p-critical'), 'month task tint follows critical priority, not its Matrix quadrant');
+assert(monthWeekMarkup.includes('wp-month-event wp-title-marquee-clip p-none'), 'no-priority tasks keep a neutral month-card tint');
+const rangeWeekCards = api.wpWeekCalendar(weekDays, rangeTasks);
+assert.strictEqual(countId(rangeWeekCards, 'week-span', 'data-task-id'), 2, 'the week view repeats a full task card for every covered date');
+assert(rangeWeekCards.includes('wp-task q0 p-high'), 'week-card color follows urgency even when the Matrix quadrant differs');
+assert(!rangeWeekCards.includes('wp-calendar-span') && !rangeWeekCards.includes('wp-day-span-spacer'), 'week mode has no ribbon layer or reserved bar lane');
 api.WP.weekStart = '2026-10-12'; api.WP.mobileDate = '2026-10-14'; api.WP.calendarMode = 'week';
 const rangeWeekMarkup = api.wpViewHtml();
-assert(rangeWeekMarkup.includes('wp-week-grid is-all-day') && rangeWeekMarkup.includes('wp-week-span-layer'));
+assert(rangeWeekMarkup.includes('wp-week-grid is-all-day'));
 assert(rangeWeekMarkup.includes('Однодневная задача') && rangeWeekMarkup.includes('Задача на несколько дней'));
-assert(rangeWeekMarkup.includes('Многодневные задачи на весь день'), 'date-only tasks remain in all-day lanes without invented time slots');
+assert.strictEqual(countId(rangeWeekMarkup, 'week-span', 'data-task-id'), 2, 'the desktop week grid renders a date-only card in each covered day');
+assert(!rangeWeekMarkup.includes('wp-calendar-span') && !rangeWeekMarkup.includes('Многодневные задачи на весь день'), 'calendar tasks do not rely on time slots or thin all-day ribbons');
 assert(rangeWeekMarkup.includes('data-act="wpQuickDay"'), 'week days retain their own add-task controls');
 api.WP.view = 'week';
 assert(!api.wpHeaderControls().includes('data-act="wpQuickGlobal"'), 'the global add button is hidden in week mode');
@@ -223,6 +238,7 @@ state.board.tasks = [];
 const createdPersonal = api.wpCreateTask('Личная с меткой', '2026-10-13', null, 2, 'Я', false, 'personal');
 assert(createdPersonal);
 assert.strictEqual(createdPersonal.homeType, 'personal');
+assert.strictEqual(createdPersonal.assignee, 'Alex', 'new tasks persist the canonical account name rather than a self alias');
 assert.strictEqual(createdPersonal.matrixQuadrant, 2);
 assert.strictEqual(createdPersonal.statusKey, 'open');
 const formValues = {
@@ -243,6 +259,7 @@ assert(legacyMatrixForm.includes('Матрица · прежний список'
 const applied = { id: 'new-project-task', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null };
 api.wpApplyTaskForm(applied, { ...formValues, title: 'Метка в проекте', kind: 'project', projectId: 'project-1', quadrant: 0, statusKey: 'open' }, { newTask: true });
 assert.strictEqual(applied.homeType, 'project');
+assert.strictEqual(applied.assignee, 'Alex', 'saving an alias from an older form stores the account name');
 assert.strictEqual(applied.matrixQuadrant, 0);
 assert.strictEqual(applied.statusKey, 'open');
 assert.strictEqual(applied.deadlineAt, '2026-10-15');
@@ -253,6 +270,7 @@ const taskMarkup = api.wpTaskCard({ id: 'display-task', title: longTitle, homeTy
 assert(taskMarkup.includes('class="wp-task-title wp-title-marquee-clip"'));
 assert(taskMarkup.includes(`<span class="wp-title-marquee-text">${longTitle}</span>`));
 assert(taskMarkup.includes('До: 19.10.2026'));
+assert(taskMarkup.includes('class="wp-task qnone p-normal'), 'task cards expose the priority class used for urgency coloring');
 const compactDateMarkup = api.wpTaskCard({ id: 'week-date-task', title: 'Короткая карточка', homeType: 'personal', assignee: 'Alex', deadlineAt: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true, inDay: true });
 assert(compactDateMarkup.includes('title="До: 19.10.2026"') && compactDateMarkup.includes('До: 19.10</span>'), 'week cells keep the date compact while retaining the full numeric deadline on hover');
 const makeTitleClip = (scrollWidth, clientWidth, textContent=longTitle) => {

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-o13vry+5TkZ7Wbbt0Y8f94i4tphyRn1hpt8ZFVViuPQ=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-/M+S3Zt183lJHXjy5o9f7Kip3U+p2wDKBknYcLT/vls=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -5085,7 +5085,7 @@ const PREF_DEFAULTS = {
   trackers: true, https: true, fp: true, strict: false, cookies: true,
   ruca: true, rucaupd: true, gostbadge: true,
   pinnedProtect: true, dragTabs: true, hoverPreview: false, lazyTabs: true, memSaver: true,
-  suggestHistory: true, checkUpdates: true, startup: 'ntp', dns: 'cf', lang: 'ru', motion: 'full', glow: true, gfx: 'balance', askDownload: false,
+  suggestHistory: true, checkUpdates: true, startup: 'ntp', dns: 'cf', lang: 'ru', motion: 'full', glow: true, glowAnimation: true, gfx: 'balance', askDownload: false,
   menuAdapt: true, menuDev: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true, persets: {}, cleanSurf: false, glassOp: 82, radius: 16,
   uiScale: 100, fontScaleI: 100, fontScaleD: 100, fontScaleM: 100,
   glowMode: 'theme', glowColor: '#5E8BFF', glowIntensity: 45, glowSat: 60
@@ -5443,6 +5443,7 @@ function load() {
   S.prefs.gfx = ['beauty', 'balance', 'perf'].includes(S.prefs.gfx) ? S.prefs.gfx : 'balance';
   S.prefs.motion = S.prefs.gfx === 'perf' ? 'off' : 'full';
   if (typeof S.prefs.glow !== 'boolean') S.prefs.glow = true;
+  if (typeof S.prefs.glowAnimation !== 'boolean') S.prefs.glowAnimation = true;
   if (S.ui.dlSeen == null) S.ui.dlSeen = Date.now();
   S.deep = !!lux.deep; S.account = lux.account || null;
   S.ai = aiFromStore(store.json('shelter:ai', null));
@@ -5916,7 +5917,7 @@ function segHtml(name, opts, val, cls = '') {
 }
 function setSegValue(seg, v) { if (!seg) return; $$('button[data-v]', seg).forEach(b => b.classList.toggle('on', b.dataset.v === v)); segSync(seg); }
 const swDisabled = key => key === 'glow' && S.prefs.gfx === 'perf';
-const swHtml = (key, on, disabled = swDisabled(key)) => `<button class="sw-t ${on ? 'on' : ''}${disabled ? ' is-disabled' : ''}" data-sw="${key}" role="switch" aria-checked="${!!on}"${key === 'glow' ? ' aria-label="Включение или отключение свечения"' : ''}${disabled ? ' disabled aria-disabled="true"' : ''}><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></button>`;
+const swHtml = (key, on, disabled = swDisabled(key)) => `<button class="sw-t ${on ? 'on' : ''}${disabled ? ' is-disabled' : ''}" data-sw="${key}" role="switch" aria-checked="${!!on}"${key === 'glow' ? ' aria-label="Включение или отключение свечения"' : key === 'glowAnimation' ? ' aria-label="Анимация подсветки"' : ''}${disabled ? ' disabled aria-disabled="true"' : ''}><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></button>`;
 const swState = key => key === 'ghost' ? S.ghost : key === 'deep' ? S.deep : key === 'glow' ? S.prefs.glow !== false : !!S.prefs[key];
 function syncSwitches() {
   /* Область — весь документ: один и тот же переключатель живёт в настройках,
@@ -5943,6 +5944,7 @@ function syncSwitches() {
 }
 const PREF_TOAST = { trackers: ['Блокировка трекеров включена', 'Блокировка трекеров выключена', 'shield'], cookies: ['Cookies принимаются автоматически (только необходимые)', 'Автосогласие cookies выключено', 'cookie'], https: ['HTTPS-only и DoH включены', 'HTTPS-only выключен', 'lock'], fp: ['Защита от отпечатка включена', 'Защита от отпечатка выключена', 'finger'], strict: ['Строгий режим включён', 'Строгий режим выключен', 'shield-check'],
   glow: ['Свечение включено', 'Свечение выключено', 'sparkles'],
+  glowAnimation: ['Анимация подсветки включена', 'Анимация подсветки выключена', 'sparkles'],
   menuAdapt: ['«Адаптация» показана в меню «...»', '«Адаптация» скрыта в меню «...»', 'monitor'],
   menuDev: ['DevTools-пункт показан в меню «...»', 'DevTools-пункт скрыт в меню «...»', 'code'],
   menuZoom: ['Масштаб страницы показан в меню «...»', 'Масштаб страницы скрыт в меню «...»', 'search'],
@@ -5965,6 +5967,7 @@ function toggleSetting(key, el) {
   if (achievementBefore) reconcileProfileAchievementChange(achievementBefore);
   syncSwitches();
   if (key === 'glow' || key === 'cleanSurf') applyGlowPrefs();
+  if (key === 'glowAnimation') { try { Hero.relayout(); } catch (_) {} }
   if (key === 'trackers') applyBlockerPref();
   if (key === 'cookies') applyCookiePref();
   if (key === 'fp') applyFpPref();
@@ -7465,6 +7468,7 @@ const Hero = (() => {
   }
   function glowOff() { return gfxLvl() === 'perf' || !S || !S.prefs || S.prefs.glow === false; }
   function gfxLvl() { return (S && S.prefs && S.prefs.gfx) || 'balance'; }
+  function glowAnimationOn() { return !S || !S.prefs || S.prefs.glowAnimation !== false; }
   function clearCanvas() {
     stop();
     clearTimeout(H.kt); H.kt = 0; H.kick = 1;
@@ -7506,7 +7510,7 @@ const Hero = (() => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
-    const still = gfxLvl() === 'balance' || (typeof REDUCED === 'function' && REDUCED()) || location.hash === '#still';
+    const still = gfxLvl() === 'balance' || !glowAnimationOn() || (typeof REDUCED === 'function' && REDUCED()) || location.hash === '#still';
     const offset = still ? 0 : ((now - t0) / PERIOD) % 1;
     drawGlow(offset); drawChars(offset); drawRim(offset);
   }
@@ -7525,7 +7529,7 @@ const Hero = (() => {
       const target = glv === 'beauty' ? 32 : 64;
       H.gap = target > H.gap ? target : Math.max(target, H.gap - 8);
     }
-    if (glowOff() || gfxLvl() === 'balance') return;
+    if (glowOff() || gfxLvl() === 'balance' || !glowAnimationOn()) return;
     if (typeof REDUCED === 'function' && REDUCED()) return;
     H.raf = requestAnimationFrame(loop);
   }
@@ -7533,7 +7537,7 @@ const Hero = (() => {
     if (!H.visible || H.paused) return;
     if (glowOff()) { clearCanvas(); return; }
     resize();
-    if (gfxLvl() === 'balance') { paint(performance.now()); return; }
+    if (gfxLvl() === 'balance' || !glowAnimationOn()) { paint(performance.now()); return; }
     if (!H.raf) H.raf = requestAnimationFrame(loop);
   }
   function stop() { if (H.raf) { cancelAnimationFrame(H.raf); H.raf = 0; } }
@@ -7541,7 +7545,7 @@ const Hero = (() => {
   window.addEventListener('resize', () => {
     if (!H.visible) return;
     pathKey = ''; resize();
-    if (H.paused || gfxLvl() === 'balance' || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
+    if (H.paused || gfxLvl() === 'balance' || !glowAnimationOn() || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
     else if (!H.raf) start();
   });
   let ro = null;
@@ -7550,7 +7554,7 @@ const Hero = (() => {
     ro = new ResizeObserver(() => {
       if (!H.visible) return;
       pathKey = ''; resize();
-      if (H.paused || gfxLvl() === 'balance' || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
+      if (H.paused || gfxLvl() === 'balance' || !glowAnimationOn() || (typeof REDUCED === 'function' && REDUCED())) paint(performance.now());
       else if (!H.raf) start();
     });
     const hero = $('#hero'), hc = $('.hero-center'), omni = $('#omni'), bmc = $('#bmCenter');
@@ -7579,7 +7583,7 @@ const Hero = (() => {
       if (H.paused) { paint(performance.now()); return; }
       stop(); start();
     },
-    debug() { return { visible: H.visible, paused: H.paused, raf: H.raf, canvas: !!canvas, canvasVisibility: canvas ? canvas.style.visibility : '', offscreenBuffers: (off ? 1 : 0) + (rimLayer ? 1 : 0) + bloomPool.length, balanceCache: false, glowEnabled: !glowOff(), glowAnimated: !glowOff() && gfxLvl() === 'beauty' }; },
+    debug() { return { visible: H.visible, paused: H.paused, raf: H.raf, canvas: !!canvas, canvasVisibility: canvas ? canvas.style.visibility : '', offscreenBuffers: (off ? 1 : 0) + (rimLayer ? 1 : 0) + bloomPool.length, balanceCache: false, glowEnabled: !glowOff(), glowAnimated: !glowOff() && gfxLvl() === 'beauty' && glowAnimationOn() }; },
     remask() { pathKey = ''; }
   };
 })();
@@ -11350,7 +11354,7 @@ function settingsHtml() {
           ${row('Тёмная тема', 'Какая тема применяется в тёмном режиме', segHtml('schemeDark', [['graphite', 'Графит'], ['obsidian', 'Обсидиан'], ['amethyst', 'Аметист']], schemeThemeFor('dark'), 'sm'))}
           ${row('Светлая тема', 'Какая тема применяется в светлом режиме', segHtml('schemeLight', [['ivory', 'Слоновая кость'], ['porcelain', 'Фарфор']], schemeThemeFor('light'), 'sm'))}
           ${row('Боковая панель', kb('⌘\\ — свернуть или развернуть'), segHtml('sidebar', [['full', 'Развёрнута'], ['rail', 'Компактная']], $('#app').classList.contains('collapsed') ? 'rail' : 'full', 'sm'))}
-          ${row('Режим графики', 'Визуал — анимированное свечение и blur; Баланс — статичное свечение без blur; Скорость — эффекты выключены', segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], P.gfx, 'sm'))}
+          ${row('Режим графики', 'Визуал — свечение и blur; анимация свечения — в меню «Оформление и вкладки»; Баланс — статичное свечение без blur; Скорость — эффекты выключены', segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], P.gfx, 'sm'))}
           <div class="set-row ${P.gfx === 'perf' ? 'is-disabled' : ''}" id="setGlowRow"><div class="tx"><b>Свечение</b><span>В «Визуале» — анимированное, в «Балансе» — статичное. В «Скорости» временно выключается; выбор сохраняется.</span></div>${sw('glow')}</div>
           <div class="set-row ${glowOff ? 'is-disabled' : ''}" id="setGlowModeRow"><div class="tx"><b>Параметры свечения</b><span>Настраиваются в режимах «Визуал» и «Баланс»</span></div>${segHtml('glowMode', [['theme', 'По теме'], ['custom', 'Свой цвет']], P.glowMode === 'custom' ? 'custom' : 'theme', 'sm')}</div>
           <div class="set-row ${glowOff ? 'is-disabled' : ''}" id="glowCustomRow" ${P.glowMode === 'custom' ? '' : 'hidden'}><div class="tx"><b>Палитра свечения</b><span>Деликатные оттенки с защитой от перенасыщения</span></div><div class="glow-palette">${GLOW_PALETTE.map(([hex, lbl]) => `<button type="button" class="glow-sw ${(P.glowColor || '#5E8BFF').toUpperCase() === hex ? 'on' : ''}" data-act="glowSw" data-color="${hex}" style="--gc-sw:${hex}" title="${lbl}" aria-label="${lbl}"></button>`).join('')}<label class="glow-picker-wrap" style="--gc-custom:${esc(P.glowColor || '#5E8BFF')}"><span class="glow-picker-dot" id="glowPickerDot"></span><span>Свой оттенок</span><input type="color" id="glowColorPicker" value="${esc(P.glowColor || '#5E8BFF')}" ${glowOff ? 'disabled' : ''} aria-label="Выбрать свой цвет свечения"></label></div></div>
@@ -11769,7 +11773,8 @@ function applyGlassOp() { document.documentElement.style.setProperty('--glass-op
 /* Скругления: ползунок задаёт радиус карточек (--r-m), остальные ступени
    держат ту же разницу, что и исходные токены (16/20/26/12/9). */
 function applyRadius() {
-  const v = clamp(Math.round(+S.prefs.radius || 16), 10, 30);
+  const v = clamp(Math.round(+S.prefs.radius || 16), 10, 23);
+  S.prefs.radius = v;
   const st = document.documentElement.style;
   /* Точечные радиусы в правилах заданы как calc(Npx * --rs) — один множитель
      тянет за ползунком весь интерфейс, а не только карточки-токены. */
@@ -12091,8 +12096,8 @@ function quickPanelHtml() {
   const bmPos = ['top', 'center', 'bottom'].includes(S.ui.bmPos) ? S.ui.bmPos : 'center';
   const glassOp = clamp(+S.prefs.glassOp || 82, 40, 100);
   const shownOp = isPerf ? 100 : glassOp;
-  const radius = clamp(Math.round(+S.prefs.radius || 16), 10, 30);
-  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}<div class="q-row ${isPerf ? 'is-disabled' : ''}" id="qGlowRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Свечение</div>${swHtml('glow', S.prefs.glow !== false, isPerf)}</div></div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec"><div class="q-row"><div class="q-h">Скругления углов</div><b class="q-val" id="radiusVal">${radius}px</b></div><input type="range" class="rng" id="radiusRange" min="10" max="30" step="1" value="${radius}" aria-label="Скругления углов"></div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
+  const radius = clamp(Math.round(+S.prefs.radius || 16), 10, 23);
+  return `<div class="q-sec"><div class="q-h">Производительность</div>${segHtml('motion', [['beauty', 'Визуал'], ['balance', 'Баланс'], ['perf', 'Скорость', 'Для слабых ПК']], gfx, 'sm fill')}<div class="q-row ${isPerf ? 'is-disabled' : ''}" id="qGlowRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Свечение</div>${swHtml('glow', S.prefs.glow !== false, isPerf)}</div><div class="q-row" id="qGlowAnimationRow" style="margin-top:10px;margin-bottom:0"><div class="q-h">Анимация подсветки</div>${swHtml('glowAnimation', S.prefs.glowAnimation !== false, false)}</div></div><div class="q-sec ${isPerf ? 'is-disabled' : ''}" id="glassOpSec"><div class="q-row"><div class="q-h">Прозрачность интерфейса</div><b class="q-val" id="glassOpVal">${shownOp}%</b></div><input type="range" class="rng" id="glassOpRange" min="40" max="100" step="1" value="${shownOp}" ${isPerf ? 'disabled' : ''} aria-disabled="${isPerf ? 'true' : 'false'}" aria-label="Прозрачность интерфейса"></div><div class="q-sec"><div class="q-row"><div class="q-h">Скругления углов</div><b class="q-val" id="radiusVal">${radius}px</b></div><input type="range" class="rng" id="radiusRange" min="10" max="23" step="1" value="${radius}" aria-label="Скругления углов"></div><div class="q-sec"><div class="q-h">Положение вкладок</div>${segHtml('tabPos', [['left', 'Слева'], ['top', 'Вверху'], ['right', 'Справа'], ['bottom', 'Снизу']], tabPos, 'sm fill')}</div><div class="q-sec"><div class="q-h">Положение закладок</div>${segHtml('bmPos', [['top', 'Сверху'], ['center', 'По центру'], ['bottom', 'Снизу']], bmPos, 'sm fill')}<button type="button" class="q-all" data-act="toggleBm" data-q-keep>${ico(S.ui.bmHidden ? 'eye' : 'eye-off')}<span>${S.ui.bmHidden ? 'Показать закладки' : 'Скрыть закладки'}</span></button></div><div class="q-sec"><div class="q-row"><div class="q-h">Открытые вкладки</div>${segHtml('tabView', [['list', 'Список'], ['tiles', 'Плитка']], view, 'sm')}</div>${quickTabsHtml()}<button type="button" class="q-all" data-act="page" data-page="tabs">${ico('grid')}<span>Посмотреть все</span></button></div>`;
 }
 function syncQuickPanel(full) {
   const el = OV.menu && OV.menu.el;
@@ -12137,7 +12142,7 @@ function quickPanel(anchor) {
   el.addEventListener('input', e => {
     const radiusR = e.target.closest('#radiusRange');
     if (radiusR) {
-      const v = clamp(Math.round(+radiusR.value) || 16, 10, 30);
+      const v = clamp(Math.round(+radiusR.value) || 16, 10, 23);
       S.prefs.radius = v; applyRadius();
       const lbl = el.querySelector('#radiusVal'); if (lbl) lbl.textContent = v + 'px';
       persistSoon();
@@ -12554,7 +12559,8 @@ window.shelterTest = {
     const snapshot = {
       gfx: S.prefs.gfx, motion: S.prefs.motion, glow: S.prefs.glow,
       glowActive: S.prefs.glow !== false && S.prefs.gfx !== 'perf',
-      glowAnimated: S.prefs.glow !== false && S.prefs.gfx === 'beauty',
+      glowAnimationEnabled: S.prefs.glowAnimation !== false,
+      glowAnimated: S.prefs.glow !== false && S.prefs.gfx === 'beauty' && S.prefs.glowAnimation !== false,
       dataGfx: body.dataset.gfx, glowOff: body.classList.contains('glow-off'),
       reduceMotion: root.classList.contains('reduce-motion'),
       blur: getComputedStyle(body).getPropertyValue('--bf-glass').trim(),

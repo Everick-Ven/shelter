@@ -92,7 +92,7 @@ globalThis.__api = {
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule,
-  wpDeadlineText, wpTaskCard, wpDayColumn, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
+  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpSetCalendarMode, wpCalendarMove, wpToggleSidebar,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
 };`, context, { timeout: 5000 });
@@ -192,28 +192,54 @@ const monthRangeIds = new Set(Array.from(api.wpMonthEntities('2026-10-01'), task
 assert(monthRangeIds.has('span-before-month'), 'month view must include ranges that begin before its visible grid');
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
 const rangeMonthMarkup = api.wpViewHtml();
-assert(!rangeMonthMarkup.includes('wp-month-span-layer') && !rangeMonthMarkup.includes('wp-calendar-span'), 'month mode must not use thin spanning ribbons');
-assert(rangeMonthMarkup.includes('Задача на несколько дней'), 'multi-day ranges appear as normal task entries inside covered date cells');
-assert(rangeMonthMarkup.includes('wp-month-selected') && rangeMonthMarkup.includes('Срок на границе месяца'), 'a range task is listed when the selected date is inside its span');
+assert(rangeMonthMarkup.includes('wp-month-span-layer') && rangeMonthMarkup.includes('wp-calendar-span--month'));
+assert(rangeMonthMarkup.includes('wp-calendar-span wp-calendar-span--month p-normal'), 'the month range row is tinted by task priority');
+assert(rangeMonthMarkup.includes('Задача на несколько дней'), 'month mode shows a continuous row for each multi-day task');
+assert(rangeMonthMarkup.includes('Срок на границе месяца') && rangeMonthMarkup.includes('25 сент. 2026 — 2 окт. 2026'), 'month rows show ranges that cross the month boundary and retain the full deadline range');
+assert(rangeMonthMarkup.includes('wp-month-selected') && rangeMonthMarkup.includes('Срок на границе месяца'), 'the selected-date list may keep a normal card for a task inside its span');
 assert(rangeMonthMarkup.includes('data-act="wpQuickDay"'), 'month dates retain their own add-task controls');
 const weekDays = Array.from({ length: 7 }, (_, i) => api.wpAddDays('2026-10-12', i));
-const monthWeekMarkup = api.wpMonthWeek(octoberGrid.slice(14, 21), rangeTasks);
 const countId = (markup, id, attribute='data-id') => (markup.match(new RegExp(`${attribute}="${id}"`, 'g')) || []).length;
-assert.strictEqual(countId(monthWeekMarkup, 'week-span'), 2, 'a week-crossing task is rendered as a full card in each covered date');
-assert.strictEqual(countId(monthWeekMarkup, 'month-span-a'), 3, 'month cells repeat a multi-day card once for each covered date');
-assert.strictEqual(countId(monthWeekMarkup, 'month-span-b'), 4, 'the end date is included when repeating a task card across month cells');
-assert(monthWeekMarkup.includes('wp-month-event wp-title-marquee-clip p-critical'), 'month task tint follows critical priority, not its Matrix quadrant');
-assert(monthWeekMarkup.includes('wp-month-event wp-title-marquee-clip p-none'), 'no-priority tasks keep a neutral month-card tint');
+const monthWeekMarkup = api.wpMonthWeek(octoberGrid.slice(14, 21), rangeTasks);
+assert.strictEqual(countId(monthWeekMarkup, 'week-span'), 1, 'a multi-day task is rendered once as a row, not copied into each date');
+assert.strictEqual(countId(monthWeekMarkup, 'month-span-a'), 1, 'overlapping ranges each have one row in the month week');
+assert.strictEqual(countId(monthWeekMarkup, 'month-span-b'), 1, 'the end date is included in the horizontal range');
+assert.strictEqual(countId(monthWeekMarkup, 'single-day-task', 'data-id'), 1, 'a single-day task remains a normal event in its date cell');
+assert(monthWeekMarkup.includes('wp-calendar-span wp-calendar-span--month p-critical'), 'month span tint follows critical priority even when its Matrix quadrant differs');
+assert(monthWeekMarkup.includes('wp-calendar-span wp-calendar-span--month p-none'), 'no-priority ranges use a neutral tint');
+assert(monthWeekMarkup.includes('Приоритет: Критичный') && monthWeekMarkup.includes('Приоритет: Без приоритета'), 'range labels expose the priority independently of Matrix classification');
+const weekLayout = api.wpCalendarSpanLayout(weekDays, rangeTasks);
+assert.strictEqual(weekLayout.laneCount, 2, 'overlapping all-day ranges occupy separate horizontal lanes');
+assert.strictEqual(weekLayout.segments.length, 3, 'only tasks with a date range become horizontal spans');
+assert(weekLayout.segments.find(segment => segment.task.id === 'week-span').continuesBefore, 'week range rows clip cleanly at the week boundary');
 const rangeWeekCards = api.wpWeekCalendar(weekDays, rangeTasks);
-assert.strictEqual(countId(rangeWeekCards, 'week-span', 'data-task-id'), 2, 'the week view repeats a full task card for every covered date');
-assert(rangeWeekCards.includes('wp-task q0 p-high'), 'week-card color follows urgency even when the Matrix quadrant differs');
-assert(!rangeWeekCards.includes('wp-calendar-span') && !rangeWeekCards.includes('wp-day-span-spacer'), 'week mode has no ribbon layer or reserved bar lane');
+assert(rangeWeekCards.includes('wp-calendar-span-layer wp-week-span-layer'), 'week mode restores its horizontal multi-day layer');
+assert.strictEqual(countId(rangeWeekCards, 'week-span'), 1, 'the week view renders each spanning task once, not as a card in each covered day');
+assert.strictEqual(countId(rangeWeekCards, 'month-span-a'), 1);
+assert.strictEqual(countId(rangeWeekCards, 'month-span-b'), 1);
+assert.strictEqual(countId(rangeWeekCards, 'single-day-task', 'data-task-id'), 1, 'single-day tasks remain cards in their own week cell');
+assert(rangeWeekCards.includes('wp-calendar-span wp-calendar-span--week p-high'), 'week span color follows urgency rather than its Matrix quadrant');
+assert(rangeWeekCards.includes('wp-day-span-spacer'), 'week days reserve room for the horizontal range lanes');
+const desktopDay = api.wpDayColumn('2026-10-15', rangeTasks);
+assert.strictEqual(countId(desktopDay, 'month-span-a'), 0, 'desktop date cells do not duplicate a range that is shown in the span layer');
+assert.strictEqual(countId(desktopDay, 'single-day-task', 'data-task-id'), 1);
+const selectedMobileDay = api.wpDayColumn('2026-10-15', rangeTasks, { includeMultiDay: true });
+assert.strictEqual(countId(selectedMobileDay, 'month-span-a', 'data-task-id'), 1, 'the selected/mobile day list may keep ordinary multi-day cards');
+api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
+const monthView = api.wpViewHtml();
+assert(monthView.includes('wp-month-span-layer') && monthView.includes('wp-calendar-span--month'));
+const rangeMonthWeek = monthView.slice(monthView.indexOf('<div class="wp-month-grid"'));
+assert.strictEqual(countId(rangeMonthWeek, 'span-before-month'), 1, 'a range starting before the month grid is clipped and shown once');
+assert(rangeMonthWeek.includes('continues-before'), 'a clipped month row indicates continuation from the previous week');
 api.WP.weekStart = '2026-10-12'; api.WP.mobileDate = '2026-10-14'; api.WP.calendarMode = 'week';
 const rangeWeekMarkup = api.wpViewHtml();
-assert(rangeWeekMarkup.includes('wp-week-grid is-all-day'));
+assert(rangeWeekMarkup.includes('wp-week-grid is-all-day') && rangeWeekMarkup.includes('wp-week-span-layer'));
 assert(rangeWeekMarkup.includes('Однодневная задача') && rangeWeekMarkup.includes('Задача на несколько дней'));
-assert.strictEqual(countId(rangeWeekMarkup, 'week-span', 'data-task-id'), 2, 'the desktop week grid renders a date-only card in each covered day');
-assert(!rangeWeekMarkup.includes('wp-calendar-span') && !rangeWeekMarkup.includes('Многодневные задачи на весь день'), 'calendar tasks do not rely on time slots or thin all-day ribbons');
+const desktopWeekGrid = rangeWeekMarkup.slice(rangeWeekMarkup.indexOf('<div class="wp-week-grid is-all-day">'));
+assert.strictEqual(countId(desktopWeekGrid, 'week-span'), 1, 'the desktop week grid displays a range as one horizontal row');
+assert.strictEqual(countId(desktopWeekGrid, 'month-span-a'), 1);
+assert.strictEqual(countId(desktopWeekGrid, 'single-day-task', 'data-task-id'), 1);
+assert(rangeWeekMarkup.includes('Многодневные задачи на весь день'), 'multi-day tasks remain date-only and use no invented time slots');
 assert(rangeWeekMarkup.includes('data-act="wpQuickDay"'), 'week days retain their own add-task controls');
 api.WP.view = 'week';
 assert(!api.wpHeaderControls().includes('data-act="wpQuickGlobal"'), 'the global add button is hidden in week mode');

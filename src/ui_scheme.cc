@@ -220,6 +220,17 @@ class UiSchemeHandlerFactory : public CefSchemeHandlerFactory {
     } else if (rel == "host-bridge.js") {
       ReplaceAll(&data, "__PLATFORM__", kPlatform);
       ReplaceAll(&data, "__APP_VERSION__", kAppVersion);
+#if defined(NDEBUG)
+      ReplaceAll(&data, "__DEV_BUILD__", "false");
+#else
+      ReplaceAll(&data, "__DEV_BUILD__", "true");
+#endif
+#if defined(SHELTER_BETA_BUILD)
+      ReplaceAll(&data, "__DISTRIBUTION_CHANNEL__", "beta");
+#else
+      // Stable direct-distribution packages default to the non-beta channel.
+      ReplaceAll(&data, "__DISTRIBUTION_CHANNEL__", "direct");
+#endif
     }
 
     std::string ext;

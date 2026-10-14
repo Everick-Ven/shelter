@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-xQvCcMdHTjUHvc0XdUEdZD6M7olKT4g/sdeSCNWK+Rc=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-VCMuxASXJFAEf+U/4d9q+LMeUVLqgnmnb3N6fORcSSo=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -2403,6 +2403,7 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 .premium-feature-list.mini li span{ font-weight:550; }
 .premium-active-badge{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:calc(10px*var(--rs)); background:rgb(var(--ok)/.1); color:rgb(var(--ok)); font-size:11.5px; font-weight:650; }
 .premium-active-badge .i{ width:14px; height:14px; }
+.premium-key-disabled{padding-top:10px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.5;color:var(--text-3)}
 .profile-premium-card .btn{ margin-top:auto; }
 .premium-cta{ background:linear-gradient(120deg,#f6d383,#eeab52); border-color:transparent; color:#3a2a06; }
 .premium-cta:hover{ filter:brightness(1.05); }
@@ -2440,6 +2441,13 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 
 /* --- Виджеты: Помодоро и Менеджер эффективности --- */
 .wg-tile{ grid-column:auto; display:flex; flex-direction:column; gap:18px; padding:22px 24px; }
+.wg-access-notice{display:flex;align-items:center;gap:12px;margin:0 0 14px;padding:13px 15px;border:1px solid rgb(var(--gc)/.24);border-radius:calc(14px*var(--rs));background:linear-gradient(110deg,rgb(var(--gc)/.09),var(--glass-1));}
+.wg-access-notice>div{min-width:0;flex:1}.wg-access-notice b,.wg-access-notice small{display:block}.wg-access-notice b{font-size:12px;color:var(--text)}.wg-access-notice small{margin-top:3px;font-size:10.5px;line-height:1.45;color:var(--text-3)}
+.wg-access-ic{display:grid;place-items:center;width:32px;height:32px;flex:none;border-radius:calc(10px*var(--rs));background:rgb(var(--gc)/.13);color:rgb(var(--gc))}.wg-access-ic .i{width:16px;height:16px}
+.wg-tile.is-readonly{opacity:.9}.wg-tile.is-readonly .wg-head .seg{opacity:.9}
+.eff-note{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);color:var(--text-3);font-size:10.5px;line-height:1.5}
+.pomo-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pomo-settings-grid .field{margin:0}.pomo-auto-break{grid-column:1/-1;display:flex;align-items:flex-start;gap:9px;padding:12px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));color:var(--text-2);font-size:12px;line-height:1.45}.pomo-auto-break input{margin-top:2px;accent-color:rgb(var(--gc))}
+@media(max-width:520px){.wg-access-notice{align-items:flex-start;flex-wrap:wrap}.wg-access-notice .btn{margin-left:44px}.pomo-settings-grid{grid-template-columns:1fr}}
 /* --- Витрина наград в карточке профиля (4 полученные иконки в ряд без подписей) + кнопка закрепления + настройка свечения --- */
 .profile-awards-row{
   flex:1; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px;
@@ -4214,6 +4222,56 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .wp-week-grid.is-all-day{display:none}
   .wp-week-mobile{display:block}
 }
+/* Keep the task-list and board controls in the same responsive filter grid. */
+.wp-filter-layout{display:grid;grid-template-columns:minmax(0,1.6fr) max-content minmax(140px,1fr) minmax(140px,1fr) max-content;align-items:end;gap:7px}
+.wp-filter-layout .wp-filter-main{display:flex;align-items:center;gap:7px;min-width:0;grid-column:1}
+.wp-filter-layout .wp-filter-pills{display:flex;align-items:center;gap:3px;min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none;padding:3px;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card-2)}
+.wp-filter-layout .wp-filter-pills::-webkit-scrollbar{display:none}
+.wp-filter-layout .wp-filter-pills button,.wp-filter-layout .wp-filter-pills button:hover{flex:none;height:27px;padding:0 8px;border:1px solid transparent;border-radius:calc(7px*var(--rs));background:transparent;color:var(--text-3);font:500 10px var(--font);white-space:nowrap}
+.wp-filter-layout .wp-filter-pills button.active{border-color:var(--line);background:var(--card);color:var(--text);box-shadow:var(--sh-sm)}
+.wp-filter-layout .wp-my-filter,.wp-filter-layout .wp-my-filter:hover{height:30px;border-color:var(--line);background:var(--card);color:var(--text-2)}
+.wp-filter-layout .wp-my-filter.active{border-color:color-mix(in srgb,rgb(var(--accent)) 38%,var(--line));background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card));color:var(--text)}
+.wp-filter-layout .wp-filter-select{min-width:0;width:100%}
+.wp-filter-layout .wp-clear-filters{height:30px;white-space:nowrap}
+.wp-filter-layout .wp-calendar-completed-toggle,.wp-filter-layout .wp-calendar-completed-toggle:hover{flex:none;min-height:30px;margin:0;padding:0 8px;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card);color:var(--text-2);font:550 10px var(--font)}
+.wp-filter-layout .wp-calendar-completed-toggle.is-active{border-color:color-mix(in srgb,rgb(var(--accent)) 38%,var(--line));background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card));color:var(--text)}
+.wp-filter-layout .wp-calendar-completed-toggle .i{width:13px;height:13px}
+@container shelter (max-width:900px){
+  .wp-filter-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:5px}
+  .wp-filter-layout .wp-filter-main{grid-column:1/-1;grid-row:1;flex-wrap:wrap}
+  .wp-filter-layout .wp-my-filter{grid-column:1;grid-row:2;align-self:end;justify-self:start}
+  .wp-filter-layout .wp-filter-assignee{grid-column:2;grid-row:2}
+  .wp-filter-layout .wp-filter-project{grid-column:3;grid-row:2}
+  .wp-filter-layout .wp-clear-filters{grid-column:3;grid-row:3;justify-self:end}
+}
+@container shelter (max-width:620px){
+  .wp-filter-layout{grid-template-columns:max-content minmax(0,1fr);gap:5px}
+  .wp-filter-layout .wp-filter-main{grid-column:1/-1;grid-row:1}
+  .wp-filter-layout .wp-filter-pills{width:max-content;max-width:100%}
+  .wp-filter-layout .wp-filter-pills button{padding:0 7px;font-size:9px}
+  .wp-filter-layout .wp-my-filter{grid-column:1;grid-row:2;align-self:end}
+  .wp-filter-layout .wp-filter-assignee{grid-column:2;grid-row:2}
+  .wp-filter-layout .wp-filter-project{grid-column:1/-1;grid-row:3}
+  .wp-filter-layout .wp-clear-filters{grid-column:2;grid-row:4;justify-self:end}
+}
+@media(max-width:900px){
+  .wp-filter-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:5px}
+  .wp-filter-layout .wp-filter-main{grid-column:1/-1;grid-row:1;flex-wrap:wrap}
+  .wp-filter-layout .wp-my-filter{grid-column:1;grid-row:2;align-self:end;justify-self:start}
+  .wp-filter-layout .wp-filter-assignee{grid-column:2;grid-row:2}
+  .wp-filter-layout .wp-filter-project{grid-column:3;grid-row:2}
+  .wp-filter-layout .wp-clear-filters{grid-column:3;grid-row:3;justify-self:end}
+}
+@media(max-width:620px){
+  .wp-filter-layout{grid-template-columns:max-content minmax(0,1fr);gap:5px}
+  .wp-filter-layout .wp-filter-main{grid-column:1/-1;grid-row:1}
+  .wp-filter-layout .wp-filter-pills{width:max-content;max-width:100%}
+  .wp-filter-layout .wp-filter-pills button{padding:0 7px;font-size:9px}
+  .wp-filter-layout .wp-my-filter{grid-column:1;grid-row:2;align-self:end}
+  .wp-filter-layout .wp-filter-assignee{grid-column:2;grid-row:2}
+  .wp-filter-layout .wp-filter-project{grid-column:1/-1;grid-row:3}
+  .wp-filter-layout .wp-clear-filters{grid-column:2;grid-row:4;justify-self:end}
+}
 </style>
 </head>
 <body>
@@ -5121,6 +5179,15 @@ const UI_DEFAULTS = {
   tabPos: 'left', bmPos: 'center', railCollapsed: false, bmHidden: false, bmShow: 6,
   bmView: 'tiles', bmCollapsedFolders: {},
   widgets: { pomo: true, eff: true, vk: false, telemost: false },
+  widgetPrefs: {
+    pomodoro: { workMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15, autoBreak: false, session: null },
+    efficiency: { period: 'day' }
+  },
+  premium: {
+    trialStartedAt: 0, trialUsedAt: 0, trialEndsAt: 0,
+    userId: '', orderId: '', paymentMethod: '', planId: '', paymentStatus: 'available',
+    premiumExpiresAt: 0
+  },
   profilePinnedAchievements: []
 };
 
@@ -6567,6 +6634,7 @@ function activateTab(id, animate = true) {
   }
   if (innerWidth <= 720) $('#app').classList.remove('sb-open');
   renderTabs(); renderView(animate && changed, dir); persist();
+  if (typeof efficiencyTrackingSync === 'function') efficiencyTrackingSync();
 }
 /* В стек закрытых (для стрелки в уведомлении и ⌘⇧T) попадают все вкладки,
    кроме приватных «призраков»: внутренние страницы тоже можно вернуть.
@@ -6712,7 +6780,12 @@ function spaceMenu(anchor) {
   openMenu(anchor, items, { place: 'bottom-start' });
 }
 function editSpace(key) {
-  const isNew = !key, sp = isNew ? { name: '', color: SPACE_COLORS[Object.keys(S.spaces).length % SPACE_COLORS.length], icon: 'layers' } : S.spaces[key];
+  const isNew = !key;
+  if (isNew && !isPremium() && Object.keys(S.spaces).length >= FREE_SPACE_LIMIT) {
+    toast(`Бесплатный тариф включает до ${FREE_SPACE_LIMIT} пространств. Существующие пространства и их данные не затронуты.`, { icon: 'lock', action: { label: 'Premium', run: () => openPremiumDialog() } });
+    return;
+  }
+  const sp = isNew ? { name: '', color: SPACE_COLORS[Object.keys(S.spaces).length % SPACE_COLORS.length], icon: 'layers' } : S.spaces[key];
   let color = sp.color, icon = sp.icon, keepSession = !!sp.keepSession;
   const m = openModal({ width: 460, html: `
     <div class="modal-h"><div class="mi-ic" id="spPrev" style="background:${color};color:#fff;border:0">${ico(icon)}</div><h3>${isNew ? 'Новое пространство' : 'Пространство'}</h3></div>
@@ -6742,6 +6815,9 @@ function editSpace(key) {
       delete S.spaces[key];
       if (S.currentSpace === key) { S.currentSpace = Object.keys(S.spaces)[0]; S.activeTabId = curSpace().tabs[0].id; }
       renderSpaceRow(); renderTabs(); renderView(true); persist(); return;
+    }
+    if (isNew && !isPremium() && Object.keys(S.spaces).length >= FREE_SPACE_LIMIT) {
+      closeModal(m); toast(`Бесплатный тариф включает до ${FREE_SPACE_LIMIT} пространств. Существующие пространства и их данные не затронуты.`, { icon: 'lock', action: { label: 'Premium', run: () => openPremiumDialog() } }); return;
     }
     const name = $('#spName', root).value.trim() || 'Пространство';
     if (isNew) { const k = uid('sp'); S.spaces[k] = { name, color, icon, keepSession, tabs: [newTabObj('shelter.dev/start')] }; closeModal(m); S.currentSpace = null; switchSpace(k); }
@@ -6867,6 +6943,7 @@ function loadUrl(tab, url, { push = true } = {}) {
   if (m.kind !== 'internal') { recordVisit(url, m.title, tab.id); tab.blocked = 0; }
   persist(); renderTabs();
   if (tab.id === S.activeTabId) { progress(); renderView(true); }
+  if (typeof efficiencyTrackingSync === 'function') efficiencyTrackingSync();
 }
 function openPage(page, opts = {}) {
   const url = 'shelter.dev/' + page, sp = curSpace();
@@ -6902,6 +6979,7 @@ function recordVisit(url, title, tabId) {
   S.visits.push({ url, title, at: now, space: S.currentSpace, tab: tabId });
   if (S.visits.length > 5000) S.visits.splice(0, S.visits.length - 5000);
   persist();
+  if (typeof efficiencyTrackingSync === 'function') efficiencyTrackingSync();
 }
 // Миграция: схлопнуть задвоенные записи старых версий (та же вкладка, тот же
 // адрес, интервал < 90 c) до одной реальной записи посещения.
@@ -8883,30 +8961,78 @@ function chatMainHtml() {
    ========================================================= */
 const POMO_DUR = { work: 25 * 60, short: 5 * 60, long: 15 * 60 };
 const POMO_LABEL = { work: 'Фокус', short: 'Короткий перерыв', long: 'Длинный перерыв' };
-function pomoState() { return T.pomo || (T.pomo = { mode: 'work', remain: POMO_DUR.work, running: false, cycles: 0 }); }
-const pomoDur = mode => POMO_DUR[mode] || POMO_DUR.work;
+function widgetPrefs() {
+  if (!S.ui || typeof S.ui !== 'object') S.ui = {};
+  let prefs = S.ui.widgetPrefs;
+  if (!prefs || typeof prefs !== 'object' || Array.isArray(prefs)) prefs = S.ui.widgetPrefs = {};
+  let pomo = prefs.pomodoro;
+  if (!pomo || typeof pomo !== 'object' || Array.isArray(pomo)) pomo = prefs.pomodoro = {};
+  pomo.workMinutes = clamp(Math.round(Number(pomo.workMinutes) || 25), 15, 60);
+  pomo.shortBreakMinutes = clamp(Math.round(Number(pomo.shortBreakMinutes) || 5), 3, 20);
+  pomo.longBreakMinutes = clamp(Math.round(Number(pomo.longBreakMinutes) || 15), 10, 30);
+  pomo.autoBreak = pomo.autoBreak === true;
+  if (!pomo.session || typeof pomo.session !== 'object' || Array.isArray(pomo.session))
+    pomo.session = { mode: 'work', remain: 25 * 60, running: false, endsAt: 0, cycles: 0, cycleDay: dayKey(Date.now()) };
+  let eff = prefs.efficiency;
+  if (!eff || typeof eff !== 'object' || Array.isArray(eff)) eff = prefs.efficiency = {};
+  if (!['day', 'week'].includes(eff.period)) eff.period = ['day', 'week'].includes(S.ui.effPeriod) ? S.ui.effPeriod : 'day';
+  return prefs;
+}
+function pomoDur(mode) {
+  const p = widgetPrefs().pomodoro;
+  const minutes = mode === 'short' ? p.shortBreakMinutes : mode === 'long' ? p.longBreakMinutes : p.workMinutes;
+  return minutes * 60 || POMO_DUR[mode] || POMO_DUR.work;
+}
 const pomoFmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + pad2(s % 60); };
-/* «Защита от дурака»: переключение/сброс незавершённой сессии помодоро —
-   только после подтверждения, чтобы не потерять идущий прогресс. */
+function pomoFinishPhase(P, at = Date.now(), { quiet = false, forceStop = false } = {}) {
+  const completed = P.mode;
+  if (completed === 'work') {
+    P.cycles = Math.max(0, (+P.cycles || 0)) + 1; P.cycleDay = dayKey(at);
+    P.mode = P.cycles % 4 === 0 ? 'long' : 'short';
+  } else P.mode = 'work';
+  P.remain = pomoDur(P.mode);
+  P.running = completed === 'work' && !forceStop && widgetPrefs().pomodoro.autoBreak && widgetHasAccess();
+  P.endsAt = P.running ? at + P.remain * 1000 : 0; P.updatedAt = at;
+  if (!quiet) toast(completed === 'work' ? 'Фокус-сессия завершена' : 'Перерыв завершён', { icon: 'timer' });
+  saveNow();
+}
+function pomoState() {
+  const P = widgetPrefs().pomodoro.session;
+  if (!['work', 'short', 'long'].includes(P.mode)) P.mode = 'work';
+  P.remain = Number.isFinite(Number(P.remain)) ? clamp(Math.ceil(Number(P.remain)), 0, pomoDur(P.mode)) : pomoDur(P.mode);
+  P.cycles = Math.max(0, Math.floor(Number(P.cycles) || 0));
+  const today = dayKey(Date.now()); if (P.cycleDay !== today) { P.cycles = 0; P.cycleDay = today; }
+  P.running = P.running === true; P.endsAt = Number(P.endsAt) || 0;
+  if (P.running && !widgetHasAccess()) {
+    const access = widgetAccessState(), now = Date.now();
+    const stopAt = Number(access.until) > 0 && Number(access.until) < now ? Number(access.until) : now;
+    if (P.endsAt && P.endsAt <= stopAt) pomoFinishPhase(P, P.endsAt, { quiet: true, forceStop: true });
+    else { P.remain = P.endsAt ? clamp(Math.ceil((P.endsAt - stopAt) / 1000), 0, pomoDur(P.mode)) : P.remain; P.running = false; P.endsAt = 0; P.updatedAt = now; saveNow(); }
+  } else if (P.running && !P.endsAt) P.endsAt = Date.now() + P.remain * 1000;
+  else if (P.running && P.endsAt <= Date.now()) {
+    pomoFinishPhase(P, P.endsAt, { quiet: true });
+    if (P.running && P.endsAt <= Date.now()) pomoFinishPhase(P, P.endsAt, { quiet: true, forceStop: true });
+    else if (P.running) P.remain = clamp(Math.ceil((P.endsAt - Date.now()) / 1000), 0, pomoDur(P.mode));
+  }
+  else if (P.running) P.remain = clamp(Math.ceil((P.endsAt - Date.now()) / 1000), 0, pomoDur(P.mode));
+  return P;
+}
 const pomoBusy = () => { const P = pomoState(); return P.running || P.remain < pomoDur(P.mode) - 0.5; };
-function pomoGuardSwitch() {
-  if (!pomoBusy()) return Promise.resolve(true);
-  return confirmDlg({
-    title: 'Таймер уже запущен',
-    text: 'Сессия помодоро не завершена — переключение сбросит текущий прогресс. Действительно переключить таймер?',
-    ok: 'Переключить', cancel: 'Остаться', danger: true, icon: 'timer'
+function widgetShowAccessNudge() {
+  toast('Виджеты Premium доступны в режиме просмотра. Оформите Premium, чтобы управлять ими.', {
+    icon: 'lock', ms: 7000, action: { label: 'Premium', run: () => openPremiumDialog() }
   });
 }
-function pomoAdvance() {
-  const P = pomoState();
-  if (P.mode === 'work') { P.cycles++; P.mode = (P.cycles % 4 === 0) ? 'long' : 'short'; }
-  else P.mode = 'work';
-  P.remain = pomoDur(P.mode);
+function requireWidgetAccess() { if (widgetHasAccess()) return true; widgetShowAccessNudge(); return false; }
+function pomoGuardSwitch() {
+  if (!pomoBusy()) return Promise.resolve(true);
+  return confirmDlg({ title: 'Таймер уже запущен', text: 'Сессия помодоро не завершена — переключение сбросит текущий прогресс. Действительно переключить таймер?', ok: 'Переключить', cancel: 'Остаться', danger: true, icon: 'timer' });
 }
+function pomoFinishCurrent() { pomoFinishPhase(pomoState(), Date.now(), { quiet: true, forceStop: true }); }
 function pomoTick() {
-  const P = pomoState(); if (!P.running) return;
-  P.remain--;
-  if (P.remain <= 0) { pomoAdvance(); if ($('.pomo-tile')) toast(`${POMO_LABEL[P.mode]} · ${pomoFmt(P.remain)}`, { icon: 'timer' }); }
+  const P = pomoState(); if (!widgetHasAccess() || !P.running) return;
+  P.remain = Math.max(0, Math.ceil((P.endsAt - Date.now()) / 1000));
+  if (P.remain <= 0) pomoFinishPhase(P, P.endsAt || Date.now());
   pomoRenderTick();
 }
 function pomoRenderTick() {
@@ -8914,86 +9040,183 @@ function pomoRenderTick() {
   const t = $('#pomoTime'); if (!t) return;
   t.textContent = pomoFmt(P.remain);
   const sb = $('#pomoStatusBtn');
-  if (sb) { sb.classList.toggle('break', P.mode !== 'work'); sb.querySelector('span').textContent = POMO_LABEL[P.mode]; sb.dataset.tip = 'Режим: ' + POMO_LABEL[P.mode] + '. Нажмите, чтобы сменить'; }
+  if (sb) { sb.classList.toggle('break', P.mode !== 'work'); const label = sb.querySelector('span'); if (label) label.textContent = POMO_LABEL[P.mode]; sb.dataset.tip = 'Режим: ' + POMO_LABEL[P.mode] + '. Нажмите, чтобы сменить'; }
   const c = $('#pomoCycles b'); if (c) c.textContent = P.cycles;
   const ring = $('#pomoRing circle.val'); if (ring) { const C = 2 * Math.PI * 52; ring.style.strokeDasharray = `${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}`; }
   const btn = $('#pomoToggleBtn'); if (btn) btn.innerHTML = (P.running ? ico('pause') : ico('play')) + `<span>${P.running ? 'Пауза' : 'Старт'}</span>`;
   const tile = $('.pomo-tile'); if (tile) tile.classList.toggle('is-break', P.mode !== 'work');
 }
-function pomoWidgetHtml() {
-  const P = pomoState(), dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100)), C = 2 * Math.PI * 52;
-  return `<div class="card wg-tile pomo-tile ${P.mode !== 'work' ? 'is-break' : ''}">
-    <div class="wg-head"><span class="wg-ic pomo">${ico('timer')}</span><div class="wg-tt"><b>Помодоро</b><small>Фокус-сессии с перерывами</small></div><button class="pomo-status ${P.mode !== 'work' ? 'break' : ''}" id="pomoStatusBtn" data-act="pomoStatus" data-tip="Режим: ${esc(POMO_LABEL[P.mode])}. Нажмите, чтобы сменить"><i></i><span>${POMO_LABEL[P.mode]}</span></button><button class="icon-btn sm" data-act="pomoReset" data-tip="Сбросить">${ico('ref')}</button></div>
-    <div class="pomo-body">
-      <div class="pomo-ring" id="pomoRing"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52"/><circle class="val" cx="60" cy="60" r="52" style="stroke-dasharray:${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="pomo-time-wrap"><b id="pomoTime" class="num">${pomoFmt(P.remain)}</b></div></div>
-      <div class="pomo-side">
-        <button class="btn primary" id="pomoToggleBtn" data-act="pomoToggle">${P.running ? ico('pause') : ico('play')}<span>${P.running ? 'Пауза' : 'Старт'}</span></button>
-        <button class="btn ghost sm" data-act="pomoSkip">${ico('fwd')}<span>Дальше</span></button>
-        <div class="pomo-cycles" id="pomoCycles">${ico('activity')}<span>Циклы сегодня: <b>${P.cycles}</b></span></div>
-      </div>
-    </div>
-  </div>`;
+function pomoToggle() {
+  if (!requireWidgetAccess()) return;
+  const P = pomoState();
+  if (P.running) { P.remain = clamp(Math.ceil((P.endsAt - Date.now()) / 1000), 0, pomoDur(P.mode)); P.running = false; P.endsAt = 0; }
+  else { if (P.remain <= 0) P.remain = pomoDur(P.mode); P.running = true; P.endsAt = Date.now() + P.remain * 1000; }
+  P.updatedAt = Date.now(); saveNow(); pomoRenderTick();
 }
-
+async function pomoChangeMode() {
+  if (!requireWidgetAccess() || !(await pomoGuardSwitch())) return;
+  const P = pomoState(); P.mode = P.mode === 'work' ? 'short' : P.mode === 'short' ? 'long' : 'work';
+  P.remain = pomoDur(P.mode); P.running = false; P.endsAt = 0; P.updatedAt = Date.now();
+  saveNow(); pomoRenderTick(); toast('Режим: ' + POMO_LABEL[P.mode], { icon: 'timer' });
+}
+async function pomoReset() {
+  if (!requireWidgetAccess()) return;
+  const P = pomoState();
+  if (pomoBusy() && !(await confirmDlg({ title: 'Сбросить помодоро?', text: 'Текущий прогресс сессии и счётчик циклов за сегодня будут сброшены.', ok: 'Сбросить', danger: true, icon: 'ref' }))) return;
+  P.mode = 'work'; P.remain = pomoDur('work'); P.running = false; P.endsAt = 0; P.cycles = 0; P.cycleDay = dayKey(Date.now()); P.updatedAt = Date.now();
+  saveNow(); pomoRenderTick();
+}
+async function pomoSkip() {
+  if (!requireWidgetAccess() || !(await pomoGuardSwitch())) return;
+  pomoFinishCurrent(); pomoRenderTick();
+}
+async function openPomodoroSettings() {
+  if (!requireWidgetAccess()) return;
+  const pref = widgetPrefs().pomodoro;
+  const modal = openModal({ width: 460, html: `<div class="modal-h"><div class="mi-ic">${ico('timer')}</div><h3>Настройки Помодоро</h3><button class="icon-btn" data-pomo-settings-close aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="pomo-settings-grid"><label class="field"><span>Фокус · 15–60 минут</span><input class="input" id="pomoWorkMinutes" type="number" min="15" max="60" step="1" value="${pref.workMinutes}"></label><label class="field"><span>Короткий перерыв · 3–20 минут</span><input class="input" id="pomoShortMinutes" type="number" min="3" max="20" step="1" value="${pref.shortBreakMinutes}"></label><label class="field"><span>Длинный перерыв · 10–30 минут</span><input class="input" id="pomoLongMinutes" type="number" min="10" max="30" step="1" value="${pref.longBreakMinutes}"></label><label class="pomo-auto-break"><input id="pomoAutoBreak" type="checkbox" ${pref.autoBreak ? 'checked' : ''}><span>Автоматически начинать перерыв после фокуса</span></label></div><p class="wp-form-hint">По умолчанию: 25 / 5 / 15 минут, автоматический перерыв выключен. Изменения сохраняются на этом устройстве.</p></div><div class="modal-f"><button class="btn ghost" data-pomo-settings-close>Отмена</button><button class="btn primary" data-pomo-settings-save>${ico('check')}Сохранить</button></div>` });
+  modal.scrim.addEventListener('click', e => {
+    if (e.target.closest('[data-pomo-settings-close]')) { closeModal(modal); return; }
+    if (!e.target.closest('[data-pomo-settings-save]')) return;
+    const values = [['#pomoWorkMinutes', 15, 60, 'Фокус'], ['#pomoShortMinutes', 3, 20, 'Короткий перерыв'], ['#pomoLongMinutes', 10, 30, 'Длинный перерыв']].map(([selector, min, max, label]) => {
+      const input = modal.scrim.querySelector(selector), value = Number(input && input.value); return { input, value, min, max, label };
+    });
+    const invalid = values.find(x => !Number.isInteger(x.value) || x.value < x.min || x.value > x.max);
+    if (invalid) { toast(`${invalid.label}: допустимо ${invalid.min}–${invalid.max} минут`, { icon: 'info' }); if (invalid.input) invalid.input.focus(); return; }
+    const P = pomoState(), wasRunning = P.running;
+    if (wasRunning) { P.remain = clamp(Math.ceil((P.endsAt - Date.now()) / 1000), 0, pomoDur(P.mode)); P.running = false; P.endsAt = 0; }
+    const next = widgetPrefs().pomodoro;
+    next.workMinutes = values[0].value; next.shortBreakMinutes = values[1].value; next.longBreakMinutes = values[2].value;
+    next.autoBreak = !!modal.scrim.querySelector('#pomoAutoBreak')?.checked;
+    P.remain = clamp(P.remain, 0, pomoDur(P.mode)); P.updatedAt = Date.now();
+    saveNow(); closeModal(modal); pomoRenderTick();
+    toast(wasRunning ? 'Настройки сохранены · таймер поставлен на паузу' : 'Настройки Помодоро сохранены', { icon: 'check' });
+  });
+}
 /* =========================================================
-   ВИДЖЕТ · МЕНЕДЖЕР ЭФФЕКТИВНОСТИ (по аналогии с Экранным временем)
+   ВИДЖЕТ · МЕНЕДЖЕР ЭФФЕКТИВНОСТИ
    ========================================================= */
 const EFF_GOOD = ['Разработка', 'Работа', 'Дизайн', 'Знания', 'Госсервисы', 'Финансы', 'Почта'];
 const EFF_BAD = ['Видео', 'Музыка', 'Общение'];
 const effBucket = cat => EFF_GOOD.includes(cat) ? 'good' : EFF_BAD.includes(cat) ? 'bad' : 'neutral';
-const effPeriod = () => ['day', 'week'].includes(T.effPeriod) ? T.effPeriod : 'day';
+const effPeriod = () => widgetPrefs().efficiency.period;
+function efficiencyCanTrack() {
+  if (S.ghost || document.hidden || T.effWindowFocused === false || !widgetHasAccess()) return false;
+  if (!(S.ui.widgets || {}).eff || OV.stack.length) return false;
+  const native = window.shelterNative;
+  if (native && typeof native.isContentVisible === 'function' && !native.isContentVisible()) return false;
+  const tab = curTab(); return !!tab && urlMeta(tab.url || '').kind !== 'internal';
+}
+function efficiencyCurrentVisit() {
+  if (!efficiencyCanTrack()) return null;
+  const tab = curTab(); if (!tab) return null;
+  const normalized = histNorm(tab.url || '');
+  for (let i = S.visits.length - 1; i >= 0; i--) {
+    const v = S.visits[i]; if (v && v.tab === tab.id && histNorm(v.url || '') === normalized) return v;
+  }
+  return null;
+}
+function efficiencyAddActiveMs(v, start, duration) {
+  if (!v || !(duration > 0)) return;
+  if (!v.activeMsByDay || typeof v.activeMsByDay !== 'object' || Array.isArray(v.activeMsByDay)) v.activeMsByDay = {};
+  let cursor = start, end = start + duration;
+  while (cursor < end) {
+    const date = new Date(cursor), next = new Date(cursor); next.setHours(24, 0, 0, 0);
+    const stop = Math.min(end, next.getTime()), key = dayKey(date.getTime());
+    v.activeMsByDay[key] = (Number(v.activeMsByDay[key]) || 0) + Math.max(0, stop - cursor); cursor = stop;
+  }
+  v.activeMs = (Number(v.activeMs) || 0) + duration; _visitsDirty = true;
+}
+function efficiencyPendingByDay(v, now = Date.now()) {
+  const out = {}; if (!v || T.effActiveVisit !== v || !efficiencyCanTrack()) return out;
+  const elapsed = Math.max(0, Math.min(15000, now - (T.effLastCheckpointAt || now)));
+  if (!elapsed) return out;
+  let cursor = now - elapsed;
+  while (cursor < now) {
+    const date = new Date(cursor), next = new Date(cursor); next.setHours(24, 0, 0, 0);
+    const stop = Math.min(now, next.getTime()), key = dayKey(date.getTime()); out[key] = (out[key] || 0) + Math.max(0, stop - cursor); cursor = stop;
+  }
+  return out;
+}
+function efficiencyFlushActiveSegment(persist = true) {
+  const v = T.effActiveVisit; if (!v) return;
+  const now = Date.now(), elapsed = Math.max(0, Math.min(15000, now - (T.effLastCheckpointAt || now)));
+  if (elapsed) efficiencyAddActiveMs(v, now - elapsed, elapsed);
+  T.effActiveVisit = null; T.effLastCheckpointAt = 0; if (persist && _visitsDirty) flushVisits();
+}
+function efficiencyTrackingSync() {
+  const next = efficiencyCurrentVisit();
+  if (T.effActiveVisit && T.effActiveVisit !== next) efficiencyFlushActiveSegment();
+  if (next && !T.effActiveVisit) { T.effActiveVisit = next; T.effLastCheckpointAt = Date.now(); }
+}
+function efficiencyCheckpoint(persist = true) {
+  const now = Date.now(), next = efficiencyCurrentVisit();
+  if (T.effActiveVisit && T.effActiveVisit !== next) efficiencyFlushActiveSegment(persist);
+  if (!next) { if (T.effActiveVisit) efficiencyFlushActiveSegment(persist); return; }
+  if (!T.effActiveVisit) { T.effActiveVisit = next; T.effLastCheckpointAt = now; return; }
+  const elapsed = Math.max(0, Math.min(15000, now - (T.effLastCheckpointAt || now)));
+  if (elapsed) efficiencyAddActiveMs(next, now - elapsed, elapsed);
+  T.effLastCheckpointAt = now; if (persist && _visitsDirty) flushVisits();
+}
 function effData(P) {
-  const r = periodRange(P), vs = S.visits.filter(v => v.at >= r.from && v.at <= r.to), by = {};
-  vs.forEach(v => { const h = hostOf(v.url); by[h] = (by[h] || 0) + visitDur(v); });
-  const arr = Object.entries(by).map(([h, m]) => { const info = siteInfo(h); return { host: h, m, title: info.t, bucket: effBucket(info.cat) }; }).sort((a, b) => b.m - a.m);
-  const total = arr.reduce((s, x) => s + x.m, 0), sums = { good: 0, neutral: 0, bad: 0 };
+  efficiencyCheckpoint(true);
+  const period = ['day', 'week'].includes(P) ? P : effPeriod(), range = periodRange(period);
+  const firstDay = dayKey(range.from), lastDay = dayKey(range.to), by = {};
+  const ensure = host => by[host] || (by[host] = { ms: 0, estimatedMs: 0 });
+  (S.visits || []).forEach(v => {
+    const host = hostOf(v.url); if (!host) return;
+    const group = ensure(host);
+    if (v.activeMsByDay && typeof v.activeMsByDay === 'object') {
+      Object.keys(v.activeMsByDay).forEach(day => { if (day >= firstDay && day <= lastDay) group.ms += Number(v.activeMsByDay[day]) || 0; });
+      const pending = efficiencyPendingByDay(v, Date.now()); Object.keys(pending).forEach(day => { if (day >= firstDay && day <= lastDay) group.ms += pending[day]; });
+    } else if (typeof v.activeMs === 'number' && Number.isFinite(v.activeMs)) {
+      if (v.at >= range.from && v.at <= range.to) group.ms += v.activeMs;
+    } else if (Number(v.dur) > 0 && v.at >= range.from && v.at <= range.to) {
+      group.estimatedMs += Number(v.dur) * 60000;
+    }
+  });
+  const arr = Object.entries(by).map(([host, value]) => {
+    const info = siteInfo(host), category = info.cat || 'Нейтрально', m = (value.ms + value.estimatedMs) / 60000;
+    return { host, m, estimated: value.estimatedMs / 60000, title: info.t, category, bucket: effBucket(category) };
+  }).filter(x => x.m > 0).sort((a, b) => b.m - a.m);
+  const total = arr.reduce((sum, x) => sum + x.m, 0), estimatedTotal = arr.reduce((sum, x) => sum + x.estimated, 0), sums = { good: 0, neutral: 0, bad: 0 };
   arr.forEach(x => sums[x.bucket] += x.m);
-  return { arr: arr.slice(0, 5), max: arr.length ? arr[0].m : 1, total, sums, score: total ? Math.round(sums.good / total * 100) : 0 };
+  return { arr: arr.slice(0, 5), max: arr.length ? arr[0].m : 1, total, sums, estimatedTotal, score: total ? Math.round(sums.good / total * 100) : 0 };
 }
 const EFF_SEGS = [['good', 'Продуктивно'], ['neutral', 'Нейтрально'], ['bad', 'Отвлечения']];
 function effBodyHtml(d) {
-  if (!d.total) return emptyState('monitor', 'Пока нет данных', 'Откройте несколько вкладок — здесь появится разбивка по времени');
+  const note = d.estimatedTotal > 0
+    ? `<div class="eff-note">Часть старых записей — приблизительные данные по длительности визита. Новые значения считают активную вкладку, а не внимание к странице и не системный Screen Time.</div>`
+    : `<div class="eff-note">Считается активная вкладка SHELTER при видимом окне приложения. Это не измерение внимания к странице и не системный Screen Time.</div>`;
+  if (!d.total) return `${emptyState('monitor', 'Пока нет измерений', 'Активное время будет учитываться для сайтов при доступе Premium.')} ${note}`;
   const C = 2 * Math.PI * 27, tier = d.score >= 70 ? 'hi' : d.score >= 40 ? 'mid' : 'lo';
-  return `<div class="eff-top">
-      <div class="eff-score"><svg viewBox="0 0 64 64"><circle class="trk" cx="32" cy="32" r="27"/><circle class="val ${tier}" cx="32" cy="32" r="27" style="stroke-dasharray:${(d.score / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="eff-score-txt"><b>${d.score}%</b></div></div>
-      <div class="eff-bar-wrap"><div class="eff-bar">${EFF_SEGS.map(([k]) => `<span class="eff-seg ${k}" style="--w:${(d.total ? d.sums[k] / d.total * 100 : 0).toFixed(2)}%"></span>`).join('')}</div>
-      <div class="eff-legend">${EFF_SEGS.map(([k, l]) => `<span class="eff-leg ${k}"><i></i>${l}<b>${fmtDurS(d.sums[k])}</b></span>`).join('')}</div></div>
-    </div>
-    <div class="eff-list">${d.arr.map(x => `<div class="eff-row"><span class="eff-dot ${x.bucket}"></span>${favFor('https://' + x.host, 'sm')}<span class="nm">${esc(x.title)}</span><div class="pbar"><i style="--w:${(d.max ? x.m / d.max * 100 : 0).toFixed(1)}%"></i></div><b class="num">${fmtDurS(x.m)}</b></div>`).join('')}</div>`;
+  return `<div class="eff-top"><div class="eff-score"><svg viewBox="0 0 64 64"><circle class="trk" cx="32" cy="32" r="27"/><circle class="val ${tier}" cx="32" cy="32" r="27" style="stroke-dasharray:${(d.score / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="eff-score-txt"><b>${d.score}%</b></div></div><div class="eff-bar-wrap"><div class="eff-bar">${EFF_SEGS.map(([k]) => `<span class="eff-seg ${k}" style="--w:${(d.total ? d.sums[k] / d.total * 100 : 0).toFixed(2)}%"></span>`).join('')}</div><div class="eff-legend">${EFF_SEGS.map(([k, l]) => `<span class="eff-leg ${k}"><i></i>${l}<b>${fmtDurS(d.sums[k])}</b></span>`).join('')}</div></div></div><div class="eff-list">${d.arr.map(x => `<div class="eff-row"><span class="eff-dot ${x.bucket}"></span>${favFor('https://' + x.host, 'sm')}<span class="nm">${esc(x.title)}</span><div class="pbar"><i style="--w:${(d.max ? x.m / d.max * 100 : 0).toFixed(1)}%"></i></div><b class="num">${fmtDurS(x.m)}</b></div>`).join('')}</div>${note}`;
 }
 function effWidgetHtml() {
-  const P = effPeriod(), d = effData(P);
-  return `<div class="card wg-tile eff-tile">
-    <div class="wg-head"><span class="wg-ic eff">${ico('monitor')}</span><div class="wg-tt"><b>Менеджер эффективности</b><small>Куда уходит время в браузере</small></div>${segHtml('effPeriod', [['day', 'Сегодня'], ['week', 'Неделя']], P, 'sm')}</div>
-    <div class="eff-body" id="effBody">${effBodyHtml(d)}</div>
-  </div>`;
+  const P = effPeriod(), d = effData(P), locked = !widgetHasAccess();
+  return `<div class="card wg-tile eff-tile ${locked ? 'is-readonly' : ''}"><div class="wg-head"><span class="wg-ic eff">${ico('monitor')}</span><div class="wg-tt"><b>Менеджер эффективности</b><small>${locked ? 'Статистика сохранена · только просмотр' : 'Активность вкладки SHELTER · без блокировки сайтов'}</small></div>${segHtml('effPeriod', [['day', 'Сегодня'], ['week', 'Неделя']], P, 'sm')}</div><div class="eff-body" id="effBody">${effBodyHtml(d)}</div></div>`;
 }
-SEG.effPeriod = v => { T.effPeriod = v; const el = $('#effBody'); if (el) el.innerHTML = effBodyHtml(effData(v)); };
-
+SEG.effPeriod = v => {
+  const pref = widgetPrefs().efficiency; pref.period = ['day', 'week'].includes(v) ? v : 'day';
+  persist();
+  const el = $('#effBody'); if (el) el.innerHTML = effBodyHtml(effData(pref.period));
+};
 RENDER.widgets = () => {
   const W = S.ui.widgets || (S.ui.widgets = { pomo: true, eff: true, vk: false, telemost: false });
-  const total = 2;
-  const shown = (W.pomo ? 1 : 0) + (W.eff ? 1 : 0);
-  const hasAny = W.pomo || W.eff;
-  return `<div class="page">
-    <div class="page-h"><div class="ttl"><div class="page-title">Виджеты</div><div class="page-sub">Внутренние приложения SHELTER</div></div></div>
-    <div class="wg-bar">
-      <button type="button" class="btn wg-show-btn" id="wgShowBtn" data-act="wgShowMenu">
-        ${ico('layers')}
-        <span>Показать виджет</span>
-        <span class="chip">${shown}/${total}</span>
-        ${ico('chev', 'chev')}
-      </button>
-      <button type="button" class="btn sm icon wg-add-sm" id="wgAddBtn" data-act="wgAdd" data-tip="Добавить виджет" aria-label="Добавить виджет">${ico('plus')}</button>
-      <span class="wg-bar-hint">Управляйте отображением виджетов через чеклист</span>
-    </div>
-    ${hasAny ? `<div class="wg-grid">
-      ${W.pomo ? pomoWidgetHtml() : ''}
-      ${W.eff ? effWidgetHtml() : ''}
-    </div>` : emptyState('timer', 'Все виджеты скрыты', 'Откройте «Показать виджет» на верхней панели и отметьте нужные виджеты.', `<button class="btn sm primary" data-act="wgShowMenu">${ico('layers')}Показать виджет</button>`)}
-  </div>`;
+  const total = 2, shown = (W.pomo ? 1 : 0) + (W.eff ? 1 : 0), hasAny = W.pomo || W.eff, locked = !widgetHasAccess();
+  const notice = locked ? `<div class="wg-access-notice" role="status"><span class="wg-access-ic">${ico('lock')}</span><div><b>Виджеты доступны в режиме просмотра</b><small>Состояние таймера и выбранный период сохранены. Управление требует Premium.</small></div><button type="button" class="btn sm primary" data-act="premiumDialog">${ico('crown')}Premium</button></div>` : '';
+  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Виджеты</div><div class="page-sub">Внутренние приложения SHELTER</div></div></div>${notice}<div class="wg-bar"><button type="button" class="btn wg-show-btn" id="wgShowBtn" data-act="wgShowMenu">${ico('layers')}<span>Показать виджет</span><span class="chip">${shown}/${total}</span>${ico('chev', 'chev')}</button><button type="button" class="btn sm icon wg-add-sm" id="wgAddBtn" data-act="wgAdd" data-tip="Добавить виджет" aria-label="Добавить виджет">${ico('plus')}</button><span class="wg-bar-hint">Управляйте отображением виджетов через чеклист</span></div>${hasAny ? `<div class="wg-grid">${W.pomo ? pomoWidgetHtml() : ''}${W.eff ? effWidgetHtml() : ''}</div>` : emptyState('timer', 'Все виджеты скрыты', 'Откройте «Показать виджет» на верхней панели и отметьте нужные виджеты.', `<button class="btn sm primary" data-act="wgShowMenu">${ico('layers')}Показать виджет</button>`)}</div>`;
 };
-AFTER.widgets = () => { if ((S.ui.widgets || {}).pomo) pageTimer(pomoTick, 1000, true); };
+AFTER.widgets = () => {
+  if ((S.ui.widgets || {}).pomo && widgetHasAccess()) pageTimer(pomoTick, 1000, true);
+  efficiencyTrackingSync();
+};
+T.effWindowFocused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+window.addEventListener('focus', () => { T.effWindowFocused = true; efficiencyTrackingSync(); });
+window.addEventListener('blur', () => { T.effWindowFocused = false; efficiencyCheckpoint(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) efficiencyCheckpoint(); else efficiencyTrackingSync(); });
+window.addEventListener('beforeunload', () => efficiencyFlushActiveSegment());
+setInterval(() => efficiencyCheckpoint(), 15000);
+
 function openWidgetPicker(anchor) {
   const W = S.ui.widgets || (S.ui.widgets = { pomo: true, eff: true, vk: false, telemost: false });
   const target = anchor || $('#wgShowBtn') || $('#wgAddBtn');
@@ -10159,7 +10382,7 @@ const PROFILE_ACHIEVEMENTS = [
   { id: 'privacy4', group: 'useful', icon: 'shield-check', rgb: '63 198 157', rarity: 'ЭПИЧЕСКАЯ', title: 'Параноик', desc: 'Четыре щита: трекеры, HTTPS-only, защита от отпечатка и строгий режим.', metric: 'privacy4' },
   { id: 'cookies1000', group: 'useful', icon: 'cookie', rgb: '238 171 82', rarity: 'ЛЕГЕНДАРНАЯ', title: 'Генеральная уборка', desc: 'Цифровую крошку — вон: удалите не меньше 1 000 cookies.', metric: 'cookies1000' },
   { id: 'countries20', group: 'useful', icon: 'globe', rgb: '52 190 211', rarity: 'ЭПИЧЕСКАЯ', title: 'Обошёл полмира', desc: 'Двадцать стран без чемодана: посетите сайты из 20 разных стран.', metric: 'countries20' },
-  { id: 'firstPayment', group: 'useful', icon: 'wallet', rgb: '238 180 79', rarity: 'ПОЛЕЗНАЯ', title: 'Первая оплата', desc: 'Круг по кассе завершён: вернитесь из тестового платёжного шлюза.', metric: 'firstPayment' },
+  { id: 'firstPayment', group: 'useful', icon: 'wallet', rgb: '238 180 79', rarity: 'ПОЛЕЗНАЯ', title: 'Первая оплата', desc: 'Первая оплата Premium подтверждена платёжным сервером.', metric: 'firstPayment' },
   { id: 'youtube10h', group: 'media', icon: 'play', rgb: '255 78 91', rarity: 'РЕДКАЯ', title: 'Ещё одно видео и спать', desc: 'Финальные титры подождут: наберите 10 часов открытых вкладок YouTube.', metric: 'youtube10h' },
   { id: 'youtube100h', group: 'media', icon: 'headset', rgb: '255 130 85', rarity: 'ЛЕГЕНДАРНАЯ', title: 'А оно уже утро?', desc: 'Сто часов спустя — всё ещё «ещё одно». Наберите 100 часов YouTube.', metric: 'youtube100h' },
   { id: 'rabbit50', group: 'media', icon: 'target', rgb: '183 122 255', rarity: 'ЭПИЧЕСКАЯ', title: 'Кроличья нора', desc: 'На дне кроличьей норы — ещё одна рекомендация. Перейдите по 50 подряд.', metric: 'rabbit50' },
@@ -10239,14 +10462,16 @@ function profileActivity(raw = false) {
   const privacy = privacyChecks.filter(item => item.enabled).length;
   const customBookmarks = (S.bookmarks || []).filter(b => b && !/^b[1-6]$/.test(String(b.id || ''))).length;
   const knownSearchEngines = profileKnownSearchEngines();
-  const profilePaymentReturned = !!S.ui.profilePaymentReturned || (S.ghost && !!T.profilePaymentReturned);
+  const verifiedPremium = T.premiumServerEntitlement;
+  const paymentConfirmed = !!(verifiedPremium && verifiedPremium.verified === true && verifiedPremium.firstPaymentConfirmed === true);
+  const paymentUnavailable = T.premiumVerificationStatus === 'checked' ? '' : 'История платежей доступна только после серверной проверки.';
   const metric = {
     gosuslugi: { value: visits.filter(v => profileDomainMatch(hostOf(v.url), ['gosuslugi.ru'])).length, target: 1, unit: 'визит' },
     study10h: { value: minutesOn(education), target: 600, time: true },
     privacy4: { value: privacy, target: PROFILE_PRIVACY_PROTECTIONS.length, unit: 'защиты', checks: privacyChecks },
     cookies1000: { value: 0, target: 1000, unit: 'cookies', unavailable: 'Счётчик cookies не собирается.' },
     countries20: { value: 0, target: 20, unit: 'стран', unavailable: 'География посещений не определяется.' },
-    firstPayment: { value: profilePaymentReturned ? 1 : 0, target: 1, unit: 'возврат из демо-шлюза' },
+    firstPayment: { value: paymentConfirmed ? 1 : 0, target: 1, unit: 'подтверждённый платёж', unavailable: paymentUnavailable },
     youtube10h: { value: minutesOn(['youtube.com']), target: 600, time: true },
     youtube100h: { value: minutesOn(['youtube.com']), target: 6000, time: true },
     rabbit50: { value: 0, target: 50, unit: 'переходов', unavailable: 'Рекомендации страниц не считываются.' },
@@ -10280,7 +10505,9 @@ function profileActivity(raw = false) {
 }
 function storedProfileUnlocks() {
   const known = new Set(PROFILE_ACHIEVEMENTS.map(a => a.id));
-  return new Set((Array.isArray(S.ui.profileAchievementUnlocks) ? S.ui.profileAchievementUnlocks : []).filter(id => known.has(id)));
+  const server = T.premiumServerEntitlement;
+  const paymentVerified = !!(server && server.verified === true && server.firstPaymentConfirmed === true);
+  return new Set((Array.isArray(S.ui.profileAchievementUnlocks) ? S.ui.profileAchievementUnlocks : []).filter(id => known.has(id) && (id !== 'firstPayment' || paymentVerified)));
 }
 function captureProfileUnlocks(d) {
   const unlocks = storedProfileUnlocks();
@@ -10438,24 +10665,87 @@ function profileProgressFocus(d, statuses, filter = 'all') {
   const m = d.metric[a.metric], pct = Math.max(0, Math.min(100, m.value / m.target * 100));
   return `<button class="ach-progress-focus" type="button" data-act="achDetail" data-ach-id="${a.id}" style="--ach-rgb:${a.rgb}" aria-label="Ближе всего к получению: ${esc(a.title)}, ${esc(profileAchProgress(a, m))}">${achievementMedalHtml(a, a.icon)}<span class="ach-focus-copy"><small>БЛИЖЕ К НАГРАДЕ</small><b>${esc(a.title)}</b><span>${esc(profileAchProgress(a, m))}</span></span><span class="ach-focus-track"><i style="--ach-progress:${pct.toFixed(1)}%"></i></span>${ico('chev-r')}</button>`;
 }
+const FREE_SPACE_LIMIT = 3;
 const PREMIUM_PLANS = {
   monthly: { id: 'monthly', label: 'Ежемесячно', price: '299 ₽', period: 'в месяц', days: 30 },
   yearly: { id: 'yearly', label: 'Ежегодно', price: '2 390 ₽', period: 'в год', days: 365, badge: '-33%' }
 };
 const PREMIUM_FEATURES = [
   ['sparkles', 'Эксклюзивные темы оформления', 'Дополнительные палитры и акценты интерфейса'],
-  ['layers', 'Безлимитные пространства', 'Никаких ограничений на количество рабочих пространств'],
+  ['layers', 'Безлимитные пространства', `До ${FREE_SPACE_LIMIT} пространств бесплатно; Premium снимает лимит`],
   ['trophy', 'Значок Premium в профиле', 'Особая рамка аватара и статус в SHELTER ID'],
   ['headset', 'Приоритетная поддержка', 'Ответ службы поддержки вне очереди']
 ];
-function premiumState() {
-  const p = S.ui.premium;
-  if (!p || !p.active) return { active: false };
-  if (p.eternal || p.plan === 'eternal') return { active: true, plan: 'eternal', eternal: true, until: 0 };
-  if (p.until && p.until < Date.now()) return { active: false, expired: true };
-  return p;
+function isDevelopmentBuild() {
+  const native = window.shelterNative;
+  return !!(native && native.isDevelopment === true && native.distributionChannel === 'direct');
 }
-function isPremium() { return premiumState().active; }
+function isBetaBuild() {
+  const native = window.shelterNative;
+  return !!(native && native.distributionChannel === 'beta');
+}
+function canRedeemPromo() { return isDevelopmentBuild() || isBetaBuild(); }
+function premiumState() {
+  const server = T.premiumServerEntitlement;
+  if (server && server.verified === true && server.active === true && (!server.until || server.until > Date.now())) return Object.assign({ source: 'server' }, server);
+  // Local Beta promo grants are channel-gated and never count as a paid entitlement.
+  const promo = S.ui.betaPromoEntitlement;
+  if (isBetaBuild() && promo && promo.active === true && (!promo.until || Number(promo.until) > Date.now())) return Object.assign({}, promo, { source: 'beta-promo' });
+  const mock = T.premiumMockEntitlement;
+  if (isDevelopmentBuild() && mock && mock.active === true && (!mock.until || mock.until > Date.now())) return Object.assign({ source: 'dev-mock' }, mock);
+  return { active: false, expired: !!(server && server.verified && server.until && server.until <= Date.now()), verified: !!(server && server.verified), firstPaymentConfirmed: !!(server && server.firstPaymentConfirmed), legacy: !!(S.ui.premium && S.ui.premium.active), verificationStatus: T.premiumVerificationStatus || 'unknown' };
+}
+function widgetHasAccess() { return premiumState().active === true; }
+function widgetAccessState() { return premiumState(); }
+function isPremium() { return premiumState().active === true; }
+function premiumTimeValue(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) { const n = Number(value); if (Number.isFinite(n)) return n; const parsed = Date.parse(value); return Number.isFinite(parsed) ? parsed : 0; }
+  return 0;
+}
+function refreshPremiumEntitlement({ notify = false } = {}) {
+  const checkId = T.premiumCheckId = (T.premiumCheckId || 0) + 1;
+  const native = window.shelterNative;
+  if (!native || typeof native.getPremiumEntitlement !== 'function') {
+    const hadEntitlement = !!T.premiumServerEntitlement;
+    T.premiumServerEntitlement = null; T.premiumVerificationStatus = 'unavailable';
+    if (hadEntitlement) { renderUser(); refreshPage('widgets'); refreshPage('profile'); }
+    return Promise.resolve(null);
+  }
+  T.premiumVerificationStatus = 'pending';
+  return Promise.resolve().then(() => native.getPremiumEntitlement()).then(response => {
+    if (checkId !== T.premiumCheckId) return null;
+    const payload = response && response.entitlement && typeof response.entitlement === 'object' ? response.entitlement : response;
+    const verified = !!(response && response.ok === true && payload && payload.verified === true);
+    const until = verified ? premiumTimeValue(payload.expiresAt || payload.until) : 0;
+    const status = verified ? String(payload.status || '') : '';
+    T.premiumServerEntitlement = verified ? {
+      verified: true,
+      active: status === 'active' && (!until || until > Date.now()),
+      status,
+      plan: String(payload.planId || payload.plan || ''),
+      until,
+      eternal: payload.perpetual === true || payload.eternal === true,
+      firstPaymentConfirmed: payload.firstPaymentConfirmed === true || Number(payload.paidOrderCount) > 0,
+      firstPaymentAt: premiumTimeValue(payload.firstPaymentAt)
+    } : null;
+    T.premiumVerificationStatus = response && response.ok === true ? 'checked' : 'unavailable';
+    renderUser(); refreshPage('widgets'); refreshPage('profile');
+    if (notify && T.premiumServerEntitlement && T.premiumServerEntitlement.firstPaymentConfirmed) {
+      const current = profileAchievementStatuses(profileActivity(), storedProfileUnlocks());
+      notifyNewProfileAchievements(current);
+    }
+    return T.premiumServerEntitlement;
+  }).catch(() => {
+    if (checkId === T.premiumCheckId) {
+      const hadEntitlement = !!T.premiumServerEntitlement;
+      T.premiumServerEntitlement = null; T.premiumVerificationStatus = 'unavailable';
+      if (hadEntitlement) { renderUser(); refreshPage('widgets'); refreshPage('profile'); }
+    }
+    return null;
+  });
+}
+window.shelterOnPremiumStatus = () => refreshPremiumEntitlement({ notify: true });
 function premiumUntilLabel(ts, p) {
   const st = p || premiumState();
   if (st && (st.eternal || st.plan === 'eternal')) return 'навсегда (Вечный Premium)';
@@ -10466,20 +10756,25 @@ function premiumUntilLabel(ts, p) {
 function openPremiumDialog() {
   const cur = premiumState();
   if (cur.active) {
+    const isMock = cur.source === 'dev-mock', isBetaPromo = cur.source === 'beta-promo';
     const planLabel = cur.eternal ? 'Вечный Premium' : (PREMIUM_PLANS[cur.plan] ? PREMIUM_PLANS[cur.plan].label : 'Premium');
-    const modal = openModal({ width: 440, html: `<div class="modal-h"><div class="mi-ic"><span class="premium-crown">${ico('crown')}</span></div><h3>SHELTER Premium активен</h3></div>
-      <div class="modal-b"><p>Подписка «${esc(planLabel)}» активна ${esc(premiumUntilLabel(cur.until, cur))}</p>
-      </div>
-      <div class="modal-f"><button class="btn ghost danger" data-premium-cancel>${ico('x')}Отменить подписку</button><button class="btn primary" data-account-close>Готово</button></div>` });
+    const activeTitle = isMock ? 'Тестовый Premium · Debug' : isBetaPromo ? 'Промо-доступ · Beta' : 'SHELTER Premium активен';
+    const activeNote = isMock ? '. Временный тестовый доступ; реальных платежей не было.' : isBetaPromo ? '. Бета-промокод не является подтверждением оплаты.' : ' · доступ подтверждён сервером.';
+    const manageButton = isMock ? `<button class="btn ghost danger" data-premium-clear-mock>${ico('x')}Сбросить тестовый доступ</button>` : isBetaPromo ? `<button class="btn ghost danger" data-premium-clear-promo>${ico('x')}Сбросить промокод</button>` : `<button class="btn ghost" data-premium-refresh>${ico('ref')}Обновить статус</button>`;
+    const modal = openModal({ width: 440, html: `<div class="modal-h"><div class="mi-ic"><span class="premium-crown">${ico('crown')}</span></div><h3>${activeTitle}</h3></div>
+      <div class="modal-b"><p>Доступ «${esc(planLabel)}» активен ${esc(premiumUntilLabel(cur.until, cur))}${activeNote}</p></div>
+      <div class="modal-f">${manageButton}<button class="btn primary" data-account-close>Готово</button></div>` });
     modal.scrim.addEventListener('click', e => {
       if (e.target.closest('[data-account-close]')) closeModal(modal);
-      else if (e.target.closest('[data-premium-cancel]')) { S.ui.premium = { active: false }; saveNow(); renderUser(); refreshPage('profile'); closeModal(modal); toast('Подписка Premium отменена', { icon: 'info' }); }
+      else if (e.target.closest('[data-premium-clear-mock]')) { T.premiumMockEntitlement = null; renderUser(); refreshPage('widgets'); closeModal(modal); toast('Тестовый доступ сброшен', { icon: 'info' }); }
+      else if (e.target.closest('[data-premium-clear-promo]')) { S.ui.betaPromoEntitlement = null; saveNow(); renderUser(); refreshPage('widgets'); closeModal(modal); toast('Бета-промокод сброшен', { icon: 'info' }); }
+      else if (e.target.closest('[data-premium-refresh]')) { refreshPremiumEntitlement(); toast('Запрошена серверная проверка Premium', { icon: 'info' }); }
     });
     return;
   }
   let plan = 'yearly';
   const body = () => `<div class="premium-plan-toggle" role="group" aria-label="Тарифный план">${Object.values(PREMIUM_PLANS).map(p => `<button type="button" class="premium-plan-opt ${p.id === plan ? 'on' : ''}" data-plan="${p.id}">${p.badge ? `<span class="premium-plan-badge">${esc(p.badge)}</span>` : ''}<b>${esc(p.label)}</b><span>${esc(p.price)} <small>${esc(p.period)}</small></span></button>`).join('')}</div>
-    <ul class="premium-feature-list">${PREMIUM_FEATURES.map(([icon, t, d]) => `<li>${ico(icon)}<div><b>${esc(t)}</b><small>${esc(d)}</small></div></li>`).join('')}</ul>`;
+    <ul class="premium-feature-list">${PREMIUM_FEATURES.map(([icon, t, d]) => `<li>${ico(icon)}<div><b>${esc(t)}</b><small>${esc(d)}</small></div></li>`).join('')}</ul><p class="premium-key-disabled">${isDevelopmentBuild() ? 'Debug-сборка: тестовый сценарий не принимает оплату и не активирует реальную подписку.' : 'Провайдер оплаты пока не подключён. Любой доступ Premium появится только после серверного подтверждения.'}</p>`;
   const modal = openModal({ width: 480, html: `<div class="modal-h"><div class="mi-ic"><span class="premium-crown">${ico('crown')}</span></div><h3>SHELTER Premium</h3><button class="icon-btn" data-account-close aria-label="Закрыть">${ico('x')}</button></div>
     <div class="modal-b" data-premium-body>${body()}</div>
     <div class="modal-f"><button class="btn ghost" data-account-close>Отмена</button><button class="btn primary" data-premium-go>${ico('crown')}Оформить</button></div>` });
@@ -10489,9 +10784,21 @@ function openPremiumDialog() {
     else { const opt = e.target.closest('[data-plan]'); if (opt) { plan = opt.dataset.plan; modal.scrim.querySelector('[data-premium-body]').innerHTML = body(); } }
   });
 }
-function openPremiumCheckout(plan) {
-  T.premiumPurchaseFlow = true; T.premiumPlan = plan;
-  openPaymentGateway();
+async function openPremiumCheckout(plan) {
+  if (isDevelopmentBuild()) { T.premiumPurchaseFlow = true; T.premiumPlan = plan; openPaymentGateway(); return; }
+  const native = window.shelterNative;
+  if (!native || typeof native.startPremiumCheckout !== 'function') {
+    toast('Оплата пока не подключена. Premium не будет активирован без подтверждения сервера.', { icon: 'info', ms: 6500 }); return;
+  }
+  try {
+    const result = await native.startPremiumCheckout(plan);
+    if (!result || result.ok !== true) {
+      toast('Платёжный сервер не создал заказ. Доступ Premium не изменён.', { icon: 'info', ms: 6500 }); return;
+    }
+    T.premiumPendingOrder = typeof result.orderId === 'string' ? result.orderId : '';
+    toast('Заказ создан. Доступ появится только после подтверждения платежа сервером.', { icon: 'info', ms: 6500 });
+    await refreshPremiumEntitlement({ notify: true });
+  } catch (_) { toast('Не удалось связаться с платёжным сервером. Доступ Premium не изменён.', { icon: 'info', ms: 6500 }); }
 }
 function activatePromoKey() {
   const inp = $('#profileKeyInput');
@@ -10502,43 +10809,50 @@ function activatePromoKey() {
     toast('Введите ключ активации', { icon: 'key' });
     return;
   }
-  const setPremDays = (days, plan, label) => {
-    S.ui.premium = { active: true, plan, days, eternal: false, until: Date.now() + days * DAY };
-    saveNow(); renderUser();
+  if (!canRedeemPromo()) {
+    toast('Промокоды доступны только в Debug и Beta-сборках. Платный доступ требует серверного подтверждения.', { icon: 'lock', ms: 6500 });
+    return;
+  }
+  const betaPromo = isBetaBuild();
+  const setPromoDays = (days, plan, label) => {
+    const entitlement = { active: true, source: betaPromo ? 'beta-promo' : 'dev-mock', plan, days, until: Date.now() + days * DAY };
+    if (betaPromo) { S.ui.betaPromoEntitlement = entitlement; saveNow(); }
+    else T.premiumMockEntitlement = entitlement;
     if (inp) inp.value = '';
-    refreshPage('profile');
-    toast(`Ключ активирован · подписка Premium на ${label}`, { icon: 'crown', ms: 4800 });
+    renderUser(); refreshPage('widgets'); refreshPage('profile');
+    toast(betaPromo ? `Бета-промокод активирован · ${label}` : `Тестовый Premium · ${label} · Debug`, { icon: 'crown', ms: 4800 });
   };
   if (code === 'ADMIN26') {
-    S.ui.premium = { active: true, plan: 'eternal', eternal: true, until: 0 };
-    saveNow(); renderUser();
+    const entitlement = { active: true, source: betaPromo ? 'beta-promo' : 'dev-mock', plan: 'eternal', eternal: true, until: 0 };
+    if (betaPromo) { S.ui.betaPromoEntitlement = entitlement; saveNow(); }
+    else T.premiumMockEntitlement = entitlement;
     if (inp) inp.value = '';
-    refreshPage('profile');
-    toast('Ключ ADMIN26 активирован · Вечный SHELTER Premium включён', { icon: 'crown', ms: 5200 });
+    renderUser(); refreshPage('widgets'); refreshPage('profile');
+    toast(betaPromo ? 'Бета-промокод активировал тестовый Вечный Premium' : 'Тестовый Вечный Premium активирован · Debug', { icon: 'crown', ms: 5200 });
     return;
   }
   if (code === 'OFFPREM') {
-    S.ui.premium = { active: false };
-    saveNow(); renderUser();
+    if (betaPromo) { S.ui.betaPromoEntitlement = null; saveNow(); }
+    else T.premiumMockEntitlement = null;
     if (inp) inp.value = '';
-    refreshPage('profile');
-    toast('Подписка SHELTER Premium отключена', { icon: 'info', ms: 4200 });
+    renderUser(); refreshPage('widgets'); refreshPage('profile');
+    toast(betaPromo ? 'Бета-промокод сброшен' : 'Тестовый Premium сброшен', { icon: 'info', ms: 4200 });
     return;
   }
   if (code === '7DAYSPREM') {
-    setPremDays(7, '7days', '7 дней');
+    setPromoDays(7, '7days', '7 дней');
     return;
   }
   if (code === '1MOUTNPREM' || code === '1MONTHPREM') {
-    setPremDays(30, 'monthly', '30 дней');
+    setPromoDays(30, 'monthly', '30 дней');
     return;
   }
   if (code === '6MOUTNPREM' || code === '6MONTHPREM') {
-    setPremDays(180, '6months', '180 дней');
+    setPromoDays(180, '6months', '180 дней');
     return;
   }
   if (code === '1YEARPREM') {
-    setPremDays(365, 'yearly', '365 дней');
+    setPromoDays(365, 'yearly', '365 дней');
     return;
   }
   if (code === 'ACHIVRAND') {
@@ -10634,17 +10948,11 @@ RENDER.profile = () => {
         <div class="profile-awards-row" aria-label="Полученные награды в профиле">${showcaseHtml}</div>
       </section>
       <section class="card profile-premium-card ${premium.active ? 'is-active' : ''}">
-        <div class="pac-head"><span class="pac-ic premium-ic">${ico('crown')}</span><div><b>SHELTER Premium</b>${premium.active ? `<small>Активен ${esc(premiumUntilLabel(premium.until, premium))}</small>` : ''}</div></div>
+        <div class="pac-head"><span class="pac-ic premium-ic">${ico('crown')}</span><div><b>SHELTER Premium</b>${premium.active ? `<small>${premium.source === 'dev-mock' ? 'Тестовый доступ · Debug' : premium.source === 'beta-promo' ? 'Бета-промокод · ' + esc(premiumUntilLabel(premium.until, premium)) : 'Подтверждён сервером · ' + esc(premiumUntilLabel(premium.until, premium))}</small>` : ''}</div></div>
         ${premium.active
-      ? `<div class="premium-feature-list mini"><span class="premium-active-badge">${ico('check')}Подписка активна</span></div><button class="btn ghost premium-manage" data-act="premiumDialog">${ico('gear')}Управлять подпиской</button>`
+      ? `<div class="premium-feature-list mini"><span class="premium-active-badge">${ico('check')}${premium.source === 'dev-mock' ? 'Тестовый доступ · не покупка' : premium.source === 'beta-promo' ? 'Промо-доступ · не оплата' : 'Подписка подтверждена'}</span></div><button class="btn ghost premium-manage" data-act="premiumDialog">${ico('gear')}${premium.source === 'dev-mock' ? 'Управлять тестом' : premium.source === 'beta-promo' ? 'Управлять промокодом' : 'Статус подписки'}</button>`
       : `<ul class="premium-feature-list mini">${PREMIUM_FEATURES.slice(0, 3).map(([icon, t]) => `<li>${ico(icon)}<span>${esc(t)}</span></li>`).join('')}</ul><button class="btn primary premium-cta" data-act="premiumDialog">${ico('crown')}Оформить Premium</button>`}
-        <div class="profile-key-box">
-          <span class="profile-key-label">${ico('key')}<span>Активировать ключ</span></span>
-          <div class="profile-key-row">
-            <input class="input profile-key-input" id="profileKeyInput" type="text" placeholder="Введите ключ…" autocomplete="off" spellcheck="false" aria-label="Активировать ключ">
-            <button class="btn sm primary profile-key-btn" type="button" data-act="activatePromoKey">ОК</button>
-          </div>
-        </div>
+        ${canRedeemPromo() ? `<div class="profile-key-box"><span class="profile-key-label">${ico('key')}<span>${isBetaBuild() ? 'Бета-промокод · только для тестирования' : 'Тестовый ключ · только Debug'}</span></span><div class="profile-key-row"><input class="input profile-key-input" id="profileKeyInput" type="text" placeholder="${isBetaBuild() ? 'Введите бета-промокод…' : 'Введите Debug-ключ…'}" autocomplete="off" spellcheck="false" aria-label="Промокод"><button class="btn sm primary profile-key-btn" type="button" data-act="activatePromoKey">ОК</button></div></div>` : `<p class="premium-key-disabled">${premium.legacy ? 'Ранее сохранённая локальная отметка сохранена, но не подтверждает оплату и не включает Premium.' : 'Промокоды доступны только в Debug и отдельных Beta-сборках. Реальный платный доступ требует серверного подтверждения.'}</p>`}
       </section>
       <section class="card profile-ach-card">
         <div class="pac-head"><span class="pac-ic">${ico('trophy')}</span><div><b>Ачивки</b><small>${earned} из ${total} получено</small></div></div>
@@ -10669,32 +10977,25 @@ AFTER.profile = () => {
   });
 };
 RENDER.checkout = () => {
+  if (!isDevelopmentBuild()) return `<div class="page checkout-page"><div class="page-h"><div class="ttl"><div class="page-title">Оплата Premium</div><div class="page-sub">Проверка подписки</div></div></div><section class="checkout-card"><span class="checkout-emblem">${ico('lock')}</span><h2>Платёжный сервис не подключён</h2><p>Оплата отключена в этой сборке. Покупка и локальный возврат не могут активировать Premium — нужен ответ сервера.</p><button class="btn primary" data-act="paymentReturn">${ico('back')}Вернуться в SHELTER</button></section></div>`;
   const premiumFlow = !!T.premiumPurchaseFlow, plan = premiumFlow ? (PREMIUM_PLANS[T.premiumPlan] || PREMIUM_PLANS.monthly) : null;
-  return `<div class="page checkout-page"><div class="page-h"><div class="ttl"><div class="page-title">Платёжный шлюз</div><div class="page-sub">Безопасный тестовый переход SHELTER</div></div></div><section class="checkout-card"><span class="checkout-emblem">${ico(premiumFlow ? 'crown' : 'wallet')}</span><span class="checkout-demo-tag">ДЕМО · БЕЗ СПИСАНИЙ</span><h2>${premiumFlow ? 'Оформление SHELTER Premium' : 'Тестовый экран оплаты'}</h2><p>Платёжный провайдер не подключён. Здесь не вводятся реквизиты, не создаётся покупка и не списываются деньги.</p><div class="checkout-summary"><span>${premiumFlow ? 'Тариф' : 'Состояние операции'}</span><b>${premiumFlow ? `${esc(plan.label)} · ${esc(plan.price)} ${esc(plan.period)}` : 'Демонстрационный переход'}</b></div><button class="btn primary" data-act="paymentReturn">${ico('back')}Вернуться в SHELTER</button><small>${premiumFlow ? 'Возврат активирует демо-подписку Premium и засчитает ачивку «Первая оплата».' : (T.profilePaymentStarted ? 'Возврат завершит только тестовый маршрут ачивки «Первая оплата».' : 'Страница открыта напрямую — этот переход не засчитывается как достижение.')}</small></section></div>`;
+  return `<div class="page checkout-page"><div class="page-h"><div class="ttl"><div class="page-title">Платёжный шлюз</div><div class="page-sub">Изолированный тестовый переход · Debug</div></div></div><section class="checkout-card"><span class="checkout-emblem">${ico(premiumFlow ? 'crown' : 'wallet')}</span><span class="checkout-demo-tag">MOCK · БЕЗ СПИСАНИЙ</span><h2>${premiumFlow ? 'Тестовый SHELTER Premium' : 'Тестовый экран оплаты'}</h2><p>Это только сценарий разработки. Реквизиты не вводятся, покупка не создаётся, реальный Premium и ачивка оплаты не активируются.</p><div class="checkout-summary"><span>${premiumFlow ? 'Тариф для UI-теста' : 'Состояние операции'}</span><b>${premiumFlow ? `${esc(plan.label)} · ${esc(plan.price)} ${esc(plan.period)}` : 'Демонстрационный переход'}</b></div><button class="btn primary" data-act="paymentReturn">${ico('back')}Вернуться в SHELTER</button><small>Доступ, если выдан, существует только в памяти Debug-сборки и не сохраняется как реальная подписка.</small></section></div>`;
 };
 function openPaymentGateway() {
-  T.profilePaymentStarted = true;
-  openPage('checkout');
+  if (!isDevelopmentBuild()) { toast('Платёжный сервис не подключён. Доступ Premium не изменён.', { icon: 'info' }); return; }
+  T.profilePaymentStarted = true; openPage('checkout');
 }
 function returnFromPaymentGateway() {
-  const completed = !!T.profilePaymentStarted;
   const wasPremium = !!T.premiumPurchaseFlow, plan = T.premiumPlan;
+  const completed = isDevelopmentBuild() && !!T.profilePaymentStarted;
   T.profilePaymentStarted = false; T.premiumPurchaseFlow = false;
-  if (completed) {
-    if (S.ghost) T.profilePaymentReturned = true;
-    else { S.ui.profilePaymentReturned = true; }
-    if (wasPremium) {
-      const days = (PREMIUM_PLANS[plan] || PREMIUM_PLANS.monthly).days;
-      S.ui.premium = { active: true, plan: plan || 'monthly', until: Date.now() + days * 86400000 };
-    }
-    saveNow();
-    T.profileAchOpen = true; T.profileAchStatus = 'all'; T.profileFilter = 'all';
-    openPage('profile');
-    if (wasPremium) setTimeout(() => toast('Добро пожаловать в SHELTER Premium!', { icon: 'crown', ms: 5200 }), 250);
-  } else {
-    toast('Демо-шлюз открыт напрямую — ачивка не засчитана', { icon: 'wallet' });
-    openPage('profile');
-  }
+  if (completed && wasPremium) {
+    const days = (PREMIUM_PLANS[plan] || PREMIUM_PLANS.monthly).days;
+    T.premiumMockEntitlement = { active: true, source: 'dev-mock', plan: plan || 'monthly', until: Date.now() + days * 86400000 };
+    renderUser(); refreshPage('widgets');
+    toast('Тестовый доступ выдан только для Debug · покупка и ачивка оплаты не засчитаны', { icon: 'crown', ms: 6000 });
+  } else if (!completed) toast('Возврат не подтверждает платёж. Доступ Premium не изменён.', { icon: 'wallet' });
+  T.profileAchOpen = true; T.profileAchStatus = 'all'; T.profileFilter = 'all'; openPage('profile');
 }
 
 function openProfileSettings() {
@@ -10738,7 +11039,7 @@ function openProfileSettings() {
       S.ui.profileAvatar = avatarDraft || '';
       saveNow(); closeModal(modal); login(providerId);
     }
-    else if (e.target.closest('[data-profile-logout]')) { S.account = null; persist(); renderUser(); refreshPage('profile'); closeModal(modal); toast('Вы вышли из SHELTER ID', { icon: 'logout' }); }
+    else if (e.target.closest('[data-profile-logout]')) { S.account = null; T.premiumCheckId = (T.premiumCheckId || 0) + 1; T.premiumServerEntitlement = null; persist(); renderUser(); refreshPremiumEntitlement(); refreshPage('profile'); closeModal(modal); toast('Вы вышли из SHELTER ID', { icon: 'logout' }); }
   });
   avatarFile.addEventListener('change', async () => {
     const file = avatarFile.files && avatarFile.files[0]; if (!file) return;
@@ -12212,7 +12513,8 @@ const AUTH_PROVIDERS = {
 };
 function accountSignedIn(provider, P) {
   S.account = { provider, name: 'Ven Everick', email: P.email, initials: 'VE' };
-  acceptInvitesForAccount(); persist(); renderUser();
+  T.premiumCheckId = (T.premiumCheckId || 0) + 1; T.premiumServerEntitlement = null;
+  acceptInvitesForAccount(); persist(); renderUser(); refreshPremiumEntitlement();
   toast('Вы вошли в SHELTER ID через ' + P.label, { icon: 'check' });
 }
 function login(provider) {
@@ -12287,10 +12589,11 @@ const ACT = {
   achStatus: el => { T.profileAchStatus = el.dataset.status || 'all'; T.profileAchOpen = true; refreshPage('profile'); },
   achToggle: () => { T.profileAchOpen = !T.profileAchOpen; refreshPage('profile'); },
   achHint: () => showProfileHint(),
-  pomoToggle: () => { pomoState().running = !pomoState().running; pomoRenderTick(); },
-  pomoStatus: async () => { if (!(await pomoGuardSwitch())) return; const P = pomoState(); P.mode = P.mode === 'work' ? 'short' : (P.mode === 'short' ? 'long' : 'work'); P.remain = pomoDur(P.mode); P.running = false; pomoRenderTick(); toast('Режим: ' + POMO_LABEL[P.mode], { icon: 'timer' }); },
-  pomoReset: async () => { const P = pomoState(); if (pomoBusy() && !(await confirmDlg({ title: 'Сбросить помодоро?', text: 'Текущий прогресс сессии и счётчик циклов за сегодня будут сброшены.', ok: 'Сбросить', danger: true, icon: 'ref' }))) return; P.mode = 'work'; P.remain = pomoDur('work'); P.running = false; P.cycles = 0; pomoRenderTick(); },
-  pomoSkip: async () => { if (!(await pomoGuardSwitch())) return; pomoAdvance(); pomoState().running = false; pomoRenderTick(); },
+  pomoToggle: () => pomoToggle(),
+  pomoStatus: () => pomoChangeMode(),
+  pomoSettings: () => openPomodoroSettings(),
+  pomoReset: () => pomoReset(),
+  pomoSkip: () => pomoSkip(),
   wgShowMenu: el => openWidgetPicker(el),
   wgAdd: el => openWidgetAddMenu(el),
   activatePromoKey: () => activatePromoKey(),
@@ -12648,6 +12951,7 @@ function init() {
   setInterval(() => { if (!document.hidden && !$('#hero').hidden) { const g = $('#greet'); const t = greeting(); if (g && g.textContent !== t) g.textContent = t; } }, 60000);
   /* baseline достижений сеанса: что получено ДО старта — не уведомляем */
   try { T.profileAchievementSnapshot = profileAchievementStatuses(profileActivity(), storedProfileUnlocks()); } catch (_) {}
+  refreshPremiumEntitlement();
   syncWebScheme();
   /* Первая запись (миграция/синхронизация) — вне критического пути загрузки:
      saveNow шифрует историю/чаты (~80-100мс на переполненном профиле),
@@ -13700,7 +14004,7 @@ function wpDayColumn(date,entities,{spanSpace=0,includeMultiDay=false}={}) {
 }
 function wpCalendarCompletedToggle() {
   const shown=WP.showCompleted!==false, label=shown?'Скрыть выполненные задачи':'Показать выполненные задачи';
-  return `<button type="button" class="btn sm ghost wp-calendar-completed-toggle" data-act="wpCalendarToggleCompleted" aria-pressed="${shown}" aria-label="${label}" title="${label}">${ico(shown?'eye-off':'eye')}<span>${label}</span></button>`;
+  return `<button type="button" class="btn sm ghost wp-calendar-completed-toggle ${shown?'is-active':''}" data-act="wpCalendarToggleCompleted" aria-pressed="${shown}" aria-label="${label}" title="${label}">${ico(shown?'eye-off':'eye')}<span>${label}</span></button>`;
 }
 function wpToggleCalendarCompleted() {
   WP.showCompleted=WP.showCompleted===false;
@@ -13772,7 +14076,7 @@ function wpAllFilterToolbar() {
   const projectOptions=[['all','Все'],['inbox','Входящие'],['personal','Личные'],...projects.map(x=>['project:'+x.id,x.name])];
   const filters=[['active','Активные'],['all','Все'],['done','Выполненные'],['cancelled','Отменённые']];
   const dirty=WP.allFilter!=='active'||WP.allAssigneeFilter!=='all'||project!=='all';
-  return `<div class="wp-all-toolbar"><div class="wp-all-filter-row"><div class="wp-filter-pills" role="group" aria-label="Фильтр по статусу">${filters.map(([v,l])=>`<button type="button" class="${WP.allFilter===v?'active':''}" data-act="wpAllFilter" data-filter="${v}" aria-pressed="${WP.allFilter===v}">${l}</button>`).join('')}</div><button type="button" class="wp-my-filter ${mine?'active':''}" data-act="wpAllMineToggle" aria-pressed="${mine}">${ico('user')}Мои задачи</button><label class="wp-filter-select"><span>Исполнитель</span><select class="select" data-wp-filter="assignee" aria-label="Фильтр по исполнителю">${assigneeOptions.map(([v,l])=>`<option value="${esc(v)}" ${selected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select"><span>Список / проект</span><select class="select" data-wp-filter="project" aria-label="Фильтр по списку и проекту">${projectOptions.map(([v,l])=>`<option value="${esc(v)}" ${project===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpAllReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${wpAllEntities().length}</b> из ${wpAllEntities({ignoreFilters:true}).length}</div></div>`;
+  return `<div class="wp-all-toolbar"><div class="wp-filter-layout wp-all-filter-row"><div class="wp-filter-main"><div class="wp-filter-pills" role="group" aria-label="Фильтр по статусу">${filters.map(([v,l])=>`<button type="button" class="${WP.allFilter===v?'active':''}" data-act="wpAllFilter" data-filter="${v}" aria-pressed="${WP.allFilter===v}">${l}</button>`).join('')}</div></div><button type="button" class="wp-my-filter ${mine?'active':''}" data-act="wpAllMineToggle" aria-pressed="${mine}">${ico('user')}Мои задачи</button><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-filter="assignee" aria-label="Фильтр по исполнителю">${assigneeOptions.map(([v,l])=>`<option value="${esc(v)}" ${selected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-filter="project" aria-label="Фильтр по списку и проекту">${projectOptions.map(([v,l])=>`<option value="${esc(v)}" ${project===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpAllReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${wpAllEntities().length}</b> из ${wpAllEntities({ignoreFilters:true}).length}</div></div>`;
 }
 function wpAllView() {
   const all=wpAllEntities();
@@ -13789,6 +14093,7 @@ function wpBoardEntities() {
   else if(String(who).startsWith('person:')) { const target=String(who).slice(7).toLocaleLowerCase(); items=items.filter(t=>wpAssigneeLabel(t).toLocaleLowerCase()===target); }
   if(WP.boardFocus==='urgent') items=items.filter(t=>['high','critical'].includes(wpPriority(t)));
   else if(WP.boardFocus==='overdue') items=items.filter(t=>wpDeadlineOverdue(t));
+  if(WP.showCompleted===false) items=items.filter(t=>wpTaskStatus(t)!=='done');
   return wpSortEntities(items);
 }
 function wpBoardSummary(items) {
@@ -13805,7 +14110,7 @@ function wpBoardToolbar(items) {
   const focus=[['all','Все'],['urgent','Срочные'],['overdue','Просроченные']];
   const dirty=home!=='all'||who!=='all'||WP.boardFocus!=='all';
   const total=wpAllEntities({ignoreFilters:true}).length;
-  return `<div class="wp-board-toolbar"><div class="wp-board-filter-row"><div class="wp-filter-pills" role="group" aria-label="Фильтр по приоритету и сроку">${focus.map(([v,label])=>`<button type="button" class="${WP.boardFocus===v?'active':''}" data-act="wpBoardFocus" data-filter="${v}" aria-pressed="${WP.boardFocus===v}">${label}</button>`).join('')}</div><button type="button" class="wp-my-filter ${who==='mine'?'active':''}" data-act="wpBoardMineToggle" aria-pressed="${who==='mine'}">${ico('user')}Мои задачи</button><label class="wp-filter-select"><span>Список / проект</span><select class="select" data-wp-board-filter="home" aria-label="Фильтр по списку и проекту">${homeOptions.map(([v,l])=>`<option value="${esc(v)}" ${home===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select"><span>Исполнитель</span><select class="select" data-wp-board-filter="assignee" aria-label="Фильтр по исполнителю">${whoOptions.map(([v,l])=>`<option value="${esc(v)}" ${whoSelected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpBoardReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${items.length}</b> из ${total}</div></div>`;
+  return `<div class="wp-board-toolbar"><div class="wp-filter-layout wp-board-filter-row"><div class="wp-filter-main"><div class="wp-filter-pills" role="group" aria-label="Фильтр по приоритету и сроку">${focus.map(([v,label])=>`<button type="button" class="${WP.boardFocus===v?'active':''}" data-act="wpBoardFocus" data-filter="${v}" aria-pressed="${WP.boardFocus===v}">${label}</button>`).join('')}</div>${wpCalendarCompletedToggle()}</div><button type="button" class="wp-my-filter ${who==='mine'?'active':''}" data-act="wpBoardMineToggle" aria-pressed="${who==='mine'}">${ico('user')}Мои задачи</button><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-board-filter="assignee" aria-label="Фильтр по исполнителю">${whoOptions.map(([v,l])=>`<option value="${esc(v)}" ${whoSelected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-board-filter="home" aria-label="Фильтр по списку и проекту">${homeOptions.map(([v,l])=>`<option value="${esc(v)}" ${home===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpBoardReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${items.length}</b> из ${total}</div></div>`;
 }
 function wpBoardView() {
   const items=wpBoardEntities(), columns=[['open','В работе'],['waiting','Ожидание'],['done','Готово'],['cancelled','Отменённые']];
@@ -13859,12 +14164,47 @@ function wpSetView(view) {
   WP.view=view; if(view!=='projects') WP.projectId='';
   S.ui.plannerView=view; persist(); wpRenderTaskPageFull();
 }
-function wpRenderTaskPageFull() { refreshPage('tasks'); renderBadges(); }
+function wpRenderTaskPageFull() {
+  const page=$('#page');
+  if(page && page.querySelector('#wpView') && !page.querySelector('.wp-migration-error')) { wpRenderView(); return; }
+  refreshPage('tasks'); renderBadges();
+}
 function wpRenderView() {
-  const root=$('#wpView'); if(root) { root.innerHTML=wpViewHtml(); wpScheduleTaskTitleMarquee(root); }
-  const head=$('#page .wp-topbar'); if(head) { const h=head.querySelector('h1'), text=h&&h.querySelector('.wp-title-marquee-text'); if(text) { text.textContent=wpViewTitle(); wpScheduleTaskTitleMarquee(head); } else if(h) h.textContent=wpViewTitle(); }
-  const dateBar=$('#page .wp-currentbar'); if(dateBar) { dateBar.innerHTML=wpDateControls(); initSegs(dateBar); }
-  const nav=$('#page .wp-nav'); if(nav) nav.innerHTML=wpNavHtml();
+  const page=$('#page'), root=$('#wpView');
+  const focused=document.activeElement;
+  const focusAttrs=['act','view','filter','id','entityType','seriesId','originalDate','date','wpFilter','wpBoardFilter','wpCalendarPicker','wpQuickInput','wpQuickQuadrant','wpQuickHome','wpQuickPriority'];
+  const focusInfo=page&&focused&&page.contains(focused)?{id:focused.id||'',attrs:Object.fromEntries(focusAttrs.filter(key=>focused.dataset&&focused.dataset[key]!=null).map(key=>[key,focused.dataset[key]])),value:typeof focused.value==='string'?focused.value:null,start:Number.isInteger(focused.selectionStart)?focused.selectionStart:null,end:Number.isInteger(focused.selectionEnd)?focused.selectionEnd:null}:null;
+  const focusState=focusInfo&&(focusInfo.id||Object.keys(focusInfo.attrs).length)?focusInfo:null;
+  const pageScroll=page?{top:page.scrollTop,left:page.scrollLeft}:null;
+  const viewScroll=root?{top:root.scrollTop,left:root.scrollLeft,board:root.querySelector('.wp-board-lanes')?.scrollLeft??0}:null;
+  if(root) { root.innerHTML=wpViewHtml(); wpScheduleTaskTitleMarquee(root); }
+  const search=page&&page.querySelector('#wpSearch'); if(search&&search.value!==WP.query) search.value=WP.query;
+  const head=page&&page.querySelector('.wp-topbar');
+  if(head) {
+    const h=head.querySelector('h1'), text=h&&h.querySelector('.wp-title-marquee-text');
+    if(text) { text.textContent=wpViewTitle(); wpScheduleTaskTitleMarquee(head); } else if(h) h.textContent=wpViewTitle();
+    const actions=head.querySelector('.wp-top-actions');
+    if(actions) {
+      const preview=document.createElement('div'); preview.innerHTML=wpHeaderControls();
+      const next=preview.querySelector('.wp-top-actions [data-act="wpQuickGlobal"]'), current=actions.querySelector('[data-act="wpQuickGlobal"]');
+      if(current&&next) { current.className=next.className; current.title=next.title; current.setAttribute('aria-label',next.getAttribute('aria-label')||''); current.innerHTML=next.innerHTML; }
+      else if(current) current.remove();
+      else if(next) actions.insertBefore(next,actions.querySelector('.wp-more'));
+    }
+  }
+  const dateBar=page&&page.querySelector('.wp-currentbar'); if(dateBar) { dateBar.innerHTML=wpDateControls(); initSegs(dateBar); }
+  const nav=page&&page.querySelector('.wp-nav'); if(nav) nav.innerHTML=wpNavHtml();
+  if(pageScroll&&page) { page.scrollTop=pageScroll.top; page.scrollLeft=pageScroll.left; }
+  if(viewScroll&&root) { root.scrollTop=viewScroll.top; root.scrollLeft=viewScroll.left; const lanes=root.querySelector('.wp-board-lanes'); if(lanes) lanes.scrollLeft=viewScroll.board; }
+  if(focusState&&page) {
+    const candidates=page.querySelectorAll('[data-act],[data-view],[data-filter],[data-id],[data-date],[data-entity-type],[data-series-id],[data-original-date],[data-wp-filter],[data-wp-board-filter],[data-wp-calendar-picker],[data-wp-quick-input],[data-wp-quick-quadrant],[data-wp-quick-home],[data-wp-quick-priority],#wpSearch');
+    const restored=focusState.id?Array.from(page.querySelectorAll('[id]')).find(el=>el.id===focusState.id):Array.from(candidates).find(el=>Object.entries(focusState.attrs).every(([key,value])=>el.dataset&&el.dataset[key]===value));
+    if(restored) {
+      try { restored.focus({preventScroll:true}); } catch(_) { restored.focus(); }
+      if(focusState.value!==null&&'value' in restored) restored.value=focusState.value;
+      if(focusState.start!==null&&typeof restored.setSelectionRange==='function') { try { restored.setSelectionRange(focusState.start,focusState.end); } catch(_) {} }
+    }
+  }
   renderBadges();
 }
 function wpSaveViewPrefs() { S.ui.plannerView=WP.view; persist(); }

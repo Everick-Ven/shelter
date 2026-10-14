@@ -1,7 +1,9 @@
 # SHELTER — приватный браузер на Chromium Embedded Framework.
 cmake_minimum_required(VERSION 3.21)
 
-set(CMAKE_CONFIGURATION_TYPES Release)
+# Debug builds enable development-only mock services. Branch builds use a
+# separate Beta channel for promotional codes; tagged production builds leave it off.
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Supported build configurations" FORCE)
 project(shelter)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -25,6 +27,7 @@ configure_file(win/shelter.rc.in
 set(CEF_VERSION "154.0.32+g682c378+chromium-154.0.8037.58")
 set(CEF_CHANNEL "minimal")
 option(USE_SANDBOX "Enable CEF's per-process sandbox" ON)
+option(SHELTER_BETA_BUILD "Enable beta-only promotional code access" OFF)
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
   # Целевая платформа — Intel (x86_64).
@@ -191,6 +194,10 @@ if(OS_MAC)
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/resources/filters" "${CEF_APP}/Contents/Resources/filters"
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/mac/Shelter.icns" "${CEF_APP}/Contents/Resources/Shelter.icns"
     VERBATIM)
+endif()
+
+if(SHELTER_BETA_BUILD)
+  target_compile_definitions(${CEF_TARGET} PRIVATE SHELTER_BETA_BUILD=1)
 endif()
 
 PRINT_CEF_CONFIG()

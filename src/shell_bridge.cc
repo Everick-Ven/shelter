@@ -154,6 +154,19 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
 
+  if (m == "premium.status") {
+    // Fail closed until a server-backed verifier is configured. Client storage
+    // and the development checkout are never evidence of a paid entitlement.
+    cb->Success("{\"ok\":false,\"verified\":false,\"status\":\"unavailable\"}");
+    return true;
+  }
+  if (m == "premium.checkout") {
+    // There is no payment provider in this build; do not create a local order
+    // or grant access. A production integration must return only a server order.
+    cb->Success("{\"ok\":false,\"error\":\"payment_provider_unavailable\"}");
+    return true;
+  }
+
   if (m == "user-data.delete") {
     // Destructive host operation; UI authorization is enforced above.
     if (closing_ || delete_user_data_on_exit()) {

@@ -116,7 +116,9 @@ assert(plannerCss.includes('.wp-week-grid{display:grid;grid-template-columns:1fr
 assert(!plannerCss.includes('.wp-week-grid{display:none}.wp-week-mobile{display:block}'));
 assert(plannerCss.includes('.wp-week-grid.is-all-day{display:none}'));
 assert(plannerCss.includes('.wp-week-mobile{display:block}'));
-const narrowCalendarContainer = plannerCss.slice(plannerCss.lastIndexOf('@container shelter (max-width:620px){'), plannerCss.lastIndexOf('@media(max-width:620px){'));
+const narrowCalendarStart = plannerCss.lastIndexOf('@container shelter (max-width:620px){\n  .wp-month-span-layer');
+const narrowCalendarEnd = plannerCss.indexOf('@media(max-width:620px){', narrowCalendarStart);
+const narrowCalendarContainer = plannerCss.slice(narrowCalendarStart, narrowCalendarEnd);
 assert(narrowCalendarContainer.includes('.wp-week-grid.is-all-day{display:none}.wp-week-mobile{display:block}'), 'narrow planner containers retain the selected-day week view');
 assert(narrowCalendarContainer.includes('.wp-month-span-layer{top:31px;left:5px;right:5px;column-gap:5px}'), 'month range rows stay aligned with the compact mobile grid');
 assert(plannerCss.includes('@container shelter (max-width:560px){.planner-page{padding:18px 12px 36px}}'));

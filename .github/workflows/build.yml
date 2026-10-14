@@ -35,7 +35,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_SANDBOX=ON -DUSE_ATL=OFF 2>&1 | tee configure.log
+          beta_build=ON
+          if [[ "${GITHUB_REF_TYPE:-branch}" == "tag" ]]; then beta_build=OFF; fi
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHELTER_BETA_BUILD="$beta_build" -DUSE_SANDBOX=ON -DUSE_ATL=OFF 2>&1 | tee configure.log
 
       - name: Verify CEF sandbox configuration
         shell: pwsh
@@ -173,7 +175,9 @@ jobs:
       - name: Configure
         run: |
           set -euo pipefail
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPROJECT_ARCH=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DUSE_SANDBOX=ON 2>&1 | tee configure.log
+          beta_build=ON
+          if [[ "${GITHUB_REF_TYPE:-branch}" == "tag" ]]; then beta_build=OFF; fi
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHELTER_BETA_BUILD="$beta_build" -DPROJECT_ARCH=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DUSE_SANDBOX=ON 2>&1 | tee configure.log
 
       - name: Verify CEF sandbox configuration
         run: python3 tools/check_sandbox_config.py configure.log macos
@@ -309,6 +313,8 @@ jobs:
         run: node tests/ui_extensions_test.js
       - name: Task planner and migration regression test
         run: node tests/ui_tasks_test.js
+      - name: Pomodoro and Efficiency Manager regression test
+        run: node tests/ui_widgets_test.js
       - name: UI appearance regression test
         run: node tests/ui_appearance_test.js
       - name: Notification marquee regression test

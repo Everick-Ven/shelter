@@ -11,6 +11,8 @@
   if (window.shelterNative) return;
 
   var PLATFORM = '__PLATFORM__';
+  var IS_DEVELOPMENT_BUILD = __DEV_BUILD__;
+  var DISTRIBUTION_CHANNEL = '__DISTRIBUTION_CHANNEL__';
   /* macOS вырезает «дыры» и радиусы прямо из CALayer. На Windows DirectComposition
      не уважает HWND-регион, поэтому прозрачные углы рисует click-through слой; для
      интерактивных «дыр» остаётся snapshot fallback. */
@@ -527,7 +529,12 @@
   window.shelterNative = {
     isNative: true,
     platform: PLATFORM,
+    distributionChannel: DISTRIBUTION_CHANNEL,
+    isDevelopment: IS_DEVELOPMENT_BUILD,
     version: VERSION,
+    isContentVisible: function () { return !!st.visible && !st.frozen && !st.busy; },
+    getPremiumEntitlement: function () { return q('premium.status'); },
+    startPremiumCheckout: function (planId) { return q('premium.checkout', { planId: planId || '' }); },
     minimize: function () { return q('win.minimize'); },
     maximize: function () { return q('win.maximize'); },
     close: function () { return q('win.close'); },

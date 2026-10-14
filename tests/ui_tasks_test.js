@@ -14,11 +14,17 @@ assert(end > start, 'the planner module must load before the application initial
 const planner = html.slice(start, end);
 
 assert(html.includes('<style id="shelter-week-planner-style">'), 'the task planner stylesheet must be present');
+const plannerStyle = html.match(/<style id="shelter-week-planner-style">([\s\S]*?)<\/style>/);
+assert(plannerStyle && plannerStyle[1].includes('.wp-filter-layout{display:grid;'), 'the list and board filters share a responsive grid');
+assert(plannerStyle[1].includes('@container shelter (max-width:620px)'), 'the shared filter grid adapts to the app viewport');
 const weekDayCss = html.match(/\.wp-week-grid\.is-all-day \.wp-day\{([^}]*)\}/);
 assert(weekDayCss && /border:0/.test(weekDayCss[1]) && !/border-right:1px/.test(weekDayCss[1]), 'week columns must remain open without permanent day separators');
 assert(html.includes('wpMigrateTaskStores(breg)'), 'legacy task migration must run during load');
 assert(planner.includes('function wpFinalizeTaskMigration()'), 'migration must require an explicit confirmation step');
 assert(planner.includes('debounce(e=>{WP.query=e.target.value;wpRenderView();},150)'), 'task search must be debounced by 150 ms');
+assert(planner.includes("if(page && page.querySelector('#wpView') && !page.querySelector('.wp-migration-error')) { wpRenderView(); return; }"), 'task-page updates patch the existing planner view instead of replacing the page');
+assert(planner.includes('restored.focus({preventScroll:true})') && planner.includes('setSelectionRange(focusState.start,focusState.end)'), 'planner updates restore focused controls and text selection');
+assert(planner.includes("const search=page&&page.querySelector('#wpSearch'); if(search&&search.value!==WP.query) search.value=WP.query;"), 'view changes preserve the planner search query');
 assert(planner.includes("kb('⌘⇧K')"), 'the task search shortcut label must adapt to the platform');
 
 const harness = String.raw`
@@ -94,6 +100,7 @@ globalThis.__api = {
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
+  wpBoardEntities, wpBoardToolbar, wpAllFilterToolbar, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
 };`, context, { timeout: 5000 });
 const api = context.__api;
@@ -259,6 +266,32 @@ api.actions.wpCalendarToggleCompleted();
 assert.strictEqual(api.WP.showCompleted, false);
 assert.strictEqual(state.ui.plannerShowCompletedTasks, false);
 api.actions.wpCalendarToggleCompleted();
+
+// The board shares the calendar's completed visibility setting, but cancelled cards remain visible.
+const priorBoardTasks=state.board.tasks, priorOccurrences=state.board.occurrences;
+state.board.tasks=[
+  { id:'board-open',title:'В работе',homeType:'personal',assignee:'Alex',statusKey:'open',priorityKey:'normal',order:1 },
+  { id:'board-done',title:'Выполнена',homeType:'personal',assignee:'Alex',statusKey:'done',priorityKey:'normal',order:2 },
+  { id:'board-cancelled',title:'Отменена',homeType:'personal',assignee:'Alex',statusKey:'cancelled',priorityKey:'normal',order:3 }
+];
+state.board.occurrences=[]; api.WP.query=''; api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardFocus='all';
+api.WP.allFilter='cancelled'; api.WP.showCompleted=true;
+let boardIds=api.wpBoardEntities().map(task=>task.id);
+assert(boardIds.includes('board-done') && boardIds.includes('board-cancelled'), 'the board shows completed and cancelled tasks when the shared toggle is on');
+api.WP.showCompleted=false;
+boardIds=api.wpBoardEntities().map(task=>task.id);
+assert(!boardIds.includes('board-done'), 'hiding completed tasks filters only the done status on the board');
+assert(boardIds.includes('board-open') && boardIds.includes('board-cancelled'), 'open and cancelled tasks remain visible when done tasks are hidden');
+assert(boardIds.includes('board-open'), 'board visibility is independent of the separate all-tasks status filter');
+const boardToolbar=api.wpBoardToolbar(api.wpBoardEntities());
+assert(boardToolbar.includes('wp-filter-layout wp-board-filter-row') && boardToolbar.includes('wp-filter-main'), 'the board uses the shared filter-grid structure');
+assert(boardToolbar.includes('Показать выполненные задачи') && boardToolbar.includes('aria-pressed="false"'));
+const allToolbar=api.wpAllFilterToolbar();
+assert(allToolbar.includes('wp-filter-layout wp-all-filter-row') && allToolbar.includes('wp-filter-main'), 'all tasks uses the same filter-grid structure');
+assert(allToolbar.indexOf('wp-filter-assignee')<allToolbar.indexOf('wp-filter-project'), 'assignee and project filters keep the same order in both views');
+assert(boardToolbar.indexOf('wp-filter-assignee')<boardToolbar.indexOf('wp-filter-project'));
+api.WP.allFilter='active'; api.WP.showCompleted=true; state.board.tasks=priorBoardTasks; state.board.occurrences=priorOccurrences;
+
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
 const monthView = api.wpViewHtml();
 assert(monthView.includes('wp-month-span-layer') && monthView.includes('wp-calendar-span--month'));

@@ -232,6 +232,7 @@ class Shell {
   // Нативный диалог «открыть файл» (Ctrl+O): выбранный путь открывается
   // вкладкой в UI — без выдуманных путей на стороне вёрстки.
   void PickLocalFile();
+  void OnLocalFileSelected(const std::string& path);
 
   // ---- расширения (Chrome Web Store / .crx) ----
   void ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
@@ -311,6 +312,7 @@ class Shell {
   bool DownloadDecision(const std::string& id, const std::string& action,
                         bool show_dialog);
   bool DownloadControl(const std::string& id, const std::string& action);
+  bool ConsumeSelectedLocalFileUrl(const std::string& url);
 
   CefRefPtr<CefWindow> window_;
   CefRefPtr<CefBrowserView> ui_view_;
@@ -351,6 +353,8 @@ class Shell {
   // пользователь выбрал место вне стандартной папки загрузок. История ограничена.
   std::set<std::string> accepted_download_paths_;
   std::vector<std::string> accepted_download_path_order_;
+  // Одноразовые file:// URL, выданные только после выбора файла в системном диалоге.
+  std::set<std::string> selected_local_file_urls_;
   std::map<std::string, ActiveDownload> active_downloads_;
   // Включён ли «Анти-отпечаток» (шум Canvas/WebGL/Audio в рендерере).
   bool fp_enabled_ = false;

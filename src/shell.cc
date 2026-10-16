@@ -81,6 +81,63 @@ std::string PathToUtf8(const fs::path& path) {
 #endif
 }
 
+// Преобразует выбранный ОС абсолютный путь в file:// URL без интерпретации
+// пробелов, %, #, ? и байтов UTF-8 как управляющих частей адреса.
+std::string LocalFileUrl(const std::string& raw_path) {
+  if (raw_path.empty()) return {};
+  std::error_code ec;
+  fs::path path = fs::u8path(raw_path);
+  if (!path.is_absolute()) path = fs::absolute(path, ec);
+  if (ec || !path.is_absolute()) return {};
+  if (!fs::is_regular_file(path, ec) || ec) return {};
+  const std::string normalized = PathToUtf8(path.lexically_normal());
+  if (normalized.empty()) return {};
+
+  std::string prefix;
+#if defined(_WIN32)
+  std::string url_path = normalized;
+  std::replace(url_path.begin(), url_path.end(), '\\', '/');
+  if (url_path.rfind("//?", 0) == 0 || url_path.rfind("//.", 0) == 0)
+    return {};
+  if (url_path.rfind("//", 0) == 0) {
+    prefix = "file:";  // UNC: file://server/share/…
+  } else if (url_path.size() >= 3 &&
+             ((url_path[0] >= 'A' && url_path[0] <= 'Z') ||
+              (url_path[0] >= 'a' && url_path[0] <= 'z')) &&
+             url_path[1] == ':' && url_path[2] == '/') {
+    prefix = "file:///";
+  } else {
+    return {};
+  }
+#else
+  if (normalized[0] != '/') return {};
+  const std::string& url_path = normalized;
+  prefix = "file://";
+#endif
+
+  static constexpr char kHex[] = "0123456789ABCDEF";
+  std::string encoded;
+  encoded.reserve(url_path.size());
+  for (unsigned char c : url_path) {
+    const bool unreserved = (c >= 'a' && c <= 'z') ||
+                            (c >= 'A' && c <= 'Z') ||
+                            (c >= '0' && c <= '9') || c == '-' || c == '.' ||
+                            c == '_' || c == '~';
+    const bool path_safe = unreserved || c == '/' || c == ':' || c == '@' ||
+                           c == '!' || c == '$' || c == '&' || c == '\'' ||
+                           c == '(' || c == ')' || c == '*' || c == '+' ||
+                           c == ',' || c == ';' || c == '=';
+    if (path_safe) {
+      encoded.push_back(static_cast<char>(c));
+    } else {
+      encoded.push_back('%');
+      encoded.push_back(kHex[c >> 4]);
+      encoded.push_back(kHex[c & 0x0f]);
+    }
+  }
+  return prefix + encoded;
+}
+
 constexpr int kMinWidth = 960;
 constexpr int kMinHeight = 620;
 constexpr size_t kMaxExtensionArchiveBytes = 64u * 1024u * 1024u;
@@ -942,6 +999,7 @@ void Shell::PrepareForShutdown() {
   accepted_downloads_.clear();
   accepted_download_paths_.clear();
   accepted_download_path_order_.clear();
+  selected_local_file_urls_.clear();
   active_downloads_.clear();
   temp_downloads_.clear();
   tabs_.clear();
@@ -1905,12 +1963,7 @@ class FileOpenCallback : public CefRunFileDialogCallback {
   FileOpenCallback() = default;
   void OnFileDialogDismissed(const std::vector<CefString>& file_paths) override {
     if (file_paths.empty()) return;
-    std::string path = file_paths[0].ToString();
-    if (path.empty()) return;
-    std::string url = "file://";
-    if (path[0] != '/') url += "/";  // Windows: C:\… -> file:///C:/…
-    for (char c : path) url += (c == '\\') ? '/' : c;
-    Shell::Get().UiEvent("file-open", "{\"url\":" + JsString(url) + "}");
+    Shell::Get().OnLocalFileSelected(file_paths[0].ToString());
   }
 
  private:
@@ -1926,6 +1979,24 @@ void Shell::PickLocalFile() {
   ui_browser_->GetHost()->RunFileDialog(FILE_DIALOG_OPEN, title, CefString(),
                                         std::vector<CefString>(),
                                         new FileOpenCallback());
+}
+
+void Shell::OnLocalFileSelected(const std::string& path) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!ui_browser_) return;
+  const std::string url = LocalFileUrl(path);
+  if (url.empty()) return;
+  // Разрешение живёт до первого view.open и ограничено, чтобы UI не мог
+  // повторно подставить произвольные file:// URL.
+  if (selected_local_file_urls_.size() >= 16)
+    selected_local_file_urls_.clear();
+  selected_local_file_urls_.insert(url);
+  UiEvent("file-open", "{\"url\":" + JsString(url) + "}");
+}
+
+bool Shell::ConsumeSelectedLocalFileUrl(const std::string& url) {
+  CEF_REQUIRE_UI_THREAD();
+  return selected_local_file_urls_.erase(url) != 0;
 }
 
 void Shell::ExtInstall(const std::string& src) {

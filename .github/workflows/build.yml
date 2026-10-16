@@ -319,6 +319,8 @@ jobs:
         run: node tests/show_in_folder_security_test.js
       - name: OpenExternal dead-code removal test
         run: node tests/open_external_removal_test.js
+      - name: NavUrl scheme security regression test
+        run: node tests/nav_url_security_test.js
       - name: Compile and run CRX3 format tests
         run: |
           set -euo pipefail

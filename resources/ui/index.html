@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-2p1OEqj5sGTom8uGHyZKDzP9TwBhJxstAg8YknsfENI=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-XXjKXiZAb0bQ2EScSzYBvmMuWmKuZ1o6ZFZEkJlcD2o=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-cSLJTVILxJCV5p1+5aQJmlM2+7/tmhiHbe+otxdw0zI=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4915,8 +4915,9 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
           break;
         }
         case 'file-open':
-          // Нативный диалог «Открыть файл» вернул реальный путь.
-          if (d.url) { try { navigate(d.url); } catch (_) {} }
+          // Нативный диалог выбрал локальный файл; не пропускаем его через
+          // адресную строку и её правила нормализации.
+          if (d.url) { try { openLocalFile(d.url); } catch (_) {} }
           break;
         case 'context-close':
           window.shelterCef.notifyCtxClose();
@@ -6986,7 +6987,7 @@ function openPage(page, opts = {}) {
   addTab(url);
 }
 function recordVisit(url, title, tabId) {
-  if (S.ghost) return;
+  if (S.ghost || /^file:/i.test(String(url || ''))) return;
   /* История — это посещения сайтов. Внутренние страницы браузера (задачи,
      ассистент, настройки, магазины и т.п.) не пишем ниоткуда, включая нативный
      мост shelterRecordVisit, который раньше приносил их в историю. */
@@ -7896,6 +7897,13 @@ function initHeroInput() {
     if (e.key === 'Enter') return;
     suggestKeys('hero', e, () => {});
   });
+}
+function openLocalFile(url) {
+  const localUrl = String(url || '').trim();
+  if (!/^file:/i.test(localUrl)) return;
+  const tab = curTab();
+  if (tab) loadUrl(tab, localUrl);
+  else addTab(localUrl);
 }
 function openFileDlg() {
   // Нативный диалог ОС: выбранный файл приходит обратно реальным путём

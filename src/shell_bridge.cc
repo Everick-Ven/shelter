@@ -1,5 +1,6 @@
 // SHELTER — мост UI -> native (window.shelterNative / window.shelter* хуки из host-bridge.js).
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <sstream>
@@ -62,29 +63,51 @@ CefRect RectOf(CefRefPtr<CefDictionaryValue> args) {
                  static_cast<int>(std::lround(Num(r, "h"))));
 }
 
-// Нормализация адреса для навигации вкладки. Схема shelter:// и javascript:
-// во вкладках запрещены (иначе страница получила бы доступ к UI).
+// Во вкладки передаём только HTTP(S) или about:blank. Файл, выбранный в
+// системном диалоге, проходит отдельный одноразовый путь ниже.
 std::string NavUrl(std::string url) {
-  auto b = url.find_first_not_of(" \t\r\n");
-  auto e = url.find_last_not_of(" \t\r\n");
-  url = b == std::string::npos ? "" : url.substr(b, e - b + 1);
+  const auto begin = url.find_first_not_of(" \t\r\n");
+  const auto end = url.find_last_not_of(" \t\r\n");
+  url = begin == std::string::npos ? "" : url.substr(begin, end - begin + 1);
   if (url.empty()) return "about:blank";
+  for (unsigned char c : url) {
+    if (c <= 0x20 || c == 0x7f) return "about:blank";
+  }
 
   std::string lower = url;
   std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
-  auto has = [&](const char* p) { return lower.rfind(p, 0) == 0; };
-  if (has("javascript:") || has(std::string(std::string(kUiScheme) + ":").c_str())) {
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  if (lower == "about:blank") return "about:blank";
+
+  const size_t colon = lower.find(':');
+  const size_t delimiter = lower.find_first_of("/?#");
+  const bool has_scheme = colon != std::string::npos && colon > 0 &&
+                          (delimiter == std::string::npos || colon < delimiter) &&
+                          lower[0] >= 'a' && lower[0] <= 'z' &&
+                          std::all_of(lower.begin(), lower.begin() + colon,
+                                      [](unsigned char c) {
+                                        return (c >= 'a' && c <= 'z') ||
+                                               (c >= '0' && c <= '9') ||
+                                               c == '+' || c == '-' || c == '.';
+                                      });
+  std::string candidate = url;
+  if (has_scheme) {
+    const std::string scheme = lower.substr(0, colon);
+    if (scheme != "http" && scheme != "https") return "about:blank";
+  } else {
+    candidate = "https://" + url;
+  }
+
+  CefURLParts parts;
+  if (!CefParseURL(CefString(candidate), parts)) return "about:blank";
+  std::string scheme = CefString(&parts.scheme).ToString();
+  std::transform(scheme.begin(), scheme.end(), scheme.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  if ((scheme != "http" && scheme != "https") ||
+      CefString(&parts.host).ToString().empty()) {
     return "about:blank";
   }
-  bool has_scheme = false;
-  for (size_t i = 0; i < lower.size(); ++i) {
-    char c = lower[i];
-    if (c == ':') { has_scheme = i > 0; break; }
-    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '+' ||
-          c == '-' || c == '.')) break;
-  }
-  return has_scheme ? url : "https://" + url;
+  return candidate;
 }
 
 // ---- снимок вкладки через DevTools-протокол --------------------------------
@@ -289,7 +312,7 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
       t = nullptr;
     }
     bool created = false, navigated = false;
-    const std::string nav = NavUrl(url);
+    const std::string nav = ConsumeSelectedLocalFileUrl(url) ? url : NavUrl(url);
     if (!t) {
       t = CreateTab(id, partition, nav, zoom);
       created = navigated = true;

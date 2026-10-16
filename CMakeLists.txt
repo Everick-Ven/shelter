@@ -62,6 +62,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} "${SHELTER_GENERATED_DIR}")
 set(SHELTER_COMMON_SRCS
   src/common.cc src/common.h
   src/secret_key.cc src/secret_crypto.cc src/secret_crypto.h
+  src/crx3.cc src/crx3.h src/crx3_format.h
   src/renderer_app.cc src/renderer_app.h
   src/ui_scheme.cc src/ui_scheme.h
   src/key_map.cc src/key_map.h

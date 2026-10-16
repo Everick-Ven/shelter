@@ -90,6 +90,20 @@ struct ActiveDownload {
   CefRefPtr<CefDownloadItemCallback> callback;
 };
 
+struct PendingExtensionInstall {
+  // Архив хранится только в памяти, пока открыт запрос подтверждения. После
+  // согласия пакет повторно проверяется и распаковывается в новый каталог.
+  std::string archive_bytes;
+  std::string expected_id;
+  std::string name;
+  std::string version;
+  std::string extension_id;
+  std::vector<std::string> permissions;
+  std::vector<std::string> host_permissions;
+  bool local_file = false;
+  bool unsigned_zip = false;
+};
+
 class Shell {
  public:
   static Shell& Get();
@@ -231,7 +245,8 @@ class Shell {
   void ExtPick();
   void ExtToast(const std::string& text, bool err);
   void ExtPushList();
-  void ExtInstallBytes(std::string bytes, const std::string& origin);
+  void ExtInstallBytes(std::string bytes, const std::string& expected_id,
+                       bool local_file);
   bool OnTabKey(CefRefPtr<CefBrowser> browser, const CefKeyEvent& event);
   void OnTabFindResult(CefRefPtr<CefBrowser> browser, int count, int idx,
                        bool final_update);
@@ -292,6 +307,7 @@ class Shell {
                  const std::string& url);
 
  private:
+  void ResolveExtensionInstall(const std::string& token, bool install);
   bool DownloadDecision(const std::string& id, const std::string& action,
                         bool show_dialog);
   bool DownloadControl(const std::string& id, const std::string& action);
@@ -317,6 +333,9 @@ class Shell {
   // partition -> id вкладок, ждущих инициализации контекста.
   std::map<std::string, std::vector<std::string>> context_waiters_;
   std::map<std::string, PendingDownload> pending_downloads_;
+  // Один пакет ждёт явного решения пользователя; распакованный каталог в
+  // ожидании не хранится, архив ограничен и остаётся только в памяти.
+  std::map<std::string, PendingExtensionInstall> pending_extension_installs_;
   // Хосты, для которых иконка уже запрошена (в этой сессии), и живые запросы.
   std::set<std::string> favicon_hosts_;
   // Отдельно — хосты, догруженные по запросу UI: у вкладок лимит общий, а тут

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-2p1OEqj5sGTom8uGHyZKDzP9TwBhJxstAg8YknsfENI=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-tkp4sWVHMZ048I0dGCZVYIWhYR2S/i/kGm8IUh38mPQ=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-2p1OEqj5sGTom8uGHyZKDzP9TwBhJxstAg8YknsfENI=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-XXjKXiZAb0bQ2EScSzYBvmMuWmKuZ1o6ZFZEkJlcD2o=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4861,6 +4861,36 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
         case 'ext':
           if (typeof window.shelterApplyExt === 'function') window.shelterApplyExt(d.list, d.mode);
           break;
+        case 'ext-install-prompt': {
+          const token = String(d.token || '');
+          if (!/^[0-9a-f]{32}$/.test(token)) break;
+          const name = String(d.name || 'extension');
+          const version = String(d.version || '');
+          const extensionId = String(d.extensionId || '');
+          const unsignedZip = !!d.unsignedZip;
+          const permissions = Array.isArray(d.permissions) ? d.permissions.filter(x => typeof x === 'string') : [];
+          const hosts = Array.isArray(d.hostPermissions) ? d.hostPermissions.filter(x => typeof x === 'string').map(x => 'Сайты: ' + x) : [];
+          const requested = permissions.concat(hosts);
+          if (!requested.length) requested.push('Разрешения не запрошены');
+          const trust = unsignedZip
+            ? 'Это локальный ZIP без подписи расширения.'
+            : 'Подпись CRX3 проверена' + (extensionId ? ' · ID ключа: ' + extensionId : '') + '.';
+          Promise.resolve(confirmDlg({
+            title: 'Установить «' + name + '»' + (version ? ' · v' + version : '') + '?',
+            text: trust + ' Проверьте имя и разрешения перед установкой.',
+            list: requested,
+            ok: unsignedZip ? 'Установить ZIP' : 'Установить',
+            danger: unsignedZip,
+            icon: 'puzzle'
+          })).then(yes => {
+            const native = window.shelterNative;
+            if (native && typeof native.extInstall === 'function')
+              return native.extInstall('shelter-ext-confirm:' + token + ':' + (yes ? 'yes' : 'no'));
+            if (typeof window.toast === 'function') window.toast('Нет доступа к подтверждению установки', { icon: 'ban' });
+            return null;
+          }).catch(() => {});
+          break;
+        }
         case 'ext-toast':
           if (typeof window.toast === 'function') window.toast(d.text || '', { icon: d.err ? 'ban' : 'puzzle' });
           break;

@@ -35,6 +35,13 @@ void ShowInFolder(const std::string& path);
 // Открыть ссылку во внешнем приложении (mailto:, tel:, ...).
 void OpenExternal(const std::string& url);
 
+// SHA-256 и проверка доказательства подписи CRX3 системной криптографией.
+bool Sha256(const std::string& bytes, std::string* digest);
+bool VerifyCrx3Signature(const std::string& public_key_der, bool ecdsa,
+                         const std::string& signed_header_data,
+                         const char* zip_data, std::size_t zip_size,
+                         const std::string& signature);
+
 // Буфер обмена (текст, UTF-8).
 std::string ClipboardRead();
 bool ClipboardWrite(const std::string& text);

@@ -311,6 +311,13 @@ jobs:
         run: node tests/ui_tabs_test.js
       - name: Extensions page and bridge regression test
         run: node tests/ui_extensions_test.js
+      - name: CRX3 installation security regression test
+        run: node tests/crx3_install_test.js
+      - name: Compile and run CRX3 format tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/crx3_format_test.cc -o crx3-format-test
+          ./crx3-format-test
       - name: Task planner and migration regression test
         run: node tests/ui_tasks_test.js
       - name: Pomodoro and Efficiency Manager regression test

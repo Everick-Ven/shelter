@@ -25,6 +25,7 @@
 #include "include/cef_command_line.h"
 #include "include/cef_parser.h"
 #include "include/cef_request_context_handler.h"
+#include "include/cef_response.h"
 #include "include/cef_stream.h"
 #include "include/cef_urlrequest.h"
 #include "include/cef_zip_reader.h"
@@ -34,6 +35,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "src/clients.h"
 #include "src/blocker.h"
+#include "src/crx3.h"
 #include "src/color_scheme.h"
 #include "src/common.h"
 #include "src/extension_engine.h"
@@ -89,6 +91,8 @@ constexpr size_t kMaxExtensionManifestBytes = 1u * 1024u * 1024u;
 constexpr size_t kMaxExtensionRuntimeBytes = 64u * 1024u * 1024u;
 constexpr size_t kMaxExtensionContentScripts = 128;
 constexpr size_t kMaxExtensionMatchPatterns = 64;
+constexpr size_t kMaxExtensionPermissionEntries = 64;
+constexpr size_t kMaxExtensionPermissionLength = 512;
 constexpr size_t kMaxInstalledExtensions = 256;
 constexpr std::uintmax_t kMaxPendingWipeListBytes = 64u * 1024u;
 constexpr size_t kMaxPendingWipeEntries = 1024;
@@ -538,10 +542,12 @@ void InjectExtScripts(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
   }
 }
 
-// Загрузка .crx/.zip пакета расширения через CefURLRequest.
+// Загрузка подписанного CRX3 через HTTPS. Ответ после редиректов повторно
+// проверяется: транспортный downgrade не должен обходить исходную проверку URL.
 class CrxDownload : public CefURLRequestClient {
  public:
-  explicit CrxDownload(std::string origin) : origin_(std::move(origin)) {}
+  explicit CrxDownload(std::string expected_id)
+      : expected_id_(std::move(expected_id)) {}
   void Start(const std::string& url) {
     CefRefPtr<CefRequest> req = CefRequest::Create();
     req->SetURL(url);
@@ -552,13 +558,27 @@ class CrxDownload : public CefURLRequestClient {
   void OnRequestComplete(CefRefPtr<CefURLRequest> request) override {
     if (too_large_) {
       Shell::Get().ExtToast("Архив расширения превышает лимит 64 МиБ", true);
-    } else if (request->GetRequestStatus() == UR_SUCCESS && !buf_.empty()) {
-      Shell::Get().ExtInstallBytes(std::move(buf_), origin_);
-    } else {
+      return;
+    }
+    if (!request || request->GetRequestStatus() != UR_SUCCESS || buf_.empty()) {
       Shell::Get().ExtToast(
           "Не удалось скачать пакет расширения (сеть или магазин недоступны)",
           true);
+      return;
     }
+    CefRefPtr<CefResponse> response = request->GetResponse();
+    CefURLParts parts;
+    std::string scheme;
+    if (response && CefParseURL(response->GetURL(), parts))
+      scheme = CefString(&parts.scheme).ToString();
+    for (char& c : scheme) {
+      if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+    }
+    if (scheme != "https") {
+      Shell::Get().ExtToast("Пакет расширения получен не по HTTPS", true);
+      return;
+    }
+    Shell::Get().ExtInstallBytes(std::move(buf_), expected_id_, false);
   }
   void OnUploadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
   void OnDownloadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
@@ -580,34 +600,12 @@ class CrxDownload : public CefURLRequestClient {
   }
 
  private:
-  std::string origin_;
+  std::string expected_id_;
   std::string buf_;
   bool too_large_ = false;
   IMPLEMENT_REFCOUNTING(CrxDownload);
   DISALLOW_COPY_AND_ASSIGN(CrxDownload);
 };
-
-uint32_t ReadLe32(const std::string& b, size_t off) {
-  uint32_t v = 0;
-  memcpy(&v, b.data() + off, 4);
-  return v;
-}
-
-// Смещение ZIP-части внутри CRX (v2/v3). Для обычного ZIP возвращает 0.
-size_t CrxZipOffset(const std::string& b) {
-  if (b.size() < 4 || memcmp(b.data(), "Cr24", 4) != 0) return 0;
-  if (b.size() < 12) return b.size();
-  const uint32_t ver = ReadLe32(b, 4);
-  if (ver == 3) {
-    const size_t off = 12 + ReadLe32(b, 8);
-    return off <= b.size() ? off : b.size();
-  }
-  if (ver == 2 && b.size() >= 16) {
-    const size_t off = 16 + ReadLe32(b, 8) + ReadLe32(b, 12);
-    return off <= b.size() ? off : b.size();
-  }
-  return b.size();
-}
 
 bool UnzipBytesTo(const std::string& bytes, const fs::path& dir) {
   if (bytes.empty() || bytes.size() > kMaxExtensionArchiveBytes ||
@@ -684,6 +682,29 @@ bool UnzipBytesTo(const std::string& bytes, const fs::path& dir) {
   return any;
 }
 
+bool CreateTemporaryExtensionDirectory(const fs::path& root,
+                                      fs::path* directory) {
+  if (!directory || root.empty() || !security::IsDirectoryWithoutLink(root))
+    return false;
+  static std::uint64_t sequence = 0;
+  for (unsigned int attempt = 0; attempt < 100; ++attempt) {
+    const fs::path candidate = root / ("_tmp" + std::to_string(++sequence));
+    std::error_code ec;
+    if (!fs::create_directory(candidate, ec)) {
+      if (ec && ec != std::errc::file_exists) return false;
+      continue;
+    }
+    if (!security::IsPathWithin(root, candidate) ||
+        !security::IsDirectoryWithoutLink(candidate)) {
+      security::RemoveTreeWithoutFollowingLinks(root, candidate);
+      return false;
+    }
+    *directory = candidate;
+    return true;
+  }
+  return false;
+}
+
 bool ReadExtensionFileBounded(const fs::path& path, std::string* out) {
   if (!out || !security::IsRegularFileWithoutLink(path)) return false;
   std::error_code ec;
@@ -694,6 +715,90 @@ bool ReadExtensionFileBounded(const fs::path& path, std::string* out) {
   out->resize(static_cast<size_t>(size));
   file.read(out->data(), static_cast<std::streamsize>(size));
   return static_cast<std::uintmax_t>(file.gcount()) == size;
+}
+
+std::string LowerAscii(std::string value) {
+  for (char& c : value) {
+    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+  }
+  return value;
+}
+
+bool IsChromeExtensionId(const std::string& id) {
+  if (id.size() != 32) return false;
+  for (char c : id) {
+    if (c < 'a' || c > 'p') return false;
+  }
+  return true;
+}
+
+bool IsManifestPermissionText(const std::string& value) {
+  if (value.empty() || value.size() > kMaxExtensionPermissionLength)
+    return false;
+  for (unsigned char c : value) {
+    if (c < 0x20 || c == 0x7f) return false;
+  }
+  return true;
+}
+
+bool ReadManifestPermissionField(CefRefPtr<CefDictionaryValue> manifest,
+                                 const char* field, bool optional,
+                                 std::vector<std::string>* values) {
+  if (!manifest || !values || !manifest->HasKey(field)) return true;
+  if (manifest->GetType(field) != VTYPE_LIST) return false;
+  CefRefPtr<CefListValue> list = manifest->GetList(field);
+  if (!list || list->GetSize() > kMaxExtensionPermissionEntries) return false;
+  for (size_t i = 0; i < list->GetSize(); ++i) {
+    if (list->GetType(i) != VTYPE_STRING) return false;
+    const std::string value = list->GetString(i).ToString();
+    if (!IsManifestPermissionText(value) ||
+        values->size() >= kMaxExtensionPermissionEntries) {
+      return false;
+    }
+    values->push_back(optional ? "optional: " + value : value);
+  }
+  return true;
+}
+
+bool ReadManifestContentScriptMatches(
+    CefRefPtr<CefDictionaryValue> manifest,
+    std::vector<std::string>* host_permissions) {
+  if (!manifest || !host_permissions || !manifest->HasKey("content_scripts"))
+    return true;
+  if (manifest->GetType("content_scripts") != VTYPE_LIST) return false;
+  CefRefPtr<CefListValue> scripts = manifest->GetList("content_scripts");
+  if (!scripts || scripts->GetSize() > kMaxExtensionContentScripts) return false;
+  for (size_t i = 0; i < scripts->GetSize(); ++i) {
+    if (scripts->GetType(i) != VTYPE_DICTIONARY) return false;
+    CefRefPtr<CefDictionaryValue> script = scripts->GetDictionary(i);
+    if (!script || !script->HasKey("matches") ||
+        script->GetType("matches") != VTYPE_LIST) {
+      return false;
+    }
+    CefRefPtr<CefListValue> matches = script->GetList("matches");
+    if (!matches || matches->GetSize() > kMaxExtensionMatchPatterns) return false;
+    for (size_t j = 0; j < matches->GetSize(); ++j) {
+      if (matches->GetType(j) != VTYPE_STRING) return false;
+      const std::string pattern = matches->GetString(j).ToString();
+      if (!IsManifestPermissionText(pattern) ||
+          host_permissions->size() >= kMaxExtensionPermissionEntries) {
+        return false;
+      }
+      host_permissions->push_back("content script: " + pattern);
+    }
+  }
+  return true;
+}
+
+std::string JsonStringArray(const std::vector<std::string>& values) {
+  std::ostringstream json;
+  json << '[';
+  for (size_t i = 0; i < values.size(); ++i) {
+    if (i) json << ',';
+    json << JsString(values[i]);
+  }
+  json << ']';
+  return json.str();
 }
 
 }  // namespace
@@ -875,6 +980,7 @@ void Shell::OnUiClosed(CefRefPtr<CefBrowser> browser) {
   if (browser && !IsUiBrowserId(browser->GetIdentifier())) return;
   ui_browser_id_.store(-1, std::memory_order_release);
   ui_browser_ = nullptr;
+  pending_extension_installs_.clear();
 }
 
 bool Shell::IsUiBrowser(CefRefPtr<CefBrowser> browser) const {
@@ -1819,14 +1925,63 @@ void Shell::ExtInstall(const std::string& src) {
     ExtToast("Вставьте ID расширения, ссылку из Chrome Web Store или путь к .crx", true);
     return;
   }
+  if (s.size() > 4096) {
+    ExtToast("Ссылка или путь к расширению слишком длинные", true);
+    return;
+  }
 
-  // Локальный файл: путь или file:// URL.
+  // Подтверждение возвращается через тот же ext.install, без второго метода
+  // моста. Токен создаёт ОС-генератор случайных чисел до показа диалога.
+  constexpr char kConfirmPrefix[] = "shelter-ext-confirm:";
+  if (s.rfind(kConfirmPrefix, 0) == 0) {
+    const std::string action = s.substr(sizeof(kConfirmPrefix) - 1);
+    const size_t separator = action.rfind(':');
+    if (separator == std::string::npos) {
+      ExtToast("Не удалось подтвердить установку расширения", true);
+      return;
+    }
+    const std::string token = action.substr(0, separator);
+    const std::string decision = action.substr(separator + 1);
+    bool token_ok = token.size() == 32;
+    for (char c : token) token_ok = token_ok &&
+        ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'));
+    if (!token_ok || (decision != "yes" && decision != "no")) {
+      ExtToast("Не удалось подтвердить установку расширения", true);
+      return;
+    }
+    ResolveExtensionInstall(token, decision == "yes");
+    return;
+  }
+
+  // Локальный файл: путь или file:// URL. Расширение файла не является
+  // доказательством подписи — формат определяется по содержимому пакета.
   std::string path;
-  if (s.rfind("file://", 0) == 0) {
+  const std::string lower = LowerAscii(s);
+  if (lower.rfind("file:", 0) == 0) {
     CefURLParts parts;
-    if (CefParseURL(s, parts)) path = CefString(&parts.path).ToString();
+    if (!CefParseURL(s, parts) ||
+        LowerAscii(CefString(&parts.scheme).ToString()) != "file") {
+      ExtToast("Не удалось разобрать путь к локальному расширению", true);
+      return;
+    }
+    const std::string host = LowerAscii(CefString(&parts.host).ToString());
+    if (!host.empty() && host != "localhost") {
+      ExtToast("Разрешены только локальные файлы расширений", true);
+      return;
+    }
+    path = CefString(&parts.path).ToString();
+#if defined(OS_WIN)
+    if (path.size() >= 3 && path[0] == '/' &&
+        ((path[1] >= 'A' && path[1] <= 'Z') ||
+         (path[1] >= 'a' && path[1] <= 'z')) &&
+        path[2] == ':') {
+      path.erase(0, 1);
+    }
+    std::replace(path.begin(), path.end(), '/', '\\');
+#endif
   } else if (s[0] == '/' || s.rfind("./", 0) == 0 ||
-             (s.size() > 2 && s[1] == ':' && (s[2] == '/' || s[2] == '\\'))) {
+             (s.size() > 2 && s[1] == ':' &&
+              (s[2] == '/' || s[2] == '\\'))) {
     path = s;
   }
   if (!path.empty()) {
@@ -1835,81 +1990,130 @@ void Shell::ExtInstall(const std::string& src) {
       ExtToast("Файл расширения недоступен или превышает лимит 64 МиБ", true);
       return;
     }
-    ExtInstallBytes(std::move(bytes), "local file");
+    ExtInstallBytes(std::move(bytes), "", true);
     return;
   }
 
-  // ID расширения: 32 символа a-p (голосом или из ссылки магазина).
-  const auto is_id = [](const std::string& x) {
-    if (x.size() != 32) return false;
-    for (char c : x) {
-      if (c < 'a' || c > 'p') return false;
-    }
-    return true;
-  };
-  std::string id;
-  if (is_id(s)) {
-    id = s;
-  } else {
-    for (size_t i = 0; i + 32 <= s.size(); ++i) {
-      if (is_id(s.substr(i, 32))) {
-        id = s.substr(i, 32);
-        break;
-      }
-    }
+  if (IsChromeExtensionId(s)) {
+    const std::string url =
+        "https://clients2.google.com/service/update2/crx?response=redirect"
+        "&prodversion=154.0.8037.58&acceptformat=crx3&x=id%3D" + s +
+        "%26installsource%3Dondemand%26uc";
+    CefRefPtr<CrxDownload> dl = new CrxDownload(s);
+    dl->Start(url);
+    return;
   }
-  if (id.empty()) {
-    if (s.rfind("http", 0) == 0 && s.find(".crx") != std::string::npos) {
-      CefRefPtr<CrxDownload> dl = new CrxDownload(s);
+
+  CefURLParts parts;
+  if (CefParseURL(s, parts)) {
+    const std::string scheme = LowerAscii(CefString(&parts.scheme).ToString());
+    const std::string host = LowerAscii(CefString(&parts.host).ToString());
+    const std::string parsed_path = CefString(&parts.path).ToString();
+    const std::string lower_path = LowerAscii(parsed_path);
+    const std::string port = CefString(&parts.port).ToString();
+    const bool secure_port = port.empty() || port == "443";
+    const bool has_userinfo =
+        !CefString(&parts.username).ToString().empty() ||
+        !CefString(&parts.password).ToString().empty();
+    if (host == "chromewebstore.google.com" ||
+        host == "chrome.google.com") {
+      if (scheme != "https" || !secure_port || has_userinfo) {
+        ExtToast("Ссылки Chrome Web Store должны использовать HTTPS без данных пользователя", true);
+        return;
+      }
+      size_t end = parsed_path.size();
+      while (end > 0 && parsed_path[end - 1] == '/') --end;
+      const size_t slash = parsed_path.rfind('/', end == 0 ? 0 : end - 1);
+      const std::string id = slash == std::string::npos
+                                 ? parsed_path.substr(0, end)
+                                 : parsed_path.substr(slash + 1, end - slash - 1);
+      if (!IsChromeExtensionId(id)) {
+        ExtToast("В ссылке Chrome Web Store не найден допустимый ID", true);
+        return;
+      }
+      const std::string url =
+          "https://clients2.google.com/service/update2/crx?response=redirect"
+          "&prodversion=154.0.8037.58&acceptformat=crx3&x=id%3D" + id +
+          "%26installsource%3Dondemand%26uc";
+      CefRefPtr<CrxDownload> dl = new CrxDownload(id);
+      dl->Start(url);
+      return;
+    }
+
+    if (scheme == "http" || scheme == "https") {
+      if (scheme != "https") {
+        ExtToast("Прямая загрузка расширений разрешена только по HTTPS", true);
+        return;
+      }
+      if (host.empty() || has_userinfo) {
+        ExtToast("В ссылке расширения недопустимы адрес или данные пользователя", true);
+        return;
+      }
+      if (lower_path.size() < 4 ||
+          lower_path.compare(lower_path.size() - 4, 4, ".crx") != 0) {
+        ExtToast("Прямая ссылка должна вести на файл .crx по HTTPS", true);
+        return;
+      }
+      CefRefPtr<CrxDownload> dl = new CrxDownload("");
       dl->Start(s);
       return;
     }
-    ExtToast("Нужен ID расширения (32 символа) или ссылка из Chrome Web Store", true);
-    return;
   }
-  const std::string url =
-      "https://clients2.google.com/service/update2/crx?response=redirect"
-      "&prodversion=131.0&acceptformat=crx2,crx3&x=id%3D" + id +
-      "%26installsource%3Dondemand%26uc";
-  CefRefPtr<CrxDownload> dl = new CrxDownload(id);
-  dl->Start(url);
+  ExtToast("Нужен ID расширения, HTTPS-ссылка Chrome Web Store или HTTPS-ссылка на .crx", true);
 }
 
-void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
+void Shell::ExtInstallBytes(std::string bytes,
+                            const std::string& expected_id,
+                            bool local_file) {
   CEF_REQUIRE_UI_THREAD();
   Log("ext install bytes=" + std::to_string(bytes.size()) +
-      " source=" + (origin == "local file" ? "local" : "remote"));
+      " source=" + (local_file ? "local" : "remote"));
+  if (!pending_extension_installs_.empty()) {
+    ExtToast("Сначала завершите подтверждение предыдущего расширения", true);
+    return;
+  }
   if (bytes.empty() || bytes.size() > kMaxExtensionArchiveBytes) {
     ExtToast("Архив расширения пуст или превышает лимит 64 МиБ", true);
     return;
   }
-  const size_t off = CrxZipOffset(bytes);
-  if (off >= bytes.size()) {
-    ExtToast("Пакет не похож на CRX/ZIP расширения", true);
+
+  size_t zip_offset = 0;
+  std::string extension_id;
+  bool unsigned_zip = false;
+  if (bytes.compare(0, 4, "Cr24") == 0) {
+    if (!crx3::Verify(bytes, expected_id, &zip_offset, &extension_id)) {
+      ExtToast("Подпись CRX3 недействительна или ID ключа не совпадает", true);
+      return;
+    }
+  } else {
+    if (!local_file) {
+      ExtToast("С сервера принимаются только подписанные пакеты CRX3", true);
+      return;
+    }
+    if (ExtEngineModeOn()) {
+      ExtToast("Неподписанный ZIP доступен только в режиме «Оболочка»", true);
+      return;
+    }
+    unsigned_zip = true;
+  }
+  if (zip_offset >= bytes.size()) {
+    ExtToast("В пакете расширения нет ZIP-данных", true);
     return;
   }
+
   const fs::path root = ExtRootDir();
   if (root.empty() || !security::EnsureDirectoryWithoutLink(root)) {
     ExtToast("Каталог расширений недоступен или является ссылкой", true);
     return;
   }
-  std::error_code ec;
-  static unsigned int seq = 0;
   fs::path tmp;
-  bool tmp_created = false;
-  for (unsigned int attempt = 0; attempt < 100 && !tmp_created; ++attempt) {
-    tmp = root / ("_tmp" + std::to_string(++seq));
-    ec.clear();
-    tmp_created = fs::create_directory(tmp, ec);
-    if (ec) break;
-  }
-  if (!tmp_created || !security::IsDirectoryWithoutLink(tmp)) {
+  if (!CreateTemporaryExtensionDirectory(root, &tmp)) {
     ExtToast("Не удалось создать безопасный временный каталог", true);
     return;
   }
-  const std::string zip(bytes.begin() + static_cast<std::ptrdiff_t>(off), bytes.end());
+  const std::string zip(bytes.data() + zip_offset, bytes.size() - zip_offset);
   if (!UnzipBytesTo(zip, tmp)) {
-    ExtToast("Не удалось распаковать архив расширения", true);
+    ExtToast("Не удалось безопасно распаковать архив расширения", true);
     security::RemoveTreeWithoutFollowingLinks(root, tmp);
     return;
   }
@@ -1921,18 +2125,176 @@ void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
     security::RemoveTreeWithoutFollowingLinks(root, tmp);
     return;
   }
-  CefRefPtr<CefValue> v = CefParseJSON(manifest, JSON_PARSER_RFC);
-  std::string name, ver;
-  if (v && v->GetType() == VTYPE_DICTIONARY) {
-    CefRefPtr<CefDictionaryValue> d = v->GetDictionary();
-    if (d->HasKey("name") && d->GetType("name") == VTYPE_STRING)
-      name = d->GetString("name").ToString();
-    if (d->HasKey("version") && d->GetType("version") == VTYPE_STRING)
-      ver = d->GetString("version").ToString();
+  CefRefPtr<CefValue> value = CefParseJSON(manifest, JSON_PARSER_RFC);
+  if (!value || value->GetType() != VTYPE_DICTIONARY) {
+    ExtToast("Manifest расширения недопустим", true);
+    security::RemoveTreeWithoutFollowingLinks(root, tmp);
+    return;
   }
-  if (name.empty()) name = "extension";
+  CefRefPtr<CefDictionaryValue> dictionary = value->GetDictionary();
+  PendingExtensionInstall pending;
+  pending.expected_id = expected_id;
+  pending.extension_id = extension_id;
+  pending.local_file = local_file;
+  pending.unsigned_zip = unsigned_zip;
+  if (dictionary->HasKey("name")) {
+    if (dictionary->GetType("name") != VTYPE_STRING) {
+      ExtToast("Имя расширения в manifest недопустимо", true);
+      security::RemoveTreeWithoutFollowingLinks(root, tmp);
+      return;
+    }
+    pending.name = dictionary->GetString("name").ToString();
+  }
+  if (pending.name.empty()) pending.name = "extension";
+  if (pending.name.size() > 256) {
+    ExtToast("Имя расширения в manifest слишком длинное", true);
+    security::RemoveTreeWithoutFollowingLinks(root, tmp);
+    return;
+  }
+  for (char& c : pending.name) {
+    const unsigned char byte = static_cast<unsigned char>(c);
+    if (byte < 0x20 || byte == 0x7f) c = ' ';
+  }
+  if (dictionary->HasKey("version")) {
+    if (dictionary->GetType("version") != VTYPE_STRING) {
+      ExtToast("Версия расширения в manifest недопустима", true);
+      security::RemoveTreeWithoutFollowingLinks(root, tmp);
+      return;
+    }
+    pending.version = dictionary->GetString("version").ToString();
+    if (pending.version.size() > 128) {
+      ExtToast("Версия расширения в manifest слишком длинная", true);
+      security::RemoveTreeWithoutFollowingLinks(root, tmp);
+      return;
+    }
+  }
+  if (!ReadManifestPermissionField(dictionary, "permissions", false,
+                                   &pending.permissions) ||
+      !ReadManifestPermissionField(dictionary, "optional_permissions", true,
+                                   &pending.permissions) ||
+      !ReadManifestPermissionField(dictionary, "host_permissions", false,
+                                   &pending.host_permissions) ||
+      !ReadManifestPermissionField(dictionary, "optional_host_permissions",
+                                   true, &pending.host_permissions) ||
+      !ReadManifestContentScriptMatches(dictionary,
+                                        &pending.host_permissions)) {
+    ExtToast("Manifest содержит недопустимый список разрешений", true);
+    security::RemoveTreeWithoutFollowingLinks(root, tmp);
+    return;
+  }
+  // Не оставляем распакованный каталог доступным для подмены, пока пользователь
+  // читает подтверждение. После согласия CRX проверяется и распаковывается заново.
+  if (!security::RemoveTreeWithoutFollowingLinks(root, tmp)) {
+    ExtToast("Не удалось очистить временную распаковку расширения", true);
+    return;
+  }
+  pending.archive_bytes = std::move(bytes);
+
+  std::string random;
+  if (!platform::RandomBytes(16, &random) || random.size() != 16 || !ui_browser_) {
+    std::fill(random.begin(), random.end(), '\0');
+    ExtToast("Не удалось подготовить подтверждение установки", true);
+    return;
+  }
+  static constexpr char kHex[] = "0123456789abcdef";
+  std::string token;
+  token.reserve(32);
+  for (unsigned char byte : random) {
+    token.push_back(kHex[byte >> 4]);
+    token.push_back(kHex[byte & 0x0f]);
+  }
+  std::fill(random.begin(), random.end(), '\0');
+  auto inserted = pending_extension_installs_.emplace(token, std::move(pending));
+  if (!inserted.second) {
+    ExtToast("Не удалось подготовить подтверждение установки", true);
+    return;
+  }
+  const PendingExtensionInstall& saved = inserted.first->second;
+
+  std::ostringstream payload;
+  payload << "{\"token\":" << JsString(token)
+          << ",\"name\":" << JsString(saved.name)
+          << ",\"version\":" << JsString(saved.version)
+          << ",\"extensionId\":" << JsString(saved.extension_id)
+          << ",\"unsignedZip\":" << (saved.unsigned_zip ? "true" : "false")
+          << ",\"permissions\":" << JsonStringArray(saved.permissions)
+          << ",\"hostPermissions\":"
+          << JsonStringArray(saved.host_permissions) << '}';
+  UiEvent("ext-install-prompt", payload.str());
+}
+
+void Shell::ResolveExtensionInstall(const std::string& token, bool install) {
+  CEF_REQUIRE_UI_THREAD();
+  auto it = pending_extension_installs_.find(token);
+  if (it == pending_extension_installs_.end()) {
+    ExtToast("Подтверждение установки уже обработано или недействительно", true);
+    return;
+  }
+  PendingExtensionInstall pending = std::move(it->second);
+  pending_extension_installs_.erase(it);
+  if (!install) {
+    ExtToast("Установка расширения отменена", false);
+    return;
+  }
+  if (pending.archive_bytes.empty() ||
+      pending.archive_bytes.size() > kMaxExtensionArchiveBytes) {
+    ExtToast("Архив расширения недоступен", true);
+    return;
+  }
+
+  // Восстанавливаем доверие к тем же байтам после диалога. Для неподписанного
+  // ZIP повторно убеждаемся, что он был локальным и режим оболочки не сменился.
+  size_t zip_offset = 0;
+  std::string extension_id;
+  if (pending.archive_bytes.compare(0, 4, "Cr24") == 0) {
+    if (pending.unsigned_zip ||
+        !crx3::Verify(pending.archive_bytes, pending.expected_id, &zip_offset,
+                      &extension_id) ||
+        extension_id != pending.extension_id) {
+      ExtToast("Повторная проверка подписи CRX3 не пройдена", true);
+      return;
+    }
+  } else if (!pending.local_file || !pending.expected_id.empty() ||
+             !pending.unsigned_zip || ExtEngineModeOn()) {
+    ExtToast("Неподписанный ZIP больше не разрешён в текущем режиме", true);
+    return;
+  }
+  if (zip_offset >= pending.archive_bytes.size()) {
+    ExtToast("В пакете расширения нет ZIP-данных", true);
+    return;
+  }
+
+  const fs::path root = ExtRootDir();
+  if (root.empty() || !security::EnsureDirectoryWithoutLink(root)) {
+    ExtToast("Каталог расширений недоступен или является ссылкой", true);
+    return;
+  }
+  fs::path tmp;
+  if (!CreateTemporaryExtensionDirectory(root, &tmp)) {
+    ExtToast("Не удалось создать безопасный временный каталог", true);
+    return;
+  }
+  const std::string zip(pending.archive_bytes.data() + zip_offset,
+                        pending.archive_bytes.size() - zip_offset);
+  if (!UnzipBytesTo(zip, tmp)) {
+    ExtToast("Не удалось безопасно распаковать архив расширения", true);
+    security::RemoveTreeWithoutFollowingLinks(root, tmp);
+    return;
+  }
+  std::string manifest;
+  CefRefPtr<CefValue> value;
+  if (!ReadFileStr(tmp / "manifest.json", kMaxExtensionManifestBytes,
+                   &manifest) ||
+      manifest.empty() ||
+      !(value = CefParseJSON(manifest, JSON_PARSER_RFC)) ||
+      value->GetType() != VTYPE_DICTIONARY) {
+    ExtToast("Manifest расширения после проверки недопустим", true);
+    security::RemoveTreeWithoutFollowingLinks(root, tmp);
+    return;
+  }
+
   std::string slug = "ext-";
-  for (unsigned char c : name) {
+  for (unsigned char c : pending.name) {
     if (slug.size() >= 60) break;
     if (c >= 'a' && c <= 'z') {
       slug.push_back(static_cast<char>(c));
@@ -1947,6 +2309,7 @@ void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
   while (!slug.empty() && slug.back() == '-') slug.pop_back();
   if (slug == "ext") slug += "-default";
 
+  std::error_code ec;
   fs::path dest;
   bool destination_available = false;
   for (unsigned int suffix = 0; suffix < 1000; ++suffix) {
@@ -1964,6 +2327,7 @@ void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
     if (ec) break;
   }
   if (!destination_available || !security::IsDirectoryWithoutLink(root) ||
+      !security::IsPathWithin(root, tmp) ||
       !security::IsDirectoryWithoutLink(tmp)) {
     ExtToast("Не удалось безопасно разместить расширение", true);
     security::RemoveTreeWithoutFollowingLinks(root, tmp);
@@ -1977,7 +2341,8 @@ void Shell::ExtInstallBytes(std::string bytes, const std::string& origin) {
     return;
   }
   LoadExtFromDir(dest);
-  ExtToast("Расширение установлено: " + name + (ver.empty() ? "" : " v" + ver),
+  ExtToast("Расширение установлено: " + pending.name +
+               (pending.version.empty() ? "" : " v" + pending.version),
            false);
   ExtPushList();
 }

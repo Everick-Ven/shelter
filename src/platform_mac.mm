@@ -598,12 +598,6 @@ void ShowInFolder(const std::string& path) {
   [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[file_url]];
 }
 
-void OpenExternal(const std::string& url) {
-  NSString* u = [NSString stringWithUTF8String:url.c_str()];
-  NSURL* nsurl = [NSURL URLWithString:u];
-  if (nsurl) [[NSWorkspace sharedWorkspace] openURL:nsurl];
-}
-
 std::string ClipboardRead() {
   NSString* s = [[NSPasteboard generalPasteboard] stringForType:NSPasteboardTypeString];
   return s ? std::string([s UTF8String]) : std::string();

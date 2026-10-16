@@ -32,9 +32,6 @@ std::string DownloadsDir();
 // Показать файл в Проводнике / Finder.
 void ShowInFolder(const std::string& path);
 
-// Открыть ссылку во внешнем приложении (mailto:, tel:, ...).
-void OpenExternal(const std::string& url);
-
 // SHA-256 и проверка доказательства подписи CRX3 системной криптографией.
 bool Sha256(const std::string& bytes, std::string* digest);
 bool VerifyCrx3Signature(const std::string& public_key_der, bool ecdsa,

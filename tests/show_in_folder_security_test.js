@@ -8,6 +8,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const shellBridge = read('src/shell_bridge.cc');
 const shell = read('src/shell.cc');
 const shellHeader = read('src/shell.h');
+const platformHeader = read('src/platform.h');
 const paths = read('src/security_paths.h');
 const pathTest = read('tests/security_paths_test.cc');
 const win = read('src/platform_win.cc');
@@ -71,14 +72,14 @@ assert.match(pathTest, /symlink in file path rejected/);
 assert.match(pathTest, /file symlink rejected/);
 
 // Windows использует Shell PIDL API, а не строку аргументов explorer.exe.
-const winShow = from(win, 'void ShowInFolder(', 'void OpenExternal(');
+const winShow = from(win, 'void ShowInFolder(', 'std::string ClipboardRead(');
 assert.match(winShow, /SHParseDisplayName\(/);
 assert.match(winShow, /SHOpenFolderAndSelectItems\(/);
 assert.match(winShow, /ILRemoveLastID\(/);
 assert.doesNotMatch(winShow, /ShellExecuteW|explorer\.exe/);
 
 // macOS передаёт только file URL через NSWorkspace.
-const macShow = from(mac, 'void ShowInFolder(', 'void OpenExternal(');
+const macShow = from(mac, 'void ShowInFolder(', 'std::string ClipboardRead(');
 assert.match(macShow, /fileURLWithPath/);
 assert.match(macShow, /isFileURL/);
 assert.match(macShow, /activateFileViewerSelectingURLs/);

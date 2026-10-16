@@ -8,7 +8,6 @@
 #include <windows.h>
 #include <bcrypt.h>
 #include <wincrypt.h>
-#include <shellapi.h>
 #include <shlobj.h>
 
 #include <algorithm>
@@ -636,11 +635,6 @@ void ShowInFolder(const std::string& path) {
   SHOpenFolderAndSelectItems(folder, 1, selected, 0);
   CoTaskMemFree(folder);
   CoTaskMemFree(item);
-}
-
-void OpenExternal(const std::string& url) {
-  ShellExecuteW(nullptr, L"open", Wide(url).c_str(), nullptr, nullptr,
-                SW_SHOWNORMAL);
 }
 
 std::string ClipboardRead() {

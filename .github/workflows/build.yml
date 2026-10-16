@@ -327,6 +327,8 @@ jobs:
         run: node tests/app_version_source_test.js
       - name: UI versioning and HTTP cache regression test
         run: node tests/ui_build_cache_test.js
+      - name: Platform clip-mask source regression test
+        run: node tests/platform_clip_source_test.js
       - name: Compile and run native secret crypto compatibility tests
         run: |
           set -euo pipefail

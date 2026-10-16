@@ -53,39 +53,31 @@ std::string KnownFolder(REFKNOWNFOLDERID id) {
   return out;
 }
 
-// DirectComposition ignores SetWindowRgn for CEF's tab surface. A small
-// layered owned window passes hit tests through over the page and paints only
-// the pixels outside the rounded corners, matching the Mac layer mask.
+// Маска — layered child HWND корневого окна: она следует за окном без хука
+// перемещений, а её координаты задаются относительно клиентской области.
 constexpr wchar_t kClipMaskClass[] = L"ShelterViewportClipMask";
 HWND g_clip_mask_window = nullptr;
 HWND g_clip_mask_owner = nullptr;
 HWND g_clip_mask_view = nullptr;
-HWINEVENTHOOK g_clip_move_hook = nullptr;
 int g_clip_x = 0, g_clip_y = 0, g_clip_w = 0, g_clip_h = 0;
 double g_clip_radii[4] = {0, 0, 0, 0};
 std::uint32_t g_clip_color = 0x0e0f13;
-int g_clip_mask_width_px = 0, g_clip_mask_height_px = 0;
-double g_clip_mask_radii_px[4] = {0, 0, 0, 0};
 bool g_clip_visible = false;
 
-bool IsInsideRoundedRect(double x, double y, double width, double height,
-                         const double radii[4]);
+bool g_clip_drawn_valid = false;
+bool g_clip_drawn_visible = false;
+HWND g_clip_drawn_owner = nullptr;
+int g_clip_drawn_x = 0, g_clip_drawn_y = 0;
+int g_clip_drawn_w = 0, g_clip_drawn_h = 0;
+UINT g_clip_drawn_dpi = 96;
+double g_clip_drawn_radii[4] = {0, 0, 0, 0};
+std::uint32_t g_clip_drawn_color = 0;
 
 LRESULT CALLBACK ClipMaskWindowProc(HWND window, UINT message, WPARAM wparam,
                                     LPARAM lparam) {
   switch (message) {
-    case WM_NCHITTEST: {
-      RECT rect{};
-      if (!GetWindowRect(window, &rect)) return HTCLIENT;
-      const double x = static_cast<short>(LOWORD(lparam)) - rect.left + 0.5;
-      const double y = static_cast<short>(HIWORD(lparam)) - rect.top + 0.5;
-      return g_clip_visible &&
-                     IsInsideRoundedRect(x, y, g_clip_mask_width_px,
-                                         g_clip_mask_height_px,
-                                         g_clip_mask_radii_px)
-                 ? HTTRANSPARENT
-                 : HTCLIENT;
-    }
+    case WM_NCHITTEST:
+      return HTTRANSPARENT;
     case WM_MOUSEACTIVATE:
       return MA_NOACTIVATE;
     case WM_LBUTTONDOWN:
@@ -119,6 +111,12 @@ bool EnsureClipMaskWindowClass() {
   return true;
 }
 
+void InvalidateClipMaskCache() {
+  g_clip_drawn_valid = false;
+  g_clip_drawn_visible = false;
+  g_clip_drawn_owner = nullptr;
+}
+
 bool EnsureClipMaskWindow(HWND owner) {
   if (!owner || !IsWindow(owner) || !EnsureClipMaskWindowClass()) return false;
   if (g_clip_mask_window &&
@@ -126,49 +124,25 @@ bool EnsureClipMaskWindow(HWND owner) {
     if (IsWindow(g_clip_mask_window)) DestroyWindow(g_clip_mask_window);
     g_clip_mask_window = nullptr;
     g_clip_mask_owner = nullptr;
+    InvalidateClipMaskCache();
   }
   if (g_clip_mask_window) return true;
   g_clip_mask_window = CreateWindowExW(
-      WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
-      kClipMaskClass, L"", WS_POPUP, 0, 0, 1, 1, owner, nullptr,
+      WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT,
+      kClipMaskClass, L"", WS_CHILD, 0, 0, 1, 1, owner, nullptr,
       GetModuleHandleW(nullptr), nullptr);
   if (!g_clip_mask_window) return false;
   g_clip_mask_owner = owner;
+  InvalidateClipMaskCache();
   return true;
 }
 
 void HideClipMask() {
   g_clip_visible = false;
-  if (IsWindow(g_clip_mask_window)) ShowWindow(g_clip_mask_window, SW_HIDE);
-  if (g_clip_move_hook) {
-    UnhookWinEvent(g_clip_move_hook);
-    g_clip_move_hook = nullptr;
+  if (IsWindow(g_clip_mask_window) && g_clip_drawn_visible) {
+    ShowWindow(g_clip_mask_window, SW_HIDE);
   }
-}
-
-bool IsInsideRoundedRect(double x, double y, double width, double height,
-                         const double radii[4]) {
-  double radius = radii[0];
-  if (radius > 0 && x < radius && y < radius) {
-    const double dx = x - radius, dy = y - radius;
-    return dx * dx + dy * dy <= radius * radius;
-  }
-  radius = radii[1];
-  if (radius > 0 && x >= width - radius && y < radius) {
-    const double dx = x - (width - radius), dy = y - radius;
-    return dx * dx + dy * dy <= radius * radius;
-  }
-  radius = radii[2];
-  if (radius > 0 && x >= width - radius && y >= height - radius) {
-    const double dx = x - (width - radius), dy = y - (height - radius);
-    return dx * dx + dy * dy <= radius * radius;
-  }
-  radius = radii[3];
-  if (radius > 0 && x < radius && y >= height - radius) {
-    const double dx = x - radius, dy = y - (height - radius);
-    return dx * dx + dy * dy <= radius * radius;
-  }
-  return true;
+  g_clip_drawn_visible = false;
 }
 
 UINT WindowDpi(HWND window) {
@@ -189,9 +163,18 @@ void UpdateClipMask() {
     HideClipMask();
     return;
   }
-  const double scale = static_cast<double>(WindowDpi(g_clip_mask_owner)) / 96.0;
+  RECT client{};
+  if (!GetClientRect(g_clip_mask_owner, &client)) {
+    HideClipMask();
+    return;
+  }
+
+  const UINT dpi = WindowDpi(g_clip_mask_owner);
+  const double scale = static_cast<double>(dpi) / 96.0;
   const int width = std::max(1, static_cast<int>(std::lround(g_clip_w * scale)));
   const int height = std::max(1, static_cast<int>(std::lround(g_clip_h * scale)));
+  const int left = static_cast<int>(std::lround(g_clip_x * scale));
+  const int top = static_cast<int>(std::lround(g_clip_y * scale));
   double radii[4] = {};
   bool any_radius = false;
   for (int i = 0; i < 4; ++i) {
@@ -204,15 +187,30 @@ void UpdateClipMask() {
     return;
   }
 
-  RECT client{};
-  POINT origin{0, 0};
-  if (!GetClientRect(g_clip_mask_owner, &client) ||
-      !ClientToScreen(g_clip_mask_owner, &origin)) {
-    HideClipMask();
+  bool same_content = g_clip_drawn_valid &&
+      g_clip_drawn_owner == g_clip_mask_owner &&
+      g_clip_drawn_w == g_clip_w && g_clip_drawn_h == g_clip_h &&
+      g_clip_drawn_dpi == dpi && g_clip_drawn_color == g_clip_color;
+  for (int i = 0; same_content && i < 4; ++i) {
+    same_content = g_clip_drawn_radii[i] == g_clip_radii[i];
+  }
+  if (same_content) {
+    const bool position_changed =
+        g_clip_drawn_x != g_clip_x || g_clip_drawn_y != g_clip_y;
+    if (!g_clip_drawn_visible || position_changed) {
+      const UINT flags = SWP_NOACTIVATE | SWP_NOOWNERZORDER |
+                         (g_clip_drawn_visible ? 0 : SWP_SHOWWINDOW);
+      if (!SetWindowPos(g_clip_mask_window, HWND_TOP, left, top, width, height,
+                        flags)) {
+        HideClipMask();
+        return;
+      }
+      g_clip_drawn_visible = true;
+      g_clip_drawn_x = g_clip_x;
+      g_clip_drawn_y = g_clip_y;
+    }
     return;
   }
-  const int left = origin.x + static_cast<int>(std::lround(g_clip_x * scale));
-  const int top = origin.y + static_cast<int>(std::lround(g_clip_y * scale));
 
   HDC screen_dc = GetDC(nullptr);
   if (!screen_dc) { HideClipMask(); return; }
@@ -280,41 +278,50 @@ void UpdateClipMask() {
     }
   };
   for (int i = 0; i < 4; ++i) paint_corner(i, radii[i]);
-  g_clip_mask_width_px = width;
-  g_clip_mask_height_px = height;
-  for (int i = 0; i < 4; ++i) g_clip_mask_radii_px[i] = radii[i];
 
-  POINT destination{left, top}, source{0, 0};
-  SIZE size{width, height};
+  const bool was_visible = g_clip_drawn_visible;
+  if (!SetWindowPos(g_clip_mask_window, HWND_TOP, left, top, width, height,
+                    SWP_NOACTIVATE | SWP_NOOWNERZORDER)) {
+    SelectObject(memory_dc, old_bitmap);
+    DeleteObject(bitmap);
+    DeleteDC(memory_dc);
+    ReleaseDC(nullptr, screen_dc);
+    HideClipMask();
+    InvalidateClipMaskCache();
+    return;
+  }
+  POINT source{0, 0};
   BLENDFUNCTION blend{AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
   const BOOL updated = UpdateLayeredWindow(
-      g_clip_mask_window, screen_dc, &destination, &size, memory_dc, &source,
+      g_clip_mask_window, screen_dc, nullptr, nullptr, memory_dc, &source,
       0, &blend, ULW_ALPHA);
   SelectObject(memory_dc, old_bitmap);
   DeleteObject(bitmap);
   DeleteDC(memory_dc);
   ReleaseDC(nullptr, screen_dc);
-  if (!updated) { HideClipMask(); return; }
-  SetWindowPos(g_clip_mask_window, HWND_TOP, left, top, width, height,
-               SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
-}
-
-void CALLBACK ClipOwnerLocationChanged(HWINEVENTHOOK, DWORD event, HWND window,
-                                       LONG object_id, LONG child_id, DWORD,
-                                       DWORD) {
-  if (event == EVENT_OBJECT_LOCATIONCHANGE && object_id == OBJID_WINDOW &&
-      child_id == CHILDID_SELF &&
-      (window == g_clip_mask_owner || window == g_clip_mask_view)) {
-    UpdateClipMask();
+  if (!updated) {
+    HideClipMask();
+    InvalidateClipMaskCache();
+    return;
   }
-}
+  if (!was_visible &&
+      !SetWindowPos(g_clip_mask_window, HWND_TOP, left, top, width, height,
+                    SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_SHOWWINDOW)) {
+    HideClipMask();
+    InvalidateClipMaskCache();
+    return;
+  }
 
-void EnsureClipMoveHook() {
-  if (g_clip_move_hook) return;
-  g_clip_move_hook = SetWinEventHook(
-      EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, nullptr,
-      ClipOwnerLocationChanged, GetCurrentProcessId(), 0,
-      WINEVENT_OUTOFCONTEXT);
+  g_clip_drawn_valid = true;
+  g_clip_drawn_visible = true;
+  g_clip_drawn_owner = g_clip_mask_owner;
+  g_clip_drawn_x = g_clip_x;
+  g_clip_drawn_y = g_clip_y;
+  g_clip_drawn_w = g_clip_w;
+  g_clip_drawn_h = g_clip_h;
+  g_clip_drawn_dpi = dpi;
+  g_clip_drawn_color = g_clip_color;
+  for (int i = 0; i < 4; ++i) g_clip_drawn_radii[i] = g_clip_radii[i];
 }
 
 }  // namespace
@@ -504,10 +511,13 @@ void ApplyViewClip(void* handle, const double radii[4],
   HWND view = static_cast<HWND>(handle);
   if (!IsWindow(view)) { HideClipMask(); return; }
   HWND owner = GetAncestor(view, GA_ROOT);
-  if (!owner) owner = view;
+  if (!owner) {
+    HideClipMask();
+    return;
+  }
   bool rounded = false;
   for (int i = 0; i < 4; ++i) rounded = rounded || radii[i] > 0.5;
-  if (!rounded || !EnsureClipMaskWindow(owner)) {
+  if (!rounded) {
     HideClipMask();
     return;
   }
@@ -520,7 +530,6 @@ void ApplyViewClip(void* handle, const double radii[4],
   g_clip_color = mask_color & 0x00ffffffu;
   for (int i = 0; i < 4; ++i) g_clip_radii[i] = std::max(0.0, radii[i]);
   g_clip_visible = true;
-  EnsureClipMoveHook();
   UpdateClipMask();
 }
 

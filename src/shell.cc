@@ -93,6 +93,11 @@ constexpr size_t kMaxInstalledExtensions = 256;
 constexpr std::uintmax_t kMaxPendingWipeListBytes = 64u * 1024u;
 constexpr size_t kMaxPendingWipeEntries = 1024;
 
+bool SameRect(const CefRect& left, const CefRect& right) {
+  return left.x == right.x && left.y == right.y &&
+         left.width == right.width && left.height == right.height;
+}
+
 CefRefPtr<CefImage> LoadWindowIcon() {
   std::ifstream f(platform::UiResourceDir() + "/icon-256.png", std::ios::binary);
   if (!f) return nullptr;
@@ -990,7 +995,7 @@ void Shell::FinishTabBrowser(Tab* t) {
       !CefCommandLine::GetGlobalCommandLine()->HasSwitch("tab-no-activate");
   t->overlay = window_->AddOverlayView(t->view, CEF_DOCKING_MODE_CUSTOM,
                                        can_activate);
-  t->overlay->SetVisible(false);
+  SetOverlayVisibility(t, false);
   if (t->has_pending_layout) {
     const CefRect rect = t->pending_rect;
     const bool visible = t->pending_visible;
@@ -1213,12 +1218,20 @@ void Shell::DestroyTab(const std::string& id) {
   ReleaseContextIfUnused(tab.partition);
 }
 
+void Shell::SetOverlayVisibility(Tab* tab, bool visible) {
+  if (!tab || !tab->overlay || !tab->overlay->IsValid()) return;
+  if (!tab->has_last_overlay_visibility ||
+      tab->last_overlay_visibility != visible) {
+    tab->overlay->SetVisible(visible);
+    tab->last_overlay_visibility = visible;
+    tab->has_last_overlay_visibility = true;
+  }
+}
+
 void Shell::HideAllTabs() {
   for (auto& kv : tabs_) {
-    if (kv.second.overlay && kv.second.overlay->IsValid()) {
-      kv.second.overlay->SetVisible(false);
-    }
     kv.second.view_visible = false;
+    SetOverlayVisibility(&kv.second, false);
     ApplyClip(&kv.second);
   }
 }
@@ -1237,11 +1250,15 @@ void Shell::LayoutTab(Tab* tab, const CefRect& rect, bool visible) {
   }
   const CefRect prev = last_rect_;
   if (rect.width > 0 && rect.height > 0) {
-    tab->overlay->SetBounds(rect);
+    if (!tab->has_last_bounds || !SameRect(tab->last_bounds, rect)) {
+      tab->overlay->SetBounds(rect);
+      tab->last_bounds = rect;
+      tab->has_last_bounds = true;
+    }
     last_rect_ = rect;
   }
   tab->view_visible = visible && tab->id == active_tab_ && last_rect_.width > 0;
-  tab->overlay->SetVisible(tab->view_visible);
+  SetOverlayVisibility(tab, tab->view_visible);
   ApplyClip(tab);
   // Приёмочный маркер CI (tools/check_geometry.py): область контента должна
   // оставаться в hero-зоне (сайдбар+тулбар видны) и не перекрывать всё окно.
@@ -1266,12 +1283,28 @@ void Shell::OnUiReady(const std::string& version) {
 
 void Shell::ApplyClip(Tab* tab) {
   if (!tab || !tab->browser || !tab->overlay || !tab->overlay->IsValid()) return;
-  void* h = reinterpret_cast<void*>(tab->browser->GetHost()->GetWindowHandle());
-  if (!h || last_rect_.width <= 0 || last_rect_.height <= 0) return;
-  platform::ApplyViewClip(h, clip_radii_, clip_holes_, last_rect_.x,
+  void* handle = reinterpret_cast<void*>(tab->browser->GetHost()->GetWindowHandle());
+  if (!handle || last_rect_.width <= 0 || last_rect_.height <= 0) return;
+  const bool visible = tab->view_visible && tab->id == active_tab_;
+  std::array<double, 4> radii{};
+  std::copy(clip_radii_, clip_radii_ + radii.size(), radii.begin());
+  if (tab->has_last_clip && tab->last_clip_handle == handle &&
+      SameRect(tab->last_clip_bounds, last_rect_) &&
+      tab->last_clip_radii == radii && tab->last_clip_holes == clip_holes_ &&
+      tab->last_clip_mask_color == clip_mask_color_ &&
+      tab->last_clip_visible == visible) {
+    return;
+  }
+  platform::ApplyViewClip(handle, clip_radii_, clip_holes_, last_rect_.x,
                           last_rect_.y, last_rect_.width, last_rect_.height,
-                          tab->view_visible && tab->id == active_tab_,
-                          clip_mask_color_);
+                          visible, clip_mask_color_);
+  tab->last_clip_handle = handle;
+  tab->last_clip_bounds = last_rect_;
+  tab->last_clip_radii = radii;
+  tab->last_clip_holes = clip_holes_;
+  tab->last_clip_mask_color = clip_mask_color_;
+  tab->last_clip_visible = visible;
+  tab->has_last_clip = true;
 }
 
 void Shell::Log(const std::string& line) {

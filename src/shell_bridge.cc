@@ -285,10 +285,8 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     active_tab_ = id;
     for (auto& kv : tabs_) {
       if (kv.first == id) continue;
-      if (kv.second.overlay && kv.second.overlay->IsValid()) {
-        kv.second.overlay->SetVisible(false);
-      }
       kv.second.view_visible = false;
+      SetOverlayVisibility(&kv.second, false);
       ApplyClip(&kv.second);
     }
     LayoutTab(t, RectOf(a), Flag(a, "visible", true));
@@ -566,6 +564,7 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
           std::max(1, last_rect_.width), std::max(1, last_rect_.height), false,
           clip_mask_color_);
       if (a->HasKey("level")) platform::SetClipLevel(static_cast<int>(Num(a, "level", -1)));
+      t->has_last_clip = false;
       ApplyClip(t);
       cb->Success(JsString(platform::DumpWindowChain(
           reinterpret_cast<void*>(t->browser->GetHost()->GetWindowHandle()))));

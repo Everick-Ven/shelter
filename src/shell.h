@@ -65,6 +65,17 @@ struct Tab {
   bool has_pending_layout = false;
   bool pending_visible = false;
   bool pending_focus = false;
+  CefRect last_bounds;
+  bool has_last_bounds = false;
+  bool last_overlay_visibility = false;
+  bool has_last_overlay_visibility = false;
+  void* last_clip_handle = nullptr;
+  CefRect last_clip_bounds;
+  std::array<double, 4> last_clip_radii{};
+  std::vector<std::array<int, 5>> last_clip_holes;
+  std::uint32_t last_clip_mask_color = 0;
+  bool last_clip_visible = false;
+  bool has_last_clip = false;
 };
 
 struct PendingDownload {
@@ -257,6 +268,7 @@ class Shell {
   bool ContextReady(const std::string& partition) const;
   void HideAllTabs();
   void LayoutTab(Tab* tab, const CefRect& rect, bool visible);
+  void SetOverlayVisibility(Tab* tab, bool visible);
   CefRefPtr<CefBrowser> ActiveBrowser();
   void CaptureSnapshot(const std::string& tab_id, int quality,
                        CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);

@@ -329,6 +329,8 @@ jobs:
         run: node tests/ui_build_cache_test.js
       - name: Platform clip-mask source regression test
         run: node tests/platform_clip_source_test.js
+      - name: Shell overlay deduplication regression test
+        run: node tests/shell_overlay_dedupe_test.js
       - name: Compile and run native secret crypto compatibility tests
         run: |
           set -euo pipefail

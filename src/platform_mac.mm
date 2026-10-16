@@ -355,6 +355,23 @@ static NSWindow* g_overlay_win = nil;  // окно вида вкладки (не
 static std::vector<std::array<int, 5>> g_holes;  // {x, y, w, h, радиус}
 static int g_hole_view_w = 0, g_hole_view_h = 0;
 
+struct ViewClipCache {
+  bool valid = false;
+  NSWindow* window = nil;
+  NSView* root = nil;
+  CALayer* root_layer = nil;
+  CAShapeLayer* mask = nil;
+  std::array<double, 4> radii{};
+  std::vector<std::array<int, 5>> holes;
+  int view_w = 0;
+  int view_h = 0;
+  CGFloat content_w = 0;
+  CGFloat content_h = 0;
+  bool visible = false;
+};
+
+static ViewClipCache g_view_clip_cache;
+
 static bool InHole(NSEvent* e) {
   NSWindow* w = e.window;
   if (!w || w != g_overlay_win || g_holes.empty() || !w.contentView) return false;
@@ -443,76 +460,149 @@ void ApplyViewClip(void* handle, const double radii[4],
                    const std::vector<std::array<int, 5>>& holes, int /*view_x*/,
                    int /*view_y*/, int view_w, int view_h, bool visible,
                    std::uint32_t /*mask_color*/) {
-  NSView* v = (NSView*)handle;
-  NSWindow* win = v ? v.window : nil;
-  if (!win || !win.contentView) return;
-  NSView* root = win.contentView.superview ? win.contentView.superview : win.contentView;
+  NSView* view = static_cast<NSView*>(handle);
+  NSWindow* window = view ? view.window : nil;
+  if (!window || !window.contentView) return;
+  NSView* root = window.contentView.superview ? window.contentView.superview
+                                               : window.contentView;
+  if (visible && !root.wantsLayer) {
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    root.wantsLayer = YES;
+    [CATransaction commit];
+  }
+  CALayer* layer = root.layer;
+  if (visible && !layer) return;
+
+  const CGFloat width = window.contentView.frame.size.width;
+  const CGFloat height = window.contentView.frame.size.height;
+  std::array<double, 4> current_radii{};
+  for (int i = 0; i < 4; ++i) current_radii[i] = radii[i];
+  const bool same_geometry = g_view_clip_cache.valid &&
+      g_view_clip_cache.window == window && g_view_clip_cache.root == root &&
+      g_view_clip_cache.root_layer == layer &&
+      g_view_clip_cache.radii == current_radii &&
+      g_view_clip_cache.holes == holes &&
+      g_view_clip_cache.view_w == view_w &&
+      g_view_clip_cache.view_h == view_h &&
+      g_view_clip_cache.content_w == width &&
+      g_view_clip_cache.content_h == height;
+  CAShapeLayer* existing_mask =
+      [layer.mask isKindOfClass:[CAShapeLayer class]]
+          ? (CAShapeLayer*)layer.mask
+          : nil;
+  if (same_geometry && g_view_clip_cache.visible == visible &&
+      (!visible || existing_mask == g_view_clip_cache.mask)) {
+    return;
+  }
+
   if (!visible) {
-    if (root.layer) root.layer.mask = nil;
-    if (g_overlay_win == win) {
+    // Скрытие меняет только состояние маршрутизации мыши; маска слоя остаётся.
+    if (g_overlay_win == window) {
       g_overlay_win = nil;
       g_holes.clear();
       g_hole_view_w = g_hole_view_h = 0;
     }
+    g_view_clip_cache.valid = true;
+    g_view_clip_cache.window = window;
+    g_view_clip_cache.root = root;
+    g_view_clip_cache.root_layer = layer;
+    g_view_clip_cache.mask = existing_mask;
+    g_view_clip_cache.radii = current_radii;
+    g_view_clip_cache.holes = holes;
+    g_view_clip_cache.view_w = view_w;
+    g_view_clip_cache.view_h = view_h;
+    g_view_clip_cache.content_w = width;
+    g_view_clip_cache.content_h = height;
+    g_view_clip_cache.visible = false;
     return;
   }
-  g_overlay_win = win;
+
+  g_overlay_win = window;
   g_holes = holes;
   g_hole_view_w = view_w;
   g_hole_view_h = view_h;
-  bool any = !holes.empty();
-  for (int i = 0; i < 4; ++i) any = any || radii[i] > 0.5;
-  if (!any) {
-    if (root.layer) root.layer.mask = nil;
+  if (same_geometry && existing_mask &&
+      existing_mask == g_view_clip_cache.mask) {
+    // После hide/show того же вида слой и его путь уже готовы.
+    g_view_clip_cache.visible = true;
     return;
   }
-  root.wantsLayer = YES;
-  CALayer* layer = root.layer;
-  if (!layer) return;
-  const CGFloat W = win.contentView.frame.size.width, H = win.contentView.frame.size.height;
-  const CGFloat sx = view_w > 0 ? W / view_w : 1, sy = view_h > 0 ? H / view_h : 1;
-  const CGFloat tl = radii[0] * sx, tr = radii[1] * sx, br = radii[2] * sx, bl = radii[3] * sx;
 
-  // Путь в координатах «сверху вниз», затем переворачиваем под систему координат слоя окна.
-  CGMutablePathRef p = CGPathCreateMutable();
-  CGPathMoveToPoint(p, nullptr, tl, 0);
-  CGPathAddLineToPoint(p, nullptr, W - tr, 0);
-  if (tr > 0) CGPathAddArc(p, nullptr, W - tr, tr, tr, -M_PI_2, 0, false);
-  CGPathAddLineToPoint(p, nullptr, W, H - br);
-  if (br > 0) CGPathAddArc(p, nullptr, W - br, H - br, br, 0, M_PI_2, false);
-  CGPathAddLineToPoint(p, nullptr, bl, H);
-  if (bl > 0) CGPathAddArc(p, nullptr, bl, H - bl, bl, M_PI_2, M_PI, false);
-  CGPathAddLineToPoint(p, nullptr, 0, tl);
-  if (tl > 0) CGPathAddArc(p, nullptr, tl, tl, tl, M_PI, 3 * M_PI_2, false);
-  CGPathCloseSubpath(p);
-  for (const auto& h : holes) {
-    // Дырка повторяет форму скруглённого попапа, иначе вокруг него видна
-    // «квадратная» рамка подложки окна на фоне страницы.
-    const CGRect rect =
-        CGRectMake(h[0] * sx, h[1] * sy, h[2] * sx, h[3] * sy);
-    const CGFloat hr = static_cast<CGFloat>(h[4]) * sx;
-    const CGFloat r =
-        std::max<CGFloat>(0, std::min<CGFloat>(hr, std::min(CGRectGetWidth(rect),
-                                                             CGRectGetHeight(rect)) / 2));
-    if (r > 0.5) {
-      CGPathAddRoundedRect(p, nullptr, rect, r, r);
+  const CGFloat sx = view_w > 0 ? width / view_w : 1;
+  const CGFloat sy = view_h > 0 ? height / view_h : 1;
+  const CGFloat tl = current_radii[0] * sx;
+  const CGFloat tr = current_radii[1] * sx;
+  const CGFloat br = current_radii[2] * sx;
+  const CGFloat bl = current_radii[3] * sx;
+
+  // Путь задаётся сверху вниз, затем переворачивается в координаты слоя окна.
+  CGMutablePathRef path = CGPathCreateMutable();
+  CGPathMoveToPoint(path, nullptr, tl, 0);
+  CGPathAddLineToPoint(path, nullptr, width - tr, 0);
+  if (tr > 0) CGPathAddArc(path, nullptr, width - tr, tr, tr,
+                           -M_PI_2, 0, false);
+  CGPathAddLineToPoint(path, nullptr, width, height - br);
+  if (br > 0) CGPathAddArc(path, nullptr, width - br, height - br, br,
+                           0, M_PI_2, false);
+  CGPathAddLineToPoint(path, nullptr, bl, height);
+  if (bl > 0) CGPathAddArc(path, nullptr, bl, height - bl, bl,
+                           M_PI_2, M_PI, false);
+  CGPathAddLineToPoint(path, nullptr, 0, tl);
+  if (tl > 0) CGPathAddArc(path, nullptr, tl, tl, tl,
+                           M_PI, 3 * M_PI_2, false);
+  CGPathCloseSubpath(path);
+  for (const auto& hole : holes) {
+    // Дырка повторяет скругление попапа, чтобы не оставлять квадратную рамку.
+    const CGRect rect = CGRectMake(hole[0] * sx, hole[1] * sy,
+                                   hole[2] * sx, hole[3] * sy);
+    const CGFloat hr = static_cast<CGFloat>(hole[4]) * sx;
+    const CGFloat radius = std::max<CGFloat>(
+        0, std::min<CGFloat>(hr, std::min(CGRectGetWidth(rect),
+                                         CGRectGetHeight(rect)) / 2));
+    if (radius > 0.5) {
+      CGPathAddRoundedRect(path, nullptr, rect, radius, radius);
     } else {
-      CGPathAddRect(p, nullptr, rect);
+      CGPathAddRect(path, nullptr, rect);
     }
   }
-  CGAffineTransform flip = CGAffineTransformMake(1, 0, 0, -1, 0, H);
-  CGPathRef flipped = CGPathCreateCopyByTransformingPath(p, &flip);
-  CGPathRelease(p);
+  CGAffineTransform flip = CGAffineTransformMake(1, 0, 0, -1, 0, height);
+  CGPathRef flipped = CGPathCreateCopyByTransformingPath(path, &flip);
+  CGPathRelease(path);
+  if (!flipped) return;
 
-  CAShapeLayer* mask = [CAShapeLayer layer];
-  mask.frame = layer.bounds;
-  mask.path = flipped;
-  CGColorRef black = CGColorCreateGenericGray(0, 1);
-  mask.fillColor = black;
-  CGColorRelease(black);
-  mask.fillRule = kCAFillRuleEvenOdd;
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
+  CAShapeLayer* mask = existing_mask;
+  if (!mask) {
+    mask = [CAShapeLayer layer];
+    CGColorRef black = CGColorCreateGenericGray(0, 1);
+    mask.fillColor = black;
+    CGColorRelease(black);
+    mask.fillRule = kCAFillRuleEvenOdd;
+    layer.mask = mask;
+  }
+  if (!CGRectEqualToRect(mask.frame, layer.bounds)) {
+    mask.frame = layer.bounds;
+  }
+  if (!mask.path || !CGPathEqualToPath(mask.path, flipped)) {
+    mask.path = flipped;
+  }
+  [CATransaction commit];
   CGPathRelease(flipped);
-  layer.mask = mask;
+
+  g_view_clip_cache.valid = true;
+  g_view_clip_cache.window = window;
+  g_view_clip_cache.root = root;
+  g_view_clip_cache.root_layer = layer;
+  g_view_clip_cache.mask = mask;
+  g_view_clip_cache.radii = current_radii;
+  g_view_clip_cache.holes = holes;
+  g_view_clip_cache.view_w = view_w;
+  g_view_clip_cache.view_h = view_h;
+  g_view_clip_cache.content_w = width;
+  g_view_clip_cache.content_h = height;
+  g_view_clip_cache.visible = true;
 }
 
 static void DumpView(NSView* v, int depth, NSMutableString* out) {

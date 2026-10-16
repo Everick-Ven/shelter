@@ -287,6 +287,7 @@ class Shell {
   CefRefPtr<CefBrowserView> ui_view_;
   CefRefPtr<CefBrowser> ui_browser_;
   std::atomic<int> ui_browser_id_{-1};  // Published for IO-thread scheme checks.
+  bool ui_http_cache_cleared_ = false;
   std::vector<CefDraggableRegion> drag_regions_;
   std::set<CefRefPtr<CefWindow>> popup_windows_;
 

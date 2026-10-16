@@ -29,6 +29,16 @@ assert(queryStrip >= 0 && pathSanitize > queryStrip,
        'query/hash must be removed before sanitizing the relative UI path');
 assert.match(scheme, /Cache-Control", "no-store"/);
 
+const shell = read('src/shell.cc');
+const uiCreated = shell.slice(
+  shell.indexOf('void Shell::OnUiCreated'),
+  shell.indexOf('void Shell::OnUiClosed'));
+assert.match(read('src/shell.h'), /bool ui_http_cache_cleared_ = false;/);
+assert.match(uiCreated, /if \(browser && !ui_http_cache_cleared_\)/);
+assert.match(uiCreated, /ExecuteDevToolsMethod\(\s*0, "Network\.clearBrowserCache", nullptr\)/);
+assert.doesNotMatch(uiCreated, /clearBrowserCookies|Storage\.clear|localStorage|IndexedDB/i,
+                    'startup cache cleanup must not remove persistent browser data');
+
 for (const file of ['src/clients.cc', 'src/renderer_app.cc']) {
   assert.match(read(file), /url\.rfind\(kUiOriginPrefix, 0\) == 0/,
                `${file} must continue checking the stable UI origin`);

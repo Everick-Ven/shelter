@@ -858,6 +858,11 @@ void Shell::OnUiCreated(CefRefPtr<CefBrowser> browser) {
   ui_browser_ = browser;
   ui_browser_id_.store(browser ? browser->GetIdentifier() : -1,
                        std::memory_order_release);
+  if (browser && !ui_http_cache_cleared_) {
+    ui_http_cache_cleared_ = true;
+    browser->GetHost()->ExecuteDevToolsMethod(
+        0, "Network.clearBrowserCache", nullptr);
+  }
 }
 
 void Shell::OnUiClosed(CefRefPtr<CefBrowser> browser) {

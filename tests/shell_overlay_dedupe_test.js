@@ -38,6 +38,11 @@ assert.match(clip, /tab->last_clip_mask_color == clip_mask_color_/);
 assert.match(clip, /tab->last_clip_visible == visible/);
 assert.match(clip, /if \(tab->has_last_clip[\s\S]*?return;[\s\S]*?platform::ApplyViewClip/);
 assert.match(header, /bool has_last_clip = false/);
+const tabCreated = shell.slice(
+  shell.indexOf('void Shell::OnTabCreated'),
+  shell.indexOf('void Shell::DestroyTab'));
+assert.match(tabCreated, /t->browser = browser;[\s\S]*?if \(t->view_visible\) ApplyClip\(t\)/,
+             'clip is applied when an asynchronously created browser becomes ready');
 assert.match(bridge, /t->has_last_clip = false;[\s\S]*?ApplyClip\(t\)/,
              'debug clip reset must invalidate the common clip cache before reapplying');
 

@@ -1187,6 +1187,7 @@ void Shell::OnTabCreated(CefRefPtr<CefBrowser> browser, const std::string& id) {
   // Рендерер узнаёт состояние защит до первой загрузки: и анти-отпечаток, и
   // автосогласие cookies идут одним сообщением.
   PushProtections(browser->GetMainFrame());
+  if (t->view_visible) ApplyClip(t);
   if (!t->pending_url.empty()) {
     browser->GetMainFrame()->LoadURL(t->pending_url);
     t->pending_url.clear();

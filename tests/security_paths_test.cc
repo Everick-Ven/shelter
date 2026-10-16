@@ -25,6 +25,7 @@ int main() {
   using shelter::security::EnsureDirectoryWithoutLink;
   using shelter::security::IsDirectoryWithoutLink;
   using shelter::security::IsPathWithin;
+  using shelter::security::IsRegularFileWithoutLinkChain;
   using shelter::security::IsSafeProfileId;
   using shelter::security::NormalizeSafeZipEntryName;
   using shelter::security::RemoveTreeWithoutFollowingLinks;
@@ -82,6 +83,12 @@ int main() {
     std::ofstream file(outside_file, std::ios::binary);
     file << "must not be overwritten or deleted";
   }
+  Check(IsRegularFileWithoutLinkChain(private_file),
+        "regular file without linked ancestors accepted");
+  Check(!IsRegularFileWithoutLinkChain(profile),
+        "directory is not accepted as a file");
+  Check(!IsRegularFileWithoutLinkChain(profile / ".." / "outside" / "keep.txt"),
+        "parent traversal in file path rejected");
 
   std::error_code ec;
   const fs::path hard_link = profile / "shared-outside-file.txt";
@@ -95,8 +102,20 @@ int main() {
   fs::create_directory_symlink(outside, link, ec);
   if (!ec) {
     Check(!IsDirectoryWithoutLink(link), "nested profile symlink rejected");
+    Check(!IsRegularFileWithoutLinkChain(link / "keep.txt"),
+          "symlink in file path rejected");
   } else {
     std::cerr << "NOTE: symlink test skipped: " << ec.message() << '\n';
+    ec.clear();
+  }
+
+  const fs::path file_link = profile / "outside-file-link";
+  fs::create_symlink(outside_file, file_link, ec);
+  if (!ec) {
+    Check(!IsRegularFileWithoutLinkChain(file_link),
+          "file symlink rejected");
+  } else {
+    std::cerr << "NOTE: file symlink test skipped: " << ec.message() << '\n';
     ec.clear();
   }
 

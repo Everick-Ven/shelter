@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iterator>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -153,6 +154,35 @@ inline bool IsRegularFileWithoutLink(const std::filesystem::path& path) {
   const auto status = std::filesystem::symlink_status(path, ec);
   return !ec && std::filesystem::is_regular_file(status) &&
          !IsLinkOrReparsePoint(path);
+}
+
+// Проверяет файл вместе со всеми родительскими каталогами от корня тома:
+// одного IsPathWithin недостаточно, если промежуточный каталог — ссылка.
+inline bool IsRegularFileWithoutLinkChain(
+    const std::filesystem::path& path) {
+  namespace fs = std::filesystem;
+  if (path.empty() || !path.is_absolute()) return false;
+  for (const fs::path& component : path) {
+    if (component == "." || component == "..") return false;
+  }
+
+  const fs::path normalized = path.lexically_normal();
+  fs::path current = normalized.root_path();
+  if (current.empty() || IsLinkOrReparsePoint(current)) return false;
+  const fs::path relative = normalized.relative_path();
+  if (relative.empty()) return false;
+
+  for (auto it = relative.begin(); it != relative.end(); ++it) {
+    const fs::path component = *it;
+    if (component.empty() || component == "." || component == "..")
+      return false;
+    current /= component;
+    if (IsLinkOrReparsePoint(current)) return false;
+    const bool last = std::next(it) == relative.end();
+    if (last) return IsRegularFileWithoutLink(current);
+    if (!IsDirectoryWithoutLink(current)) return false;
+  }
+  return false;
 }
 
 inline bool EnsureDirectoryWithoutLink(const std::filesystem::path& path) {

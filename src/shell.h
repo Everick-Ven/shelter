@@ -344,9 +344,13 @@ class Shell {
   std::map<std::string, CefRefPtr<CefURLRequest>> favicon_requests_;
   // Загрузки из «призрачных» вкладок: их адрес/путь не пишутся в лог.
   std::set<std::string> private_downloads_;
-  // Downloads are surfaced only after the user accepts the confirmation prompt.
-  // The accepted map also retains the CEF-suggested filename as a safe fallback.
+  // Загрузки появляются в UI только после явного согласия пользователя.
+  // Имя CEF сохраняется как безопасное запасное имя для строки загрузки.
   std::map<std::string, std::string> accepted_downloads_;
+  // Точные пути подтверждённых загрузок нужны для «Показать в папке», если
+  // пользователь выбрал место вне стандартной папки загрузок. История ограничена.
+  std::set<std::string> accepted_download_paths_;
+  std::vector<std::string> accepted_download_path_order_;
   std::map<std::string, ActiveDownload> active_downloads_;
   // Включён ли «Анти-отпечаток» (шум Canvas/WebGL/Audio в рендерере).
   bool fp_enabled_ = false;

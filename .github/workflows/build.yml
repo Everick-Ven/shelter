@@ -315,6 +315,8 @@ jobs:
         run: node tests/crx3_install_test.js
       - name: Popup security regression test
         run: node tests/popup_client_security_test.js
+      - name: Show-in-folder path security regression test
+        run: node tests/show_in_folder_security_test.js
       - name: Compile and run CRX3 format tests
         run: |
           set -euo pipefail

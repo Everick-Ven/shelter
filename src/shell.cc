@@ -940,6 +940,8 @@ void Shell::PrepareForShutdown() {
   // handles are closed before the profile directory is removed.
   pending_downloads_.clear();
   accepted_downloads_.clear();
+  accepted_download_paths_.clear();
+  accepted_download_path_order_.clear();
   active_downloads_.clear();
   temp_downloads_.clear();
   tabs_.clear();
@@ -1680,6 +1682,7 @@ std::string UniquePath(const std::string& dir, const std::string& name) {
 // назначения виден временный файл, который становится окончательным только
 // после полного завершения.
 constexpr char kPartialSuffix[] = ".crdownload";
+constexpr size_t kMaxAcceptedDownloadPaths = 512;
 
 // Приватная («призрачная») вкладка живёт в in-memory профиле temp:ghost-<key>.
 bool IsGhostPartition(const std::string& p) {
@@ -2598,6 +2601,16 @@ void Shell::OnTabDownloadUpdated(
       // Прерванная или отменённая загрузка не оставляет «не подтверждённый» файл.
       std::error_code rec;
       fs::remove(fs::u8path(temp->second.first), rec);
+    }
+  }
+  if ((state == "progressing" || state == "paused" || state == "completed") &&
+      !path.empty() && accepted_download_paths_.insert(path).second) {
+    // Путь записывается только после принятого пользователем запроса; храним
+    // ограниченный набор, чтобы после завершения можно было открыть выбранную папку.
+    accepted_download_path_order_.push_back(path);
+    if (accepted_download_path_order_.size() > kMaxAcceptedDownloadPaths) {
+      accepted_download_paths_.erase(accepted_download_path_order_.front());
+      accepted_download_path_order_.erase(accepted_download_path_order_.begin());
     }
   }
   std::string name = item->GetSuggestedFileName().ToString();

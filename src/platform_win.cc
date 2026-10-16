@@ -612,9 +612,30 @@ void ShowUserDataDeletionFailure() {
 }
 
 void ShowInFolder(const std::string& path) {
-  std::wstring args = L"/select,\"" + Wide(path) + L"\"";
-  ShellExecuteW(nullptr, L"open", L"explorer.exe", args.c_str(), nullptr,
-                SW_SHOWNORMAL);
+  const std::wstring wide_path = Wide(path);
+  if (wide_path.empty()) return;
+
+  PIDLIST_ABSOLUTE item = nullptr;
+  SFGAOF attributes = SFGAO_FILESYSTEM | SFGAO_FOLDER;
+  const HRESULT parsed = SHParseDisplayName(
+      wide_path.c_str(), nullptr, &item, attributes, &attributes);
+  if (FAILED(parsed) || !item || !(attributes & SFGAO_FILESYSTEM) ||
+      (attributes & SFGAO_FOLDER)) {
+    if (item) CoTaskMemFree(item);
+    return;
+  }
+
+  PIDLIST_ABSOLUTE folder = ILClone(item);
+  PCUITEMID_CHILD child = ILFindLastID(item);
+  if (!folder || !child || !ILRemoveLastID(folder)) {
+    if (folder) CoTaskMemFree(folder);
+    CoTaskMemFree(item);
+    return;
+  }
+  PCUITEMID_CHILD selected[] = {child};
+  SHOpenFolderAndSelectItems(folder, 1, selected, 0);
+  CoTaskMemFree(folder);
+  CoTaskMemFree(item);
 }
 
 void OpenExternal(const std::string& url) {

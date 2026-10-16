@@ -591,10 +591,11 @@ std::string DownloadsDir() {
 }
 
 void ShowInFolder(const std::string& path) {
-  NSString* p = [NSString stringWithUTF8String:path.c_str()];
-  [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[
-    [NSURL fileURLWithPath:p]
-  ]];
+  NSString* path_string = [NSString stringWithUTF8String:path.c_str()];
+  if (!path_string || path_string.length == 0) return;
+  NSURL* file_url = [NSURL fileURLWithPath:path_string];
+  if (!file_url || !file_url.isFileURL) return;
+  [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[file_url]];
 }
 
 void OpenExternal(const std::string& url) {

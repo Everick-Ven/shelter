@@ -14,6 +14,7 @@
 #include "src/color_scheme.h"
 #include "src/common.h"
 #include "src/platform.h"
+#include "src/security_paths.h"
 #include "src/shell.h"
 
 namespace shelter {
@@ -153,6 +154,26 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Failure(403, "operation is restricted to the SHELTER UI");
     return true;
   }
+
+  const auto can_reveal_download = [this](const std::string& raw_path) {
+    if (raw_path.empty()) return false;
+    for (unsigned char c : raw_path) {
+      if (c < 0x20 || c == 0x7f || c == '"' || c == '\'') return false;
+    }
+    const std::filesystem::path candidate = std::filesystem::u8path(raw_path);
+    if (!candidate.is_absolute()) return false;
+    for (const std::filesystem::path& component : candidate) {
+      if (component == "." || component == "..") return false;
+    }
+    const std::filesystem::path normalized = candidate.lexically_normal();
+    const std::filesystem::path downloads =
+        std::filesystem::u8path(platform::DownloadsDir()).lexically_normal();
+    const bool in_downloads = downloads.is_absolute() &&
+                              security::IsPathWithin(downloads, normalized);
+    const bool accepted = accepted_download_paths_.count(raw_path) != 0;
+    if (!in_downloads && !accepted) return false;
+    return security::IsRegularFileWithoutLinkChain(normalized);
+  };
 
   if (m == "premium.status") {
     // Fail closed until a server-backed verifier is configured. Client storage
@@ -442,7 +463,8 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
   if (m == "shell.show") {
-    platform::ShowInFolder(Str(a, "path"));
+    const std::string path = Str(a, "path");
+    if (can_reveal_download(path)) platform::ShowInFolder(path);
     cb->Success("{}");
     return true;
   }
@@ -503,15 +525,8 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
   if (m == "shell.filestate") {
-    // Существует ли скачанный файл на диске (для подписи «Файл удалён или
-    // перемещён» во вкладке загрузок). Доступно только UI-браузеру.
-    namespace fsb = std::filesystem;
-    const std::string path = Str(a, "path");
-    bool exists = false;
-    if (!path.empty()) {
-      std::error_code ec;
-      exists = fsb::exists(fsb::u8path(path), ec) && !ec;
-    }
+    // Проверяем тот же ограниченный набор путей, что и перед «Показать в папке».
+    const bool exists = can_reveal_download(Str(a, "path"));
     cb->Success(std::string("{\"exists\":") + (exists ? "true" : "false") + "}");
     return true;
   }

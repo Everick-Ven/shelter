@@ -168,13 +168,21 @@ class ShellWindowDelegate : public CefWindowDelegate {
 // Окно для popup'ов страниц и DevTools.
 class PopupWindowDelegate : public CefWindowDelegate {
  public:
-  explicit PopupWindowDelegate(CefRefPtr<CefBrowserView> view) : view_(view) {}
+  PopupWindowDelegate(CefRefPtr<CefBrowserView> view, bool is_devtools)
+      : view_(view), is_devtools_(is_devtools) {}
 
   void OnWindowCreated(CefRefPtr<CefWindow> window) override {
     window->AddChildView(view_);
+    if (!is_devtools_ && view_) {
+      CefRefPtr<CefBrowser> browser = view_->GetBrowser();
+      CefRefPtr<CefFrame> frame = browser ? browser->GetMainFrame() : nullptr;
+      const std::string url = frame ? frame->GetURL().ToString() : "";
+      const std::string title = browser ? browser->GetTitle().ToString() : "";
+      window->SetTitle(PopupWindowTitleForDisplay(url, title));
+    }
     window->Show();
     Shell::Get().TrackPopupWindow(window);
-    view_->RequestFocus();
+    if (view_) view_->RequestFocus();
   }
   void OnWindowDestroyed(CefRefPtr<CefWindow> window) override {
     Shell::Get().UntrackPopupWindow(window);
@@ -193,6 +201,7 @@ class PopupWindowDelegate : public CefWindowDelegate {
 
  private:
   CefRefPtr<CefBrowserView> view_;
+  bool is_devtools_ = false;
   IMPLEMENT_REFCOUNTING(PopupWindowDelegate);
   DISALLOW_COPY_AND_ASSIGN(PopupWindowDelegate);
 };
@@ -805,8 +814,10 @@ std::string JsonStringArray(const std::vector<std::string>& values) {
 
 bool ShellBrowserViewDelegate::OnPopupBrowserViewCreated(
     CefRefPtr<CefBrowserView>, CefRefPtr<CefBrowserView> popup_browser_view,
-    bool) {
-  CefWindow::CreateTopLevelWindow(new PopupWindowDelegate(popup_browser_view));
+    bool is_devtools) {
+  if (!popup_browser_view) return false;
+  CefWindow::CreateTopLevelWindow(
+      new PopupWindowDelegate(popup_browser_view, is_devtools));
   return true;
 }
 

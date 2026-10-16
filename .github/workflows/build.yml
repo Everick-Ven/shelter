@@ -313,6 +313,8 @@ jobs:
         run: node tests/ui_extensions_test.js
       - name: CRX3 installation security regression test
         run: node tests/crx3_install_test.js
+      - name: Popup security regression test
+        run: node tests/popup_client_security_test.js
       - name: Compile and run CRX3 format tests
         run: |
           set -euo pipefail

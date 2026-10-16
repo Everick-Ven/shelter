@@ -249,23 +249,79 @@ class TabClient : public CefClient,
   DISALLOW_COPY_AND_ASSIGN(TabClient);
 };
 
+// Подпись окна не позволяет заголовку страницы выдать себя за другой сайт.
+std::string PopupWindowTitleForDisplay(const std::string& url,
+                                       const std::string& page_title);
+
 // Клиент всплывающих окон (window.open с features, DevTools).
 class PopupClient : public CefClient,
                     public CefLifeSpanHandler,
                     public CefDisplayHandler,
+                    public CefDownloadHandler,
+                    public CefPermissionHandler,
                     public CefRequestHandler,
                     public CefResourceRequestHandler {
  public:
   PopupClient() = default;
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
+  CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
+  CefRefPtr<CefPermissionHandler> GetPermissionHandler() override { return this; }
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
   void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
   void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
+  bool OnBeforePopup(CefRefPtr<CefBrowser> browser,
+                     CefRefPtr<CefFrame> frame,
+                     int popup_id,
+                     const CefString& target_url,
+                     const CefString& target_frame_name,
+                     cef_window_open_disposition_t target_disposition,
+                     bool user_gesture,
+                     const CefPopupFeatures& popupFeatures,
+                     CefWindowInfo& windowInfo,
+                     CefRefPtr<CefClient>& client,
+                     CefBrowserSettings& settings,
+                     CefRefPtr<CefDictionaryValue>& extra_info,
+                     bool* no_javascript_access) override;
+  void OnAddressChange(CefRefPtr<CefBrowser> browser,
+                       CefRefPtr<CefFrame> frame,
+                       const CefString& url) override;
   void OnTitleChange(CefRefPtr<CefBrowser> browser,
                      const CefString& title) override;
   void OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
                               bool fullscreen) override;
+  bool OnRequestMediaAccessPermission(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      const CefString& requesting_origin,
+      uint32_t requested_permissions,
+      CefRefPtr<CefMediaAccessCallback> callback) override;
+  bool OnShowPermissionPrompt(
+      CefRefPtr<CefBrowser> browser,
+      uint64_t prompt_id,
+      const CefString& requesting_origin,
+      uint32_t requested_permissions,
+      CefRefPtr<CefPermissionPromptCallback> callback) override;
+  bool CanDownload(CefRefPtr<CefBrowser> browser,
+                   const CefString& url,
+                   const CefString& request_method) override;
+  bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,
+                        CefRefPtr<CefDownloadItem> download_item,
+                        const CefString& suggested_name,
+                        CefRefPtr<CefBeforeDownloadCallback> callback) override;
+  void OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefDownloadItem> download_item,
+                         CefRefPtr<CefDownloadItemCallback> callback) override;
+  bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
+                      CefRefPtr<CefFrame> frame,
+                      CefRefPtr<CefRequest> request,
+                      bool user_gesture,
+                      bool is_redirect) override;
+  bool OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
+                        CefRefPtr<CefFrame> frame,
+                        const CefString& target_url,
+                        cef_window_open_disposition_t target_disposition,
+                        bool user_gesture) override;
   CefRefPtr<CefResourceRequestHandler> GetResourceRequestHandler(
       CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
       CefRefPtr<CefRequest> request, bool is_navigation, bool is_download,

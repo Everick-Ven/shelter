@@ -73,6 +73,113 @@ bool IsUiUrl(const std::string& url) {
   return url.rfind(kUiOriginPrefix, 0) == 0;
 }
 
+std::string LowerAscii(std::string value) {
+  for (char& c : value) {
+    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+  }
+  return value;
+}
+
+bool IsShelterSchemeUrl(const std::string& url) {
+  CefURLParts parts;
+  if (CefParseURL(CefString(url), parts)) {
+    return LowerAscii(CefString(&parts.scheme).ToString()) == kUiScheme;
+  }
+  // Не пропускаем некорректный URL, если он явно заявляет внутреннюю схему.
+  const size_t colon = url.find(':');
+  return colon != std::string::npos && colon <= 16 &&
+         LowerAscii(url.substr(0, colon)) == kUiScheme;
+}
+
+bool IsBidiControl(const std::string& text, size_t offset, size_t* length) {
+  const auto byte = [&](size_t i) {
+    return static_cast<unsigned char>(text[i]);
+  };
+  if (offset + 1 < text.size() && byte(offset) == 0xD8 &&
+      byte(offset + 1) == 0x9C) {
+    *length = 2;  // U+061C — Arabic Letter Mark.
+    return true;
+  }
+  if (offset + 2 < text.size() && byte(offset) == 0xE2) {
+    if (byte(offset + 1) == 0x80 &&
+        (byte(offset + 2) == 0x8E || byte(offset + 2) == 0x8F ||
+         (byte(offset + 2) >= 0xAA && byte(offset + 2) <= 0xAE))) {
+      *length = 3;  // U+200E/F и U+202A–U+202E.
+      return true;
+    }
+    if (byte(offset + 1) == 0x81 && byte(offset + 2) >= 0xA6 &&
+        byte(offset + 2) <= 0xA9) {
+      *length = 3;  // U+2066–U+2069.
+      return true;
+    }
+  }
+  return false;
+}
+
+std::string SafePopupText(const std::string& text, size_t max_bytes) {
+  std::string safe;
+  safe.reserve(std::min(text.size(), max_bytes));
+  for (size_t i = 0; i < text.size();) {
+    size_t bidi_length = 0;
+    if (IsBidiControl(text, i, &bidi_length)) {
+      i += bidi_length;
+      continue;
+    }
+    const unsigned char first = static_cast<unsigned char>(text[i]);
+    if (first < 0x20 || first == 0x7F) {
+      if (!safe.empty() && safe.back() != ' ') safe.push_back(' ');
+      ++i;
+      continue;
+    }
+    size_t length = 1;
+    if ((first & 0xE0) == 0xC0) length = 2;
+    else if ((first & 0xF0) == 0xE0) length = 3;
+    else if ((first & 0xF8) == 0xF0) length = 4;
+    if (i + length > text.size()) length = 1;
+    if (safe.size() + length > max_bytes) break;
+    safe.append(text, i, length);
+    i += length;
+  }
+  while (!safe.empty() && safe.back() == ' ') safe.pop_back();
+  return safe;
+}
+
+std::string PopupOriginForDisplay(const std::string& url) {
+  if (url.empty()) return "about:blank";
+  CefURLParts parts;
+  if (!CefParseURL(CefString(url), parts)) return "адрес недоступен";
+  const std::string scheme = LowerAscii(CefString(&parts.scheme).ToString());
+  if (scheme == "about") {
+    const std::string display =
+        CefFormatUrlForSecurityDisplay(CefString(url)).ToString();
+    return display.empty() ? "about:blank" : SafePopupText(display, 96);
+  }
+  if (scheme == "file") return "file://";
+  if (scheme == "data" || scheme == "javascript") return scheme + ":";
+  if (!CefString(&parts.host).ToString().empty()) {
+    std::string display =
+        CefFormatUrlForSecurityDisplay(CefString(url)).ToString();
+    if (display.empty()) {
+      display = scheme + "://" + CefString(&parts.host).ToString();
+      const std::string port = CefString(&parts.port).ToString();
+      if (!port.empty()) display += ":" + port;
+    }
+    return SafePopupText(display, 120);
+  }
+  if (scheme.empty()) return "адрес недоступен";
+  return scheme + ":";
+}
+
+void UpdatePopupWindowTitle(CefRefPtr<CefBrowser> browser,
+                            const std::string& url,
+                            const std::string& page_title) {
+  if (auto view = CefBrowserView::GetForBrowser(browser)) {
+    if (auto window = view->GetWindow()) {
+      window->SetTitle(PopupWindowTitleForDisplay(url, page_title));
+    }
+  }
+}
+
 std::string HtmlEscape(const std::string& s) {
   std::string r;
   for (char c : s) {
@@ -157,6 +264,13 @@ std::string HttpsOnlyInterstitialDataUrl(const std::string& http_url,
 }
 
 }  // namespace
+
+std::string PopupWindowTitleForDisplay(const std::string& url,
+                                       const std::string& page_title) {
+  std::string safe_title = SafePopupText(page_title, 120);
+  if (safe_title.empty()) safe_title = "Страница";
+  return "SHELTER · " + PopupOriginForDisplay(url) + " — " + safe_title;
+}
 
 // Догрузка иконок по запросу UI. Callback моста нужно отпустить сразу, а
 // CefURLRequest живёт до завершения в карте Shell (favicon_requests_), поэтому
@@ -465,13 +579,15 @@ bool TabClient::OnBeforePopup(CefRefPtr<CefBrowser> browser,
                               CefBrowserSettings&,
                               CefRefPtr<CefDictionaryValue>&, bool*) {
   CEF_REQUIRE_UI_THREAD();
+  const std::string url = target_url.ToString();
+  if (IsShelterSchemeUrl(url)) return true;
   // window.open(..., 'features') по жесту пользователя — настоящее окно
   // (нужно для OAuth/оплат, где важен window.opener). Всё остальное — вкладка.
   if (disposition == CEF_WOD_NEW_POPUP && user_gesture) {
     client = new PopupClient();
     return false;
   }
-  Shell::Get().OnTabNewWindow(browser, target_url.ToString());
+  Shell::Get().OnTabNewWindow(browser, url);
   return true;
 }
 
@@ -479,7 +595,9 @@ bool TabClient::OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
                                  CefRefPtr<CefFrame>, const CefString& url,
                                  cef_window_open_disposition_t, bool) {
   CEF_REQUIRE_UI_THREAD();
-  Shell::Get().OnTabNewWindow(browser, url.ToString());
+  const std::string target = url.ToString();
+  if (IsShelterSchemeUrl(target)) return true;
+  Shell::Get().OnTabNewWindow(browser, target);
   return true;
 }
 
@@ -682,7 +800,11 @@ bool TabClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
 void PopupClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
   Shell::Get().OnBrowserCreated();
+  if (!browser) return;
   Shell::Get().PushProtections(browser->GetMainFrame());
+  CefRefPtr<CefFrame> frame = browser->GetMainFrame();
+  UpdatePopupWindowTitle(browser, frame ? frame->GetURL().ToString() : "",
+                         browser->GetTitle().ToString());
 }
 
 void PopupClient::OnBeforeClose(CefRefPtr<CefBrowser>) {
@@ -690,12 +812,31 @@ void PopupClient::OnBeforeClose(CefRefPtr<CefBrowser>) {
   Shell::Get().OnBrowserClosed();
 }
 
+bool PopupClient::OnBeforePopup(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, int, const CefString&,
+    const CefString&, cef_window_open_disposition_t, bool,
+    const CefPopupFeatures&, CefWindowInfo&, CefRefPtr<CefClient>&,
+    CefBrowserSettings&, CefRefPtr<CefDictionaryValue>&, bool*) {
+  CEF_REQUIRE_UI_THREAD();
+  // В отдельном окне ссылки с target=_blank и повторные window.open запрещены.
+  return true;
+}
+
+void PopupClient::OnAddressChange(CefRefPtr<CefBrowser> browser,
+                                 CefRefPtr<CefFrame> frame,
+                                 const CefString& url) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!browser || !frame || !frame->IsMain()) return;
+  UpdatePopupWindowTitle(browser, url.ToString(), browser->GetTitle().ToString());
+}
+
 void PopupClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
                                 const CefString& title) {
   CEF_REQUIRE_UI_THREAD();
-  if (auto view = CefBrowserView::GetForBrowser(browser)) {
-    if (auto window = view->GetWindow()) window->SetTitle(title);
-  }
+  if (!browser) return;
+  CefRefPtr<CefFrame> frame = browser->GetMainFrame();
+  UpdatePopupWindowTitle(browser, frame ? frame->GetURL().ToString() : "",
+                         title.ToString());
 }
 
 // Полноэкранный режим контента (видео «во весь экран») в отдельном окне.
@@ -707,7 +848,65 @@ void PopupClient::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
   }
 }
 
-// Всплывающие окна — тоже веб-контент: трекеры блокируем и в них.
+bool PopupClient::OnRequestMediaAccessPermission(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, const CefString& origin,
+    uint32_t requested_permissions,
+    CefRefPtr<CefMediaAccessCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().NotePermissionRequest(origin.ToString(), requested_permissions,
+                                     true);
+  if (callback) callback->Cancel();
+  return true;
+}
+
+bool PopupClient::OnShowPermissionPrompt(
+    CefRefPtr<CefBrowser>, uint64_t, const CefString& origin,
+    uint32_t requested_permissions,
+    CefRefPtr<CefPermissionPromptCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().NotePermissionRequest(origin.ToString(), requested_permissions,
+                                     false);
+  if (callback) callback->Continue(CEF_PERMISSION_RESULT_DENY);
+  return true;
+}
+
+bool PopupClient::CanDownload(CefRefPtr<CefBrowser>, const CefString&,
+                              const CefString&) {
+  CEF_REQUIRE_UI_THREAD();
+  return false;  // Отказываем до начала пользовательской загрузки.
+}
+
+bool PopupClient::OnBeforeDownload(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefDownloadItem>, const CefString&,
+    CefRefPtr<CefBeforeDownloadCallback>) {
+  CEF_REQUIRE_UI_THREAD();
+  // В стиле Alloy рантайм отменяет загрузку, если обработчик возвращает false.
+  return false;
+}
+
+void PopupClient::OnDownloadUpdated(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefDownloadItem> item,
+    CefRefPtr<CefDownloadItemCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  if (item && item->IsInProgress() && callback) callback->Cancel();
+}
+
+bool PopupClient::OnBeforeBrowse(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
+                                 CefRefPtr<CefRequest> request, bool, bool) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!request) return true;
+  return IsShelterSchemeUrl(request->GetURL().ToString());
+}
+
+bool PopupClient::OnOpenURLFromTab(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
+                                   const CefString&,
+                                   cef_window_open_disposition_t, bool) {
+  CEF_REQUIRE_UI_THREAD();
+  // Для popup нет целевой вкладки; не создаём внешние окна из него.
+  return true;
+}
+
+// Всплывающие окна — тоже веб-контент: сохраняем фильтры вкладки.
 CefRefPtr<CefResourceRequestHandler> PopupClient::GetResourceRequestHandler(
     CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, CefRefPtr<CefRequest>, bool,
     bool, const CefString&, bool&) {
@@ -717,7 +916,10 @@ CefRefPtr<CefResourceRequestHandler> PopupClient::GetResourceRequestHandler(
 cef_return_value_t PopupClient::OnBeforeResourceLoad(
     CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
     CefRefPtr<CefRequest> request, CefRefPtr<CefCallback>) {
+  if (!request || IsShelterSchemeUrl(request->GetURL().ToString()))
+    return RV_CANCEL;
   if (StrictScriptCheck(browser, request)) return RV_CANCEL;
+  HttpsOnlyUpgrade(frame, request);
   return BlockerCheck(browser, frame, request);
 }
 

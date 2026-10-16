@@ -887,7 +887,7 @@ void Shell::UiEvent(const std::string& name, const std::string& payload_json) {
   if (!frame || !frame->IsValid()) return;
   const std::string js = "window.__shelterHost&&window.__shelterHost.ev(" +
                          JsString(name) + "," + payload_json + ");";
-  frame->ExecuteJavaScript(js, kUiUrl, 0);
+  frame->ExecuteJavaScript(js, kUiUrl.c_str(), 0);
 }
 
 // ---- контексты (сессии) ----------------------------------------------------

@@ -325,6 +325,8 @@ jobs:
         run: node tests/bridge_authorization_test.js
       - name: Single-source version propagation regression test
         run: node tests/app_version_source_test.js
+      - name: Versioned UI and host bridge URL regression test
+        run: node tests/ui_build_cache_test.js
       - name: Compile and run native secret crypto compatibility tests
         run: |
           set -euo pipefail

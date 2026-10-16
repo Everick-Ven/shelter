@@ -16,7 +16,9 @@ inline constexpr char kAppName[] = "SHELTER";
 // нормальный origin (localStorage, navigator.clipboard, CSP 'self').
 inline constexpr char kUiScheme[] = "shelter";
 inline constexpr char kUiHost[] = "app";
-inline constexpr char kUiUrl[] = "shelter://app/index.html";
+inline const std::string kUiUrl =
+    std::string("shelter://app/index.html?v=") + kAppVersion + "-" +
+    kAppBuildId;
 inline constexpr char kUiOriginPrefix[] = "shelter://app/";
 
 // Платформа в терминах window.shelterNative.platform (как process.platform).

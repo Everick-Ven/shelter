@@ -130,7 +130,9 @@ CefRefPtr<CefResourceHandler> HandleSecretRequest(
 // Мост подключается в index.html без правки самого файла: тег <script>
 // вставляется перед самым первым <script>, то есть до кода UI (но после CSP <meta>).
 std::string InjectBridge(std::string html) {
-  const std::string tag = "<script src=\"host-bridge.js\"></script>\n";
+  const std::string tag =
+      "<script src=\"host-bridge.js?v=" + std::string(kAppVersion) + "-" +
+      kAppBuildId + "\"></script>\n";
   size_t pos = html.find("<script");
   if (pos == std::string::npos) pos = html.find("</head>");
   if (pos == std::string::npos) return tag + html;

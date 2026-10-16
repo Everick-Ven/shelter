@@ -177,8 +177,7 @@ class PopupWindowDelegate : public CefWindowDelegate {
       CefRefPtr<CefBrowser> browser = view_->GetBrowser();
       CefRefPtr<CefFrame> frame = browser ? browser->GetMainFrame() : nullptr;
       const std::string url = frame ? frame->GetURL().ToString() : "";
-      const std::string title = browser ? browser->GetTitle().ToString() : "";
-      window->SetTitle(PopupWindowTitleForDisplay(url, title));
+      window->SetTitle(PopupWindowTitleForDisplay(url, ""));
     }
     window->Show();
     Shell::Get().TrackPopupWindow(window);

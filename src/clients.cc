@@ -803,8 +803,9 @@ void PopupClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   if (!browser) return;
   Shell::Get().PushProtections(browser->GetMainFrame());
   CefRefPtr<CefFrame> frame = browser->GetMainFrame();
-  UpdatePopupWindowTitle(browser, frame ? frame->GetURL().ToString() : "",
-                         browser->GetTitle().ToString());
+  const std::string url = frame ? frame->GetURL().ToString() : "";
+  current_origin_ = PopupOriginForDisplay(url);
+  UpdatePopupWindowTitle(browser, url, page_title_);
 }
 
 void PopupClient::OnBeforeClose(CefRefPtr<CefBrowser>) {
@@ -827,16 +828,23 @@ void PopupClient::OnAddressChange(CefRefPtr<CefBrowser> browser,
                                  const CefString& url) {
   CEF_REQUIRE_UI_THREAD();
   if (!browser || !frame || !frame->IsMain()) return;
-  UpdatePopupWindowTitle(browser, url.ToString(), browser->GetTitle().ToString());
+  const std::string current_url = url.ToString();
+  const std::string origin = PopupOriginForDisplay(current_url);
+  if (origin != current_origin_) {
+    current_origin_ = origin;
+    page_title_.clear();
+  }
+  UpdatePopupWindowTitle(browser, current_url, page_title_);
 }
 
 void PopupClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
                                 const CefString& title) {
   CEF_REQUIRE_UI_THREAD();
   if (!browser) return;
+  page_title_ = SafePopupText(title.ToString(), 120);
   CefRefPtr<CefFrame> frame = browser->GetMainFrame();
   UpdatePopupWindowTitle(browser, frame ? frame->GetURL().ToString() : "",
-                         title.ToString());
+                         page_title_);
 }
 
 // Полноэкранный режим контента (видео «во весь экран») в отдельном окне.

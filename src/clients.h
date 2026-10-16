@@ -333,6 +333,8 @@ class PopupClient : public CefClient,
       CefRefPtr<CefCallback> callback) override;
 
  private:
+  std::string page_title_;
+  std::string current_origin_;
   IMPLEMENT_REFCOUNTING(PopupClient);
   DISALLOW_COPY_AND_ASSIGN(PopupClient);
 };

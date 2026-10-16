@@ -90,7 +90,8 @@ assert.match(title, /SafePopupText\(page_title, 120\)/);
 assert.match(title, /SHELTER · /);
 assert.match(clients, /CefFormatUrlForSecurityDisplay\(CefString\(url\)\)/);
 assert.match(clients, /IsBidiControl/);
-assert.match(popup, /OnAddressChange[\s\S]*?UpdatePopupWindowTitle/);
+assert.match(popup, /OnAddressChange[\s\S]*?current_origin_/);
+assert.match(popup, /OnTitleChange[\s\S]*?page_title_ = SafePopupText/);
 assert.match(popup, /OnTitleChange[\s\S]*?UpdatePopupWindowTitle/);
 
 // URL и query bridge остаются недоступны popup даже при попытке внутренней навигации.
@@ -108,7 +109,7 @@ assert.match(rendererContext, /if \(router_ && IsUiFrame\(frame\)\)/);
 
 // Views callback создаёт собственное окно и показывает проверенный адрес до показа.
 const popupWindow = from(shell, 'class PopupWindowDelegate', '// ---- расширения:');
-assert.match(popupWindow, /SetTitle\(PopupWindowTitleForDisplay\(url, title\)\)/);
+assert.match(popupWindow, /SetTitle\(PopupWindowTitleForDisplay\(url, ""\)\)/);
 assert.ok(popupWindow.indexOf('SetTitle(PopupWindowTitleForDisplay') <
           popupWindow.indexOf('window->Show()'));
 const popupView = from(shell, 'bool ShellBrowserViewDelegate::OnPopupBrowserViewCreated(',

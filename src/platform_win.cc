@@ -504,21 +504,37 @@ void ApplyViewClip(void* handle, const double radii[4],
                    const std::vector<std::array<int, 5>>& /*holes*/,
                    int view_x, int view_y, int view_w, int view_h,
                    bool visible, std::uint32_t mask_color) {
-  if (!visible || !handle || view_w <= 0 || view_h <= 0) {
+  HWND view = handle ? static_cast<HWND>(handle) : nullptr;
+  if (!visible) {
+    if (!view || view == g_clip_mask_view) HideClipMask();
+    return;
+  }
+  if (!view) {
     HideClipMask();
     return;
   }
-  HWND view = static_cast<HWND>(handle);
-  if (!IsWindow(view)) { HideClipMask(); return; }
+  if (view_w <= 0 || view_h <= 0) {
+    if (view == g_clip_mask_view) HideClipMask();
+    return;
+  }
+  if (!IsWindow(view)) {
+    if (view == g_clip_mask_view) HideClipMask();
+    return;
+  }
   HWND owner = GetAncestor(view, GA_ROOT);
   if (!owner) {
-    HideClipMask();
+    if (view == g_clip_mask_view) HideClipMask();
     return;
   }
   bool rounded = false;
   for (int i = 0; i < 4; ++i) rounded = rounded || radii[i] > 0.5;
   if (!rounded) {
+    g_clip_mask_view = view;
     HideClipMask();
+    return;
+  }
+  if (!EnsureClipMaskWindow(owner)) {
+    if (view == g_clip_mask_view) HideClipMask();
     return;
   }
   g_clip_mask_owner = owner;

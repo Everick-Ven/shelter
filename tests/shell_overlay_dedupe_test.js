@@ -9,6 +9,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const shell = read('src/shell.cc');
 const header = read('src/shell.h');
 const bridge = read('src/shell_bridge.cc');
+const win = read('src/platform_win.cc');
 const visibility = shell.slice(
   shell.indexOf('void Shell::SetOverlayVisibility'),
   shell.indexOf('void Shell::HideAllTabs'));
@@ -39,5 +40,17 @@ assert.match(clip, /if \(tab->has_last_clip[\s\S]*?return;[\s\S]*?platform::Appl
 assert.match(header, /bool has_last_clip = false/);
 assert.match(bridge, /t->has_last_clip = false;[\s\S]*?ApplyClip\(t\)/,
              'debug clip reset must invalidate the common clip cache before reapplying');
+
+const switchTab = bridge.slice(
+  bridge.indexOf('if (m == "view.open")'),
+  bridge.indexOf('if (m == "view.layout")'));
+assert.match(switchTab, /active_tab_ = id;[\s\S]*?LayoutTab\(t, RectOf\(a\), view_visible\)/);
+assert.doesNotMatch(switchTab, /SetVisible\(false\)/);
+assert.match(layout, /ApplyClip\(tab\);[\s\S]*?if \(tab->id == active_tab_\) HideInactiveTabs\(tab\)/,
+             'the new active overlay must be shown and clipped before other tabs are hidden');
+assert.match(layout, /tab->has_pending_layout = true;[\s\S]*?return;/,
+             'a pending browser keeps the existing tab visible until its view can be shown');
+assert.match(win, /if \(!visible\) \{\s*if \(!view \|\| view == g_clip_mask_view\) HideClipMask\(\)/,
+             'hiding the old Windows tab must not hide the new tab clip mask');
 
 console.log('Shell overlay and clip deduplication regression test passed');

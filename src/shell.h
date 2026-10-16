@@ -267,6 +267,7 @@ class Shell {
   void FinishTabBrowser(Tab* t);
   bool ContextReady(const std::string& partition) const;
   void HideAllTabs();
+  void HideInactiveTabs(Tab* active);
   void LayoutTab(Tab* tab, const CefRect& rect, bool visible);
   void SetOverlayVisibility(Tab* tab, bool visible);
   CefRefPtr<CefBrowser> ActiveBrowser();

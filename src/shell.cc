@@ -1236,6 +1236,16 @@ void Shell::HideAllTabs() {
   }
 }
 
+void Shell::HideInactiveTabs(Tab* active) {
+  for (auto& kv : tabs_) {
+    Tab* tab = &kv.second;
+    if (tab == active) continue;
+    tab->view_visible = false;
+    SetOverlayVisibility(tab, false);
+    ApplyClip(tab);
+  }
+}
+
 void Shell::LayoutTab(Tab* tab, const CefRect& rect, bool visible) {
   if (!tab) return;
   if (!tab->view || !tab->overlay || !tab->overlay->IsValid()) {
@@ -1260,6 +1270,8 @@ void Shell::LayoutTab(Tab* tab, const CefRect& rect, bool visible) {
   tab->view_visible = visible && tab->id == active_tab_ && last_rect_.width > 0;
   SetOverlayVisibility(tab, tab->view_visible);
   ApplyClip(tab);
+  // Сначала показываем новый вид и применяем клип, затем прячем остальные.
+  if (tab->id == active_tab_) HideInactiveTabs(tab);
   // Приёмочный маркер CI (tools/check_geometry.py): область контента должна
   // оставаться в hero-зоне (сайдбар+тулбар видны) и не перекрывать всё окно.
   const bool changed =

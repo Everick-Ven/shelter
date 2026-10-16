@@ -283,13 +283,9 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
       navigated = true;
     }
     active_tab_ = id;
-    for (auto& kv : tabs_) {
-      if (kv.first == id) continue;
-      kv.second.view_visible = false;
-      SetOverlayVisibility(&kv.second, false);
-      ApplyClip(&kv.second);
-    }
-    LayoutTab(t, RectOf(a), Flag(a, "visible", true));
+    const bool view_visible = Flag(a, "visible", true);
+    LayoutTab(t, RectOf(a), view_visible);
+    if (!view_visible) HideInactiveTabs(t);
     if (Flag(a, "focus", true)) {
       if (t->view) {
         t->view->RequestFocus();

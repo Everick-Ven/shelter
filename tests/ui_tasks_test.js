@@ -32,6 +32,7 @@ const taskPersistEnd=planner.indexOf('\nfunction wpUndoSnapshot',taskPersistStar
 const taskPersistSource=planner.slice(taskPersistStart,taskPersistEnd);
 assert(taskPersistSource.includes("store.set('shelter:board',raw)") && taskPersistSource.includes("store.get('shelter:boards')!==regRaw") && !taskPersistSource.includes('JSON.parse') && !taskPersistSource.includes('saveNow()'), 'task updates verify exact board writes without parsing a second copy or rewriting unrelated application data');
 assert(planner.includes('restored.focus({preventScroll:true})') && planner.includes('setSelectionRange(focusState.start,focusState.end)'), 'planner updates restore focused controls and text selection');
+assert(planner.includes("const openFilterMenuKey=root&&root.querySelector('.wp-filter-menu[open]')?.dataset.wpFilterMenu||'';") && planner.includes('if(filterMenu) filterMenu.open=true;'), 'filter dropdowns stay open when their selection rerenders the view');
 assert(planner.includes("const search=page&&page.querySelector('#wpSearch'); if(search&&search.value!==WP.query) search.value=WP.query;"), 'view changes preserve the planner search query');
 assert(planner.includes("kb('⌘⇧K')"), 'the task search shortcut label must adapt to the platform');
 assert(planner.includes("await wpAddProjectFromEditor(target,projectSelection)") && planner.includes('wpPersistBoard()'), 'the task editor persists a project selected from its add-project option');
@@ -135,7 +136,7 @@ globalThis.__api = {
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
-  wpBoardEntities, wpBoardToolbar, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
+  wpBoardEntities, wpBoardToolbar, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects,
@@ -338,9 +339,12 @@ const priorBoardTasks=state.board.tasks, priorOccurrences=state.board.occurrence
 state.board.tasks=[
   { id:'board-open',title:'В работе',homeType:'personal',assignee:'Alex',statusKey:'open',priorityKey:'normal',order:1 },
   { id:'board-done',title:'Выполнена',homeType:'personal',assignee:'Alex',statusKey:'done',priorityKey:'normal',order:2 },
-  { id:'board-cancelled',title:'Отменена',homeType:'personal',assignee:'Alex',statusKey:'cancelled',priorityKey:'normal',order:3 }
+  { id:'board-cancelled',title:'Отменена',homeType:'personal',assignee:'Alex',statusKey:'cancelled',priorityKey:'normal',order:3 },
+  { id:'board-urgent',title:'Срочная',homeType:'personal',assignee:'Alex',statusKey:'open',priorityKey:'high',order:4 },
+  { id:'board-overdue',title:'Просроченная',homeType:'personal',assignee:'Alex',statusKey:'open',priorityKey:'normal',deadlineAt:'2000-01-01',order:5 },
+  { id:'board-other',title:'Чужая срочная',homeType:'personal',assignee:'Morgan',statusKey:'open',priorityKey:'critical',order:6 }
 ];
-state.board.occurrences=[]; api.WP.query=''; api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardFocus='all';
+state.board.occurrences=[]; api.WP.query=''; api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardMineOnly=false; api.WP.boardFocus='all';
 api.WP.allFilter='cancelled'; api.WP.calendarShowCompleted=true; api.WP.boardShowCompleted=true;
 let boardIds=api.wpBoardEntities().map(task=>task.id);
 assert(boardIds.includes('board-done') && boardIds.includes('board-cancelled'), 'the board shows completed and cancelled tasks when its own toggle is on');
@@ -352,7 +356,25 @@ assert(boardIds.includes('board-open'), 'board visibility is independent of the 
 const boardToolbar=api.wpBoardToolbar(api.wpBoardEntities());
 assert(boardToolbar.includes('wp-filter-layout wp-board-filter-row') && boardToolbar.includes('wp-filter-main'), 'the board uses the shared filter-grid structure');
 assert(boardToolbar.includes('Показать выполненные задачи') && boardToolbar.includes('aria-pressed="false"') && boardToolbar.includes('data-scope="board"'));
+assert(boardToolbar.includes('data-wp-filter-menu="board"') && ['all','urgent','overdue'].every(value=>boardToolbar.includes(`data-filter="${value}"`)), 'All, Urgent, and Overdue are selectable in one board dropdown');
+assert(['Все','Срочные','Просроченные'].every(label=>boardToolbar.includes(label)) && !boardToolbar.includes('wp-filter-pills'), 'board focus choices are no longer separate pill buttons');
 assert(api.WP.calendarShowCompleted, 'the board toolbar keeps the completed calendar filter untouched');
+api.actions.wpBoardFocus({dataset:{filter:'urgent'}});
+assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id).sort(),['board-other','board-urgent'],'Urgent means high or critical priority on the board');
+assert(api.wpBoardToolbar(api.wpBoardEntities()).includes('<b>Срочные</b>'), 'the board dropdown trigger displays the selected focus');
+api.actions.wpBoardFocus({dataset:{filter:'overdue'}});
+assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id),['board-overdue'],'Overdue excludes tasks without an outstanding past deadline');
+api.actions.wpBoardFocus({dataset:{filter:'all'}});
+api.wpSetBoardFilter('assignee','person:Morgan');
+assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id),['board-other'],'the board executor selector filters the chosen person');
+api.actions.wpBoardMineToggle();
+assert.strictEqual(api.WP.boardMineOnly,true);
+assert.strictEqual(api.WP.boardAssigneeFilter,'person:Morgan','My Tasks does not overwrite the independent board executor filter');
+assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id),[],'My Tasks and executor filters combine as an intersection');
+api.actions.wpBoardMineToggle();
+assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id),['board-other'],'turning My Tasks off preserves the selected board executor');
+api.wpResetBoardFilters();
+assert.strictEqual(api.WP.boardAssigneeFilter,'all'); assert.strictEqual(api.WP.boardMineOnly,false); assert.strictEqual(api.WP.boardFocus,'all');
 const allToolbar=api.wpAllFilterToolbar();
 assert(allToolbar.includes('wp-filter-layout wp-all-filter-row') && allToolbar.includes('wp-filter-main'), 'all tasks uses the same filter-grid structure');
 assert(allToolbar.indexOf('wp-filter-assignee')<allToolbar.indexOf('wp-filter-project'), 'assignee and project filters keep the same order in both views');
@@ -364,7 +386,7 @@ assert(allToolbar.includes('data-wp-filter="assignee"'), 'the existing executor 
 assert(allToolbar.includes('data-wp-filter="sort"') && ['urgency','tag','deadline'].every(value=>allToolbar.includes(`value="${value}"`)), 'the task list offers urgency, tag, and deadline sorting');
 assert(!allToolbar.includes('value="assignee"'), 'the duplicate By Assignee sort is removed');
 const sortBoardBefore=state.board,sortBoardIdBefore=state.boardId;
-const sortPrefsBefore={allFilter:api.WP.allFilter,allAssigneeFilter:api.WP.allAssigneeFilter,allProjectFilter:api.WP.allProjectFilter,allSort:api.WP.allSort,allTagFilter:api.WP.allTagFilter,query:api.WP.query,boardHomeFilter:api.WP.boardHomeFilter,boardAssigneeFilter:api.WP.boardAssigneeFilter,boardFocus:api.WP.boardFocus,boardShowCompleted:api.WP.boardShowCompleted};
+const sortPrefsBefore={allFilter:api.WP.allFilter,allAssigneeFilter:api.WP.allAssigneeFilter,allMineOnly:api.WP.allMineOnly,allProjectFilter:api.WP.allProjectFilter,allSort:api.WP.allSort,allTagFilter:api.WP.allTagFilter,query:api.WP.query,boardHomeFilter:api.WP.boardHomeFilter,boardAssigneeFilter:api.WP.boardAssigneeFilter,boardMineOnly:api.WP.boardMineOnly,boardFocus:api.WP.boardFocus,boardShowCompleted:api.WP.boardShowCompleted};
 state.board={id:'sort-board',projects:[],people:['Алекс','Анна','Борис','Зоя'],invites:[],tasks:[
   {id:'sort-critical',title:'Критическая',homeType:'personal',assignee:'Зоя',tags:['Бета','Альфа'],deadlineAt:'2026-10-20',statusKey:'open',priorityKey:'critical',order:4},
   {id:'sort-high',title:'Высокая',homeType:'personal',assignee:'Анна',tags:['Гамма'],deadlineAt:'2026-10-18',statusKey:'open',priorityKey:'high',order:3},
@@ -376,8 +398,8 @@ state.board={id:'sort-board',projects:[],people:['Алекс','Анна','Бор
 state.boardId='sort-board';
 const ensureCountBeforeTaskQuery=api.ensureBoardCount(); api.wpBaseTasks();
 assert.strictEqual(api.ensureBoardCount(),ensureCountBeforeTaskQuery,'valid task boards skip the full normalization pass during ordinary list/calendar queries');
-api.WP.query=''; api.WP.allFilter='all'; api.WP.allAssigneeFilter='all'; api.WP.allProjectFilter='all'; api.WP.allSort='urgency';
-api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardFocus='all'; api.WP.boardShowCompleted=true;
+api.WP.query=''; api.WP.allFilter='all'; api.WP.allAssigneeFilter='all'; api.WP.allMineOnly=false; api.WP.allProjectFilter='all'; api.WP.allSort='urgency';
+api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardMineOnly=false; api.WP.boardFocus='all'; api.WP.boardShowCompleted=true;
 const sortIds=mode=>{api.WP.allSort=mode;return Array.from(api.wpAllEntities(),task=>task.id);};
 const urgencyOrder=['sort-critical','sort-high','sort-normal-late','sort-normal-early','sort-normal-no-deadline','sort-done-critical'];
 assert.deepStrictEqual(sortIds('urgency'),urgencyOrder,'the default sort preserves urgency, manual order, and completed-last behavior');
@@ -394,17 +416,26 @@ api.actions.wpAllFilter({dataset:{filter:'active'}});
 assert.deepStrictEqual(Array.from(api.wpAllEntities(),task=>task.id),['sort-normal-late','sort-normal-early'],'switching status retains the independent My Tasks filter');
 api.actions.wpAllMineToggle();
 assert.deepStrictEqual(Array.from(api.wpAllEntities(),task=>task.id),['sort-critical','sort-high','sort-normal-late','sort-normal-early','sort-normal-no-deadline'],'turning My Tasks off preserves the active status');
+api.wpSetAllViewFilter('assignee','person:Анна');
+assert.deepStrictEqual(Array.from(api.wpAllEntities(),task=>task.id),['sort-high'],'the executor selector filters independently from sorting');
+api.actions.wpAllMineToggle();
+assert.strictEqual(api.WP.allMineOnly,true);
+assert.strictEqual(api.WP.allAssigneeFilter,'person:Анна','My Tasks does not overwrite the selected executor');
+assert.deepStrictEqual(Array.from(api.wpAllEntities(),task=>task.id),[],'My Tasks and executor filters combine as an intersection');
+api.actions.wpAllMineToggle();
+assert.deepStrictEqual(Array.from(api.wpAllEntities(),task=>task.id),['sort-high'],'turning My Tasks off preserves the selected executor');
+api.wpSetAllViewFilter('assignee','all');
 const doneTaskForCancelledFilter=state.board.tasks.find(task=>task.id==='sort-done-critical'); doneTaskForCancelledFilter.statusKey='cancelled';
 api.actions.wpAllFilter({dataset:{filter:'cancelled'}});
 assert.deepStrictEqual(Array.from(api.wpAllEntities(),task=>task.id),['sort-done-critical'],'the cancelled status filter selects cancelled tasks independently');
 doneTaskForCancelledFilter.statusKey='done'; state.account=priorAccountForMineFilter; api.WP.allFilter='all';
-api.wpSetAllViewFilter('sort','assignee');
-assert.strictEqual(api.WP.allSort,'urgency','the removed assignee sort safely falls back to urgency');
-assert(api.wpAllFilterToolbar().includes('data-wp-filter="assignee"'),'the executor selector remains available independently of sorting');
-assert(!api.wpAllFilterToolbar().includes('value="assignee"'),'the duplicate assignee sort is not rendered');
+assert(api.wpAllFilterToolbar().includes('data-wp-filter="assignee"'),'the employee selector remains independent from the selected sort');
 api.wpSetAllViewFilter('assignee','person:Анна');
 assert.deepStrictEqual(Array.from(api.wpAllEntities(),task=>task.id),['sort-high'],'the selected employee filter narrows tasks to that assignee');
-api.wpSetAllViewFilter('assignee','all'); api.wpSetAllViewFilter('sort','tag');
+api.wpSetAllViewFilter('assignee','all'); api.wpSetAllViewFilter('sort','assignee');
+assert.strictEqual(api.WP.allSort,'urgency','the removed assignee-sort value safely falls back to urgency');
+assert(!api.wpAllFilterToolbar().includes('value="assignee"'),'legacy or invalid state cannot restore the duplicate assignee sort');
+api.wpSetAllViewFilter('sort','tag');
 const tagToolbar=api.wpAllFilterToolbar();
 assert(tagToolbar.includes('data-wp-filter="tag"') && tagToolbar.includes('Все теги') && tagToolbar.includes('Альфа'),'tag sorting exposes a selectable tag filter');
 api.wpSetAllViewFilter('tag','tag:Альфа');
@@ -441,9 +472,18 @@ api.WP.allSort='tag'; api.WP.allTagFilter='tag:missing'; api.wpEnsureState();
 assert.strictEqual(api.WP.allTagFilter,'all','state validation clears a tag filter that no longer exists');
 api.WP.allSort='urgency'; api.WP.allTagFilter='tag:Альфа'; api.wpEnsureState();
 assert.strictEqual(api.WP.allTagFilter,'all','state validation also clears a hidden tag filter outside tag sorting');
-api.WP.allFilter='done'; api.WP.allAssigneeFilter='mine'; api.WP.allProjectFilter='personal'; api.WP.allSort='tag'; api.WP.allTagFilter='tag:Альфа';
+api.WP.allAssigneeFilter='mine'; api.WP.allMineOnly=false; api.wpEnsureState();
+assert.strictEqual(api.WP.allAssigneeFilter,'all'); assert.strictEqual(api.WP.allMineOnly,true,'legacy My Tasks state migrates without occupying the executor filter');
+api.WP.boardAssigneeFilter='mine'; api.WP.boardMineOnly=false; api.wpEnsureState();
+assert.strictEqual(api.WP.boardAssigneeFilter,'all'); assert.strictEqual(api.WP.boardMineOnly,true,'legacy board My Tasks state migrates independently');
+api.WP.allProjectFilter='project:missing'; api.WP.boardHomeFilter='project:missing'; api.WP.boardAssigneeFilter='person:missing'; api.WP.boardFocus='unknown'; api.wpEnsureState();
+assert.strictEqual(api.WP.allProjectFilter,'all','a removed or inaccessible project cannot leave an invisible task-list filter active');
+assert.strictEqual(api.WP.boardHomeFilter,'all','a deleted project cannot leave an invisible board filter active');
+assert.strictEqual(api.WP.boardAssigneeFilter,'all','a removed person cannot leave an invisible board filter active');
+assert.strictEqual(api.WP.boardFocus,'all','invalid board focus values return to the visible All state');
+api.WP.allFilter='done'; api.WP.allAssigneeFilter='person:Анна'; api.WP.allMineOnly=true; api.WP.allProjectFilter='personal'; api.WP.allSort='tag'; api.WP.allTagFilter='tag:Альфа';
 api.wpResetAllFilters(false);
-assert.strictEqual(api.WP.allFilter,'active'); assert.strictEqual(api.WP.allAssigneeFilter,'all'); assert.strictEqual(api.WP.allProjectFilter,'all'); assert.strictEqual(api.WP.allSort,'urgency'); assert.strictEqual(api.WP.allTagFilter,'all','reset restores every task-list filter and the default sort');
+assert.strictEqual(api.WP.allFilter,'active'); assert.strictEqual(api.WP.allAssigneeFilter,'all'); assert.strictEqual(api.WP.allMineOnly,false); assert.strictEqual(api.WP.allProjectFilter,'all'); assert.strictEqual(api.WP.allSort,'urgency'); assert.strictEqual(api.WP.allTagFilter,'all','reset restores every task-list filter and the default sort');
 state.board=sortBoardBefore; state.boardId=sortBoardIdBefore; Object.assign(api.WP,sortPrefsBefore);
 api.WP.allFilter='active'; api.WP.boardShowCompleted=true; state.board.tasks=priorBoardTasks; state.board.occurrences=priorOccurrences;
 

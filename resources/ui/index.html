@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-peO47smhCyWjSh4QMF8/ljadRWuqJ7vBoCQxOLIjBu0=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-PJMpuS2VeqlJuVGFC/YwIJgflHmVGS9xXzYYHhUvQyA=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4249,6 +4249,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-filter-menu-trigger::-webkit-details-marker{display:none}
 .wp-filter-menu-trigger::marker{content:""}
 .wp-filter-menu-trigger:hover{border-color:var(--line-2);color:var(--text)}
+.wp-filter-menu-trigger:focus-visible,.wp-filter-menu-option:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}
 .wp-filter-menu-trigger>b{max-width:170px;overflow:hidden;color:var(--text);font-weight:650;text-overflow:ellipsis}
 .wp-filter-menu-trigger>.i{width:13px;height:13px;color:var(--text-3);transform:rotate(90deg)}
 .wp-filter-menu-panel{position:absolute;top:calc(100% + 6px);left:0;z-index:100;display:grid;gap:3px;width:240px;max-width:min(320px,calc(100vw - 32px));padding:8px;border:1px solid var(--line-2);border-radius:calc(11px*var(--rs));background:var(--menu);box-shadow:var(--sh-lg)}
@@ -13111,8 +13112,8 @@ function init() {
 const WP_SCHEMA = 7;
 const WP = {
   view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', calendarShowCompleted: true, boardShowCompleted: true,
-  sidebarCollapsed: false, allFilter: 'active', allAssigneeFilter: 'all', allProjectFilter: 'all', allSort: 'urgency', allTagFilter: 'all', quick: null, reviewSelected: [],
-  boardHomeFilter: 'all', boardAssigneeFilter: 'all', boardFocus: 'all',
+  sidebarCollapsed: false, allFilter: 'active', allAssigneeFilter: 'all', allMineOnly: false, allProjectFilter: 'all', allSort: 'urgency', allTagFilter: 'all', quick: null, reviewSelected: [],
+  boardHomeFilter: 'all', boardAssigneeFilter: 'all', boardMineOnly: false, boardFocus: 'all',
   _calendarModeRestored: false, _completedVisibilityRestored: false, _sidebarRestored: false, _touchX: null, _undoToken: 0
 };
 const WP_STATUS = { open: 'В работе', waiting: 'Пауза', done: 'Готово', cancelled: 'Отменена' };
@@ -13625,14 +13626,23 @@ function wpEnsureState() {
   if(!['week','month'].includes(WP.calendarMode)) WP.calendarMode='week';
   if(!['week','board','inbox','all','projects'].includes(WP.view)) WP.view='week';
   if(!['active','all','done','cancelled'].includes(WP.allFilter)) WP.allFilter='active';
-  if(!['all','mine','unassigned'].includes(WP.allAssigneeFilter) && !String(WP.allAssigneeFilter||'').startsWith('person:')) WP.allAssigneeFilter='all';
+  if(WP.allAssigneeFilter==='mine') { WP.allAssigneeFilter='all'; WP.allMineOnly=true; }
+  if(typeof WP.allMineOnly!=='boolean') WP.allMineOnly=false;
+  if(!['all','unassigned'].includes(WP.allAssigneeFilter) && !String(WP.allAssigneeFilter||'').startsWith('person:')) WP.allAssigneeFilter='all';
   if(!['urgency','tag','deadline'].includes(WP.allSort)) WP.allSort='urgency';
   if(WP.allSort!=='tag') WP.allTagFilter='all';
   else if(WP.allTagFilter!=='all' && WP.allTagFilter!=='untagged' && typeof wpAllTagChoices==='function' && !wpAllTagChoices().some(tag=>'tag:'+tag===WP.allTagFilter)) WP.allTagFilter='all';
   if(!['all','personal','inbox'].includes(WP.allProjectFilter) && !String(WP.allProjectFilter||'').startsWith('project:')) WP.allProjectFilter='all';
-  if(String(WP.allProjectFilter||'').startsWith('project:') && !(S.board&&S.board.projects||[]).some(p=>'project:'+p.id===WP.allProjectFilter)) WP.allProjectFilter='all';
+  if(String(WP.allProjectFilter||'').startsWith('project:') && typeof visibleProjects==='function' && !visibleProjects().some(p=>'project:'+p.id===WP.allProjectFilter)) WP.allProjectFilter='all';
   if(String(WP.allAssigneeFilter||'').startsWith('person:') && typeof wpAssigneeChoices==='function' && !wpAssigneeChoices().some(x=>'person:'+x===WP.allAssigneeFilter)) WP.allAssigneeFilter='all';
   if(WP.boardHomeFilter==='matrix') WP.boardHomeFilter='all';
+  if(!['all','personal','inbox'].includes(WP.boardHomeFilter) && !String(WP.boardHomeFilter||'').startsWith('project:')) WP.boardHomeFilter='all';
+  if(String(WP.boardHomeFilter||'').startsWith('project:') && typeof visibleProjects==='function' && !visibleProjects().some(p=>'project:'+p.id===WP.boardHomeFilter)) WP.boardHomeFilter='all';
+  if(WP.boardAssigneeFilter==='mine') { WP.boardAssigneeFilter='all'; WP.boardMineOnly=true; }
+  if(typeof WP.boardMineOnly!=='boolean') WP.boardMineOnly=false;
+  if(!['all','unassigned'].includes(WP.boardAssigneeFilter) && !String(WP.boardAssigneeFilter||'').startsWith('person:')) WP.boardAssigneeFilter='all';
+  if(String(WP.boardAssigneeFilter||'').startsWith('person:') && typeof wpAssigneeChoices==='function' && !wpAssigneeChoices().some(x=>'person:'+x===WP.boardAssigneeFilter)) WP.boardAssigneeFilter='all';
+  if(!['all','urgent','overdue'].includes(WP.boardFocus)) WP.boardFocus='all';
   if(!Array.isArray(WP.reviewSelected)) WP.reviewSelected=[];
 }
 function wpTaskRule(task) { return task && task.recurrenceRuleId ? (S.board.recurrenceRules||[]).find(r=>r && r.id===task.recurrenceRuleId) || null : null; }
@@ -13903,8 +13913,8 @@ function wpAllEntities({ignoreFilters=false}={}) {
   if(WP.allFilter==='active') items=items.filter(task=>['open','waiting'].includes(wpTaskStatus(task)));
   else if(WP.allFilter==='done') items=items.filter(task=>wpTaskStatus(task)==='done');
   else if(WP.allFilter==='cancelled') items=items.filter(task=>wpTaskStatus(task)==='cancelled');
-  if(WP.allAssigneeFilter==='mine') items=items.filter(wpIsMine);
-  else if(WP.allAssigneeFilter==='unassigned') items=items.filter(task=>!wpAssigneeLabel(task));
+  if(WP.allMineOnly===true) items=items.filter(wpIsMine);
+  if(WP.allAssigneeFilter==='unassigned') items=items.filter(task=>!wpAssigneeLabel(task));
   else if(String(WP.allAssigneeFilter||'').startsWith('person:')) {
     const target=String(WP.allAssigneeFilter).slice(7).toLocaleLowerCase();
     items=items.filter(task=>wpAssigneeLabel(task).toLocaleLowerCase()===target);
@@ -14297,16 +14307,16 @@ function wpInboxView() {
 }
 function wpAllFilterToolbar(items,total) {
   const assignees=wpAssigneeChoices(), projects=visibleProjects().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
-  const mine=WP.allAssigneeFilter==='mine', selected=mine?'all':WP.allAssigneeFilter||'all', project=WP.allProjectFilter||'all';
+  const mine=WP.allMineOnly===true, selected=WP.allAssigneeFilter||'all', project=WP.allProjectFilter||'all';
   const assigneeOptions=[['all','Все исполнители'],['unassigned','Не назначено'],...assignees.map(x=>['person:'+x,x])];
   const projectOptions=[['all','Все'],['inbox','Входящие'],['personal','Личные'],...projects.map(x=>['project:'+x.id,x.name])];
   const filters=[['active','Активные'],['all','Все'],['done','Выполненные'],['cancelled','Отменённые']];
   const sortOptions=[['urgency','По срочности'],['tag','По тегу'],['deadline','По сроку']];
   const currentStatus=filters.find(([value])=>value===WP.allFilter)||filters[0], tagFilter=WP.allTagFilter||'all';
   const tagOptions=WP.allSort==='tag'?[['all','Все теги'],['untagged','Без тега'],...wpAllTagChoices().map(tag=>['tag:'+tag,tag])]:[];
-  const dirty=WP.allFilter!=='active'||WP.allAssigneeFilter!=='all'||project!=='all'||WP.allSort!=='urgency'||tagFilter!=='all';
+  const dirty=WP.allFilter!=='active'||mine||WP.allAssigneeFilter!=='all'||project!=='all'||WP.allSort!=='urgency'||tagFilter!=='all';
   const shown=Array.isArray(items)?items:wpAllEntities(), count=Number.isFinite(total)?total:wpAllEntities({ignoreFilters:true}).length;
-  return `<div class="wp-all-toolbar"><div class="wp-filter-layout wp-all-filter-row ${WP.allSort==='tag'?'is-tag-sort':''}"><div class="wp-filter-main"><details class="wp-filter-menu"><summary class="wp-filter-menu-trigger"><span>Фильтр</span><b>${esc(currentStatus[1])}${mine?' · Мои задачи':''}</b>${ico('chev-r')}</summary><div class="wp-filter-menu-panel"><span class="wp-filter-menu-label">Статус</span><div class="wp-filter-menu-options" role="group" aria-label="Фильтр по статусу">${filters.map(([value,label])=>`<button type="button" class="wp-filter-menu-option ${WP.allFilter===value?'active':''}" data-act="wpAllFilter" data-filter="${value}" aria-pressed="${WP.allFilter===value}"><span>${label}</span><span class="wp-filter-menu-check">${WP.allFilter===value?'✓':''}</span></button>`).join('')}</div><div class="wp-filter-menu-divider"></div><button type="button" class="wp-filter-menu-option ${mine?'active':''}" data-act="wpAllMineToggle" aria-pressed="${mine}"><span>${ico('user')}Мои задачи</span><span class="wp-filter-menu-check">${mine?'✓':''}</span></button></div></details></div><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-filter="assignee" aria-label="Фильтр по исполнителю">${assigneeOptions.map(([value,label])=>`<option value="${esc(value)}" ${selected===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-filter="project" aria-label="Фильтр по списку и проекту">${projectOptions.map(([value,label])=>`<option value="${esc(value)}" ${project===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-sort"><span>Сортировать</span><select class="select" data-wp-filter="sort" aria-label="Сортировка задач">${sortOptions.map(([value,label])=>`<option value="${value}" ${WP.allSort===value?'selected':''}>${label}</option>`).join('')}</select></label>${WP.allSort==='tag'?`<label class="wp-filter-select wp-filter-tag"><span>Тег</span><select class="select" data-wp-filter="tag" aria-label="Фильтр по тегу">${tagOptions.map(([value,label])=>`<option value="${esc(value)}" ${tagFilter===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>`:''}${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpAllReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${shown.length}</b> из ${count}</div></div>`;
+  return `<div class="wp-all-toolbar"><div class="wp-filter-layout wp-all-filter-row ${WP.allSort==='tag'?'is-tag-sort':''}"><div class="wp-filter-main"><details class="wp-filter-menu" data-wp-filter-menu="all"><summary class="wp-filter-menu-trigger"><span>Фильтр</span><b>${esc(currentStatus[1])}${mine?' · Мои задачи':''}</b>${ico('chev-r')}</summary><div class="wp-filter-menu-panel"><span class="wp-filter-menu-label">Статус</span><div class="wp-filter-menu-options" role="group" aria-label="Фильтр по статусу">${filters.map(([value,label])=>`<button type="button" class="wp-filter-menu-option ${WP.allFilter===value?'active':''}" data-act="wpAllFilter" data-filter="${value}" aria-pressed="${WP.allFilter===value}"><span>${label}</span><span class="wp-filter-menu-check">${WP.allFilter===value?'✓':''}</span></button>`).join('')}</div><div class="wp-filter-menu-divider"></div><button type="button" class="wp-filter-menu-option ${mine?'active':''}" data-act="wpAllMineToggle" aria-pressed="${mine}"><span>${ico('user')}Мои задачи</span><span class="wp-filter-menu-check">${mine?'✓':''}</span></button></div></details></div><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-filter="assignee" aria-label="Фильтр по исполнителю">${assigneeOptions.map(([value,label])=>`<option value="${esc(value)}" ${selected===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-filter="project" aria-label="Фильтр по списку и проекту">${projectOptions.map(([value,label])=>`<option value="${esc(value)}" ${project===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-sort"><span>Сортировать</span><select class="select" data-wp-filter="sort" aria-label="Сортировка задач">${sortOptions.map(([value,label])=>`<option value="${value}" ${WP.allSort===value?'selected':''}>${label}</option>`).join('')}</select></label>${WP.allSort==='tag'?`<label class="wp-filter-select wp-filter-tag"><span>Тег</span><select class="select" data-wp-filter="tag" aria-label="Фильтр по тегу">${tagOptions.map(([value,label])=>`<option value="${esc(value)}" ${tagFilter===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>`:''}${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpAllReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${shown.length}</b> из ${count}</div></div>`;
 }
 function wpAllView() {
   const all=wpAllEntities(), total=wpAllEntities({ignoreFilters:true}).length;
@@ -14318,8 +14328,8 @@ function wpBoardEntities() {
   if(['inbox','personal'].includes(home)) items=items.filter(t=>wpTaskHomeType(t)===home);
   else if(String(home).startsWith('project:')) { const id=String(home).slice(8); items=items.filter(t=>wpTaskHomeType(t)==='project'&&String(t.homeId||t.projectId||'')===id); }
   const who=WP.boardAssigneeFilter||'all';
-  if(who==='mine') items=items.filter(wpIsMine);
-  else if(who==='unassigned') items=items.filter(t=>!wpAssigneeLabel(t));
+  if(WP.boardMineOnly===true) items=items.filter(wpIsMine);
+  if(who==='unassigned') items=items.filter(t=>!wpAssigneeLabel(t));
   else if(String(who).startsWith('person:')) { const target=String(who).slice(7).toLocaleLowerCase(); items=items.filter(t=>wpAssigneeLabel(t).toLocaleLowerCase()===target); }
   if(WP.boardFocus==='urgent') items=items.filter(t=>['high','critical'].includes(wpPriority(t)));
   else if(WP.boardFocus==='overdue') items=items.filter(t=>wpDeadlineOverdue(t));
@@ -14333,14 +14343,15 @@ function wpBoardSummary(items) {
 }
 function wpBoardToolbar(items) {
   const projects=visibleProjects().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
-  const people=wpAssigneeChoices(), home=WP.boardHomeFilter||'all', who=WP.boardAssigneeFilter||'all';
-  const whoSelected=who.startsWith('person:')?who:'all';
+  const people=wpAssigneeChoices(), home=WP.boardHomeFilter||'all', who=WP.boardAssigneeFilter||'all', mine=WP.boardMineOnly===true;
+  const whoSelected=String(who).startsWith('person:')?who:'all';
   const homeOptions=[['all','Все списки'],['inbox','Входящие'],['personal','Личные'],...projects.map(p=>['project:'+p.id,p.name])];
   const whoOptions=[['all','Все исполнители'],['unassigned','Не назначено'],...people.map(x=>['person:'+x,x])];
   const focus=[['all','Все'],['urgent','Срочные'],['overdue','Просроченные']];
-  const dirty=home!=='all'||who!=='all'||WP.boardFocus!=='all';
+  const currentFocus=focus.find(([value])=>value===WP.boardFocus)||focus[0];
+  const dirty=home!=='all'||who!=='all'||mine||WP.boardFocus!=='all';
   const total=wpAllEntities({ignoreFilters:true}).length;
-  return `<div class="wp-board-toolbar"><div class="wp-filter-layout wp-board-filter-row"><div class="wp-filter-main"><div class="wp-filter-pills" role="group" aria-label="Фильтр по приоритету и сроку">${focus.map(([v,label])=>`<button type="button" class="${WP.boardFocus===v?'active':''}" data-act="wpBoardFocus" data-filter="${v}" aria-pressed="${WP.boardFocus===v}">${label}</button>`).join('')}</div>${wpCalendarCompletedToggle('board')}</div><button type="button" class="wp-my-filter ${who==='mine'?'active':''}" data-act="wpBoardMineToggle" aria-pressed="${who==='mine'}">${ico('user')}Мои задачи</button><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-board-filter="assignee" aria-label="Фильтр по исполнителю">${whoOptions.map(([v,l])=>`<option value="${esc(v)}" ${whoSelected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-board-filter="home" aria-label="Фильтр по списку и проекту">${homeOptions.map(([v,l])=>`<option value="${esc(v)}" ${home===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpBoardReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${items.length}</b> из ${total}</div></div>`;
+  return `<div class="wp-board-toolbar"><div class="wp-filter-layout wp-board-filter-row"><div class="wp-filter-main"><details class="wp-filter-menu wp-board-focus-menu" data-wp-filter-menu="board"><summary class="wp-filter-menu-trigger"><span>Фильтр</span><b>${esc(currentFocus[1])}</b>${ico('chev-r')}</summary><div class="wp-filter-menu-panel"><span class="wp-filter-menu-label">Приоритет и срок</span><div class="wp-filter-menu-options" role="group" aria-label="Фильтр по приоритету и сроку">${focus.map(([value,label])=>`<button type="button" class="wp-filter-menu-option ${WP.boardFocus===value?'active':''}" data-act="wpBoardFocus" data-filter="${value}" aria-pressed="${WP.boardFocus===value}"><span>${label}</span><span class="wp-filter-menu-check">${WP.boardFocus===value?'✓':''}</span></button>`).join('')}</div></div></details>${wpCalendarCompletedToggle('board')}</div><button type="button" class="wp-my-filter ${mine?'active':''}" data-act="wpBoardMineToggle" aria-pressed="${mine}">${ico('user')}Мои задачи</button><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-board-filter="assignee" aria-label="Фильтр по исполнителю">${whoOptions.map(([v,l])=>`<option value="${esc(v)}" ${whoSelected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-board-filter="home" aria-label="Фильтр по списку и проекту">${homeOptions.map(([v,l])=>`<option value="${esc(v)}" ${home===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpBoardReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${items.length}</b> из ${total}</div></div>`;
 }
 function wpBoardView() {
   const items=wpBoardEntities(), columns=[['open','В работе'],['waiting','Ожидание'],['done','Готово'],['cancelled','Отменённые']];
@@ -14407,7 +14418,15 @@ function wpRenderView() {
   const focusState=focusInfo&&(focusInfo.id||Object.keys(focusInfo.attrs).length)?focusInfo:null;
   const pageScroll=page?{top:page.scrollTop,left:page.scrollLeft}:null;
   const viewScroll=root?{top:root.scrollTop,left:root.scrollLeft,board:root.querySelector('.wp-board-lanes')?.scrollLeft??0}:null;
-  if(root) { root.innerHTML=wpViewHtml(); wpScheduleTaskTitleMarquee(root); }
+  const openFilterMenuKey=root&&root.querySelector('.wp-filter-menu[open]')?.dataset.wpFilterMenu||'';
+  if(root) {
+    root.innerHTML=wpViewHtml();
+    if(openFilterMenuKey) {
+      const filterMenu=Array.from(root.querySelectorAll('.wp-filter-menu')).find(menu=>menu.dataset.wpFilterMenu===openFilterMenuKey);
+      if(filterMenu) filterMenu.open=true;
+    }
+    wpScheduleTaskTitleMarquee(root);
+  }
   const search=page&&page.querySelector('#wpSearch'); if(search&&search.value!==WP.query) search.value=WP.query;
   const head=page&&page.querySelector('.wp-topbar');
   if(head) {
@@ -15720,8 +15739,8 @@ function wpSetBoardFilter(field,value) {
   wpRenderView();
 }
 function wpSetBoardFocus(value) { WP.boardFocus=['urgent','overdue'].includes(value)?value:'all';wpRenderView(); }
-function wpToggleBoardMine() { WP.boardAssigneeFilter=WP.boardAssigneeFilter==='mine'?'all':'mine';wpRenderView(); }
-function wpResetBoardFilters() { WP.boardHomeFilter='all';WP.boardAssigneeFilter='all';WP.boardFocus='all';wpRenderView(); }
+function wpToggleBoardMine() { WP.boardMineOnly=WP.boardMineOnly!==true;wpRenderView(); }
+function wpResetBoardFilters() { WP.boardHomeFilter='all';WP.boardAssigneeFilter='all';WP.boardMineOnly=false;WP.boardFocus='all';wpRenderView(); }
 function wpBoardAdd() { wpOpenEditor(null,{}); }
 function wpSetAllViewFilter(field,value) {
   if(field==='sort') {
@@ -15731,7 +15750,7 @@ function wpSetAllViewFilter(field,value) {
     const allowed=value==='all'||value==='untagged'||(String(value).startsWith('tag:')&&wpAllTagChoices().some(tag=>'tag:'+tag===value));
     WP.allTagFilter=allowed?value:'all';
   } else if(field==='assignee') {
-    const allowed=value==='all'||value==='mine'||value==='unassigned'||(String(value).startsWith('person:')&&wpAssigneeChoices().some(x=>'person:'+x===value));
+    const allowed=value==='all'||value==='unassigned'||(String(value).startsWith('person:')&&wpAssigneeChoices().some(x=>'person:'+x===value));
     WP.allAssigneeFilter=allowed?value:'all';
   } else if(field==='project' || field==='home') {
     const allowed=value==='all'||['personal','inbox'].includes(value)||(String(value).startsWith('project:')&&visibleProjects().some(x=>'project:'+x.id===value));
@@ -15739,8 +15758,8 @@ function wpSetAllViewFilter(field,value) {
   }
   wpRenderView();
 }
-function wpResetAllFilters(render=true) { WP.allFilter='active';WP.allAssigneeFilter='all';WP.allProjectFilter='all';WP.allSort='urgency';WP.allTagFilter='all';if(render)wpRenderView(); }
-function wpAllMineToggle() { WP.allAssigneeFilter=WP.allAssigneeFilter==='mine'?'all':'mine';wpRenderView(); }
+function wpResetAllFilters(render=true) { WP.allFilter='active';WP.allAssigneeFilter='all';WP.allMineOnly=false;WP.allProjectFilter='all';WP.allSort='urgency';WP.allTagFilter='all';if(render)wpRenderView(); }
+function wpAllMineToggle() { WP.allMineOnly=WP.allMineOnly!==true;wpRenderView(); }
 function wpContextAddTarget(view=WP.view,projectId=WP.projectId,mobileDate=WP.mobileDate) {
   if(view==='week') return {mode:'quick',date:wpDateKey(mobileDate)||wpDateKey(Date.now()),projectId:null,context:'week',homeType:'personal'};
   if(view==='inbox') return {mode:'quick',date:null,projectId:null,context:'inbox',homeType:'inbox'};

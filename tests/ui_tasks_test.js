@@ -121,7 +121,7 @@ vm.runInNewContext(harness + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
-  wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
+  wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
@@ -401,12 +401,38 @@ assert.strictEqual(createdPersonal.homeType, 'personal');
 assert.strictEqual(createdPersonal.assignee, 'Alex', 'new tasks persist the canonical account name rather than a self alias');
 assert.strictEqual(createdPersonal.matrixQuadrant, 2);
 assert.strictEqual(createdPersonal.statusKey, 'open');
+const projectTarget = api.wpContextAddTarget('projects', 'project-1');
+assert.strictEqual(projectTarget.mode, 'editor', 'the “В проект” action opens the full task editor');
+assert.strictEqual(projectTarget.projectId, 'project-1', 'the current project is passed into the task editor');
+assert.strictEqual(projectTarget.homeType, 'project');
+assert.strictEqual(api.wpContextAddTarget('projects', '__personal__').mode, 'quick', 'personal quick-add remains unchanged');
+const createdProject = api.wpCreateTask('Задача проекта', '2026-10-14', 'project-1', 1, 'Alex', false, 'project');
+assert(createdProject && createdProject.id);
+assert.strictEqual(createdProject.homeType, 'project');
+assert.strictEqual(createdProject.homeId, 'project-1');
+assert.strictEqual(createdProject.projectId, 'project-1');
+for (const field of ['description', 'tags', 'statusKey', 'priorityKey', 'scheduledDate', 'deadlineAt', 'assignee', 'createdAt', 'updatedAt']) {
+  assert(Object.prototype.hasOwnProperty.call(createdProject, field), `project tasks keep the complete task model field ${field}`);
+}
+const taskCountBeforeInvalidProject = state.board.tasks.length;
+assert.strictEqual(api.wpCreateTask('Не переносить в личные', null, 'missing-project', null, 'Alex', false, 'project'), false, 'a missing project is rejected instead of silently creating a personal task');
+assert.strictEqual(state.board.tasks.length, taskCountBeforeInvalidProject, 'rejecting an invalid project does not create a task');
+api.WP.quick = { targetDate: null, projectId: 'missing-project', homeType: 'project', assignee: 'Alex', quadrant: null, context: 'week', value: 'Не переносить в личные' };
+api.wpQuickSubmit();
+assert.strictEqual(state.board.tasks.length, taskCountBeforeInvalidProject, 'quick-add reports a missing project without persisting a task');
+assert.strictEqual(api.WP.quick.value, 'Не переносить в личные', 'failed project quick-add preserves the title for recovery');
+api.WP.quick = null;
 const formValues = {
   title: 'Новая задача', kind: 'personal', projectId: '', assignee: 'Я', scheduledDate: '2026-10-13', deadlineAt: '2026-10-15',
   statusKey: 'open', priorityKey: 'normal', quadrant: '1', description: '', tags: '', durationEstimateMinutes: '',
   waitingReason: '', reviewAt: '', frequency: 'none', interval: 1, intervalDays: 1, weekdays: [1], mode: 'calendar', endDate: ''
 };
 const createForm = api.wpEditorBodyHtml(null, 'series', true, formValues, false, null);
+const projectForm = api.wpEditorBodyHtml(null, 'series', true, { ...formValues, kind: 'project', projectId: 'project-1' }, false, null);
+assert(projectForm.includes('<option value="project-1" selected>Проект</option>'), 'the project task editor preselects the active project');
+for (const field of ['wpTitle', 'wpProject', 'wpAssignee', 'wpScheduled', 'wpDeadline', 'wpPriority', 'wpDescription', 'wpTags']) {
+  assert(projectForm.includes(`id="${field}"`), `project add opens the full editor field ${field}`);
+}
 assert(createForm.includes('<span>Дата начала</span>') && !createForm.includes('Плановая дата'), 'the task form labels the schedule as its start date');
 assert(createForm.includes('<option value="__add">+ Добавить новый проект</option>'), 'new-task project selector always offers project creation');
 const projectsBeforeEmptyForm = state.board.projects;

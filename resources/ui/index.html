@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-G6J1On/wiT44dsPPt1X+q85Js/rmXtafFCTYX71iJGE=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-5U7a73DDqxrle/+55RmP/A5wN4jMLAgTyPD9XCwKJms=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -13989,8 +13989,9 @@ function wpQuickAddOpen(date=null, projectId=null, assignee=wpCurrentAssignee(),
 function wpCreateTask(title,date=null,projectId=null,quadrant=null,assignee=wpCurrentAssignee(),inInbox=null,homeType=null) {
   const text=String(title||'').trim(); if(!text) return false;
   const suggestedHome=homeType || (projectId ? 'project' : inInbox===true ? 'inbox' : 'personal');
-  const id=uid('task'), pr=suggestedHome==='project' ? (S.board.projects||[]).find(p=>p && p.id===projectId) : null;
-  const resolvedHome= suggestedHome==='project' && !pr ? 'personal' : (WP_HOME_TYPES.includes(suggestedHome)?suggestedHome:'personal');
+  const pr=suggestedHome==='project' ? (S.board.projects||[]).find(p=>p && p.id===projectId) : null;
+  if(suggestedHome==='project' && !pr) return false;
+  const id=uid('task'), resolvedHome=WP_HOME_TYPES.includes(suggestedHome)?suggestedHome:'personal';
   const scheduledDate=wpDateKey(date)||null, q=wpValidQuadrant(quadrant);
   const data={id,title:text,kind:resolvedHome==='project'?'project':'personal',homeType:resolvedHome,homeId:resolvedHome==='project'?pr.id:'',project:resolvedHome==='project'?pr.name:'',projectId:resolvedHome==='project'?pr.id:'',inbox:resolvedHome==='inbox',assignee:wpNormalizeAssignee(assignee)||wpCurrentAssignee(),ownerEmail:accountEmail()||(S.board.ownerEmail||''),scheduledDate,deadlineAt:null,statusKey:'open',status:'В работе',priorityKey:'normal',prio:'Не срочные',prevPrio:'Не срочные',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:null,description:'',comment:'',tags:[],matrixQuadrant:q,importance:q==null?null:q<2,urgency:q==null?null:(q===0||q===2),recurrenceRuleId:null,parentTaskId:null,durationEstimateMinutes:null,reminderAt:null,waitingReason:'',reviewAt:null,order:Date.now(),schemaVersion:WP_SCHEMA,legacy:{}};
   wpSyncTaskAliases(data); S.board.tasks.push(data); return data;
@@ -14407,7 +14408,8 @@ function wpQuickSubmit() {
   const projectId=homeType==='project'?WP.quick.projectId:null, quadrant=wpValidQuadrant(WP.quick.quadrant);
   const before=wpClone(S.board);
   if(S.taskMigrationOK===false) { toast(S.taskMigrationError||'Задачи доступны только для чтения.',{icon:'ban'}); return; }
-  wpCreateTask(title,date,projectId,quadrant,WP.quick.assignee||wpCurrentAssignee(),homeType==='inbox',homeType);
+  const created=wpCreateTask(title,date,projectId,quadrant,WP.quick.assignee||wpCurrentAssignee(),homeType==='inbox',homeType);
+  if(!created) { toast(homeType==='project'?'Выбранный проект недоступен. Задача не добавлена.':'Не удалось добавить задачу.',{icon:'ban'}); return; }
   if(!wpPersistBoard()) { wpRestoreBoardMemory(before); toast('Не удалось сохранить задачу: хранилище недоступно или переполнено.',{icon:'ban'}); wpRenderView(); return; }
   WP.quick.value=''; WP.quick.quadrant=null; wpRenderView(); const next=$('[data-wp-quick-input]'); if(next) next.focus();
   WP._undoToken=(WP._undoToken||0)+1; const undoToken=WP._undoToken;
@@ -15578,7 +15580,7 @@ function wpContextAddTarget(view=WP.view,projectId=WP.projectId,mobileDate=WP.mo
   if(view==='week') return {mode:'quick',date:wpDateKey(mobileDate)||wpDateKey(Date.now()),projectId:null,context:'week',homeType:'personal'};
   if(view==='inbox') return {mode:'quick',date:null,projectId:null,context:'inbox',homeType:'inbox'};
   if(view==='projects' && projectId==='__personal__') return {mode:'quick',date:null,projectId:null,context:'personal',homeType:'personal'};
-  if(view==='projects' && projectId) return {mode:'quick',date:null,projectId,context:'project',homeType:'project'};
+  if(view==='projects' && projectId) return {mode:'editor',date:null,projectId,homeType:'project'};
   return {mode:'editor',date:null,projectId:null,homeType:'personal'};
 }
 function wpOpenContextAdd() {

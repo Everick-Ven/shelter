@@ -327,6 +327,11 @@ jobs:
           python tools/check_ci_hooks.py /Applications/SHELTER.app off --binary-only
           pkill -x Shelter 2>/dev/null || true
           rm -rf "$HOME/Library/Application Support/SHELTER"
+          # Изолированная связка CI не должна переиспользовать ключ сборки до упаковки.
+          ci_keychain="$HOME/Library/Keychains/SHELTER-CI-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.keychain-db"
+          if security find-generic-password -a master-key -s SHELTER "$ci_keychain" >/dev/null 2>&1; then
+            security delete-generic-password -a master-key -s SHELTER "$ci_keychain"
+          fi
           python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" --allow-missing-ci-hooks 2>&1 | tee smoke-run.log
 
       - name: Inspect macOS master-key mirror

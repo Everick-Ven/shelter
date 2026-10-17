@@ -14865,6 +14865,7 @@ async function wpAddProjectFromEditor(select,previousValue='') {
     toast('Не удалось сохранить проект.',{icon:'ban'}); return false;
   }
   wpRefreshEditorProjectOptions(select,project.id);
+  wpRenderView();
   return true;
 }
 function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
@@ -15047,7 +15048,7 @@ function wpOpenEditor(ref=null,opts={}) {
       const ok=wpCommit('Комментарий добавлен',()=>{
         const target=(S.board.tasks||[]).find(t=>t&&t.id===taskId);
         if(!wpAddTaskComment(target,body)) throw new Error('comment was not accepted');
-      },{undo:false,refresh:false});
+      },{undo:false});
       sourceTask=(S.board.tasks||[]).find(t=>t&&t.id===taskId)||sourceTask;
       if(ok) {
         const thread=$('#wpCommentThread',root); if(thread) thread.outerHTML=wpCommentThreadHtml(sourceTask);

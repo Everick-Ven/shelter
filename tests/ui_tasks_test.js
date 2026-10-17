@@ -98,7 +98,7 @@ vm.runInNewContext(harness + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
-  wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
+  wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
@@ -398,6 +398,30 @@ assert.strictEqual(applied.matrixQuadrant, 0);
 assert.strictEqual(applied.statusKey, 'open');
 assert.strictEqual(applied.deadlineAt, '2026-10-15');
 assert(!Object.prototype.hasOwnProperty.call(applied, 'scheduledEndDate'), 'saving a task no longer writes a separate calendar end date');
+assert(!editForm.includes('wpCommentThread'), 'private tasks do not show a shared comment thread');
+const sharedTask = { id: 'shared-comment-task', title: 'Совместная задача', kind: 'project', homeType: 'project', projectId: 'project-1', assignee: 'Alex', comments: [] };
+assert.strictEqual(api.wpCanCommentTask(sharedTask), true, 'visible project tasks support comments');
+assert.strictEqual(api.wpCanCommentTask({ ...sharedTask, homeType: 'personal', kind: 'personal' }), false, 'private tasks do not support shared comments');
+const savedComment = api.wpAddTaskComment(sharedTask, 'Проверил детали.\nВсё готово.');
+assert(savedComment && savedComment.id && savedComment.createdAt);
+assert.strictEqual(savedComment.body, 'Проверил детали.\nВсё готово.');
+assert.strictEqual(savedComment.author, 'Alex');
+assert.strictEqual(savedComment.projectId, 'project-1', 'comments are scoped to the project where they were posted');
+assert(!Object.prototype.hasOwnProperty.call(savedComment, 'authorEmail'), 'comments do not copy account email into the task record');
+sharedTask.comments.push({ id: 'other-project-comment', projectId: 'project-2', body: 'Private to another project', author: 'Member', createdAt: '2026-10-14T12:00:00.000Z' });
+assert.strictEqual(api.wpTaskCommentList(sharedTask).length, 1, 'comments from another project are not exposed');
+assert.strictEqual(api.wpTaskCommentList({ ...sharedTask, projectId: 'project-2' }).length, 1, 'comments stay scoped if a task moves between projects');
+assert.strictEqual(api.wpAddTaskComment(sharedTask, '   '), null, 'empty comments are rejected');
+assert.strictEqual(api.wpAddTaskComment(sharedTask, 'x'.repeat(5001)), null, 'comments are length-limited');
+const xssComment = api.wpAddTaskComment(sharedTask, '<script>alert(1)</script>');
+assert(xssComment);
+const commentsMarkup = api.wpCommentThreadHtml(sharedTask);
+assert(commentsMarkup.includes('Комментарии') && commentsMarkup.includes('Проверил детали.') && commentsMarkup.includes('maxlength="5000"'));
+assert(!commentsMarkup.includes('<script>') && commentsMarkup.includes('&lt;script&gt;'), 'comment text is escaped before rendering');
+const sharedForm = api.wpEditorBodyHtml(sharedTask, 'task', false, { ...formValues, kind: 'project', projectId: 'project-1', title: sharedTask.title }, false, sharedTask);
+assert(sharedForm.includes('id="wpCommentThread"'), 'project-task editor includes a comment thread');
+const sharedCard = api.wpTaskCard(sharedTask, { compact: true });
+assert(sharedCard.includes('class="wp-comment-link"') && sharedCard.includes('data-open-comments="1"'), 'project cards provide direct access to their comments');
 assert.strictEqual(api.wpDeadlineText({ deadlineAt: '2026-10-19', statusKey: 'open' }), 'До: 19.10.2026');
 const longTitle = 'Подготовить подробный план запуска нового продукта и проверить все контрольные материалы';
 const taskMarkup = api.wpTaskCard({ id: 'display-task', title: longTitle, homeType: 'personal', assignee: 'Alex', deadlineAt: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true });
@@ -458,7 +482,7 @@ const legacyBoard = {
   id: 'board-1', name: 'Моя доска', code: 'SHTR-TEST', taskSchemaVersion: 5,
   projects: [{ id: 'project-1', name: 'Проект', members: [] }],
   tasks: [
-    { id: 'project-task', title: 'Проектная', kind: 'project', projectId: 'project-1', project: 'Проект', inbox: true, status: 'Готово', prio: 'Выполнено', prevPrio: 'Критично', deadline: '20.10.2026' },
+    { id: 'project-task', title: 'Проектная', kind: 'project', projectId: 'project-1', project: 'Проект', inbox: true, status: 'Готово', prio: 'Выполнено', prevPrio: 'Критично', deadline: '20.10.2026', comments: [{ id: 'legacy-comment-1', projectId: 'project-1', body: 'Сохранённый комментарий', author: 'Alex', createdAt: '2026-10-10T12:00:00.000Z' }] },
     { id: 'inbox-task', title: 'Входящая', inbox: true, status: 'В работе' },
     { id: 'personal-task', title: 'Личная', kind: 'personal', qm: 0, scheduledDate: '2026-10-10', scheduledEndDate: '2026-10-12', customField: 'keep me' },
     { id: 'deadline-wins', title: 'Сохранить заданный срок', kind: 'personal', scheduledDate: '2026-10-10', scheduledEndDate: '2026-10-12', deadlineAt: '2026-10-14' }
@@ -498,6 +522,8 @@ assert.strictEqual(api.wpTaskHomeType(projectTask), 'project', 'a project remain
 assert.strictEqual(projectTask.legacy.v5InboxFlag, true, 'the overlapping legacy flag is retained for audit');
 assert.strictEqual(projectTask.statusKey, 'done');
 assert.strictEqual(projectTask.priorityKey, 'critical');
+assert.strictEqual(projectTask.comments[0].body, 'Сохранённый комментарий', 'comments survive legacy task migration');
+assert(!Object.prototype.hasOwnProperty.call(projectTask.legacy, 'comments'), 'comments are preserved as task data rather than duplicated as legacy metadata');
 assert.strictEqual(api.wpTaskHomeType(inboxTask), 'inbox');
 assert.strictEqual(api.wpTaskHomeType(personalTask), 'personal', 'a quadrant alone must not move a personal task into Matrix');
 assert.strictEqual(personalTask.legacy.customField, 'keep me', 'unknown legacy fields must survive migration');

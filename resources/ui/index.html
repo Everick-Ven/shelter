@@ -4144,6 +4144,23 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-task-meta>span{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .wp-task-meta .wp-assignee{max-width:min(180px,100%);overflow:hidden;text-overflow:ellipsis}
 .wp-task-meta .wp-assignee>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wp-task-meta .wp-comment-link{display:inline-flex;align-items:center;gap:3px;min-height:17px;padding:0 4px;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--text-3);font:inherit;line-height:inherit;cursor:pointer;white-space:nowrap}
+.wp-task-meta .wp-comment-link:hover{border-color:var(--line);background:var(--card-2);color:var(--text)}
+.wp-task-meta .wp-comment-link .i{width:10px;height:10px;flex:none}
+.wp-comment-thread{display:flex;flex-direction:column;gap:9px;margin-top:12px;padding:10px 11px;border:1px solid var(--line);border-radius:calc(12px*var(--rs));background:color-mix(in srgb,var(--card-2) 42%,var(--card))}
+.wp-comment-head{display:flex;align-items:center;gap:7px;color:var(--text-2);font-size:10.5px}
+.wp-comment-head>span{display:grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--card-3);color:var(--text-3);font-size:9px}
+.wp-comment-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto}
+.wp-comment-item{padding:8px 9px;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card)}
+.wp-comment-item>header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;color:var(--text-2);font-size:9.5px}
+.wp-comment-item>header time{color:var(--text-4);font-size:8.5px;white-space:nowrap}
+.wp-comment-item>p{margin:5px 0 0;color:var(--text);font-size:10px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.wp-comment-empty{margin:0;padding:7px 2px;color:var(--text-3);font-size:9.5px}
+.wp-comment-compose{display:flex;flex-direction:column;gap:5px;color:var(--text-2);font-size:10px;font-weight:550}
+.wp-comment-compose textarea.input{height:auto;min-height:60px;padding:8px 9px;resize:vertical;line-height:1.45}
+.wp-comment-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px}
+.wp-comment-footer small{color:var(--text-3);font-size:8.5px;line-height:1.4}
+.wp-comment-footer .btn{white-space:nowrap}
 .wp-task-meta .wp-deadline{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .wp-week-grid .wp-task-meta .wp-deadline,.wp-week-mobile .wp-task-meta .wp-deadline{font-size:8px;letter-spacing:-.015em}
 .wp-week-grid .wp-task-meta .wp-deadline>.i,.wp-week-mobile .wp-task-meta .wp-deadline>.i{display:none}
@@ -13189,7 +13206,7 @@ function wpQuadrant(t) {
 }
 function wpMapLegacyTask(task,index,board) {
   const t=wpIsObj(task) ? task : { title:String(task == null ? '' : task), legacy:{ malformedTask:true } };
-  const known=new Set(['id','title','name','text','created','createdAt','updatedAt','status','statusKey','prio','prevPrio','priorityKey','deadline','deadlineAt','scheduledDate','scheduledEndDate','plannedDate','planDate','scheduledAt','kind','project','projectId','homeType','homeId','matrixQuadrant','assignee','ownerEmail','inbox','term','days','format','comment','description','tags','qm','importance','urgency','completedAt','recurrenceRuleId','repeatRuleId','parentTaskId','durationEstimateMinutes','reminderAt','waitingReason','reviewAt','order','legacy','subtaskIds','demo','color','archived','source','seriesId','recurrence','repeat','reviewedWeekStart']);
+  const known=new Set(['id','title','name','text','created','createdAt','updatedAt','status','statusKey','prio','prevPrio','priorityKey','deadline','deadlineAt','scheduledDate','scheduledEndDate','plannedDate','planDate','scheduledAt','kind','project','projectId','homeType','homeId','matrixQuadrant','assignee','ownerEmail','inbox','term','days','format','comment','description','comments','tags','qm','importance','urgency','completedAt','recurrenceRuleId','repeatRuleId','parentTaskId','durationEstimateMinutes','reminderAt','waitingReason','reviewAt','order','legacy','subtaskIds','demo','color','archived','source','seriesId','recurrence','repeat','reviewedWeekStart']);
   const legacy=wpIsObj(t.legacy) ? wpClone(t.legacy) : {};
   Object.keys(t).forEach(k=>{ if(!known.has(k)) legacy[k]=wpClone(t[k]); });
   const out=Object.assign({},t);
@@ -13614,6 +13631,40 @@ function wpCurrentAssignee() {
   const name=typeof accountName==='function' ? accountName() : (S.account&&S.account.name)||'Вы';
   return String(name||'Вы').trim()||'Вы';
 }
+const WP_COMMENT_MAX_LENGTH=5000;
+function wpCommentSourceTask(task) {
+  if(task&&task.entityType==='occurrence') return (S.board.tasks||[]).find(item=>item&&item.id===task.seriesTaskId)||task;
+  return task;
+}
+function wpTaskCommentList(task) {
+  const source=wpCommentSourceTask(task), projectId=String(source&&(source.homeId||source.projectId)||'');
+  return projectId&&Array.isArray(source&&source.comments) ? source.comments.filter(comment=>wpIsObj(comment)&&String(comment.projectId||'')===projectId&&typeof comment.body==='string'&&comment.body.trim()) : [];
+}
+function wpCanCommentTask(task) {
+  const source=wpCommentSourceTask(task), projectId=String(source&&(source.homeId||source.projectId)||'');
+  return !!(source && projectId && wpTaskHomeType(source)==='project' && canSeeTask(source));
+}
+function wpAddTaskComment(task,text) {
+  const source=wpCommentSourceTask(task);
+  if(!wpCanCommentTask(source)) return null;
+  const body=String(text==null?'':text).trim();
+  if(!body || body.length>WP_COMMENT_MAX_LENGTH) return null;
+  const createdAt=new Date().toISOString(), projectId=String(source.homeId||source.projectId||'');
+  const comment={id:uid('comment'),projectId,body,author:wpCurrentAssignee(),createdAt};
+  source.comments=(Array.isArray(source.comments)?source.comments.slice():[]).concat(comment);
+  source.updatedAt=createdAt;
+  return comment;
+}
+function wpCommentTimestamp(value) {
+  const time=Date.parse(value||'');
+  return Number.isFinite(time) ? new Date(time).toLocaleString('ru-RU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Дата неизвестна';
+}
+function wpCommentThreadHtml(task) {
+  if(!wpCanCommentTask(task)) return '';
+  const comments=wpTaskCommentList(task);
+  const rows=comments.map(comment=>`<article class="wp-comment-item"><header><b>${esc(comment.author||'Участник')}</b><time datetime="${esc(comment.createdAt||'')}">${esc(wpCommentTimestamp(comment.createdAt))}</time></header><p>${esc(comment.body)}</p></article>`).join('');
+  return `<section class="wp-comment-thread" id="wpCommentThread" aria-label="Комментарии к задаче проекта"><header class="wp-comment-head"><b>Комментарии</b><span>${comments.length}</span></header><div class="wp-comment-list" aria-live="polite">${rows||'<p class="wp-comment-empty">Пока нет комментариев.</p>'}</div><label class="wp-comment-compose"><span>Новый комментарий</span><textarea class="input" id="wpCommentInput" rows="3" maxlength="${WP_COMMENT_MAX_LENGTH}" placeholder="Напишите комментарий для участников проекта"></textarea></label><div class="wp-comment-footer"><small>Комментарий будет сохранён в общей задаче проекта.</small><button type="button" class="btn sm primary" data-wp-comment-action="add">${ico('plus')}Добавить</button></div></section>`;
+}
 function wpNormalizeAssignee(value) {
   const raw=value && typeof value==='object' ? (value.name||value.email||value.id||'') : value;
   const text=String(raw||'').trim(); if(!text) return '';
@@ -13817,6 +13868,7 @@ function wpTaskCard(task, opts={}) {
   const boardStatus=opts.board?`<div class="wp-board-task-status"><label><span class="sr-only">Статус</span><select class="select" data-act="wpBoardStatus" ${dataAttrs} aria-label="Статус задачи: ${esc(task.title||'Без названия')}" ${parentSeries?'disabled':''}>${wpStatusOptions(status)}</select></label></div>`:'';
   const deadline=wpDeadlineText(task,!!opts.inDay), deadlineFull=wpDeadlineText(task);
   const prio=wpPriority(task), prioLabel=WP_PRIORITY_RU[prio] || 'Обычный', assignee=wpAssigneeLabel(task);
+  const commentCount=wpCanCommentTask(task)?wpTaskCommentList(task).length:null;
   const drag=(parentSeries || opts.draggable===false) ? '' : ' draggable="true"';
   const origin=entityType==='occurrence' && task.scheduledDate && task.scheduledDate!==task.originalDate ? `<span class="wp-origin">из ${wpFmtDate(task.originalDate)}</span>` : '';
   return `<article class="wp-task q${quadrant==null?'none':quadrant} p-${esc(prio)} ${opts.board?'wp-board-task':''} ${done?'is-done':''} ${status==='cancelled'?'is-cancelled':''} ${overdue?'is-overdue':''} ${entityType==='occurrence'?'is-occurrence':''}" ${dataAttrs} data-task-id="${esc(task.taskId||task.id)}"${drag}>
@@ -13828,6 +13880,7 @@ function wpTaskCard(task, opts={}) {
         ${quadrantChip}
         ${showHome ? `<span class="wp-chip home" aria-label="${wpTaskHomeType(task)==='project'?'Проект':'Список'}: ${esc(homeLabel)}" title="${esc(homeLabel)}">${ico(wpTaskHomeType(task)==='project'?'folder':wpTaskHomeType(task)==='matrix'?'grid':wpTaskHomeType(task)==='inbox'?'inbox':'user')}<span class="wp-home-label">${esc(homeLabel)}</span></span>` : ''}
         ${`<span class="wp-assignee" title="Исполнитель: ${esc(assignee||'не назначен')}">${ico('user')}<span>${esc(assignee||'Не назначено')}</span></span>`}
+        ${commentCount!==null?`<button type="button" class="wp-comment-link" data-act="taskEdit" data-open-comments="1" ${dataAttrs} title="Комментарии: ${commentCount}" aria-label="Открыть комментарии к задаче, ${commentCount}">${ico('chat')}<span>${commentCount}</span></button>`:''}
         <span class="wp-priority p-${esc(prio)}" aria-label="Приоритет: ${esc(prioLabel)}"><i></i>${esc(prioLabel)}</span>
         ${!showHome && WP.view!=='projects' && wpTaskHomeType(task)==='project' ? `<span>${ico('folder')}${esc(wpHomeLabel(task))}</span>` : ''}
         ${planned ? `<span>${ico('calendar')}${esc(planned)}</span>` : ''}
@@ -14579,7 +14632,7 @@ async function wpDeleteTask(taskId) {
 function wpDuplicateTask(taskId) {
   const src=(S.board.tasks||[]).find(t=>t && t.id===taskId); if(!src || wpTaskRule(src)) { toast('Серию можно изменить, но не дублировать как один экземпляр.',{icon:'info'}); return; }
   wpCommit('Задача продублирована',()=>{
-    const copy=wpClone(src); copy.id=uid('task'); copy.title=(src.title||'')+' (копия)'; copy.createdAt=new Date().toISOString(); copy.updatedAt=new Date().toISOString(); copy.completedAt=null; copy.statusKey='open'; copy.status='В работе'; copy.recurrenceRuleId=null; copy.parentTaskId=null; copy.scheduledDate=null; delete copy.scheduledEndDate; copy.order=Date.now();
+    const copy=wpClone(src); copy.id=uid('task'); copy.title=(src.title||'')+' (копия)'; copy.createdAt=new Date().toISOString(); copy.updatedAt=new Date().toISOString(); copy.completedAt=null; copy.statusKey='open'; copy.status='В работе'; copy.recurrenceRuleId=null; copy.parentTaskId=null; copy.scheduledDate=null; copy.comments=[]; delete copy.scheduledEndDate; copy.order=Date.now();
     S.board.tasks.splice(S.board.tasks.indexOf(src)+1,0,copy); wpSyncTaskAliases(copy);
   });
 }
@@ -14796,6 +14849,8 @@ function wpEditorBaseValues(task,scope,recurring) {
 function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
   const projects=visibleProjects(), assignees=wpAssigneeChoices(), assigneeOptions=`<option value="">Не назначено</option>${assignees.map(x=>`<option value="${esc(x)}" ${values.assignee===x?'selected':''}>${esc(x)}</option>`).join('')}`, projectOptions=`<option value="">Выберите проект</option>${projects.map(p=>`<option value="${esc(p.id)}" ${values.projectId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}`, kindOptions=`<option value="personal" ${values.kind==='personal'?'selected':''}>Личные</option><option value="inbox" ${values.kind==='inbox'?'selected':''}>Входящие</option>${!isNew&&values.kind==='matrix'?'<option value="matrix" selected>Матрица · прежний список</option>':''}<option value="project" ${values.kind==='project'?'selected':''}>Проект</option>`;
   const isInstance=scope==='instance';
+  const commentTask=sourceTask||task;
+  const commentHtml=!isNew&&wpCanCommentTask(commentTask)?wpCommentThreadHtml(commentTask):'';
   const freqOptions=[['none','Не повторяется'],['daily','Ежедневно'],['weekly','Еженедельно'],['monthly','Ежемесячно'],['interval','Через интервал']].map(([v,l])=>`<option value="${v}" ${values.frequency===v?'selected':''}>${l}</option>`).join('');
   const days=values.weekdays||[];
   const repeat= isInstance ? `<div class="wp-series-info">${ico('ref')}<span>Серия: <b>${esc(wpRuleDescription(sourceTask)||'повторение')}</b><small>Изменение даты здесь затрагивает только этот экземпляр.</small></span></div>` : `<details class="wp-editor-section" ${values.frequency!=='none'?'open':''}><summary>Повторение</summary><div class="wp-editor-repeat">
@@ -14831,7 +14886,7 @@ function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
       <label class="field"><span>Проверить снова</span><input class="input" id="wpReviewAt" type="date" value="${esc(values.reviewAt||'')}"></label>
     </div></details>
     ${repeat}
-  </div>`;
+  </div>${commentHtml}`;
 }
 function wpSyncEditorUI(root,frequency) {
   const wrap=$('#wpProjectWrap',root),kind=$('#wpKind',root);
@@ -14949,6 +15004,26 @@ function wpOpenEditor(ref=null,opts={}) {
   root.addEventListener('input',e=>{if(e.target.id==='wpFrequency'||e.target.id==='wpMode') wpSyncEditorUI(root);});
   root.addEventListener('change',e=>{if(e.target.id==='wpKind'||e.target.id==='wpProject'||e.target.id==='wpFrequency'||e.target.id==='wpMode') wpSyncEditorUI(root);});
   root.addEventListener('click',async e=>{
+    const commentAction=e.target.closest('[data-wp-comment-action="add"]');
+    if(commentAction) {
+      const input=$('#wpCommentInput',root), body=String(input&&input.value||'').trim();
+      if(!body) { if(input) input.focus(); toast('Введите текст комментария.',{icon:'info'}); return; }
+      if(body.length>WP_COMMENT_MAX_LENGTH) { toast('Комментарий слишком длинный.',{icon:'info'}); return; }
+      const taskId=sourceTask&&sourceTask.id;
+      const currentTask=(S.board.tasks||[]).find(t=>t&&t.id===taskId);
+      if(!currentTask || !wpCanCommentTask(currentTask)) { toast('Комментарии доступны участникам проекта.',{icon:'info'}); return; }
+      const ok=wpCommit('Комментарий добавлен',()=>{
+        const target=(S.board.tasks||[]).find(t=>t&&t.id===taskId);
+        if(!wpAddTaskComment(target,body)) throw new Error('comment was not accepted');
+      },{undo:false,refresh:false});
+      sourceTask=(S.board.tasks||[]).find(t=>t&&t.id===taskId)||sourceTask;
+      if(ok) {
+        const thread=$('#wpCommentThread',root); if(thread) thread.outerHTML=wpCommentThreadHtml(sourceTask);
+        const list=$('.wp-comment-list',root); if(list) list.scrollTop=list.scrollHeight;
+        const nextInput=$('#wpCommentInput',root); if(nextInput) nextInput.focus();
+      }
+      return;
+    }
     const b=e.target.closest('[data-wp-editor],[data-wp-scope]'); if(!b) return;
     if(b.dataset.wpScope) {
       if(wpEditorSnap(root)!==cleanSnap) {
@@ -14986,7 +15061,7 @@ function wpOpenEditor(ref=null,opts={}) {
     m.guard=null; closeModal(m);
     if(isNew && v.frequency==='none' && WP.view==='inbox' && v.scheduledDate) WP.view='week';
   });
-  setTimeout(()=>{const x=$('#wpTitle',root); if(x) x.focus();},40);
+  setTimeout(()=>{const x=opts.focusComments?$('#wpCommentInput',root):$('#wpTitle',root); if(x) x.focus();},40);
 }
 /* -------------------------- Импорт, экспорт и привязки интерфейса -------------------------- */
 
@@ -15221,7 +15296,7 @@ RENDER.tasks=wpRenderTaskPage;
 AFTER.tasks=wpAfterTaskPage;
 Object.assign(ACT,{
   taskNew:()=>wpOpenContextAdd(),
-  taskEdit:el=>wpOpenEditor(wpRefFromElement(el)),
+  taskEdit:el=>wpOpenEditor(wpRefFromElement(el),el.dataset.openComments==='1'?{focusComments:true}:{}),
   taskToggle:el=>wpToggleTask(wpRefFromElement(el)),
   taskMenu:el=>wpTaskMenu(el),
   taskMore:el=>wpMoreMenu(el),

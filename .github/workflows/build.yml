@@ -434,6 +434,8 @@ jobs:
         run: node tests/ui_appearance_test.js
       - name: Notification marquee regression test
         run: node tests/ui_toast_marquee_test.js
+      - name: Notification visibility over native pages regression test
+        run: node tests/ui_notification_visibility_test.js
       - name: CSP hashes and renderer secret isolation regression test
         run: node tests/ui_csp_test.js
       - name: Central UI bridge authorization regression test

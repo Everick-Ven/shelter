@@ -139,7 +139,7 @@
   var FREEZE_BASE = '.menu:not(.closing),.scrim:not(.closing),.call:not([hidden]),#findbar:not([hidden])';
   /* Лёгкие слои (подсказки, уведомления, подсказки омнибокса, панель загрузок) показываются через
      «дыры» в нативном виде вкладки: страница остаётся живой, без снимков и подвисаний. */
-  var HOLE_SEL = '.tip,#toasts>.toast,.suggest:not([hidden]),#dlFloat:not([hidden])';
+  var HOLE_SEL = '.tip,#toasts>.toast,.suggest:not([hidden]),#noteFloat:not([hidden]),#dlFloat:not([hidden])';
   /* без «дыр» те же слои показываем через снимок (как раньше) */
   var OVERLAY_SEL = USE_HOLES ? FREEZE_BASE : FREEZE_BASE + ',' + HOLE_SEL;
 

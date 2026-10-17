@@ -301,6 +301,8 @@ jobs:
         timeout-minutes: 8
         run: |
           set -euo pipefail
+          exec > >(tee -a packaged-dmg-acceptance.log) 2>&1
+          trap 'status=$?; echo "Packaged DMG acceptance failed at line ${LINENO} (exit ${status})"; exit "$status"' ERR
           python3 -m venv .venv
           . .venv/bin/activate
           python -m pip install --disable-pip-version-check websocket-client
@@ -350,7 +352,7 @@ jobs:
 
       - name: Report macOS failure diagnostics
         if: failure()
-        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
+        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log packaged-dmg-acceptance.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -377,6 +379,7 @@ jobs:
             reveal-test-build.log
             platform-tests.log
             package.log
+            packaged-dmg-acceptance.log
             geometry.log
             acceptance-ci.log
             smoke-run.log

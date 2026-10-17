@@ -13,7 +13,7 @@ assert(start >= 0, 'the v7 planner module must be installed in the active UI');
 const end = html.indexOf('\ninit();\n})();', start);
 assert(end > start, 'the planner module must load before the application initializes');
 const planner = html.slice(start, end);
-assert.strictEqual((planner.match(/function wpAllView\(/g) || []).length, 1, 'the task-list renderer has one definition');
+assert.strictEqual((planner.match(/function wpAllView\(/g) || []).length, 1, 'the task-list renderer has one definition and preserves the indexed filter/count path');
 
 assert(html.includes('<style id="shelter-week-planner-style">'), 'the task planner stylesheet must be present');
 const plannerStyle = html.match(/<style id="shelter-week-planner-style">([\s\S]*?)<\/style>/);
@@ -26,6 +26,11 @@ assert(html.includes('wpMigrateTaskStores(breg)'), 'legacy task migration must r
 assert(planner.includes('function wpFinalizeTaskMigration()'), 'migration must require an explicit confirmation step');
 assert(planner.includes('debounce(e=>{WP.query=e.target.value;wpRenderView();},150)'), 'task search must be debounced by 150 ms');
 assert(planner.includes("if(page && page.querySelector('#wpView') && !page.querySelector('.wp-migration-error')) { wpRenderView(); return; }"), 'task-page updates patch the existing planner view instead of replacing the page');
+assert(planner.includes('wpCaptureTaskEntities(editRef,{includeRules:!') && planner.includes("(v.frequency!=='none'||recurring)") && !planner.includes('const before=wpClone(S.board), newId=isNew?'), 'task-editor saves use a focused rollback snapshot and copy recurrence rules only when needed');
+const taskPersistStart=planner.indexOf('function wpPersistBoard()');
+const taskPersistEnd=planner.indexOf('\nfunction wpUndoSnapshot',taskPersistStart);
+const taskPersistSource=planner.slice(taskPersistStart,taskPersistEnd);
+assert(taskPersistSource.includes("store.set('shelter:board',raw)") && taskPersistSource.includes("store.get('shelter:boards')!==regRaw") && !taskPersistSource.includes('JSON.parse') && !taskPersistSource.includes('saveNow()'), 'task updates verify exact board writes without parsing a second copy or rewriting unrelated application data');
 assert(planner.includes('restored.focus({preventScroll:true})') && planner.includes('setSelectionRange(focusState.start,focusState.end)'), 'planner updates restore focused controls and text selection');
 assert(planner.includes("const search=page&&page.querySelector('#wpSearch'); if(search&&search.value!==WP.query) search.value=WP.query;"), 'view changes preserve the planner search query');
 assert(planner.includes("kb('⌘⇧K')"), 'the task search shortcut label must adapt to the platform');
@@ -63,6 +68,7 @@ const store = {
   get(k) { return __data.has(k) ? __data.get(k) : null; },
   set(k, v) {
     if (globalThis.__denyBackup && String(k).startsWith('shelter:planner:migration-backup')) return;
+    if (globalThis.__failNextStoreKey === k) { globalThis.__failNextStoreKey = ''; return; }
     __data.set(k, String(v));
   },
   del(k) { __data.delete(k); },
@@ -84,7 +90,8 @@ const parseRu = s => { const m = String(s || '').match(/^(\d{1,2})\.(\d{1,2})\.(
 const accountEmail = () => String((S.account && S.account.email) || '').trim().toLowerCase();
 const accountName = () => (S.account && S.account.name) || 'Вы';
 const defaultBoard = () => ({ id: '', name: 'Моя доска', code: '', projects: [], people: ['Вы'], prios: [], terms: [], formats: [], statuses: [], tasks: [], invites: [], ownerEmail: '' });
-const ensureBoard = () => { if (!S.board) S.board = defaultBoard(); if (!Array.isArray(S.board.tasks)) S.board.tasks = []; if (!Array.isArray(S.board.projects)) S.board.projects = []; };
+let __ensureBoardCount=0;
+const ensureBoard = () => { __ensureBoardCount++; if (!S.board) S.board = defaultBoard(); if (!Array.isArray(S.board.tasks)) S.board.tasks = []; if (!Array.isArray(S.board.projects)) S.board.projects = []; };
 const canSeeTask = () => true;
 const visibleProjects = () => (S.board && S.board.projects) || [];
 const addProject = name => { const p = { id: uid('prj'), name, members: [] }; S.board.projects.push(p); return p; };
@@ -101,7 +108,8 @@ const confirmDlg = async () => true;
 const promptDlg = async () => 'test';
 const taskDicts = () => {};
 const projectInvite = () => {};
-const saveNow = () => {};
+let __saveNowCount=0;
+const saveNow = () => { __saveNowCount++; };
 const persist = () => {};
 const refreshPage = () => {};
 const renderBadges = () => {};
@@ -118,16 +126,16 @@ const state = {
   taskMigrationPreviewShown: false
 };
 const data = new Map();
-const context = { __state: state, __data: data, __denyBackup: false, __window: { crypto: webcrypto }, __reducedMotion: false, crypto: webcrypto, TextEncoder, TextDecoder, btoa, atob, console, setTimeout, clearTimeout };
+const context = { __state: state, __data: data, __denyBackup: false, __failNextStoreKey: '', __window: { crypto: webcrypto }, __reducedMotion: false, crypto: webcrypto, TextEncoder, TextDecoder, btoa, atob, console, setTimeout, clearTimeout };
 vm.runInNewContext(harness + '\n' + planner + `
 globalThis.__api = {
-  schema: WP_SCHEMA, WP, S, store, actions: ACT, render: RENDER, after: AFTER,
+  schema: WP_SCHEMA, WP, S, store, saveNowCount:()=>__saveNowCount, ensureBoardCount:()=>__ensureBoardCount, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
-  wpBoardEntities, wpBoardToolbar, wpAllEntities, wpSortEntities, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpRenderTaskPageFull, wpRenderView,
+  wpBoardEntities, wpBoardToolbar, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects,
@@ -353,7 +361,7 @@ assert(allToolbar.includes('wp-filter-menu-panel') && allToolbar.includes('data-
 assert(['Активные','Все','Выполненные','Отменённые'].every(label=>allToolbar.includes(label)), 'the dropdown contains all four task-status filters');
 assert(!boardToolbar.includes('data-wp-filter="sort"'), 'sorting controls are not added to the board');
 assert(allToolbar.includes('data-wp-filter="sort"') && ['urgency','assignee','tag','deadline'].every(value=>allToolbar.includes(`value="${value}"`)), 'the task list offers urgency, assignee, tag, and deadline sorting');
-const sortBoardBefore=state.board;
+const sortBoardBefore=state.board,sortBoardIdBefore=state.boardId;
 const sortPrefsBefore={allFilter:api.WP.allFilter,allAssigneeFilter:api.WP.allAssigneeFilter,allProjectFilter:api.WP.allProjectFilter,allSort:api.WP.allSort,allTagFilter:api.WP.allTagFilter,query:api.WP.query,boardHomeFilter:api.WP.boardHomeFilter,boardAssigneeFilter:api.WP.boardAssigneeFilter,boardFocus:api.WP.boardFocus,boardShowCompleted:api.WP.boardShowCompleted};
 state.board={id:'sort-board',projects:[],people:['Алекс','Анна','Борис','Зоя'],invites:[],tasks:[
   {id:'sort-critical',title:'Критическая',homeType:'personal',assignee:'Зоя',tags:['Бета','Альфа'],deadlineAt:'2026-10-20',statusKey:'open',priorityKey:'critical',order:4},
@@ -363,6 +371,9 @@ state.board={id:'sort-board',projects:[],people:['Алекс','Анна','Бор
   {id:'sort-normal-no-deadline',title:'Без срока',homeType:'personal',assignee:'',tags:['Дельта'],deadlineAt:null,statusKey:'open',priorityKey:'normal',order:5},
   {id:'sort-done-critical',title:'Выполнена',homeType:'personal',assignee:'Борис',tags:['0'],deadlineAt:'2026-10-01',statusKey:'done',priorityKey:'critical',order:0}
 ],occurrences:[],recurrenceRules:[]};
+state.boardId='sort-board';
+const ensureCountBeforeTaskQuery=api.ensureBoardCount(); api.wpBaseTasks();
+assert.strictEqual(api.ensureBoardCount(),ensureCountBeforeTaskQuery,'valid task boards skip the full normalization pass during ordinary list/calendar queries');
 api.WP.query=''; api.WP.allFilter='all'; api.WP.allAssigneeFilter='all'; api.WP.allProjectFilter='all'; api.WP.allSort='urgency';
 api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardFocus='all'; api.WP.boardShowCompleted=true;
 const sortIds=mode=>{api.WP.allSort=mode;return Array.from(api.wpAllEntities(),task=>task.id);};
@@ -401,6 +412,17 @@ api.wpSetAllViewFilter('sort','deadline');
 assert.strictEqual(api.WP.allTagFilter,'all','switching away from tag sorting clears the hidden tag filter');
 assert(!api.wpAllFilterToolbar().includes('data-wp-filter="tag"'),'the tag selector is hidden for deadline sorting');
 assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id),urgencyOrder,'the selected task-list sort does not change board ordering');
+const targetedTaskSnapshot=api.wpCaptureTaskEntities({id:'sort-normal-late',entityType:'task'});
+state.board.tasks.find(task=>task.id==='sort-normal-late').title='Временное изменение';
+assert(api.wpRestoreTaskEntities(targetedTaskSnapshot));
+assert.strictEqual(state.board.tasks.find(task=>task.id==='sort-normal-late').title,'Обычная поздняя','a focused task snapshot restores only the edited task');
+const newOccurrenceRef={id:'sort-critical::2026-10-23',entityType:'occurrence',seriesTaskId:'sort-critical',originalDate:'2026-10-23'};
+const occurrenceSnapshot=api.wpCaptureTaskEntities(newOccurrenceRef,{includeRules:true});
+state.board.occurrences.push({id:newOccurrenceRef.id,seriesTaskId:newOccurrenceRef.seriesTaskId,originalDate:newOccurrenceRef.originalDate,scheduledDate:newOccurrenceRef.originalDate,statusKey:'open'});
+state.board.recurrenceRules.push({id:'temporary-rule'});
+assert(api.wpRestoreTaskEntities(occurrenceSnapshot));
+assert.strictEqual(state.board.occurrences.some(record=>record.id===newOccurrenceRef.id),false,'rollback removes an occurrence materialized by a date edit');
+assert.strictEqual(state.board.recurrenceRules.some(rule=>rule.id==='temporary-rule'),false,'focused snapshots also restore recurrence-rule changes when requested');
 api.wpSetAllViewFilter('sort','tag');
 assert.strictEqual(api.WP.allSort,'tag','the sort control updates the selected task-list mode');
 assert(/value="tag" selected/.test(api.wpAllFilterToolbar()),'the selected sort remains visible in the toolbar');
@@ -417,8 +439,31 @@ assert.strictEqual(api.WP.allTagFilter,'all','state validation also clears a hid
 api.WP.allFilter='done'; api.WP.allAssigneeFilter='mine'; api.WP.allProjectFilter='personal'; api.WP.allSort='tag'; api.WP.allTagFilter='tag:Альфа';
 api.wpResetAllFilters(false);
 assert.strictEqual(api.WP.allFilter,'active'); assert.strictEqual(api.WP.allAssigneeFilter,'all'); assert.strictEqual(api.WP.allProjectFilter,'all'); assert.strictEqual(api.WP.allSort,'urgency'); assert.strictEqual(api.WP.allTagFilter,'all','reset restores every task-list filter and the default sort');
-state.board=sortBoardBefore; Object.assign(api.WP,sortPrefsBefore);
+state.board=sortBoardBefore; state.boardId=sortBoardIdBefore; Object.assign(api.WP,sortPrefsBefore);
 api.WP.allFilter='active'; api.WP.boardShowCompleted=true; state.board.tasks=priorBoardTasks; state.board.occurrences=priorOccurrences;
+
+const persistenceState={board:state.board,boards:state.boards,boardsMeta:state.boardsMeta,boardId:state.boardId,pendingKeys:state.taskMigrationPendingKeys};
+const priorStoredBoard=api.store.get('shelter:board'),priorStoredBoards=api.store.get('shelter:boards'),saveCountBefore=api.saveNowCount();
+state.board={id:'persist-test',taskSchemaVersion:api.schema,tasks:[{id:'date-persist',title:'Дата до сохранения',homeType:'personal',scheduledDate:'2026-10-20',deadlineAt:'2026-10-30',statusKey:'open',priorityKey:'normal',tags:[],order:1}],projects:[],people:[],invites:[],occurrences:[],recurrenceRules:[]};
+state.boards=[state.board]; state.boardsMeta={retained:true}; state.boardId='persist-test'; state.taskMigrationPendingKeys=[];
+assert.strictEqual(api.wpPersistBoard(),true,'task-board persistence verifies both board records');
+assert.strictEqual(api.saveNowCount(),saveCountBefore,'saving a task board does not serialize unrelated application state');
+assert.strictEqual(JSON.parse(api.store.get('shelter:board')).id,'persist-test');
+assert.strictEqual(JSON.parse(api.store.get('shelter:boards')).retained,true);
+const dateRef={id:'date-persist',entityType:'task'}, dateCommitOptions={refresh:false,captureState:()=>api.wpCaptureTaskEntities(dateRef),restoreState:api.wpRestoreTaskEntities};
+assert.strictEqual(api.wpCommit('Дата перенесена',()=>api.wpApplySchedule(dateRef,'2026-10-25'),dateCommitOptions),true,'date edits persist through the targeted task snapshot path');
+assert.strictEqual(state.board.tasks[0].scheduledDate,'2026-10-25');
+assert.strictEqual(JSON.parse(api.store.get('shelter:board')).tasks[0].scheduledDate,'2026-10-25');
+assert.strictEqual(api.saveNowCount(),saveCountBefore,'a date edit does not invoke the global application serializer');
+const storedBoardBeforeFailedDate=api.store.get('shelter:board'),storedBoardsBeforeFailedDate=api.store.get('shelter:boards');
+context.__failNextStoreKey='shelter:boards';
+assert.strictEqual(api.wpCommit('Дата перенесена',()=>api.wpApplySchedule(dateRef,'2026-10-26'),dateCommitOptions),false,'a failed registry write rejects the date edit');
+assert.strictEqual(state.board.tasks[0].scheduledDate,'2026-10-25','a failed date save restores the task in memory');
+assert.strictEqual(api.store.get('shelter:board'),storedBoardBeforeFailedDate,'a failed two-key save restores the original board record');
+assert.strictEqual(api.store.get('shelter:boards'),storedBoardsBeforeFailedDate,'a failed two-key save restores the original board registry');
+state.board=persistenceState.board; state.boards=persistenceState.boards; state.boardsMeta=persistenceState.boardsMeta; state.boardId=persistenceState.boardId; state.taskMigrationPendingKeys=persistenceState.pendingKeys;
+if(priorStoredBoard==null) api.store.del('shelter:board'); else api.store.set('shelter:board',priorStoredBoard);
+if(priorStoredBoards==null) api.store.del('shelter:boards'); else api.store.set('shelter:boards',priorStoredBoards);
 
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
 const monthView = api.wpViewHtml();

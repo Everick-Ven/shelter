@@ -1,8 +1,82 @@
 #include "src/secret_crypto.h"
 #include "src/platform.h"
+#include "src/secret_key_file.h"
 
 #include <cassert>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <string>
+#include <system_error>
+
+namespace {
+
+void CheckSecretKeyFileStorage() {
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  const fs::path temp = fs::temp_directory_path(ec) /
+      ("shelter-master-key-file-test-" + std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  assert(!ec);
+  assert(fs::create_directory(temp, ec) && !ec);
+
+  const fs::path key_file = temp / "secret.key";
+  std::string key(32, '\0');
+  for (size_t i = 0; i < key.size(); ++i)
+    key[i] = static_cast<char>(i);
+  std::string error;
+  assert(shelter::platform::secret_key_storage::WriteAllExclusive(
+      key_file, key, &error));
+  assert(error.empty());
+
+  std::ifstream file(key_file, std::ios::binary);
+  assert(file);
+  const std::string stored((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
+  assert(stored == key);
+  file.close();
+
+#if !defined(_WIN32)
+  const fs::perms mode = fs::status(key_file, ec).permissions();
+  const fs::perms access = fs::perms::owner_all | fs::perms::group_all |
+                           fs::perms::others_all;
+  const fs::perms expected = fs::perms::owner_read | fs::perms::owner_write;
+  assert(!ec);
+  assert((mode & access) == expected);
+#endif
+
+  error.clear();
+  assert(!shelter::platform::secret_key_storage::WriteAllExclusive(
+      key_file, "replacement", &error));
+  assert(!error.empty());
+  std::ifstream preserved_file(key_file, std::ios::binary);
+  const std::string preserved((std::istreambuf_iterator<char>(preserved_file)),
+                              std::istreambuf_iterator<char>());
+  assert(preserved == key);
+  preserved_file.close();
+
+  const fs::path linked_file = temp / "linked.key";
+  ec.clear();
+  fs::create_symlink(key_file, linked_file, ec);
+  if (!ec) {
+    error.clear();
+    assert(!shelter::platform::secret_key_storage::WriteAllExclusive(
+        linked_file, "replacement", &error));
+    assert(!error.empty());
+    std::ifstream target_file(key_file, std::ios::binary);
+    const std::string target((std::istreambuf_iterator<char>(target_file)),
+                             std::istreambuf_iterator<char>());
+    assert(target == key);
+    target_file.close();
+  }
+
+  ec.clear();
+  fs::remove_all(temp, ec);
+  assert(!ec);
+}
+
+}  // namespace
 
 namespace shelter {
 namespace platform {
@@ -16,6 +90,8 @@ bool SecretKeyHex(std::string*, std::string*) { return false; }
 }  // namespace shelter
 
 int main() {
+  CheckSecretKeyFileStorage();
+
   const std::string key =
       "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
   const std::string plaintext = "compatibility test: Shelter ss1";

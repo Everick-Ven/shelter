@@ -15,14 +15,11 @@
 
 #include "src/platform.h"
 #include "src/security_paths.h"
+#include "src/secret_key_file.h"
 
 #if defined(_WIN32)
 #include <windows.h>
 #include <wincrypt.h>
-#else
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #endif
 
 namespace shelter {
@@ -87,55 +84,6 @@ bool ReadAll(const std::filesystem::path& path, std::string* out) {
     return false;
   }
   return !file.bad();
-}
-
-bool WriteAllExclusive(const std::filesystem::path& path,
-                       const std::string& data) {
-#if defined(_WIN32)
-  HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW,
-                            FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (file == INVALID_HANDLE_VALUE) return false;
-  size_t offset = 0;
-  bool ok = true;
-  while (offset < data.size()) {
-    const DWORD count = static_cast<DWORD>(std::min<size_t>(
-        data.size() - offset, static_cast<size_t>(MAXDWORD)));
-    DWORD written = 0;
-    if (!WriteFile(file, data.data() + offset, count, &written, nullptr) ||
-        written == 0) {
-      ok = false;
-      break;
-    }
-    offset += written;
-  }
-  if (ok && !FlushFileBuffers(file)) ok = false;
-  if (!CloseHandle(file)) ok = false;
-  if (!ok) DeleteFileW(path.c_str());  // this call created the file exclusively
-  return ok && offset == data.size();
-#else
-  int flags = O_WRONLY | O_CREAT | O_EXCL;
-#ifdef O_NOFOLLOW
-  flags |= O_NOFOLLOW;
-#endif
-  const int fd = ::open(path.c_str(), flags, 0600);
-  if (fd < 0) return false;
-  size_t offset = 0;
-  bool ok = true;
-  while (offset < data.size()) {
-    const ssize_t written = ::write(fd, data.data() + offset,
-                                    data.size() - offset);
-    if (written <= 0) {
-      ok = false;
-      break;
-    }
-    offset += static_cast<size_t>(written);
-  }
-  if (ok && ::fsync(fd) != 0) ok = false;
-  if (::close(fd) != 0) ok = false;
-  if (ok && ::chmod(path.c_str(), 0600) != 0) ok = false;
-  if (!ok) ::unlink(path.c_str());  // only the O_EXCL file created above
-  return ok && offset == data.size();
-#endif
 }
 
 #if defined(_WIN32)
@@ -217,7 +165,12 @@ bool NewRandomKey(std::string* key, std::string* error) {
 bool StoreFileKeyExclusive(const std::filesystem::path& path,
                            const std::string& key_hex,
                            std::string* error) {
-  std::string key(key_hex.size() / 2, '\0');
+  if (error) error->clear();
+  if (!IsHexKey(key_hex)) {
+    if (error) *error = "generated master key is malformed";
+    return false;
+  }
+  std::string key(kKeyLen, '\0');
   for (size_t i = 0; i < key.size(); ++i) {
     const auto digit = [](char c) -> int {
       if (c >= '0' && c <= '9') return c - '0';
@@ -236,9 +189,17 @@ bool StoreFileKeyExclusive(const std::filesystem::path& path,
   std::string blob;
   const bool protected_ok = Protect(key, &blob);
   std::fill(key.begin(), key.end(), '\0');
-  if (!protected_ok || !WriteAllExclusive(path, blob)) {
+  std::string write_error;
+  const bool written = protected_ok &&
+      secret_key_storage::WriteAllExclusive(path, blob, &write_error);
+  if (!written) {
     std::fill(blob.begin(), blob.end(), '\0');
-    if (error) *error = "new master key could not be persisted";
+    if (error) {
+      *error = protected_ok
+          ? (write_error.empty() ? "new master key could not be persisted"
+                                 : write_error)
+          : "new master key could not be protected";
+    }
     return false;
   }
   std::fill(blob.begin(), blob.end(), '\0');
@@ -295,11 +256,20 @@ bool EnsureMacKeyMirror(const std::filesystem::path& path,
     return true;
   }
 
-  if (StoreFileKeyExclusive(path, key_hex, nullptr)) return true;
+  std::string write_error;
+  if (StoreFileKeyExclusive(path, key_hex, &write_error)) return true;
 
-  // Another first-run process may have created the mirror concurrently.
+  // Другой процесс первого запуска мог создать зеркало одновременно.
   std::string mirror;
-  if (!WaitForMacKeyMirror(path, &mirror, error)) return false;
+  std::string wait_error;
+  if (!WaitForMacKeyMirror(path, &mirror, &wait_error)) {
+    if (error) {
+      *error = write_error.empty()
+          ? wait_error
+          : write_error + "; " + wait_error;
+    }
+    return false;
+  }
   const bool matches = mirror == key_hex;
   std::fill(mirror.begin(), mirror.end(), '\0');
   if (!matches && error)
@@ -374,14 +344,19 @@ bool LoadOrCreateMacKey(const std::filesystem::path& path,
     *key_hex = observed;
     return true;
   }
-  if (StoreFileKeyExclusive(path, proposed, nullptr)) {
+  std::string write_error;
+  if (StoreFileKeyExclusive(path, proposed, &write_error)) {
     *key_hex = proposed;
     return true;
   }
-  // Another first-run process may have created the exclusive fallback file.
-  if (WaitForMacKeyMirror(path, key_hex, nullptr)) return true;
-  if (error)
+  // Другой процесс первого запуска мог создать fallback-файл одновременно.
+  std::string wait_error;
+  if (WaitForMacKeyMirror(path, key_hex, &wait_error)) return true;
+  if (error) {
     *error = "neither Keychain nor a new fallback file accepted the master key";
+    if (!write_error.empty()) *error += "; " + write_error;
+    if (!wait_error.empty()) *error += "; " + wait_error;
+  }
   return false;
 }
 #endif

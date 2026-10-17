@@ -14846,8 +14846,29 @@ function wpEditorBaseValues(task,scope,recurring) {
     mode:rule&&rule.mode==='afterCompletion'?'afterCompletion':'calendar',endDate:rule&&rule.endDate||''
   };
 }
+function wpEditorProjectOptions(selected='') {
+  const projects=visibleProjects();
+  return `<option value="">Выберите проект</option>${projects.map(p=>`<option value="${esc(p.id)}" ${selected===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}<option value="__add">+ Добавить новый проект</option>`;
+}
+function wpRefreshEditorProjectOptions(select,selected='') {
+  if(!select) return;
+  select.innerHTML=wpEditorProjectOptions();
+  select.value=selected||'';
+}
+async function wpAddProjectFromEditor(select,previousValue='') {
+  const name=await promptDlg({title:'Новый проект',placeholder:'Название проекта',ok:'Создать'});
+  if(!name) { if(select) select.value=previousValue||''; return false; }
+  if(!String(name).trim()) { if(select) select.value=previousValue||''; toast('Укажите название проекта.',{icon:'info'}); return false; }
+  const before=wpClone(S.board), project=addProject(name);
+  if(!project || !wpPersistBoard()) {
+    wpRestoreBoardMemory(before); wpRefreshEditorProjectOptions(select,previousValue);
+    toast('Не удалось сохранить проект.',{icon:'ban'}); return false;
+  }
+  wpRefreshEditorProjectOptions(select,project.id);
+  return true;
+}
 function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
-  const projects=visibleProjects(), assignees=wpAssigneeChoices(), assigneeOptions=`<option value="">Не назначено</option>${assignees.map(x=>`<option value="${esc(x)}" ${values.assignee===x?'selected':''}>${esc(x)}</option>`).join('')}`, projectOptions=`<option value="">Выберите проект</option>${projects.map(p=>`<option value="${esc(p.id)}" ${values.projectId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}`, kindOptions=`<option value="personal" ${values.kind==='personal'?'selected':''}>Личные</option><option value="inbox" ${values.kind==='inbox'?'selected':''}>Входящие</option>${!isNew&&values.kind==='matrix'?'<option value="matrix" selected>Матрица · прежний список</option>':''}<option value="project" ${values.kind==='project'?'selected':''}>Проект</option>`;
+  const assignees=wpAssigneeChoices(), assigneeOptions=`<option value="">Не назначено</option>${assignees.map(x=>`<option value="${esc(x)}" ${values.assignee===x?'selected':''}>${esc(x)}</option>`).join('')}`, projectOptions=wpEditorProjectOptions(values.projectId), kindOptions=`<option value="personal" ${values.kind==='personal'?'selected':''}>Личные</option><option value="inbox" ${values.kind==='inbox'?'selected':''}>Входящие</option>${!isNew&&values.kind==='matrix'?'<option value="matrix" selected>Матрица · прежний список</option>':''}<option value="project" ${values.kind==='project'?'selected':''}>Проект</option>`;
   const isInstance=scope==='instance';
   const commentTask=sourceTask||task;
   const commentHtml=!isNew&&wpCanCommentTask(commentTask)?wpCommentThreadHtml(commentTask):'';
@@ -14974,7 +14995,7 @@ function wpOpenEditor(ref=null,opts={}) {
   const recurring=!!(sourceTask && wpTaskRule(sourceTask));
   let scope=opts.scope || (ent && ent.entityType==='occurrence' ? 'instance' : recurring ? 'series' : 'series');
   if(!recurring) scope='series';
-  let cleanSnap='';
+  let cleanSnap='', projectSelection='';
   const titleStart=isNew?'Новая задача':ent.entityType==='occurrence'?'Экземпляр повторения':'Задача';
   const m=openModal({width:720,html:`<div class="modal-h"><div class="mi-ic">${ico('tasks')}</div><h3>${titleStart}</h3><button class="icon-btn" data-wp-editor="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b" id="wpEditorMount"></div><div class="modal-f">${!isNew?`<button class="btn ghost danger" data-wp-editor="delete" style="margin-right:auto">${ico('trash')}${recurring?'Завершить серию':'Удалить'}</button>`:''}<button class="btn ghost" data-wp-editor="close">Отмена</button><button class="btn primary" data-wp-editor="save">${ico('check')}Сохранить</button></div>`});
   const root=m.scrim, mount=$('#wpEditorMount',root);
@@ -14994,7 +15015,8 @@ function wpOpenEditor(ref=null,opts={}) {
     }
     if(scope==='instance' && ent) { vals.scheduledDate=wpDateKey(ent.scheduledDate)||null; vals.deadlineAt=wpDeadlineKey(ent.deadlineAt)||null; vals.statusKey=wpTaskStatus(ent); vals.title=ent.title||''; }
     mount.innerHTML=wpEditorBodyHtml(base,scope,isNew,vals,!!(recurring && scope==='series'),sourceTask);
-    if($('#wpProject',root)) $('#wpProject',root).value=vals.projectId||'';
+    const projectSelect=$('#wpProject',root);
+    if(projectSelect) { projectSelect.value=vals.projectId||''; projectSelection=projectSelect.value||''; }
     wpSyncEditorUI(root,vals.frequency);
     cleanSnap=wpEditorSnap(root);
     const h=root.querySelector('.modal-h h3'); if(h) h.textContent=isNew?'Новая задача':scope==='instance'?'Изменить экземпляр':'Изменить задачу / серию';
@@ -15002,7 +15024,17 @@ function wpOpenEditor(ref=null,opts={}) {
   redraw();
   m.guard=()=>wpEditorSnap(root)===cleanSnap ? true : confirmDlg({title:'Закрыть без сохранения?',text:'В форме есть несохранённые изменения.',ok:'Закрыть без сохранения',cancel:'Вернуться к форме',danger:true,icon:'ban'});
   root.addEventListener('input',e=>{if(e.target.id==='wpFrequency'||e.target.id==='wpMode') wpSyncEditorUI(root);});
-  root.addEventListener('change',e=>{if(e.target.id==='wpKind'||e.target.id==='wpProject'||e.target.id==='wpFrequency'||e.target.id==='wpMode') wpSyncEditorUI(root);});
+  root.addEventListener('change',async e=>{
+    const target=e.target;
+    if(target.id==='wpProject') {
+      if(target.value==='__add') {
+        target.value=projectSelection;
+        await wpAddProjectFromEditor(target,projectSelection);
+        projectSelection=target.value||'';
+      } else projectSelection=target.value||'';
+    }
+    if(target.id==='wpKind'||target.id==='wpProject'||target.id==='wpFrequency'||target.id==='wpMode') wpSyncEditorUI(root);
+  });
   root.addEventListener('click',async e=>{
     const commentAction=e.target.closest('[data-wp-comment-action="add"]');
     if(commentAction) {

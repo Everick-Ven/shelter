@@ -26,6 +26,7 @@ assert(planner.includes("if(page && page.querySelector('#wpView') && !page.query
 assert(planner.includes('restored.focus({preventScroll:true})') && planner.includes('setSelectionRange(focusState.start,focusState.end)'), 'planner updates restore focused controls and text selection');
 assert(planner.includes("const search=page&&page.querySelector('#wpSearch'); if(search&&search.value!==WP.query) search.value=WP.query;"), 'view changes preserve the planner search query');
 assert(planner.includes("kb('⌘⇧K')"), 'the task search shortcut label must adapt to the platform');
+assert(planner.includes("await wpAddProjectFromEditor(target,projectSelection)") && planner.includes('wpPersistBoard()'), 'the task editor persists a project selected from its add-project option');
 assert(planner.includes('plannerCalendarShowCompletedTasks') && planner.includes('plannerBoardShowCompletedTasks'), 'calendar and board completed-visibility preferences persist independently');
 assert(!planner.includes('WP.showCompleted'), 'completed-visibility state is not shared across planner views');
 
@@ -100,7 +101,7 @@ globalThis.__api = {
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
+  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpBoardEntities, wpBoardToolbar, wpAllFilterToolbar, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
@@ -381,6 +382,12 @@ const formValues = {
   waitingReason: '', reviewAt: '', frequency: 'none', interval: 1, intervalDays: 1, weekdays: [1], mode: 'calendar', endDate: ''
 };
 const createForm = api.wpEditorBodyHtml(null, 'series', true, formValues, false, null);
+assert(createForm.includes('<option value="__add">+ Добавить новый проект</option>'), 'new-task project selector always offers project creation');
+const projectsBeforeEmptyForm = state.board.projects;
+state.board.projects = [];
+const emptyProjectForm = api.wpEditorBodyHtml(null, 'series', true, { ...formValues, kind: 'project', projectId: '' }, false, null);
+assert(emptyProjectForm.includes('id="wpProject"') && emptyProjectForm.includes('+ Добавить новый проект'), 'the add-project action remains available when the board has no projects');
+state.board.projects = projectsBeforeEmptyForm;
 assert(!createForm.includes('id="wpStatus"') && !createForm.includes('option value="matrix"'));
 assert(createForm.includes('id="wpQuadrant"') && createForm.includes('Метка Матрицы'));
 assert(!createForm.includes('wpScheduledEnd') && !createForm.includes('Дата окончания · для календаря') && createForm.includes('id="wpDeadline"'), 'the existing deadline is the only end-date field in the form');

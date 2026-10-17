@@ -37,17 +37,39 @@ jobs:
           set -euo pipefail
           beta_build=ON
           if [[ "${GITHUB_REF_TYPE:-branch}" == "tag" ]]; then beta_build=OFF; fi
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHELTER_BETA_BUILD="$beta_build" -DUSE_SANDBOX=ON -DUSE_ATL=OFF 2>&1 | tee configure.log
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHELTER_BETA_BUILD="$beta_build" -DSHELTER_CI_HOOKS=OFF -DUSE_SANDBOX=ON -DUSE_ATL=OFF 2>&1 | tee configure.log
+          cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHELTER_BETA_BUILD="$beta_build" -DSHELTER_CI_HOOKS=ON -DUSE_SANDBOX=ON -DUSE_ATL=OFF 2>&1 | tee configure-ci.log
 
       - name: Verify CEF sandbox configuration
         shell: pwsh
-        run: python tools/check_sandbox_config.py configure.log windows
+        run: |
+          python tools/check_sandbox_config.py configure.log windows
+          if ($LASTEXITCODE -ne 0) { throw "Release sandbox configuration failed" }
+          python tools/check_sandbox_config.py configure-ci.log windows
+          if ($LASTEXITCODE -ne 0) { throw "CI-hook sandbox configuration failed" }
 
-      - name: Build
+      - name: Build release and CI-hook variants
         shell: bash
         run: |
           set -euo pipefail
           cmake --build build --target Shelter --parallel 2 2>&1 | tee build.log
+          cmake --build build-ci --target Shelter --parallel 2 2>&1 | tee build-ci.log
+          python tools/check_ci_hooks.py build off
+          python tools/check_ci_hooks.py build-ci on
+
+      - name: Verify real CRX3 signatures with BCrypt/CNG
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "cryptography>=43"
+          if ($LASTEXITCODE -ne 0) { throw "cryptography install failed" }
+          python tools/gen_crx3_fixtures.py --check
+          if ($LASTEXITCODE -ne 0) { throw "CRX3 fixtures are stale or non-deterministic" }
+          cmake --build build --target ShelterCrx3VerifyTest --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw "CRX3 platform verifier test build failed" }
+          cmake --build build --target ShelterDownloadRevealPathTest --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw "Windows download-reveal path test build failed" }
+          ctest --test-dir build -C Release -R "crx3-platform-signature-verification|shelter-download-reveal-path" --output-on-failure
+          if ($LASTEXITCODE -ne 0) { throw "Windows CRX3 or download-reveal path tests failed" }
 
       - name: Verify sandbox bootstrap files
         shell: pwsh
@@ -64,11 +86,22 @@ jobs:
             }
           }
 
-      - name: Geometry acceptance (strict)
+      - name: Geometry acceptance (CI hooks)
         shell: bash
         run: |
           set -euo pipefail
-          python tools/check_geometry.py build/Release/Shelter.exe 2>&1 | tee geometry.log
+          python tools/check_geometry.py build-ci/Release/Shelter.exe 2>&1 | tee geometry.log
+
+      - name: CI-hook runtime acceptance
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check websocket-client
+          if ($LASTEXITCODE -ne 0) { throw "websocket-client install failed" }
+          $version = (Get-Content build-ci/shelter-version.txt -Raw).Trim()
+          $env:PYTHONIOENCODING = "utf-8"
+          python tools/acceptance_smoke.py "$PWD\build-ci\Release\Shelter.exe" --expected-version $version 2>&1 | Tee-Object -FilePath acceptance-ci.log
+          if ($LASTEXITCODE -ne 0) { throw "CI-hook Windows runtime acceptance failed" }
 
       - name: Build installer (Inno Setup)
         shell: pwsh
@@ -97,10 +130,12 @@ jobs:
           $dir = Join-Path $env:LOCALAPPDATA "Programs\SHELTER"
           $exe = Join-Path $dir "Shelter.exe"
           if (-not (Test-Path $exe)) { throw "Installed SHELTER executable not found: $exe" }
+          python tools/check_ci_hooks.py "$dir" off --binary-only
+          if ($LASTEXITCODE -ne 0) { throw "Installed release contains CI-only hooks" }
           "installed executable: $exe" | Tee-Object -FilePath smoke-run.log
           $env:PYTHONIOENCODING = "utf-8"
           $version = (Get-Content build/shelter-version.txt -Raw).Trim()
-          python tools/acceptance_smoke.py $exe --expected-version $version 2>&1 | Tee-Object -FilePath smoke-run.log -Append
+          python tools/acceptance_smoke.py $exe --expected-version $version --allow-missing-ci-hooks 2>&1 | Tee-Object -FilePath smoke-run.log -Append
           if ($LASTEXITCODE -ne 0) { throw "Packaged Windows runtime acceptance failed" }
           Get-Process Shelter -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Sleep -Seconds 2
@@ -114,7 +149,7 @@ jobs:
       - name: Report Windows failure diagnostics
         if: failure()
         shell: pwsh
-        run: python tools/report_ci_failure.py configure.log build.log package.log install.log geometry.log geometry-app.log smoke-run.log acceptance-app.log
+        run: python tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log package.log install.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
 
       - name: Portable zip
         shell: pwsh
@@ -123,6 +158,11 @@ jobs:
           Remove-Item -Force -ErrorAction SilentlyContinue dist/SHELTER/*.pdb, dist/SHELTER/*.lib, dist/SHELTER/*.exp
           Compress-Archive -Path dist/SHELTER -DestinationPath dist/SHELTER-windows-x64-portable.zip
           Remove-Item -Recurse -Force dist/SHELTER
+          $portableCheck = Join-Path $PWD "portable-check"
+          Expand-Archive -Path dist/SHELTER-windows-x64-portable.zip -DestinationPath $portableCheck
+          python tools/check_ci_hooks.py "$portableCheck" off --binary-only
+          if ($LASTEXITCODE -ne 0) { throw "Portable ZIP contains CI-only hooks" }
+          Remove-Item -Recurse -Force $portableCheck
 
       - name: Create package checksums
         shell: pwsh
@@ -151,10 +191,13 @@ jobs:
           name: SHELTER-windows-ci-logs
           path: |
             configure.log
+            configure-ci.log
             build.log
+            build-ci.log
             package.log
             install.log
             geometry.log
+            acceptance-ci.log
             smoke-run.log
             acceptance-app.log
           if-no-files-found: ignore
@@ -177,19 +220,35 @@ jobs:
           set -euo pipefail
           beta_build=ON
           if [[ "${GITHUB_REF_TYPE:-branch}" == "tag" ]]; then beta_build=OFF; fi
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHELTER_BETA_BUILD="$beta_build" -DPROJECT_ARCH=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DUSE_SANDBOX=ON 2>&1 | tee configure.log
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHELTER_BETA_BUILD="$beta_build" -DSHELTER_CI_HOOKS=OFF -DPROJECT_ARCH=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DUSE_SANDBOX=ON 2>&1 | tee configure.log
+          cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHELTER_BETA_BUILD="$beta_build" -DSHELTER_CI_HOOKS=ON -DPROJECT_ARCH=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64 -DUSE_SANDBOX=ON 2>&1 | tee configure-ci.log
 
       - name: Verify CEF sandbox configuration
-        run: python3 tools/check_sandbox_config.py configure.log macos
+        run: |
+          python3 tools/check_sandbox_config.py configure.log macos
+          python3 tools/check_sandbox_config.py configure-ci.log macos
 
-      - name: Build
+      - name: Build release and CI-hook variants
         run: |
           set -euo pipefail
           cmake --build build --target Shelter --parallel 2 2>&1 | tee build.log
+          cmake --build build-ci --target Shelter --parallel 2 2>&1 | tee build-ci.log
+          python3 tools/check_ci_hooks.py build off
+          python3 tools/check_ci_hooks.py build-ci on
+
+      - name: Verify real CRX3 signatures with Security.framework
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'cryptography>=43'
+          python3 tools/gen_crx3_fixtures.py --check
+          cmake --build build --target ShelterCrx3VerifyTest --parallel 2
+          cmake --build build --target ShelterDownloadRevealPathTest --parallel 2
+          ctest --test-dir build -C Release -R "crx3-platform-signature-verification|shelter-download-reveal-path" --output-on-failure
 
       - name: Verify macOS sandbox library
         run: |
           test -f "build/Release/SHELTER.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libcef_sandbox.dylib"
+          test -f "build-ci/Release/SHELTER.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libcef_sandbox.dylib"
 
       - name: Prepare isolated keychain for macOS acceptance
         run: |
@@ -202,10 +261,20 @@ jobs:
           security list-keychains -d user -s "$ci_keychain"
           security default-keychain -d user -s "$ci_keychain"
 
-      - name: Geometry acceptance (strict)
+      - name: Geometry acceptance (CI hooks)
         run: |
           set -euo pipefail
-          python3 tools/check_geometry.py build/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
+          python3 tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
+
+      - name: CI-hook runtime acceptance
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --disable-pip-version-check websocket-client
+          version="$(tr -d '\r\n' < build-ci/shelter-version.txt)"
+          python tools/acceptance_smoke.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" 2>&1 | tee acceptance-ci.log
 
       - name: Package DMG
         run: |
@@ -243,7 +312,8 @@ jobs:
           rmdir "$mount_point"
           mount_point=""
           ls -la /Applications/SHELTER.app/Contents/Resources
-          python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" 2>&1 | tee smoke-run.log
+          python tools/check_ci_hooks.py /Applications/SHELTER.app off --binary-only
+          python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" --allow-missing-ci-hooks 2>&1 | tee smoke-run.log
 
       - name: Inspect macOS master-key mirror
         if: always()
@@ -268,7 +338,7 @@ jobs:
 
       - name: Report macOS failure diagnostics
         if: failure()
-        run: python3 tools/report_ci_failure.py configure.log build.log package.log geometry.log geometry-app.log smoke-run.log acceptance-app.log
+        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log package.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -286,9 +356,12 @@ jobs:
           name: SHELTER-macos-ci-logs
           path: |
             configure.log
+            configure-ci.log
             build.log
+            build-ci.log
             package.log
             geometry.log
+            acceptance-ci.log
             smoke-run.log
             acceptance-app.log
           if-no-files-found: ignore
@@ -321,6 +394,8 @@ jobs:
         run: node tests/open_external_removal_test.js
       - name: NavUrl scheme security regression test
         run: node tests/nav_url_security_test.js
+      - name: CI-only hook configuration regression test
+        run: node tests/ci_hooks_test.js
       - name: Compile and run CRX3 format tests
         run: |
           set -euo pipefail

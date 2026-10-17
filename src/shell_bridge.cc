@@ -195,7 +195,7 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                               security::IsPathWithin(downloads, normalized);
     const bool accepted = accepted_download_paths_.count(raw_path) != 0;
     if (!in_downloads && !accepted) return false;
-    return security::IsRegularFileWithoutLinkChain(normalized);
+    return security::IsRegularFileWithoutSymlinkOrJunctionChain(normalized);
   };
 
   if (m == "premium.status") {
@@ -572,6 +572,7 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                  cb);
     return true;
   }
+#if defined(SHELTER_CI_HOOKS)
   if (m == "dbg.protections") {  // диагностика (CI): состояние защит в браузерном процессе
     // Приёмка обязана уметь отличить «тумблер не дошёл до нативной части» от
     // «дошёл, но рендерер применил старое значение»: без этого сбой в цепочке
@@ -607,6 +608,7 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     }
     return true;
   }
+#endif  // SHELTER_CI_HOOKS
   return false;
 }
 

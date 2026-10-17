@@ -91,13 +91,16 @@ void FillSettings(CefSettings& settings) {
   const std::filesystem::path root_path = std::filesystem::u8path(root);
   const bool root_ok = security::EnsureDirectoryWithoutLink(root_path);
   if (root_ok) CefString(&settings.root_cache_path) = root;
-  // Chromium-журнал по умолчанию ВЫКЛ: в предупреждениях CEF встречаются
-  // адреса и имена файлов, а профиль не должен копить лишние следы сессии.
-  // Диагностика включается явно: SHELTER_DIAG=1 (так делают CI-прогоны).
+  // В предупреждениях CEF встречаются адреса и имена файлов, поэтому журнал
+  // существует только в отдельной сборке CI и включается явно для диагностики.
+#if defined(SHELTER_CI_HOOKS)
   const char* diag = std::getenv("SHELTER_DIAG");
   const bool diag_on = diag && *diag && std::string(diag) != "0";
   if (diag_on && root_ok) CefString(&settings.log_file) = root + "/debug.log";
   settings.log_severity = diag_on ? LOGSEVERITY_WARNING : LOGSEVERITY_DISABLE;
+#else
+  settings.log_severity = LOGSEVERITY_DISABLE;
+#endif
   CefString(&settings.locale) = "ru";
   CefString(&settings.accept_language_list) = "ru-RU,ru,en-US,en";
 #if !defined(CEF_USE_SANDBOX)

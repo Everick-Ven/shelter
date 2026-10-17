@@ -897,12 +897,13 @@ void Shell::Start() {
 CefRefPtr<CefBrowserView> Shell::CreateUiView() {
   CefBrowserSettings settings;
   settings.background_color = CefColorSetARGB(255, 8, 9, 11);  // #08090B — без белой вспышки
-  // CI: SHELTER_SMOKE_URL переключает стартовую страницу (например,
-  // shelter://app/index.html?smoke=site — UI сам откроет сайт после загрузки).
   std::string url = kUiUrl;
+#if defined(SHELTER_CI_HOOKS)
+  // CI может открыть заранее заданную стартовую страницу для проверки геометрии.
   if (const char* smoke = std::getenv("SHELTER_SMOKE_URL")) {
     if (*smoke) url = smoke;
   }
+#endif
   return CefBrowserView::CreateBrowserView(new UiClient(), url, settings,
                                            nullptr, nullptr,
                                            new ShellBrowserViewDelegate());

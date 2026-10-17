@@ -137,8 +137,8 @@ inline bool ParseSignedData(const std::string& encoded, std::string* crx_id) {
 
 }  // namespace detail
 
-// Проверяет только структуру CRX3. Криптографическая проверка выполняется
-// отдельным системным API в platform_win.cc / platform_mac.mm.
+// Проверяет только структуру CRX3. Подпись проверяется системным API
+// в отдельных платформенных файлах crx3_verify_win.cc / crx3_verify_mac.mm.
 inline bool Parse(const std::string& bytes, Package* package) {
   if (!package || bytes.size() < 12 || bytes.compare(0, 4, "Cr24") != 0)
     return false;

@@ -32,13 +32,6 @@ std::string DownloadsDir();
 // Показать файл в Проводнике / Finder.
 void ShowInFolder(const std::string& path);
 
-// SHA-256 и проверка доказательства подписи CRX3 системной криптографией.
-bool Sha256(const std::string& bytes, std::string* digest);
-bool VerifyCrx3Signature(const std::string& public_key_der, bool ecdsa,
-                         const std::string& signed_header_data,
-                         const char* zip_data, std::size_t zip_size,
-                         const std::string& signature);
-
 // Буфер обмена (текст, UTF-8).
 std::string ClipboardRead();
 bool ClipboardWrite(const std::string& text);
@@ -56,9 +49,11 @@ void ApplyViewClip(void* handle, const double radii[4],
                    int view_y, int view_w, int view_h, bool visible,
                    std::uint32_t mask_color);
 
-// Диагностика (CI): уровень предка окна, которому задаётся область (Windows), и дамп цепочки HWND.
+#if defined(SHELTER_CI_HOOKS)
+// Диагностика (CI): дамп цепочки HWND / предков окна.
 void SetClipLevel(int level);
 std::string DumpWindowChain(void* handle);
+#endif
 
 // macOS: первый клик по неактивному окну приложения не должен «съедаться».
 void InstallInputFixes();
@@ -103,8 +98,10 @@ bool EnsureCookieKeychain();
 // блокирует старт и отдачу ресурсов (script src) навсегда.
 bool RunTimed(const std::function<bool()>& op, int timeout_ms);
 
-// Диагностика (macOS): результат hitTest окон приложения в точке (x, y) окна, DIP от верхнего левого угла.
+#if defined(SHELTER_CI_HOOKS)
+// Диагностика (macOS): результат hitTest окон приложения в точке (x, y) окна.
 std::string DebugHitTest(double x, double y);
+#endif
 
 }  // namespace platform
 }  // namespace shelter

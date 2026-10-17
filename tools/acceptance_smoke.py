@@ -1960,6 +1960,7 @@ def cookie_consent_probe(
     base: str,
     process: subprocess.Popen,
     site_pages: List[Cdp],
+    require_native_hooks: bool = True,
 ) -> Dict[str, Any]:
     """Consent banners must be answered before the user can see them.
 
@@ -1987,8 +1988,8 @@ def cookie_consent_probe(
             raise AcceptanceError(
                 f"Cookie auto-consent preference did not switch to {value}"
             )
-        flag = read_native_protections(ui)
-        if flag.get("cookies") is not value:
+        flag = read_native_protections(ui) if require_native_hooks else {}
+        if require_native_hooks and flag.get("cookies") is not value:
             raise AcceptanceError(
                 "Auto-consent never reached the native layer when switched to "
                 f"{value}: " + json.dumps(flag)
@@ -2111,7 +2112,10 @@ def cookie_consent_probe(
     set_cookie_pref(original if isinstance(original, bool) else True, wait=0.5)
     evaluate_retry(ui, f"{test}.setPref('fp', " + json.dumps(original_fp) + ")")
     time.sleep(0.5)
-    native["restored"] = read_native_protections(ui)
+    native["restored"] = (
+        read_native_protections(ui) if require_native_hooks else {}
+    )
+    native["hooks"] = "verified" if require_native_hooks else "skipped-release-build"
     return {
         "toggles": results,
         "control": control,
@@ -2411,6 +2415,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("executable", type=Path)
     parser.add_argument("--expected-version", required=True)
+    parser.add_argument(
+        "--allow-missing-ci-hooks",
+        action="store_true",
+        help="skip native debug-hook assertions for packaged release builds",
+    )
     args = parser.parse_args()
 
     executable = args.executable.expanduser().resolve()
@@ -2789,7 +2798,8 @@ def main() -> int:
             print("SHELTER_ACCEPTANCE_TAB_WIDTH_PASS", flush=True)
 
             consent_result = cookie_consent_probe(
-                ui, port, long_page_base, process, site_pages
+                ui, port, long_page_base, process, site_pages,
+                require_native_hooks=not args.allow_missing_ci_hooks,
             )
             print(
                 "SHELTER_ACCEPTANCE_COOKIE_CONSENT "

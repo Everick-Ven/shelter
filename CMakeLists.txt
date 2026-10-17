@@ -31,6 +31,7 @@ set(CEF_VERSION "154.0.32+g682c378+chromium-154.0.8037.58")
 set(CEF_CHANNEL "minimal")
 option(USE_SANDBOX "Enable CEF's per-process sandbox" ON)
 option(SHELTER_BETA_BUILD "Enable beta-only promotional code access" OFF)
+option(SHELTER_CI_HOOKS "Enable CI-only smoke and diagnostic hooks" OFF)
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
   # Целевая платформа — Intel (x86_64).
@@ -62,7 +63,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} "${SHELTER_GENERATED_DIR}")
 set(SHELTER_COMMON_SRCS
   src/common.cc src/common.h
   src/secret_key.cc src/secret_crypto.cc src/secret_crypto.h
-  src/crx3.cc src/crx3.h src/crx3_format.h
+  src/crx3.cc src/crx3.h src/crx3_crypto.h src/crx3_format.h
   src/renderer_app.cc src/renderer_app.h
   src/ui_scheme.cc src/ui_scheme.h
   src/key_map.cc src/key_map.h
@@ -75,8 +76,10 @@ set(SHELTER_COMMON_SRCS
   src/platform.h src/security_paths.h
 )
 set(SHELTER_SRCS_WINDOWS src/main_win.cc src/platform_win.cc
+                         src/crx3_verify_win.cc
                          "${SHELTER_GENERATED_DIR}/shelter.rc")
-set(SHELTER_SRCS_MAC src/main_mac.mm src/platform_mac.mm)
+set(SHELTER_SRCS_MAC src/main_mac.mm src/platform_mac.mm
+                     src/crx3_verify_mac.mm)
 set(SHELTER_SRCS ${SHELTER_COMMON_SRCS})
 APPEND_PLATFORM_SOURCES(SHELTER_SRCS)
 
@@ -206,5 +209,40 @@ endif()
 if(SHELTER_BETA_BUILD)
   target_compile_definitions(${CEF_TARGET} PRIVATE SHELTER_BETA_BUILD=1)
 endif()
+if(SHELTER_CI_HOOKS)
+  target_compile_definitions(${CEF_TARGET} PRIVATE SHELTER_CI_HOOKS=1)
+endif()
 
 PRINT_CEF_CONFIG()
+
+# Тесты подписи CRX3 связываются с теми же системными API, что и SHELTER.
+if(OS_WINDOWS)
+  add_executable(ShelterCrx3VerifyTest
+    tests/crx3_verify_test.cc src/crx3.cc src/crx3_verify_win.cc
+    src/crx3.h src/crx3_crypto.h src/crx3_format.h)
+  target_link_libraries(ShelterCrx3VerifyTest PRIVATE bcrypt crypt32)
+elseif(OS_MAC)
+  add_executable(ShelterCrx3VerifyTest
+    tests/crx3_verify_test.cc src/crx3.cc src/crx3_verify_mac.mm
+    src/crx3.h src/crx3_crypto.h src/crx3_format.h)
+  target_link_libraries(ShelterCrx3VerifyTest PRIVATE "-framework Security")
+endif()
+
+if(OS_WINDOWS OR OS_MAC)
+  add_executable(ShelterDownloadRevealPathTest
+    tests/download_reveal_path_test.cc)
+endif()
+
+if(TARGET ShelterCrx3VerifyTest)
+  target_include_directories(ShelterCrx3VerifyTest PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_compile_features(ShelterCrx3VerifyTest PRIVATE cxx_std_17)
+  target_include_directories(ShelterDownloadRevealPathTest PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_compile_features(ShelterDownloadRevealPathTest PRIVATE cxx_std_17)
+  enable_testing()
+  add_test(NAME crx3-platform-signature-verification
+    COMMAND ShelterCrx3VerifyTest "${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
+  add_test(NAME shelter-download-reveal-path
+    COMMAND ShelterDownloadRevealPathTest)
+endif()

@@ -8,6 +8,10 @@
 namespace shelter {
 namespace crx3 {
 
+// Рассчитывает ID в формате Chrome из DER открытого ключа.
+bool ExtensionIdFromPublicKeyDer(const std::string& public_key_der,
+                                 std::string* extension_id);
+
 // Проверяет структуру CRX3, CRX ID, подпись ZIP-данных и ожидаемый ID магазина.
 bool Verify(const std::string& bytes, const std::string& expected_id,
             std::size_t* zip_offset, std::string* extension_id);

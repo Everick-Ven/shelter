@@ -306,7 +306,11 @@ const notifyNewProfileAchievements = () => {};
   const cmake = fs.readFileSync(path.join(__dirname, '..', 'CMakeLists.txt'), 'utf8');
   assert(cmake.includes('option(SHELTER_BETA_BUILD') && cmake.includes('SHELTER_BETA_BUILD=1'));
   const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'build.yml'), 'utf8');
-  assert.equal((workflow.match(/-DSHELTER_BETA_BUILD=/g) || []).length, 2);
+  assert.equal(
+    (workflow.match(/-DSHELTER_BETA_BUILD=/g) || []).length,
+    4,
+    'the Beta channel is configured for release and CI-hook builds on both platforms'
+  );
   assert.equal((workflow.match(/GITHUB_REF_TYPE:-branch/g) || []).length, 2, 'tagged production builds disable the Beta channel');
 
   console.log('Pomodoro, Efficiency Manager, and Premium regression tests passed');

@@ -10,7 +10,7 @@ const shell = read('src/shell.cc');
 const shellHeader = read('src/shell.h');
 const platformHeader = read('src/platform.h');
 const paths = read('src/security_paths.h');
-const pathTest = read('tests/security_paths_test.cc');
+const revealPathTest = read('tests/download_reveal_path_test.cc');
 const win = read('src/platform_win.cc');
 const mac = read('src/platform_mac.mm');
 const hostBridge = read('resources/ui/host-bridge.js');
@@ -38,7 +38,7 @@ assert.match(pathGuard, /candidate\.is_absolute\(\)/);
 assert.match(pathGuard, /component == "\.\."/);
 assert.match(pathGuard, /security::IsPathWithin\(downloads, normalized\)/);
 assert.match(pathGuard, /accepted_download_paths_\.count\(raw_path\)/);
-assert.match(pathGuard, /security::IsRegularFileWithoutLinkChain\(normalized\)/);
+assert.match(pathGuard, /security::IsRegularFileWithoutSymlinkOrJunctionChain\(normalized\)/);
 const show = from(bridge, 'if (m == "shell.show")', 'if (m == "block.setEnabled")');
 assert.match(show, /if \(can_reveal_download\(path\)\) platform::ShowInFolder\(path\)/);
 const fileState = from(bridge, 'if (m == "shell.filestate")',
@@ -60,16 +60,25 @@ assert.match(shell, /accepted_download_paths_\.clear\(\)/);
 assert.match(shell, /accepted_download_path_order_\.clear\(\)/);
 
 // Проверка всей цепочки исключает symlink/reparse point в файле и его родителях.
-const chainGuard = from(paths, 'inline bool IsRegularFileWithoutLinkChain(',
-                        'inline bool EnsureDirectoryWithoutLink(');
-assert.match(chainGuard, /path\.is_absolute\(\)/);
-assert.match(chainGuard, /component == "\.\."/);
-assert.match(chainGuard, /IsLinkOrReparsePoint\(current\)/);
-assert.match(chainGuard, /IsDirectoryWithoutLink\(current\)/);
-assert.match(chainGuard, /IsRegularFileWithoutLink\(current\)/);
-assert.match(pathTest, /regular file without linked ancestors accepted/);
-assert.match(pathTest, /symlink in file path rejected/);
-assert.match(pathTest, /file symlink rejected/);
+const cleanupGuard = from(paths, 'inline bool IsLinkOrReparsePoint(',
+                           'inline bool IsSymlinkOrJunction(');
+assert.match(cleanupGuard, /FILE_ATTRIBUTE_REPARSE_POINT/);
+const revealChain = from(paths, 'inline bool IsRegularFileWithoutSymlinkOrJunctionChain(',
+                         'inline bool EnsureDirectoryWithoutLink(');
+assert.match(revealChain, /path\.is_absolute\(\)/);
+assert.match(revealChain, /component == "\.\."/);
+assert.match(revealChain, /IsSymlinkOrJunction\(current\)/);
+assert.match(revealChain, /IsDirectoryWithoutSymlinkOrJunction\(current\)/);
+assert.match(revealChain, /IsRegularFileWithoutSymlinkOrJunction\(current\)/);
+const selectiveTagCheck = from(paths, 'inline bool IsSymlinkOrJunction(', '#else');
+assert.match(selectiveTagCheck, /FindFirstFileW\(path\.c_str\(\), &data\)/);
+assert.match(selectiveTagCheck, /data\.dwReserved0 == IO_REPARSE_TAG_SYMLINK/);
+assert.match(selectiveTagCheck, /data\.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT/);
+assert.doesNotMatch(selectiveTagCheck, /IO_REPARSE_TAG_CLOUD/);
+assert.doesNotMatch(selectiveTagCheck, /FILE_ATTRIBUTE_REPARSE_POINT\)\s*!=\s*0\)\s*return true/);
+assert.match(revealPathTest, /ordinary download is allowed/);
+assert.match(revealPathTest, /file symlink is rejected/);
+assert.match(revealPathTest, /junction in parent path is rejected/);
 
 // Windows использует Shell PIDL API, а не строку аргументов explorer.exe.
 const winShow = from(win, 'void ShowInFolder(', 'std::string ClipboardRead(');

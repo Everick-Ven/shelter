@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-3B7T5+x3J7h5ZC7rRtfiBb7J2FgVhULcF4UyfHCVHlg=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-G6J1On/wiT44dsPPt1X+q85Js/rmXtafFCTYX71iJGE=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -914,8 +914,8 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .form-grid .full{grid-column:1/-1}
 
 /* тосты, подсказки */
-.toast-root{position:absolute;left:5px;bottom:5px;z-index:300;display:flex;flex-direction:column;align-items:flex-start;gap:8px;pointer-events:none;max-width:calc(100% - 10px)}
-/* Уведомления живут ТОЛЬКО в рабочем поле (равный отступ 16px от левого и нижнего края) */
+.toast-root{position:fixed;left:5px;bottom:5px;z-index:2147483647;display:flex;flex-direction:column;align-items:flex-start;gap:8px;pointer-events:none;max-width:calc(100% - 10px)}
+/* Портал уведомлений закрепляется у рабочего поля, но находится вне слоёв приложения. */
 .float-stack{display:flex;flex-direction:column;gap:10px}
 .dl-float{width:298px;background:var(--card);border:1px solid var(--line-2);border-radius:calc(16px*var(--rs));box-shadow:var(--sh-lg);padding:12px 14px 13px;pointer-events:auto;animation:dlfIn .32s cubic-bezier(.22,1,.36,1)}
 .dl-float[hidden]{display:none}
@@ -4554,18 +4554,6 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
           <!-- ВНУТРЕННИЕ СТРАНИЦЫ -->
           <div class="view" id="page" hidden></div>
         </div>
-      <div class="toast-root" id="toasts" aria-live="polite">
-      <div class="float-stack" id="floatStack">
-        <div class="dl-float" id="noteFloat" hidden aria-live="polite">
-          <div class="dlf-h"><span id="nfTitle">Уведомление</span><button class="dlf-x" data-act="noteHide" aria-label="Скрыть"><svg class="i"><use href="#i-x"/></svg></button></div>
-          <div id="nfBody"></div>
-        </div>
-        <div class="dl-float" id="dlFloat" hidden aria-live="polite">
-          <div class="dlf-h"><span id="dlfTitle">Скачивание</span><button class="dlf-x" data-act="dlHide" aria-label="Скрыть"><svg class="i"><use href="#i-x"/></svg></button></div>
-          <div id="dlfBody"></div>
-        </div>
-      </div>
-      </div>
       </div>
 
       <div class="findbar" id="findbar" hidden>
@@ -4598,6 +4586,19 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   <aside class="tab-rail" id="tabRight" hidden aria-label="Вкладки">
       <div class="rail-top"><button class="icon-btn rail-toggle" data-act="toggleRail" data-tip="Свернуть" aria-label="Свернуть"><svg class="i"><use href="#i-sidebar"/></svg></button></div>
     </aside>
+</div>
+
+<div class="toast-root" id="toasts" aria-live="polite">
+  <div class="float-stack" id="floatStack">
+    <div class="dl-float" id="noteFloat" hidden aria-live="polite">
+      <div class="dlf-h"><span id="nfTitle">Уведомление</span><button class="dlf-x" data-act="noteHide" aria-label="Скрыть"><svg class="i"><use href="#i-x"/></svg></button></div>
+      <div id="nfBody"></div>
+    </div>
+    <div class="dl-float" id="dlFloat" hidden aria-live="polite">
+      <div class="dlf-h"><span id="dlfTitle">Скачивание</span><button class="dlf-x" data-act="dlHide" aria-label="Скрыть"><svg class="i"><use href="#i-x"/></svg></button></div>
+      <div id="dlfBody"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -5025,6 +5026,23 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const uid = (p = 'id') => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const ico = (n, c = '') => `<svg class="i ${c}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
 const raf = f => requestAnimationFrame(f);
+function positionToastRoot() {
+  const root = $('#toasts'), viewport = $('#viewport');
+  if (!root || !viewport) return;
+  const rect = viewport.getBoundingClientRect();
+  root.style.left = `${Math.round(rect.left + 5)}px`;
+  root.style.bottom = `${Math.max(0, Math.round(window.innerHeight - rect.bottom + 5))}px`;
+  root.style.maxWidth = `${Math.max(0, Math.floor(rect.width - 10))}px`;
+}
+function watchToastRootPosition() {
+  const viewport = $('#viewport');
+  if (!viewport) return;
+  positionToastRoot();
+  if (window.ResizeObserver) new ResizeObserver(positionToastRoot).observe(viewport);
+  window.addEventListener('resize', positionToastRoot, { passive: true });
+  viewport.addEventListener('transitionend', positionToastRoot);
+}
+watchToastRootPosition();
 const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
 const plural = (n, f) => { n = Math.abs(n) % 100; const n1 = n % 10; if (n > 10 && n < 20) return f[2]; if (n1 > 1 && n1 < 5) return f[1]; if (n1 === 1) return f[0]; return f[2]; };
 const fmtN = n => Math.round(n).toLocaleString('ru-RU');

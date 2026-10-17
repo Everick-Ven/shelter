@@ -247,8 +247,10 @@ jobs:
       - name: Verify real CRX3 signatures with Security.framework
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check 'cryptography>=43' 2>&1 | tee fixture-setup.log
-          python3 tools/gen_crx3_fixtures.py --check 2>&1 | tee crx3-fixtures.log
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --disable-pip-version-check 'cryptography>=43' 2>&1 | tee fixture-setup.log
+          python tools/gen_crx3_fixtures.py --check 2>&1 | tee crx3-fixtures.log
           cmake --build build --target ShelterCrx3VerifyTest --parallel 2 2>&1 | tee crx3-test-build.log
           cmake --build build --target ShelterDownloadRevealPathTest --parallel 2 2>&1 | tee reveal-test-build.log
           ctest --test-dir build -C Release -R "crx3-platform-signature-verification|shelter-download-reveal-path" --output-on-failure 2>&1 | tee platform-tests.log

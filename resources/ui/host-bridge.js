@@ -127,8 +127,6 @@
   /* ---------- стили ---------- */
   var style = document.createElement('style');
   style.textContent =
-    (USE_HOLES ? '.sh-snap-wait .menu,.sh-snap-wait .scrim{visibility:hidden!important}'
-               : '.sh-snap-wait .menu,.sh-snap-wait .scrim,.sh-snap-wait #toasts,.sh-snap-wait .suggest{visibility:hidden!important}') +
     '#shSnap{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:fill;pointer-events:none;z-index:3;background:#fff}' +
     (PLATFORM === 'darwin' ? '#winLights{visibility:hidden!important}' : '');
   (document.head || root).appendChild(style);
@@ -171,11 +169,34 @@
   }
   function showSnap(url) {
     var v = byId('viewport');
-    if (!v) return;
+    if (!v) return null;
     var img = byId('shSnap');
-    if (!url) { if (img) img.remove(); return; }
+    if (!url) { if (img) img.remove(); return null; }
     if (!img) { img = document.createElement('img'); img.id = 'shSnap'; img.alt = ''; v.appendChild(img); }
+    img.style.visibility = 'hidden';
     img.src = url;
+    return img;
+  }
+  function waitForSnapshot(img, timeout) {
+    return new Promise(function (resolve) {
+      if (!img) { resolve(false); return; }
+      var settled = false;
+      var timer = setTimeout(function () { finish(false); }, timeout || 500);
+      function finish(ready) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(!!ready && img.complete && img.naturalWidth > 0);
+      }
+      if (typeof img.decode === 'function') {
+        try { img.decode().then(function () { finish(img.naturalWidth > 0); }, function () { finish(false); }); }
+        catch (_) { finish(false); }
+        return;
+      }
+      if (img.complete) { finish(img.naturalWidth > 0); return; }
+      img.addEventListener('load', function () { finish(img.naturalWidth > 0); }, { once: true });
+      img.addEventListener('error', function () { finish(false); }, { once: true });
+    });
   }
   function dropSnap() { st.snapUrl = ''; st.snapFor = ''; showSnap(''); }
   function nextFrames(n) {
@@ -187,14 +208,12 @@
   function freeze() {
     if (st.busy || st.frozen || !st.visible || !st.tabId) return;
     st.busy = true;
-    var id = st.tabId, epoch = st.epoch, t0 = performance.now(), hideSent = false;
-    root.classList.add('sh-snap-wait');
+    var id = st.tabId, epoch = st.epoch, t0 = performance.now(), hideSent = false, captureFailed = false;
     function stillCurrent() {
       return st.visible && st.tabId === id && st.epoch === epoch && overlayOverViewport();
     }
     function finish() {
       st.busy = false;
-      root.classList.remove('sh-snap-wait');
       evaluate();
     }
     function recoverStaleHide() {
@@ -209,12 +228,21 @@
     qSnap(id, 58, 900).then(function (url) {
       pushPerf(perf.snapMs, performance.now() - t0);
       pushPerf(perf.snapKB, (url || '').length / 1024);
-      if (!stillCurrent()) return false;
-      if (url) { st.snapUrl = url; st.snapFor = id; showSnap(url); }
-      return nextFrames(2).then(stillCurrent);
+      if (!stillCurrent()) { dropSnap(); return false; }
+      if (!url) { captureFailed = true; dropSnap(); return false; }
+      st.snapUrl = url; st.snapFor = id;
+      var img = showSnap(url);
+      return waitForSnapshot(img, 500).then(function (ready) {
+        if (!ready) { captureFailed = true; dropSnap(); return false; }
+        if (!stillCurrent()) { dropSnap(); return false; }
+        img.style.visibility = '';
+        return nextFrames(2).then(stillCurrent);
+      });
     }).then(function (shouldHide) {
       if (!shouldHide || !stillCurrent()) {
         st.frozen = false;
+        dropSnap();
+        if (captureFailed && st.visible && overlayOverViewport()) scheduleFreezeRetry();
         finish();
         return false;
       }
@@ -226,6 +254,7 @@
       if (!hidden) {
         st.frozen = false;
         dropSnap();
+        if (st.visible && overlayOverViewport()) scheduleFreezeRetry();
         finish();
         return;
       }
@@ -237,10 +266,9 @@
       pushPerf(perf.freezeMs, performance.now() - t0);
       finish();
     }).catch(function () {
-      // Always release the temporary hidden-menu state, even if a bridge call
-      // fails during shutdown or a tab is replaced while a snapshot is pending.
+      // Всегда возвращаем обычный вид интерфейса, если снимок или мост не сработали.
       if (hideSent) recoverStaleHide();
-      else { st.frozen = false; finish(); }
+      else { st.frozen = false; dropSnap(); scheduleFreezeRetry(); finish(); }
     });
   }
   function thaw() {
@@ -408,10 +436,21 @@
     };
   };
 
+  var freezeRetryAt = 0, freezeRetryTimer = 0;
+  function resetFreezeRetry() {
+    freezeRetryAt = 0;
+    if (freezeRetryTimer) { clearTimeout(freezeRetryTimer); freezeRetryTimer = 0; }
+  }
+  function scheduleFreezeRetry() {
+    resetFreezeRetry();
+    freezeRetryAt = performance.now() + 750;
+    freezeRetryTimer = setTimeout(function () { freezeRetryTimer = 0; scheduleEval(); }, 750);
+  }
   function evaluate() {
     if (st.busy) return;
     var need = st.visible && overlayOverViewport();
-    if (need && !st.frozen) freeze();
+    if (!need) resetFreezeRetry();
+    if (need && !st.frozen && performance.now() >= freezeRetryAt) freeze();
     else if (!need && st.frozen && st.visible) thaw();
     else if (!st.visible && st.frozen) { st.frozen = false; dropSnap(); }
     /* Holes are measured only for their short entrance/exit motion or viewport
@@ -459,7 +498,7 @@
     var changed = st.urls[id] !== url;
     var contextChanged = st.tabId !== id || changed || !st.visible;
     st.urls[id] = url;
-    if (contextChanged) { st.epoch++; dropSnap(); }
+    if (contextChanged) { st.epoch++; dropSnap(); resetFreezeRetry(); }
     st.tabId = id;
     st.visible = true;
     setNativeContentClass();
@@ -482,8 +521,8 @@
     st.epoch++;
     st.visible = false;
     st.frozen = false;
+    resetFreezeRetry();
     setNativeContentClass();
-    root.classList.remove('sh-snap-wait');
     stopClipLoop();
     dropSnap();
     q('view.hide');

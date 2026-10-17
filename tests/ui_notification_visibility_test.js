@@ -102,6 +102,15 @@ assert.match(
   /var OVERLAY_SEL = USE_HOLES \? FREEZE_BASE : FREEZE_BASE \+ ',' \+ HOLE_SEL;/,
   'На Windows активное уведомление должно запускать снимок, на macOS — вырезаться из нативного слоя'
 );
+assert.ok(!bridge.includes('sh-snap-wait'), 'получение снимка не должно скрывать интерфейс на время ожидания');
+const freezeStart = bridge.indexOf('  function freeze() {');
+const freezeEnd = bridge.indexOf('  function thaw()', freezeStart);
+assert.ok(freezeStart >= 0 && freezeEnd > freezeStart, 'Не найден цикл замены нативного вида снимком');
+const freezeCode = bridge.slice(freezeStart, freezeEnd);
+const noSnapshotPath = freezeCode.indexOf('if (!url) { captureFailed = true; dropSnap(); return false; }');
+const hideNativeView = freezeCode.indexOf('hideSent = true;');
+assert.ok(noSnapshotPath >= 0 && hideNativeView > noSnapshotPath, 'при неудаче снимка нативный вид остаётся показанным');
+assert.ok(freezeCode.includes('waitForSnapshot(img, 500)'), 'снимок декодируется до скрытия нативной страницы');
 assert.match(
   bridge,
   /function holeRects\(vp\) \{[\s\S]*?document\.querySelectorAll\(HOLE_SEL\)/,
@@ -136,4 +145,17 @@ assert.match(nativePopupStyle, /\.dl-float\{/);
 assert.match(nativePopupStyle, /background-color:var\(--native-popup-menu\)/);
 assert.match(nativePopupStyle, /background-image:linear-gradient\(var\(--native-contrast-veil\)/);
 
-console.log('Notification visibility over native pages, modals, and popups passed');
+const snapshotReadyStart = bridge.indexOf('  function waitForSnapshot(img, timeout) {');
+const snapshotReadyEnd = bridge.indexOf('\n  function dropSnap()', snapshotReadyStart);
+assert.ok(snapshotReadyStart >= 0 && snapshotReadyEnd > snapshotReadyStart, 'Не найдено ожидание готовности изображения снимка');
+const snapshotReadyCode = bridge.slice(snapshotReadyStart, snapshotReadyEnd);
+const waitForSnapshot = new Function(snapshotReadyCode + '\nreturn waitForSnapshot;')();
+
+(async function testSnapshotReadiness() {
+  const image = { complete: true, naturalWidth: 2, decode: () => Promise.resolve() };
+  assert.strictEqual(await waitForSnapshot(image, 50), true, 'готовый декодированный снимок можно безопасно показать');
+  const broken = { complete: true, naturalWidth: 0, decode: () => Promise.reject(new Error('decode failed')) };
+  assert.strictEqual(await waitForSnapshot(broken, 50), false, 'повреждённый снимок не должен скрывать нативную страницу');
+  assert.strictEqual(await waitForSnapshot(null, 50), false, 'отсутствующий снимок не считается готовым');
+  console.log('Notification visibility and native-view snapshot recovery tests passed');
+})().catch(error => { console.error(error); process.exitCode = 1; });

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-5U7a73DDqxrle/+55RmP/A5wN4jMLAgTyPD9XCwKJms=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-iSj2ptVphgpumqMAYWJOYDkRkptfiUjQpuf2E98W8Ms=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4241,6 +4241,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 }
 /* Keep the task-list and board controls in the same responsive filter grid. */
 .wp-filter-layout{display:grid;grid-template-columns:minmax(0,1.6fr) max-content minmax(140px,1fr) minmax(140px,1fr) max-content;align-items:end;gap:7px}
+.wp-all-filter-row{grid-template-columns:minmax(0,1.35fr) max-content repeat(3,minmax(120px,1fr)) max-content}
 .wp-filter-layout .wp-filter-main{display:flex;align-items:center;gap:7px;min-width:0;grid-column:1}
 .wp-filter-layout .wp-filter-pills{display:flex;align-items:center;gap:3px;min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none;padding:3px;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card-2)}
 .wp-filter-layout .wp-filter-pills::-webkit-scrollbar{display:none}
@@ -4259,6 +4260,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .wp-filter-layout .wp-my-filter{grid-column:1;grid-row:2;align-self:end;justify-self:start}
   .wp-filter-layout .wp-filter-assignee{grid-column:2;grid-row:2}
   .wp-filter-layout .wp-filter-project{grid-column:3;grid-row:2}
+  .wp-all-filter-row .wp-filter-sort{grid-column:1/span 2;grid-row:3}
   .wp-filter-layout .wp-clear-filters{grid-column:3;grid-row:3;justify-self:end}
 }
 @container shelter (max-width:620px){
@@ -4269,7 +4271,8 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .wp-filter-layout .wp-my-filter{grid-column:1;grid-row:2;align-self:end}
   .wp-filter-layout .wp-filter-assignee{grid-column:2;grid-row:2}
   .wp-filter-layout .wp-filter-project{grid-column:1/-1;grid-row:3}
-  .wp-filter-layout .wp-clear-filters{grid-column:2;grid-row:4;justify-self:end}
+  .wp-all-filter-row .wp-filter-sort{grid-column:1/-1;grid-row:4}
+  .wp-all-filter-row .wp-clear-filters{grid-column:2;grid-row:5;justify-self:end}
 }
 @media(max-width:900px){
   .wp-filter-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:5px}
@@ -4277,6 +4280,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .wp-filter-layout .wp-my-filter{grid-column:1;grid-row:2;align-self:end;justify-self:start}
   .wp-filter-layout .wp-filter-assignee{grid-column:2;grid-row:2}
   .wp-filter-layout .wp-filter-project{grid-column:3;grid-row:2}
+  .wp-all-filter-row .wp-filter-sort{grid-column:1/span 2;grid-row:3}
   .wp-filter-layout .wp-clear-filters{grid-column:3;grid-row:3;justify-self:end}
 }
 @media(max-width:620px){
@@ -4287,7 +4291,8 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .wp-filter-layout .wp-my-filter{grid-column:1;grid-row:2;align-self:end}
   .wp-filter-layout .wp-filter-assignee{grid-column:2;grid-row:2}
   .wp-filter-layout .wp-filter-project{grid-column:1/-1;grid-row:3}
-  .wp-filter-layout .wp-clear-filters{grid-column:2;grid-row:4;justify-self:end}
+  .wp-all-filter-row .wp-filter-sort{grid-column:1/-1;grid-row:4}
+  .wp-all-filter-row .wp-clear-filters{grid-column:2;grid-row:5;justify-self:end}
 }
 .wp-transfer-scopes{display:grid;gap:8px;margin-bottom:12px}
 .wp-transfer-choice{display:flex;align-items:flex-start;gap:10px;padding:10px 11px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));background:var(--card);cursor:pointer}
@@ -13063,7 +13068,7 @@ function init() {
 const WP_SCHEMA = 7;
 const WP = {
   view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', calendarShowCompleted: true, boardShowCompleted: true,
-  sidebarCollapsed: false, allFilter: 'active', allAssigneeFilter: 'all', allProjectFilter: 'all', quick: null, reviewSelected: [],
+  sidebarCollapsed: false, allFilter: 'active', allAssigneeFilter: 'all', allProjectFilter: 'all', allSort: 'urgency', quick: null, reviewSelected: [],
   boardHomeFilter: 'all', boardAssigneeFilter: 'all', boardFocus: 'all',
   _calendarModeRestored: false, _completedVisibilityRestored: false, _sidebarRestored: false, _touchX: null, _undoToken: 0
 };
@@ -13577,6 +13582,7 @@ function wpEnsureState() {
   if(!['week','month'].includes(WP.calendarMode)) WP.calendarMode='week';
   if(!['week','board','inbox','all','projects'].includes(WP.view)) WP.view='week';
   if(!['all','mine','unassigned'].includes(WP.allAssigneeFilter) && !String(WP.allAssigneeFilter||'').startsWith('person:')) WP.allAssigneeFilter='all';
+  if(!['urgency','assignee','tag','deadline'].includes(WP.allSort)) WP.allSort='urgency';
   if(!['all','personal','inbox'].includes(WP.allProjectFilter) && !String(WP.allProjectFilter||'').startsWith('project:')) WP.allProjectFilter='all';
   if(String(WP.allProjectFilter||'').startsWith('project:') && !(S.board&&S.board.projects||[]).some(p=>'project:'+p.id===WP.allProjectFilter)) WP.allProjectFilter='all';
   if(String(WP.allAssigneeFilter||'').startsWith('person:') && typeof wpAssigneeChoices==='function' && !wpAssigneeChoices().some(x=>'person:'+x===WP.allAssigneeFilter)) WP.allAssigneeFilter='all';
@@ -13741,14 +13747,27 @@ function wpSearchMatch(t) {
   const text=[t.title,t.description,t.comment,t.project,project&&project.name,t.waitingReason,wpAssigneeLabel(t),... (Array.isArray(t.tags)?t.tags:[])].join(' ').toLocaleLowerCase();
   return text.includes(q);
 }
-function wpSortEntities(items) {
-  return items.slice().sort((a,b)=>{
-    const sa=wpTaskStatus(a), sb=wpTaskStatus(b);
-    if((sa==='done')!==(sb==='done')) return sa==='done'?1:-1;
-    const pa={critical:0,high:1,normal:2,none:3};
-    const dp=(pa[wpPriority(a)]??2)-(pa[wpPriority(b)]??2); if(dp) return dp;
-    return (+a.order||0)-(+b.order||0) || String(a.title||'').localeCompare(String(b.title||''),'ru');
+function wpSortEntities(items,sortBy='urgency') {
+  const priorityRank={critical:0,high:1,normal:2,none:3};
+  const compareText=(a,b)=>String(a||'').localeCompare(String(b||''),'ru',{sensitivity:'base',numeric:true});
+  const compareMissingLast=(a,b)=>!a&&!b?0:!a?1:!b?-1:compareText(a,b);
+  const rows=items.map((task,index)=>{
+    const tags=Array.isArray(task&&task.tags)?task.tags.map(tag=>String(tag||'').trim()).filter(Boolean):[];
+    tags.sort(compareText);
+    return {task,index,assignee:wpAssigneeLabel(task),tag:tags[0]||'',deadline:wpDeadlineKey(task&&task.deadlineAt)};
   });
+  rows.sort((a,b)=>{
+    const sa=wpTaskStatus(a.task), sb=wpTaskStatus(b.task);
+    if((sa==='done')!==(sb==='done')) return sa==='done'?1:-1;
+    let primary=0;
+    if(sortBy==='assignee') primary=compareMissingLast(a.assignee,b.assignee);
+    else if(sortBy==='tag') primary=compareMissingLast(a.tag,b.tag);
+    else if(sortBy==='deadline') primary=compareMissingLast(a.deadline,b.deadline);
+    if(primary) return primary;
+    const dp=(priorityRank[wpPriority(a.task)]??2)-(priorityRank[wpPriority(b.task)]??2); if(dp) return dp;
+    return (+a.task.order||0)-(+b.task.order||0) || String(a.task.title||'').localeCompare(String(b.task.title||''),'ru') || a.index-b.index;
+  });
+  return rows.map(row=>row.task);
 }
 function wpRangeEntities(start,end) {
   const from=wpDateKey(start), to=wpDateKey(end); if(!from||!to||to<from) return [];
@@ -13826,7 +13845,7 @@ function wpAllEntities({ignoreFilters=false}={}) {
     const target=String(WP.allProjectFilter).slice(8);
     items=items.filter(t=>wpTaskHomeType(t)==='project' && String(t.homeId||t.projectId||'')===target);
   }
-  return wpSortEntities(items);
+  return wpSortEntities(items,WP.allSort);
 }
 function wpDecisionEntities(weekStart) {
   const out=[], seen=new Set();
@@ -14208,8 +14227,9 @@ function wpAllFilterToolbar() {
   const assigneeOptions=[['all','Все исполнители'],['unassigned','Не назначено'],...assignees.map(x=>['person:'+x,x])];
   const projectOptions=[['all','Все'],['inbox','Входящие'],['personal','Личные'],...projects.map(x=>['project:'+x.id,x.name])];
   const filters=[['active','Активные'],['all','Все'],['done','Выполненные'],['cancelled','Отменённые']];
-  const dirty=WP.allFilter!=='active'||WP.allAssigneeFilter!=='all'||project!=='all';
-  return `<div class="wp-all-toolbar"><div class="wp-filter-layout wp-all-filter-row"><div class="wp-filter-main"><div class="wp-filter-pills" role="group" aria-label="Фильтр по статусу">${filters.map(([v,l])=>`<button type="button" class="${WP.allFilter===v?'active':''}" data-act="wpAllFilter" data-filter="${v}" aria-pressed="${WP.allFilter===v}">${l}</button>`).join('')}</div></div><button type="button" class="wp-my-filter ${mine?'active':''}" data-act="wpAllMineToggle" aria-pressed="${mine}">${ico('user')}Мои задачи</button><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-filter="assignee" aria-label="Фильтр по исполнителю">${assigneeOptions.map(([v,l])=>`<option value="${esc(v)}" ${selected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-filter="project" aria-label="Фильтр по списку и проекту">${projectOptions.map(([v,l])=>`<option value="${esc(v)}" ${project===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpAllReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${wpAllEntities().length}</b> из ${wpAllEntities({ignoreFilters:true}).length}</div></div>`;
+  const sortOptions=[['urgency','По срочности'],['assignee','По исполнителю'],['tag','По тегу'],['deadline','По сроку']];
+  const dirty=WP.allFilter!=='active'||WP.allAssigneeFilter!=='all'||project!=='all'||WP.allSort!=='urgency';
+  return `<div class="wp-all-toolbar"><div class="wp-filter-layout wp-all-filter-row"><div class="wp-filter-main"><div class="wp-filter-pills" role="group" aria-label="Фильтр по статусу">${filters.map(([v,l])=>`<button type="button" class="${WP.allFilter===v?'active':''}" data-act="wpAllFilter" data-filter="${v}" aria-pressed="${WP.allFilter===v}">${l}</button>`).join('')}</div></div><button type="button" class="wp-my-filter ${mine?'active':''}" data-act="wpAllMineToggle" aria-pressed="${mine}">${ico('user')}Мои задачи</button><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-filter="assignee" aria-label="Фильтр по исполнителю">${assigneeOptions.map(([v,l])=>`<option value="${esc(v)}" ${selected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-filter="project" aria-label="Фильтр по списку и проекту">${projectOptions.map(([v,l])=>`<option value="${esc(v)}" ${project===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-sort"><span>Сортировать</span><select class="select" data-wp-filter="sort" aria-label="Сортировка задач">${sortOptions.map(([v,l])=>`<option value="${v}" ${WP.allSort===v?'selected':''}>${l}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpAllReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${wpAllEntities().length}</b> из ${wpAllEntities({ignoreFilters:true}).length}</div></div>`;
 }
 function wpAllView() {
   const all=wpAllEntities();
@@ -15565,7 +15585,9 @@ function wpToggleBoardMine() { WP.boardAssigneeFilter=WP.boardAssigneeFilter==='
 function wpResetBoardFilters() { WP.boardHomeFilter='all';WP.boardAssigneeFilter='all';WP.boardFocus='all';wpRenderView(); }
 function wpBoardAdd() { wpOpenEditor(null,{}); }
 function wpSetAllViewFilter(field,value) {
-  if(field==='assignee') {
+  if(field==='sort') {
+    WP.allSort=['urgency','assignee','tag','deadline'].includes(value)?value:'urgency';
+  } else if(field==='assignee') {
     const allowed=value==='all'||value==='mine'||value==='unassigned'||(String(value).startsWith('person:')&&wpAssigneeChoices().some(x=>'person:'+x===value));
     WP.allAssigneeFilter=allowed?value:'all';
   } else if(field==='project' || field==='home') {
@@ -15574,7 +15596,7 @@ function wpSetAllViewFilter(field,value) {
   }
   wpRenderView();
 }
-function wpResetAllFilters(render=true) { WP.allFilter='active';WP.allAssigneeFilter='all';WP.allProjectFilter='all';if(render)wpRenderView(); }
+function wpResetAllFilters(render=true) { WP.allFilter='active';WP.allAssigneeFilter='all';WP.allProjectFilter='all';WP.allSort='urgency';if(render)wpRenderView(); }
 function wpAllMineToggle() { WP.allAssigneeFilter=WP.allAssigneeFilter==='mine'?'all':'mine';wpRenderView(); }
 function wpContextAddTarget(view=WP.view,projectId=WP.projectId,mobileDate=WP.mobileDate) {
   if(view==='week') return {mode:'quick',date:wpDateKey(mobileDate)||wpDateKey(Date.now()),projectId:null,context:'week',homeType:'personal'};

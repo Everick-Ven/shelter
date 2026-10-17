@@ -17,6 +17,7 @@ const planner = html.slice(start, end);
 assert(html.includes('<style id="shelter-week-planner-style">'), 'the task planner stylesheet must be present');
 const plannerStyle = html.match(/<style id="shelter-week-planner-style">([\s\S]*?)<\/style>/);
 assert(plannerStyle && plannerStyle[1].includes('.wp-filter-layout{display:grid;'), 'the list and board filters share a responsive grid');
+assert(plannerStyle[1].includes('.wp-all-filter-row .wp-filter-sort') && plannerStyle[1].includes('grid-row:5'), 'the task-list sort control stays readable at narrow widths');
 assert(plannerStyle[1].includes('@container shelter (max-width:620px)'), 'the shared filter grid adapts to the app viewport');
 const weekDayCss = html.match(/\.wp-week-grid\.is-all-day \.wp-day\{([^}]*)\}/);
 assert(weekDayCss && /border:0/.test(weekDayCss[1]) && !/border-right:1px/.test(weekDayCss[1]), 'week columns must remain open without permanent day separators');
@@ -125,7 +126,7 @@ globalThis.__api = {
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
-  wpBoardEntities, wpBoardToolbar, wpAllFilterToolbar, wpRenderTaskPageFull, wpRenderView,
+  wpBoardEntities, wpBoardToolbar, wpAllEntities, wpSortEntities, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects,
@@ -347,6 +348,40 @@ const allToolbar=api.wpAllFilterToolbar();
 assert(allToolbar.includes('wp-filter-layout wp-all-filter-row') && allToolbar.includes('wp-filter-main'), 'all tasks uses the same filter-grid structure');
 assert(allToolbar.indexOf('wp-filter-assignee')<allToolbar.indexOf('wp-filter-project'), 'assignee and project filters keep the same order in both views');
 assert(boardToolbar.indexOf('wp-filter-assignee')<boardToolbar.indexOf('wp-filter-project'));
+assert(!boardToolbar.includes('data-wp-filter="sort"'), 'sorting controls are not added to the board');
+assert(allToolbar.includes('data-wp-filter="sort"') && ['urgency','assignee','tag','deadline'].every(value=>allToolbar.includes(`value="${value}"`)), 'the task list offers urgency, assignee, tag, and deadline sorting');
+const sortBoardBefore=state.board;
+const sortPrefsBefore={allFilter:api.WP.allFilter,allAssigneeFilter:api.WP.allAssigneeFilter,allProjectFilter:api.WP.allProjectFilter,allSort:api.WP.allSort,query:api.WP.query,boardHomeFilter:api.WP.boardHomeFilter,boardAssigneeFilter:api.WP.boardAssigneeFilter,boardFocus:api.WP.boardFocus,boardShowCompleted:api.WP.boardShowCompleted};
+state.board={id:'sort-board',projects:[],people:['Алекс','Анна','Борис','Зоя'],invites:[],tasks:[
+  {id:'sort-critical',title:'Критическая',homeType:'personal',assignee:'Зоя',tags:['Бета','Альфа'],deadlineAt:'2026-10-20',statusKey:'open',priorityKey:'critical',order:4},
+  {id:'sort-high',title:'Высокая',homeType:'personal',assignee:'Анна',tags:['Гамма'],deadlineAt:'2026-10-18',statusKey:'open',priorityKey:'high',order:3},
+  {id:'sort-normal-late',title:'Обычная поздняя',homeType:'personal',assignee:'Алекс',tags:[],deadlineAt:'2026-10-22',statusKey:'open',priorityKey:'normal',order:1},
+  {id:'sort-normal-early',title:'Обычная ранняя',homeType:'personal',assignee:'Алекс',tags:['Альфа'],deadlineAt:'2026-10-17',statusKey:'open',priorityKey:'normal',order:2},
+  {id:'sort-normal-no-deadline',title:'Без срока',homeType:'personal',assignee:'',tags:['Дельта'],deadlineAt:null,statusKey:'open',priorityKey:'normal',order:5},
+  {id:'sort-done-critical',title:'Выполнена',homeType:'personal',assignee:'Борис',tags:['0'],deadlineAt:'2026-10-01',statusKey:'done',priorityKey:'critical',order:0}
+],occurrences:[],recurrenceRules:[]};
+api.WP.query=''; api.WP.allFilter='all'; api.WP.allAssigneeFilter='all'; api.WP.allProjectFilter='all'; api.WP.allSort='urgency';
+api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardFocus='all'; api.WP.boardShowCompleted=true;
+const sortIds=mode=>{api.WP.allSort=mode;return Array.from(api.wpAllEntities(),task=>task.id);};
+const urgencyOrder=['sort-critical','sort-high','sort-normal-late','sort-normal-early','sort-normal-no-deadline','sort-done-critical'];
+assert.deepStrictEqual(sortIds('urgency'),urgencyOrder,'the default sort preserves urgency, manual order, and completed-last behavior');
+assert.deepStrictEqual(sortIds('assignee'),['sort-normal-late','sort-normal-early','sort-high','sort-critical','sort-normal-no-deadline','sort-done-critical'],'assignee sorting is alphabetical, leaves unassigned last, and keeps completed last');
+assert.deepStrictEqual(sortIds('tag'),['sort-critical','sort-normal-early','sort-high','sort-normal-no-deadline','sort-normal-late','sort-done-critical'],'tag sorting uses the first alphabetical tag and puts untagged tasks last');
+assert.deepStrictEqual(sortIds('deadline'),['sort-normal-early','sort-high','sort-critical','sort-normal-late','sort-normal-no-deadline','sort-done-critical'],'deadline sorting is chronological, with missing deadlines and completed tasks last');
+assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id),urgencyOrder,'the selected task-list sort does not change board ordering');
+api.wpSetAllViewFilter('sort','tag');
+assert.strictEqual(api.WP.allSort,'tag','the sort control updates the selected task-list mode');
+assert(/value="tag" selected/.test(api.wpAllFilterToolbar()),'the selected sort remains visible in the toolbar');
+api.wpSetAllViewFilter('sort','unknown');
+assert.strictEqual(api.WP.allSort,'urgency','unsupported sort values fall back to urgency');
+api.WP.allSort='deadline';
+assert.deepStrictEqual(Array.from(api.wpAllEntities({ignoreFilters:true}),task=>task.id),urgencyOrder,'unfiltered task retrieval retains urgency order for views that reuse it');
+api.WP.allSort='invalid'; api.wpEnsureState();
+assert.strictEqual(api.WP.allSort,'urgency','state validation rejects unsupported saved sort values');
+api.WP.allFilter='done'; api.WP.allAssigneeFilter='mine'; api.WP.allProjectFilter='personal'; api.WP.allSort='tag';
+api.wpResetAllFilters(false);
+assert.strictEqual(api.WP.allFilter,'active'); assert.strictEqual(api.WP.allAssigneeFilter,'all'); assert.strictEqual(api.WP.allProjectFilter,'all'); assert.strictEqual(api.WP.allSort,'urgency','reset restores every task-list filter and the default sort');
+state.board=sortBoardBefore; Object.assign(api.WP,sortPrefsBefore);
 api.WP.allFilter='active'; api.WP.boardShowCompleted=true; state.board.tasks=priorBoardTasks; state.board.occurrences=priorOccurrences;
 
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';

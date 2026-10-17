@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-c/ZYxrEghQANpvw+/B1PNrfhF5ONOOjVDsiKErjvRsA=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-peO47smhCyWjSh4QMF8/ljadRWuqJ7vBoCQxOLIjBu0=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -13626,7 +13626,7 @@ function wpEnsureState() {
   if(!['week','board','inbox','all','projects'].includes(WP.view)) WP.view='week';
   if(!['active','all','done','cancelled'].includes(WP.allFilter)) WP.allFilter='active';
   if(!['all','mine','unassigned'].includes(WP.allAssigneeFilter) && !String(WP.allAssigneeFilter||'').startsWith('person:')) WP.allAssigneeFilter='all';
-  if(!['urgency','assignee','tag','deadline'].includes(WP.allSort)) WP.allSort='urgency';
+  if(!['urgency','tag','deadline'].includes(WP.allSort)) WP.allSort='urgency';
   if(WP.allSort!=='tag') WP.allTagFilter='all';
   else if(WP.allTagFilter!=='all' && WP.allTagFilter!=='untagged' && typeof wpAllTagChoices==='function' && !wpAllTagChoices().some(tag=>'tag:'+tag===WP.allTagFilter)) WP.allTagFilter='all';
   if(!['all','personal','inbox'].includes(WP.allProjectFilter) && !String(WP.allProjectFilter||'').startsWith('project:')) WP.allProjectFilter='all';
@@ -13816,19 +13816,19 @@ function wpAllTagChoices() {
   return [...values.values()].sort((a,b)=>a.localeCompare(b,'ru',{sensitivity:'base',numeric:true}));
 }
 function wpSortEntities(items,sortBy='urgency') {
+  const mode=['tag','deadline'].includes(sortBy)?sortBy:'urgency';
   const priorityRank={critical:0,high:1,normal:2,none:3};
   const compareText=(a,b)=>String(a||'').localeCompare(String(b||''),'ru',{sensitivity:'base',numeric:true});
   const compareMissingLast=(a,b)=>!a&&!b?0:!a?1:!b?-1:compareText(a,b);
   const rows=items.map((task,index)=>{
-    const tags=sortBy==='tag'?wpTaskTags(task).sort(compareText):[];
-    return {task,index,status:wpTaskStatus(task),priority:wpPriority(task),order:+task.order||0,title:String(task.title||''),assignee:sortBy==='assignee'?wpAssigneeLabel(task):'',tag:tags[0]||'',deadline:sortBy==='deadline'?wpDeadlineKey(task&&task.deadlineAt):''};
+    const tags=mode==='tag'?wpTaskTags(task).sort(compareText):[];
+    return {task,index,status:wpTaskStatus(task),priority:wpPriority(task),order:+task.order||0,title:String(task.title||''),tag:tags[0]||'',deadline:mode==='deadline'?wpDeadlineKey(task&&task.deadlineAt):''};
   });
   rows.sort((a,b)=>{
     if((a.status==='done')!==(b.status==='done')) return a.status==='done'?1:-1;
     let primary=0;
-    if(sortBy==='assignee') primary=compareMissingLast(a.assignee,b.assignee);
-    else if(sortBy==='tag') primary=compareMissingLast(a.tag,b.tag);
-    else if(sortBy==='deadline') primary=compareMissingLast(a.deadline,b.deadline);
+    if(mode==='tag') primary=compareMissingLast(a.tag,b.tag);
+    else if(mode==='deadline') primary=compareMissingLast(a.deadline,b.deadline);
     if(primary) return primary;
     const dp=(priorityRank[a.priority]??2)-(priorityRank[b.priority]??2); if(dp) return dp;
     return a.order-b.order || a.title.localeCompare(b.title,'ru') || a.index-b.index;
@@ -14301,7 +14301,7 @@ function wpAllFilterToolbar(items,total) {
   const assigneeOptions=[['all','Все исполнители'],['unassigned','Не назначено'],...assignees.map(x=>['person:'+x,x])];
   const projectOptions=[['all','Все'],['inbox','Входящие'],['personal','Личные'],...projects.map(x=>['project:'+x.id,x.name])];
   const filters=[['active','Активные'],['all','Все'],['done','Выполненные'],['cancelled','Отменённые']];
-  const sortOptions=[['urgency','По срочности'],['assignee','По исполнителю'],['tag','По тегу'],['deadline','По сроку']];
+  const sortOptions=[['urgency','По срочности'],['tag','По тегу'],['deadline','По сроку']];
   const currentStatus=filters.find(([value])=>value===WP.allFilter)||filters[0], tagFilter=WP.allTagFilter||'all';
   const tagOptions=WP.allSort==='tag'?[['all','Все теги'],['untagged','Без тега'],...wpAllTagChoices().map(tag=>['tag:'+tag,tag])]:[];
   const dirty=WP.allFilter!=='active'||WP.allAssigneeFilter!=='all'||project!=='all'||WP.allSort!=='urgency'||tagFilter!=='all';
@@ -15725,7 +15725,7 @@ function wpResetBoardFilters() { WP.boardHomeFilter='all';WP.boardAssigneeFilter
 function wpBoardAdd() { wpOpenEditor(null,{}); }
 function wpSetAllViewFilter(field,value) {
   if(field==='sort') {
-    WP.allSort=['urgency','assignee','tag','deadline'].includes(value)?value:'urgency';
+    WP.allSort=['urgency','tag','deadline'].includes(value)?value:'urgency';
     if(WP.allSort!=='tag') WP.allTagFilter='all';
   } else if(field==='tag') {
     const allowed=value==='all'||value==='untagged'||(String(value).startsWith('tag:')&&wpAllTagChoices().some(tag=>'tag:'+tag===value));

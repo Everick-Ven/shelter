@@ -360,7 +360,9 @@ assert(boardToolbar.indexOf('wp-filter-assignee')<boardToolbar.indexOf('wp-filte
 assert(allToolbar.includes('wp-filter-menu-panel') && allToolbar.includes('data-act="wpAllMineToggle"'), 'status and My Tasks controls are grouped in one dropdown');
 assert(['Активные','Все','Выполненные','Отменённые'].every(label=>allToolbar.includes(label)), 'the dropdown contains all four task-status filters');
 assert(!boardToolbar.includes('data-wp-filter="sort"'), 'sorting controls are not added to the board');
-assert(allToolbar.includes('data-wp-filter="sort"') && ['urgency','assignee','tag','deadline'].every(value=>allToolbar.includes(`value="${value}"`)), 'the task list offers urgency, assignee, tag, and deadline sorting');
+assert(allToolbar.includes('data-wp-filter="assignee"'), 'the existing executor selector remains available');
+assert(allToolbar.includes('data-wp-filter="sort"') && ['urgency','tag','deadline'].every(value=>allToolbar.includes(`value="${value}"`)), 'the task list offers urgency, tag, and deadline sorting');
+assert(!allToolbar.includes('value="assignee"'), 'the duplicate By Assignee sort is removed');
 const sortBoardBefore=state.board,sortBoardIdBefore=state.boardId;
 const sortPrefsBefore={allFilter:api.WP.allFilter,allAssigneeFilter:api.WP.allAssigneeFilter,allProjectFilter:api.WP.allProjectFilter,allSort:api.WP.allSort,allTagFilter:api.WP.allTagFilter,query:api.WP.query,boardHomeFilter:api.WP.boardHomeFilter,boardAssigneeFilter:api.WP.boardAssigneeFilter,boardFocus:api.WP.boardFocus,boardShowCompleted:api.WP.boardShowCompleted};
 state.board={id:'sort-board',projects:[],people:['Алекс','Анна','Борис','Зоя'],invites:[],tasks:[
@@ -379,7 +381,6 @@ api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardFocu
 const sortIds=mode=>{api.WP.allSort=mode;return Array.from(api.wpAllEntities(),task=>task.id);};
 const urgencyOrder=['sort-critical','sort-high','sort-normal-late','sort-normal-early','sort-normal-no-deadline','sort-done-critical'];
 assert.deepStrictEqual(sortIds('urgency'),urgencyOrder,'the default sort preserves urgency, manual order, and completed-last behavior');
-assert.deepStrictEqual(sortIds('assignee'),['sort-normal-late','sort-normal-early','sort-high','sort-critical','sort-normal-no-deadline','sort-done-critical'],'assignee sorting is alphabetical, leaves unassigned last, and keeps completed last');
 assert.deepStrictEqual(sortIds('tag'),['sort-critical','sort-normal-early','sort-high','sort-normal-no-deadline','sort-normal-late','sort-done-critical'],'tag sorting uses the first alphabetical tag and puts untagged tasks last');
 assert.deepStrictEqual(sortIds('deadline'),['sort-normal-early','sort-high','sort-critical','sort-normal-late','sort-normal-no-deadline','sort-done-critical'],'deadline sorting is chronological, with missing deadlines and completed tasks last');
 api.WP.allSort='urgency';
@@ -398,7 +399,9 @@ api.actions.wpAllFilter({dataset:{filter:'cancelled'}});
 assert.deepStrictEqual(Array.from(api.wpAllEntities(),task=>task.id),['sort-done-critical'],'the cancelled status filter selects cancelled tasks independently');
 doneTaskForCancelledFilter.statusKey='done'; state.account=priorAccountForMineFilter; api.WP.allFilter='all';
 api.wpSetAllViewFilter('sort','assignee');
-assert(api.wpAllFilterToolbar().includes('data-wp-filter="assignee"'),'assignee sorting leaves the employee selector available');
+assert.strictEqual(api.WP.allSort,'urgency','the removed assignee sort safely falls back to urgency');
+assert(api.wpAllFilterToolbar().includes('data-wp-filter="assignee"'),'the executor selector remains available independently of sorting');
+assert(!api.wpAllFilterToolbar().includes('value="assignee"'),'the duplicate assignee sort is not rendered');
 api.wpSetAllViewFilter('assignee','person:Анна');
 assert.deepStrictEqual(Array.from(api.wpAllEntities(),task=>task.id),['sort-high'],'the selected employee filter narrows tasks to that assignee');
 api.wpSetAllViewFilter('assignee','all'); api.wpSetAllViewFilter('sort','tag');
@@ -432,6 +435,8 @@ api.WP.allSort='deadline';
 assert.deepStrictEqual(Array.from(api.wpAllEntities({ignoreFilters:true}),task=>task.id),urgencyOrder,'unfiltered task retrieval retains urgency order for views that reuse it');
 api.WP.allSort='invalid'; api.wpEnsureState();
 assert.strictEqual(api.WP.allSort,'urgency','state validation rejects unsupported saved sort values');
+api.WP.allSort='assignee'; api.wpEnsureState();
+assert.strictEqual(api.WP.allSort,'urgency','state validation removes the obsolete assignee sort from saved state');
 api.WP.allSort='tag'; api.WP.allTagFilter='tag:missing'; api.wpEnsureState();
 assert.strictEqual(api.WP.allTagFilter,'all','state validation clears a tag filter that no longer exists');
 api.WP.allSort='urgency'; api.WP.allTagFilter='tag:Альфа'; api.wpEnsureState();

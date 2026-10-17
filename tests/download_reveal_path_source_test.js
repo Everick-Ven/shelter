@@ -24,6 +24,7 @@ const revealGuard = bridge.slice(
 );
 assert.notEqual(revealGuard.indexOf('const auto can_reveal_download ='), -1);
 assert.match(revealGuard, /IsRegularFileWithoutSymlinkOrJunctionChain\(normalized\)/);
+assert.match(nativeTest, /fs::canonical\(fs::temp_directory_path\(\), ec\)/);
 assert.match(nativeTest, /ordinary download is allowed/);
 assert.match(nativeTest, /file symlink is rejected/);
 assert.match(nativeTest, /junction in parent path is rejected/);

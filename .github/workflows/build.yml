@@ -132,6 +132,9 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Installed SHELTER executable not found: $exe" }
           python tools/check_ci_hooks.py "$dir" off --binary-only
           if ($LASTEXITCODE -ne 0) { throw "Installed release contains CI-only hooks" }
+          Get-Process Shelter -ErrorAction SilentlyContinue | Stop-Process -Force
+          $profile = Join-Path $env:LOCALAPPDATA "SHELTER"
+          if (Test-Path $profile) { Remove-Item -LiteralPath $profile -Recurse -Force }
           "installed executable: $exe" | Tee-Object -FilePath smoke-run.log
           $env:PYTHONIOENCODING = "utf-8"
           $version = (Get-Content build/shelter-version.txt -Raw).Trim()
@@ -313,6 +316,8 @@ jobs:
           mount_point=""
           ls -la /Applications/SHELTER.app/Contents/Resources
           python tools/check_ci_hooks.py /Applications/SHELTER.app off --binary-only
+          pkill -x Shelter 2>/dev/null || true
+          rm -rf "$HOME/Library/Application Support/SHELTER"
           python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" --allow-missing-ci-hooks 2>&1 | tee smoke-run.log
 
       - name: Inspect macOS master-key mirror

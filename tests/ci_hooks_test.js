@@ -90,6 +90,8 @@ assert.match(workflow, /acceptance_smoke\.py[^\n]*build-ci/);
 assert.match(workflow, /check_ci_hooks\.py "\$dir" off --binary-only/);
 assert.match(workflow, /check_ci_hooks\.py "\$portableCheck" off --binary-only/);
 assert.match(workflow, /check_ci_hooks\.py (?:"\$mount_point"|\/Applications\/SHELTER\.app) off --binary-only/);
+assert.match(workflow, /Remove-Item -LiteralPath \$profile -Recurse -Force/);
+assert.match(workflow, /rm -rf "\$HOME\/Library\/Application Support\/SHELTER"/);
 assert.match(workflow, /SourceDir=.*build\\Release/);
 assert.match(workflow, /make_dmg\.sh build\/Release/);
 assert.match(checker, /SHELTER_SMOKE_URL/);

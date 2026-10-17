@@ -110,11 +110,15 @@ int main() {
 #endif
 
   const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
-  const fs::path temp = fs::temp_directory_path() /
+  std::error_code ec;
+  const fs::path temporary_directory = fs::canonical(fs::temp_directory_path(), ec);
+  Check(!ec && !temporary_directory.empty(),
+        "temporary directory resolved without symbolic-link components");
+  if (ec || temporary_directory.empty()) return 1;
+  const fs::path temp = temporary_directory /
                         ("shelter-download-reveal-" + std::to_string(nonce));
   const fs::path downloads = temp / "Downloads";
   const fs::path outside = temp / "outside";
-  std::error_code ec;
   fs::create_directories(downloads, ec);
   Check(!ec, "temporary downloads directory created");
   fs::create_directories(outside, ec);

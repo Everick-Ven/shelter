@@ -4,6 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { webcrypto } = require('crypto');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'resources', 'ui', 'index.html'), 'utf8');
 const marker = '/* =========================================================\n   SHELTER · Планировщик задач (v7 · дедлайн завершает диапазон)';
@@ -30,6 +31,25 @@ assert(planner.includes("await wpAddProjectFromEditor(target,projectSelection)")
 assert(planner.includes("kind==='deadline'?'Крайний срок':'Дата начала'") && !planner.includes('Плановая дата'), 'the planner consistently calls the scheduled start date “Дата начала”');
 assert(planner.includes('plannerCalendarShowCompletedTasks') && planner.includes('plannerBoardShowCompletedTasks'), 'calendar and board completed-visibility preferences persist independently');
 assert(!planner.includes('WP.showCompleted'), 'completed-visibility state is not shared across planner views');
+assert(planner.includes('function wpExportTasks() { wpOpenTaskExportDialog(); }'), 'task export opens the protected scope and password dialog');
+assert(planner.includes("if(!wpIsTaskExportEnvelope(envelope))"), 'task import rejects JSON files without the encrypted envelope');
+assert(planner.includes('const payload=await wpDecryptTaskPayload(envelope,password)'), 'task import authenticates and decrypts before passing payload to the importer');
+const settingsExportLine = html.split(/\r?\n/).find(line => line.includes("else if (a === 'export')"));
+assert(settingsExportLine && !settingsExportLine.includes('board: S.board'), 'the unencrypted general settings export does not include task boards');
+assert(!html.includes("downloadFile('shelter-tasks.json'"), 'the legacy task export path does not generate plaintext JSON');
+assert(!html.includes("downloadFile('shelter-planner-migration-backup.json',raw)"), 'the technical migration snapshot is password-protected too');
+const downloadFileSource = html.slice(html.indexOf('function downloadFile('), html.indexOf('\n/* =========================================================\n   ДАШБОРД', html.indexOf('function downloadFile(')));
+assert(downloadFileSource.includes('link.click()') && !downloadFileSource.includes('Сохранено:'), 'UI exports trigger a real download without claiming success before the file is saved');
+const clientsHeader = fs.readFileSync(path.join(__dirname, '..', 'src', 'clients.h'), 'utf8');
+const clientsSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'clients.cc'), 'utf8');
+const uiClientStart = clientsHeader.indexOf('class UiClient');
+const uiClientEnd = clientsHeader.indexOf('// Клиент вкладки', uiClientStart);
+const uiClientHeader = clientsHeader.slice(uiClientStart, uiClientEnd);
+assert(uiClientHeader.includes('public CefDownloadHandler') && uiClientHeader.includes('GetDownloadHandler()'), 'the chrome-UI CEF client handles generated file downloads');
+const uiDownloadStart = clientsSource.indexOf('bool UiClient::OnBeforeDownload');
+const uiDownloadEnd = clientsSource.indexOf('void UiClient::OnDownloadUpdated', uiDownloadStart);
+const uiDownloadHandler = clientsSource.slice(uiDownloadStart, uiDownloadEnd);
+assert(uiDownloadHandler.includes('Shell::Get().IsUiBrowser(browser)') && uiDownloadHandler.includes('IsUiUrl(frame->GetURL().ToString())') && uiDownloadHandler.includes('callback->Continue(default_path, true)'), 'the UI-origin-only native handler opens a Save As dialog for generated files');
 
 const harness = String.raw`
 const DAY = 86400000;
@@ -72,7 +92,7 @@ const ico = () => '';
 const toast = () => {};
 const downloadFile = () => {};
 const openMenu = () => {};
-const openModal = () => ({ scrim: { addEventListener() {}, querySelector() { return null; } }, guard: null });
+const openModal = options => { globalThis.__lastModalHtml = options && options.html || ''; return { scrim: { addEventListener() {}, querySelector() { return null; } }, guard: null }; };
 const closeModal = () => {};
 const confirmDlg = async () => true;
 const promptDlg = async () => 'test';
@@ -95,7 +115,7 @@ const state = {
   taskMigrationPreviewShown: false
 };
 const data = new Map();
-const context = { __state: state, __data: data, __denyBackup: false, __window: {}, __reducedMotion: false, console, setTimeout, clearTimeout };
+const context = { __state: state, __data: data, __denyBackup: false, __window: { crypto: webcrypto }, __reducedMotion: false, crypto: webcrypto, TextEncoder, TextDecoder, btoa, atob, console, setTimeout, clearTimeout };
 vm.runInNewContext(harness + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, actions: ACT, render: RENDER, after: AFTER,
@@ -105,7 +125,10 @@ globalThis.__api = {
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpBoardEntities, wpBoardToolbar, wpAllFilterToolbar, wpRenderTaskPageFull, wpRenderView,
-  wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration
+  wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
+  wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload,
+  wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects,
+  wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
 };`, context, { timeout: 5000 });
 const api = context.__api;
 
@@ -621,4 +644,120 @@ assert.strictEqual(data.get('shelter:board'), corrupt);
 assert.strictEqual(typeof api.render.tasks, 'function');
 assert.strictEqual(typeof api.actions.taskEdit, 'function');
 assert.strictEqual(typeof api.actions.wpView, 'function');
-console.log('UI task planner, recurrence, classification, and guarded-migration tests passed');
+(async function testPasswordProtectedTaskTransfer() {
+  const boardA = {
+    id: 'board-a', name: 'Рабочая доска', code: 'BOARD-A', taskSchemaVersion: 7,
+    people: ['Алиса', 'Борис', 'Лишний участник'],
+    projects: [
+      { id: 'project-a', name: 'Проект Альфа', members: [{ name: 'Алиса' }] },
+      { id: 'project-b', name: 'Проект Бета', members: [{ name: 'Борис' }] }
+    ],
+    tasks: [
+      { id: 'task-a', title: 'ALPHA SECRET TASK', homeType: 'project', homeId: 'project-a', projectId: 'project-a', project: 'Проект Альфа', assignee: 'Алиса', recurrenceRuleId: 'rule-a' },
+      { id: 'task-b', title: 'BETA TASK', homeType: 'project', homeId: 'project-b', projectId: 'project-b', project: 'Проект Бета', assignee: 'Борис', recurrenceRuleId: 'rule-b' },
+      { id: 'task-personal', title: 'PERSONAL TASK', homeType: 'personal' }
+    ],
+    recurrenceRules: [{ id: 'rule-a', taskId: 'task-a' }, { id: 'rule-b', taskId: 'task-b' }],
+    occurrences: [{ id: 'occ-a', seriesTaskId: 'task-a' }, { id: 'occ-b', seriesTaskId: 'task-b' }],
+    invites: [{ id: 'invite-a', projectId: 'project-a' }, { id: 'invite-b', projectId: 'project-b' }],
+    ownerEmail: 'owner@example.test'
+  };
+  const boardB = {
+    id: 'board-b', name: 'Домашняя доска', code: 'BOARD-B', taskSchemaVersion: 7,
+    people: [], projects: [{ id: 'project-c', name: 'Проект Гамма', members: [] }],
+    tasks: [{ id: 'task-c', title: 'GAMMA TASK', homeType: 'project', homeId: 'project-c', projectId: 'project-c', project: 'Проект Гамма' }],
+    recurrenceRules: [], occurrences: [], invites: []
+  };
+  Object.assign(state, { board: boardA, boards: [boardA, boardB], boardId: 'board-a', boardsMeta: { secret: 'metadata' }, taskMigrationOK: true });
+
+  const allPayload = api.wpExportPayload('all');
+  assert.strictEqual(allPayload.exportScope.type, 'all');
+  assert.strictEqual(allPayload.boards.length, 2, 'the all-data option includes every local board');
+  assert(allPayload.boards.some(board => board.id === 'board-b' && board.tasks.some(task => task.id === 'task-c')));
+
+  const selection = [{ boardId: 'board-a', projectId: 'project-a' }];
+  const selectedPayload = api.wpExportPayload('projects', selection);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(selectedPayload.exportScope.projects)), selection);
+  assert.strictEqual(selectedPayload.boards.length, 1);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(selectedPayload.boards[0].projects.map(project => project.id))), ['project-a']);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(selectedPayload.boards[0].tasks.map(task => task.id))), ['task-a']);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(selectedPayload.boards[0].recurrenceRules.map(rule => rule.id))), ['rule-a']);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(selectedPayload.boards[0].occurrences.map(record => record.id))), ['occ-a']);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(selectedPayload.boards[0].invites.map(invite => invite.id))), ['invite-a']);
+  assert(!JSON.stringify(selectedPayload).includes('BETA TASK') && !JSON.stringify(selectedPayload).includes('Лишний участник'));
+  assert.strictEqual(state.boards[0].projects.length, 2, 'building a project export does not mutate local data');
+
+  const envelope = await api.wpEncryptTaskPayload(selectedPayload, 'Correct horse battery');
+  const fileText = JSON.stringify(envelope);
+  assert.strictEqual(envelope.format, 'SHELTER_TASK_EXPORT');
+  assert.strictEqual(envelope.cipher, 'AES-256-GCM');
+  assert.strictEqual(envelope.kdf, 'PBKDF2-SHA-256');
+  assert.strictEqual(envelope.iterations, 600000);
+  assert(!fileText.includes('ALPHA SECRET TASK') && !fileText.includes('owner@example.test'), 'the downloaded JSON envelope contains ciphertext, not task contents');
+  const decrypted = await api.wpDecryptTaskPayload(envelope, 'Correct horse battery');
+  assert.strictEqual(JSON.stringify(decrypted), JSON.stringify(selectedPayload), 'a correct code restores the exact protected payload');
+  assert(api.wpReadTaskExportBoards(decrypted), 'only a valid decrypted SHELTER task payload is importable');
+
+  let wrongCodeRejected = false;
+  try { await api.wpDecryptTaskPayload(envelope, 'Incorrect horse battery'); } catch (_) { wrongCodeRejected = true; }
+  assert(wrongCodeRejected, 'a wrong file code fails AES-GCM authentication');
+  const tampered = JSON.parse(JSON.stringify(envelope));
+  tampered.ciphertext = (tampered.ciphertext[0] === 'A' ? 'B' : 'A') + tampered.ciphertext.slice(1);
+  let tamperingRejected = false;
+  try { await api.wpDecryptTaskPayload(tampered, 'Correct horse battery'); } catch (_) { tamperingRejected = true; }
+  assert(tamperingRejected, 'modified ciphertext is rejected');
+  let shortCodeRejected = false;
+  try { await api.wpEncryptTaskPayload(selectedPayload, 'short'); } catch (_) { shortCodeRejected = true; }
+  assert(shortCodeRejected, 'export requires a nontrivial password');
+  let longCodeRejected = false;
+  try { await api.wpEncryptTaskPayload(selectedPayload, 'x'.repeat(1025)); } catch (_) { longCodeRejected = true; }
+  assert(longCodeRejected, 'password length is capped before key derivation');
+  assert.strictEqual(api.wpReadTaskExportBoards({ app: 'SHELTER', boards: selectedPayload.boards }), null, 'unprotected or incomplete task JSON is not accepted by the task importer');
+  const migrationRaw = {
+    kind: 'SHELTER_PLANNER_MIGRATION_BACKUP', schemaVersion: 7,
+    raw: {
+      'shelter:board': JSON.stringify(boardA),
+      'shelter:boards': JSON.stringify({ id: 'board-a', boards: [boardA] }),
+      'shelter:eisenTasks': JSON.stringify([{ id: 'loose-eisen', title: 'Loose legacy task' }])
+    }
+  };
+  const migrationEnvelope = await api.wpEncryptTaskPayload({ kind: 'SHELTER_PLANNER_MIGRATION_BACKUP_FILE', migrationBackupText: JSON.stringify(migrationRaw) }, 'Migration backup code');
+  const decryptedMigration = await api.wpDecryptTaskPayload(migrationEnvelope, 'Migration backup code');
+  const migrationPayload = api.wpTaskPayloadFromMigrationBackupFile(decryptedMigration);
+  assert(migrationPayload && api.wpReadTaskExportBoards(migrationPayload), 'a correctly decrypted technical migration backup is converted to a validated task payload');
+  assert(api.wpReadTaskExportBoards(migrationPayload).some(board => board.tasks.some(task => task.id === 'loose-eisen')), 'loose legacy tasks are preserved when importing a migration snapshot');
+
+  const existing = {
+    id: 'board-a', name: 'Рабочая доска', code: 'BOARD-A', taskSchemaVersion: 7, people: ['Борис'],
+    projects: [{ id: 'project-a', name: 'Старое имя Альфа', members: [] }, { id: 'project-b', name: 'Проект Бета', members: [] }],
+    tasks: [
+      { id: 'task-a', title: 'OLD ALPHA TASK', homeType: 'project', homeId: 'project-a', projectId: 'project-a', project: 'Старое имя Альфа', recurrenceRuleId: 'old-rule' },
+      { id: 'task-b', title: 'BETA TASK', homeType: 'project', homeId: 'project-b', projectId: 'project-b', project: 'Проект Бета' },
+      { id: 'personal-existing', title: 'KEEP PERSONAL', homeType: 'personal' }
+    ],
+    recurrenceRules: [{ id: 'old-rule', taskId: 'task-a' }, { id: 'rule-b', taskId: 'task-b' }],
+    occurrences: [{ id: 'old-occ', seriesTaskId: 'task-a' }, { id: 'occ-b', seriesTaskId: 'task-b' }],
+    invites: [], customField: 'preserve'
+  };
+  const otherBoard = { id: 'other-board', name: 'Other', projects: [], tasks: [], recurrenceRules: [], occurrences: [], invites: [] };
+  const merge = api.wpMergeImportedProjects([existing, otherBoard], api.wpReadTaskExportBoards(decrypted), selection);
+  assert.strictEqual(merge.ok, true);
+  const mergedBoard = merge.boards.find(board => board.id === 'board-a');
+  assert.deepStrictEqual([...mergedBoard.tasks.map(task => task.id)].sort(), ['personal-existing', 'task-a', 'task-b']);
+  assert.deepStrictEqual([...mergedBoard.projects.map(project => project.id)].sort(), ['project-a', 'project-b']);
+  assert.deepStrictEqual([...mergedBoard.recurrenceRules.map(rule => rule.id)].sort(), ['rule-a', 'rule-b']);
+  assert.deepStrictEqual([...mergedBoard.occurrences.map(record => record.id)].sort(), ['occ-a', 'occ-b']);
+  assert.strictEqual(mergedBoard.customField, 'preserve');
+  assert(merge.boards.some(board => board.id === 'other-board'), 'project import preserves other boards');
+  assert(existing.tasks.some(task => task.title === 'OLD ALPHA TASK'), 'preparing a project import does not mutate the current board');
+
+  const collisionBoard = JSON.parse(JSON.stringify(api.wpReadTaskExportBoards(decrypted)[0]));
+  collisionBoard.tasks[0].id = 'task-b';
+  const collision = api.wpMergeImportedProjects([existing], [collisionBoard], selection);
+  assert.strictEqual(collision.ok, false, 'project import refuses to overwrite an unrelated task with a colliding ID');
+  for (const key of [...data.keys()]) if (String(key).startsWith('shelter:planner:migration-backup')) data.delete(key);
+  api.wpDownloadMigrationBackup();
+  assert(context.__lastModalHtml.includes('текущий снимок данных задач'), 'the migration-copy action offers a real current-data snapshot when no historical migration copy exists');
+  assert.strictEqual(typeof api.actions.taskExport, 'function');
+  console.log('UI task planner, guarded migration, and password-protected import/export tests passed');
+})().catch(error => { console.error(error); process.exitCode = 1; });

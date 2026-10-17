@@ -1,7 +1,9 @@
 #include "src/clients.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <string>
+#include <system_error>
 
 #include "include/cef_command_line.h"
 #include "include/cef_parser.h"
@@ -11,6 +13,7 @@
 #include "src/common.h"
 #include "src/favicon_hosts.h"
 #include "src/netguard.h"
+#include "src/platform.h"
 #include "src/shell.h"
 
 namespace shelter {
@@ -456,6 +459,60 @@ bool UiClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
     }
   }
   return false;
+}
+
+bool UiClient::OnBeforeDownload(
+    CefRefPtr<CefBrowser> browser, CefRefPtr<CefDownloadItem> item,
+    const CefString& suggested_name,
+    CefRefPtr<CefBeforeDownloadCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  CefRefPtr<CefFrame> frame = browser ? browser->GetMainFrame() : nullptr;
+  if (!Shell::Get().IsUiBrowser(browser) || !frame ||
+      !IsUiUrl(frame->GetURL().ToString()) || !callback) {
+    return false;
+  }
+
+  std::string filename = suggested_name.ToString();
+  if (filename.empty() && item) filename = item->GetSuggestedFileName().ToString();
+  const size_t separator = filename.find_last_of("/\\");
+  if (separator != std::string::npos) filename.erase(0, separator + 1);
+  if (filename.empty() || filename == "." || filename == "..") {
+    filename = "shelter-export.json";
+  }
+
+  std::string default_path = filename;
+  const std::string downloads = platform::DownloadsDir();
+  if (!downloads.empty()) {
+    const std::filesystem::path directory = std::filesystem::u8path(downloads);
+    std::error_code error;
+    std::filesystem::create_directories(directory, error);
+    if (!error) {
+      default_path = (directory / std::filesystem::u8path(filename)).u8string();
+    }
+  }
+
+  // UI-файл пока существует как Blob в renderer. CEF открывает системное
+  // «Сохранить как…» и сам записывает Blob в выбранный пользователем путь.
+  callback->Continue(default_path, true);
+  return true;
+}
+
+void UiClient::OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
+                                 CefRefPtr<CefDownloadItem> item,
+                                 CefRefPtr<CefDownloadItemCallback>) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!Shell::Get().IsUiBrowser(browser) || !item || !item->IsValid()) return;
+  if (!item->IsComplete() && !item->IsCanceled() && !item->IsInterrupted()) {
+    return;
+  }
+  const std::string url = item->GetURL().ToString();
+  if (url.rfind(std::string("blob:") + kUiOriginPrefix, 0) != 0) return;
+  CefRefPtr<CefFrame> frame = browser->GetMainFrame();
+  if (frame) {
+    frame->ExecuteJavaScript("try{URL.revokeObjectURL(" + JsString(url) +
+                                 ")}catch(_){}",
+                             kUiOriginPrefix, 0);
+  }
 }
 
 // ============================================================================

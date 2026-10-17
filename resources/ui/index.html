@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-zKESx7bU69kT5BFyCdqDkoTY2CIbSAzM+xGAD+2x6M8=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-3B7T5+x3J7h5ZC7rRtfiBb7J2FgVhULcF4UyfHCVHlg=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4289,6 +4289,27 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .wp-filter-layout .wp-filter-project{grid-column:1/-1;grid-row:3}
   .wp-filter-layout .wp-clear-filters{grid-column:2;grid-row:4;justify-self:end}
 }
+.wp-transfer-scopes{display:grid;gap:8px;margin-bottom:12px}
+.wp-transfer-choice{display:flex;align-items:flex-start;gap:10px;padding:10px 11px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));background:var(--card);cursor:pointer}
+.wp-transfer-choice:has(input:checked){border-color:rgb(var(--accent)/.5);background:color-mix(in srgb,rgb(var(--accent)) 7%,var(--card))}
+.wp-transfer-choice input{margin:2px 0 0;accent-color:rgb(var(--accent));flex:none}
+.wp-transfer-choice span{display:flex;flex-direction:column;gap:3px;min-width:0}
+.wp-transfer-choice b{font-size:11px;color:var(--text)}
+.wp-transfer-choice small{font-size:9px;line-height:1.4;color:var(--text-3)}
+.wp-transfer-projects{max-height:210px;overflow:auto;margin:0 0 12px;padding:8px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));background:var(--card-2)}
+.wp-transfer-projects[hidden]{display:none}
+.wp-transfer-project-group+.wp-transfer-project-group{margin-top:9px;padding-top:8px;border-top:1px solid var(--line)}
+.wp-transfer-project-group>strong{display:block;margin:0 0 5px;color:var(--text-2);font-size:9px}
+.wp-transfer-project-list{display:grid;gap:3px}
+.wp-transfer-project{display:flex;align-items:center;gap:7px;min-height:27px;padding:3px 5px;border-radius:calc(6px*var(--rs));font-size:10px;color:var(--text);cursor:pointer}
+.wp-transfer-project:hover{background:color-mix(in srgb,var(--card) 70%,transparent)}
+.wp-transfer-project input{accent-color:rgb(var(--accent));flex:none}
+.wp-transfer-empty{margin:5px;color:var(--text-3);font-size:9px}
+.wp-transfer-passwords{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.wp-transfer-passwords .field{min-width:0}
+.wp-transfer-passwords .field>span{display:block;margin:0 0 5px;color:var(--text-2);font-size:10px;font-weight:550}
+.wp-transfer-note{margin:10px 0 0;color:var(--text-3);font-size:9px;line-height:1.45}
+@media(max-width:560px){.wp-transfer-passwords{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -8067,8 +8088,12 @@ function countUp(root) {
   });
 }
 function downloadFile(name, text, type = 'application/json') {
-  try { const b = new Blob([text], { type }), u = URL.createObjectURL(b), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 3000); toast('Сохранено: ' + name, { icon: 'download' }); }
-  catch (e) { toast('Не удалось сохранить файл', { icon: 'info' }); }
+  try {
+    const blob = new Blob([text], { type }), url = URL.createObjectURL(blob), link = document.createElement('a');
+    link.href = url; link.download = name; document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 300000);
+    return true;
+  } catch (_) { toast('Не удалось подготовить файл к сохранению', { icon: 'info' }); return false; }
 }
 
 /* =========================================================
@@ -9768,7 +9793,7 @@ function projectInvite(projectId) {
   });
 }
 
-function taskExport() { downloadFile('shelter-tasks.json', JSON.stringify(S.board, null, 2)); }
+function taskExport() { wpExportTasks(); }
 function taskMoreMenu(anchor) {
   openMenu(anchor, [
     { label: 'Настройка', icon: 'sliders', run: () => taskDicts() },
@@ -11794,7 +11819,7 @@ function settingsHtml() {
         ${row('Язык интерфейса', 'Проверка орфографии: русский, английский', segHtml('lang', [['ru', 'Русский'], ['en', 'English']], P.lang, 'sm'))}
       </div></section>
       <section class="set-sec" id="set-data"><h4>Данные</h4><div class="set-card">
-        ${row('Экспорт данных', 'Пространства, закладки, история и задачи в JSON', btn('export', ico('upload') + 'Экспорт'))}
+        ${row('Экспорт данных', 'Пространства, закладки, история и настройки в JSON. Задачи экспортируются отдельно с паролем.', btn('export', ico('upload') + 'Экспорт'))}
         ${row('Демо-данные', 'Помечены отдельно и не смешиваются с вашими', btn('demo-reset', 'Обновить') + btn('demo-clear', 'Удалить', 'ghost'))}
         ${row('Удалить пользовательские данные', 'Локальный профиль, SHELTER ID, история, пароли, cookies и настройки. Файлы в общей папке «Загрузки» останутся.', btn('delete-user-data', 'Удалить и закрыть…', 'danger'))}
         ${row('Сбросить SHELTER', 'Вернуть настройки и данные к исходным', btn('reset', 'Сбросить…', 'danger'))}
@@ -11842,7 +11867,7 @@ AFTER.settings = () => {
     else if (a === 'fire') fire();
     else if (a === 'certs') openPage('certs');
     else if (a === 'exts') openPage('extensions');
-    else if (a === 'export') downloadFile('shelter-backup-' + dayKey(Date.now()) + '.json', JSON.stringify({ app: 'SHELTER', version: VERSION, spaces: S.spaces, bookmarks: S.bookmarks, visits: S.visits, board: S.board, prefs: S.prefs }, null, 2));
+    else if (a === 'export') downloadFile('shelter-backup-' + dayKey(Date.now()) + '.json', JSON.stringify({ app: 'SHELTER', version: VERSION, spaces: S.spaces, bookmarks: S.bookmarks, visits: S.visits, prefs: S.prefs }, null, 2));
     else if (a === 'demo-reset') { clearDemo(); seedDemo(); saveNow(); renderAll(); toast('Демо-данные обновлены', { icon: 'ref' }); }
     else if (a === 'demo-clear') { clearDemo(); saveNow(); renderAll(); toast('Демо-данные удалены', { icon: 'trash' }); }
     else if (a === 'reset') { if (await confirmDlg({ title: 'Сбросить SHELTER?', text: 'Все пространства, вкладки, история и настройки вернутся к исходным.', ok: 'Сбросить', danger: true, icon: 'undo' })) { ['theme', 'ghost', 'searchEngine', 'spaces', 'currentSpace', 'activeTabId', 'bookmarks', 'visits', 'board', 'boards', 'ext', 'lux', 'ai'].forEach(k => store.del('shelter:' + k)); location.reload(); } }
@@ -15112,27 +15137,206 @@ function wpOpenTaskMigrationPreview() {
 }
 function wpOpenTaskDicts() { if(S.taskMigrationOK===false) {toast(S.taskMigrationError||'Настройки задач доступны только для чтения.',{icon:'ban'});return;} return taskDicts(); }
 function wpSafeProjectInvite(projectId='') { if(S.taskMigrationOK===false) {toast(S.taskMigrationError||'Приглашения недоступны в режиме защиты данных.',{icon:'ban'});return;} return projectInvite(projectId); }
-function wpExportPayload() {
+const WP_TASK_EXPORT_FORMAT='SHELTER_TASK_EXPORT';
+const WP_TASK_EXPORT_VERSION=1;
+const WP_TASK_EXPORT_ITERATIONS=600000;
+const WP_TASK_EXPORT_MAX_FILE_BYTES=64*1024*1024;
+const WP_TASK_EXPORT_MAX_PLAINTEXT_BYTES=46*1024*1024;
+const WP_TASK_EXPORT_MIN_PASSWORD_CHARS=8;
+const WP_TASK_EXPORT_MAX_PASSWORD_CHARS=1024;
+function wpTaskTransferBoards() {
   ensureBoard();
+  const byId=new Map();
+  (Array.isArray(S.boards)?S.boards:[]).filter(wpIsObj).forEach(board=>byId.set(String(board.id||''),board));
+  if(wpIsObj(S.board)) byId.set(String(S.board.id||S.boardId||''),S.board);
+  return [...byId.values()].filter(board=>String(board.id||''));
+}
+function wpTaskProjectId(task,board) {
+  if(!task || wpTaskHomeType(task)!=='project') return '';
+  const projects=Array.isArray(board&&board.projects)?board.projects:[];
+  const id=String(task.homeId||task.projectId||'');
+  if(id && projects.some(project=>project&&String(project.id||'')===id)) return id;
+  const name=String(task.project||'').trim();
+  const match=projects.find(project=>project&&String(project.name||'').trim()===name);
+  return match ? String(match.id||'') : '';
+}
+function wpTaskProjectChoices(boards) {
+  return (Array.isArray(boards)?boards:[]).flatMap(board=>(Array.isArray(board&&board.projects)?board.projects:[]).map(project=>({
+    boardId:String(board.id||''),boardName:String(board.name||'Моя доска'),projectId:String(project&&project.id||''),projectName:String(project&&project.name||'Проект')
+  })).filter(choice=>choice.boardId&&choice.projectId)).sort((a,b)=>a.boardName.localeCompare(b.boardName,'ru')||a.projectName.localeCompare(b.projectName,'ru'));
+}
+function wpTaskProjectGroupsHtml(choices,mode) {
+  const groups=new Map();
+  (Array.isArray(choices)?choices:[]).forEach(choice=>{if(!groups.has(choice.boardId))groups.set(choice.boardId,{name:choice.boardName,projects:[]});groups.get(choice.boardId).projects.push(choice);});
+  return [...groups.entries()].map(([boardId,group])=>`<section class="wp-transfer-project-group"><strong>${esc(group.name)}</strong><div class="wp-transfer-project-list">${group.projects.map(choice=>`<label class="wp-transfer-project"><input type="checkbox" data-transfer-project="${esc(mode)}" data-board-id="${esc(choice.boardId)}" data-project-id="${esc(choice.projectId)}"><span>${esc(choice.projectName)}</span></label>`).join('')}</div></section>`).join('')||'<p class="wp-transfer-empty">В выбранных досках нет проектов.</p>';
+}
+function wpTaskSelectedProjects(root,mode) {
+  return $$(`[data-transfer-project="${mode}"]:checked`,root).map(input=>({boardId:String(input.dataset.boardId||''),projectId:String(input.dataset.projectId||'')})).filter(item=>item.boardId&&item.projectId);
+}
+function wpTaskRuleTaskId(rule,tasks) {
+  const linked=rule&&(rule.taskId||rule.parentTaskId);
+  if(linked) return String(linked);
+  const task=(Array.isArray(tasks)?tasks:[]).find(item=>item&&String(item.recurrenceRuleId||'')===String(rule&&rule.id||''));
+  return String(task&&task.id||'');
+}
+function wpExportBoardProjects(board,projectIds) {
+  const selected=new Set((Array.isArray(projectIds)?projectIds:[]).map(String));
+  const copy=wpClone(board), projects=(Array.isArray(board.projects)?board.projects:[]).filter(project=>project&&selected.has(String(project.id||'')));
+  if(!projects.length) return null;
+  const tasks=(Array.isArray(board.tasks)?board.tasks:[]).filter(task=>selected.has(wpTaskProjectId(task,board)));
+  const taskIds=new Set(tasks.map(task=>String(task.id||'')).filter(Boolean));
+  const ruleIds=new Set(tasks.map(task=>String(task.recurrenceRuleId||'')).filter(Boolean));
+  copy.projects=wpClone(projects);
+  copy.tasks=wpClone(tasks);
+  copy.recurrenceRules=(Array.isArray(board.recurrenceRules)?board.recurrenceRules:[]).filter(rule=>taskIds.has(wpTaskRuleTaskId(rule,board.tasks))||ruleIds.has(String(rule&&rule.id||''))).map(wpClone);
+  copy.occurrences=(Array.isArray(board.occurrences)?board.occurrences:[]).filter(record=>{
+    const overrides=wpIsObj(record&&record.overrides)?record.overrides:{},projectId=String(overrides.homeId||overrides.projectId||record&&(record.homeId||record.projectId)||'');
+    const taskId=String(record&&(record.seriesTaskId||record.taskId||record.parentTaskId)||'');
+    return taskIds.has(taskId)||selected.has(projectId);
+  }).map(wpClone);
+  copy.invites=(Array.isArray(board.invites)?board.invites:[]).filter(invite=>selected.has(String(invite&&invite.projectId||''))).map(wpClone);
+  const visiblePeople=new Set();
+  tasks.forEach(task=>{const value=task&&task.assignee;const label=String(value&&typeof value==='object'?(value.name||value.email||value.id||''):value||'').trim().toLocaleLowerCase();if(label)visiblePeople.add(label);});
+  projects.forEach(project=>(Array.isArray(project.members)?project.members:[]).forEach(member=>{const value=member&&typeof member==='object'?(member.name||member.email||member.id||''):member;const label=String(value||'').trim().toLocaleLowerCase();if(label)visiblePeople.add(label);}));
+  copy.people=(Array.isArray(board.people)?board.people:[]).filter(person=>{const value=person&&typeof person==='object'?(person.name||person.email||person.id||''):person;return visiblePeople.has(String(value||'').trim().toLocaleLowerCase());}).map(wpClone);
+  return copy;
+}
+function wpExportPayload(scope='all',selection=[]) {
+  const allBoards=wpTaskTransferBoards(), activeId=String(S.boardId||S.board.id||'');
+  let boards=allBoards.map(wpClone), selected=[];
+  if(scope==='projects') {
+    selected=(Array.isArray(selection)?selection:[]).map(item=>({boardId:String(item&&item.boardId||''),projectId:String(item&&item.projectId||'')}));
+    if(!selected.length) throw new Error('empty project selection');
+    const byBoard=new Map();selected.forEach(item=>{if(!byBoard.has(item.boardId))byBoard.set(item.boardId,new Set());byBoard.get(item.boardId).add(item.projectId);});
+    boards=allBoards.map(board=>byBoard.has(String(board.id||''))?wpExportBoardProjects(board,[...byBoard.get(String(board.id||''))]):null).filter(Boolean);
+    const found=new Set(boards.flatMap(board=>(board.projects||[]).map(project=>`${board.id}\u0000${project.id}`)));
+    if(selected.some(item=>!found.has(`${item.boardId}\u0000${item.projectId}`))) throw new Error('unknown project selection');
+  }
+  if(!boards.length) throw new Error('no boards');
+  const activeBoard=boards.find(board=>String(board.id||'')===activeId)||boards[0];
   return {
     app:'SHELTER',exportSchemaVersion:WP_SCHEMA,taskSchemaVersion:WP_SCHEMA,exportedAt:new Date().toISOString(),
-    activeBoardId:S.boardId,board:wpClone(S.board),boards:wpClone(S.boards||[]),boardsMeta:wpClone(S.boardsMeta||{}),
+    exportScope:scope==='projects'?{type:'projects',projects:selected}: {type:'all'},
+    activeBoardId:String(activeBoard.id||''),board:wpClone(activeBoard),boards,boardsMeta:scope==='projects'?{}:wpClone(S.boardsMeta||{}),
     context:{theme:S.theme,language:(S.prefs&&S.prefs.lang)||'ru',plannerWeekStart:'monday',plannerView:WP.view},
-    appSettings:{theme:S.theme,plannerView:WP.view,boardId:S.boardId}
+    appSettings:{theme:S.theme,plannerView:WP.view,boardId:String(activeBoard.id||'')}
   };
 }
-function wpExportTasks() {
-  try { downloadFile('shelter-tasks-backup-'+wpDateKey(Date.now())+'.json',JSON.stringify(wpExportPayload(),null,2)); }
-  catch(_) { toast('Не удалось собрать экспорт задач.',{icon:'ban'}); }
+function wpTaskCrypto() {
+  const provider=(typeof window!=='undefined'&&window.crypto)||(typeof globalThis!=='undefined'&&globalThis.crypto);
+  if(!provider||!provider.subtle||typeof provider.getRandomValues!=='function') throw new Error('secure crypto unavailable');
+  return provider;
+}
+function wpTaskPassword(password) {
+  const normalized=String(password==null?'':password).normalize('NFC'),length=[...normalized].length;
+  if(length<WP_TASK_EXPORT_MIN_PASSWORD_CHARS) throw new Error('password too short');
+  if(length>WP_TASK_EXPORT_MAX_PASSWORD_CHARS) throw new Error('password too long');
+  return new TextEncoder().encode(normalized);
+}
+function wpTaskBytesToBase64(bytes) {
+  let binary='';
+  for(let i=0;i<bytes.length;i+=0x8000) binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));
+  return btoa(binary);
+}
+function wpTaskBase64ToBytes(value,maxLength,exactLength) {
+  if(typeof value!=='string'||!value||value.length%4!==0||value.length>maxLength||!/^[A-Za-z0-9+/]*={0,2}$/.test(value)) throw new Error('invalid encoded field');
+  const binary=atob(value), bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+  if(exactLength!=null&&bytes.length!==exactLength) throw new Error('invalid encoded length');
+  return bytes;
+}
+async function wpTaskExportKey(password,salt) {
+  const provider=wpTaskCrypto(),material=await provider.subtle.importKey('raw',wpTaskPassword(password),'PBKDF2',false,['deriveKey']);
+  return provider.subtle.deriveKey({name:'PBKDF2',salt,iterations:WP_TASK_EXPORT_ITERATIONS,hash:'SHA-256'},material,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function wpEncryptTaskPayload(payload,password) {
+  const provider=wpTaskCrypto(),plain=new TextEncoder().encode(JSON.stringify(payload));
+  if(plain.byteLength>WP_TASK_EXPORT_MAX_PLAINTEXT_BYTES) throw new Error('export too large');
+  const salt=provider.getRandomValues(new Uint8Array(16)),iv=provider.getRandomValues(new Uint8Array(12)),key=await wpTaskExportKey(password,salt);
+  const ciphertext=await provider.subtle.encrypt({name:'AES-GCM',iv,additionalData:new TextEncoder().encode('SHELTER:task-export:v1'),tagLength:128},key,plain);
+  return {format:WP_TASK_EXPORT_FORMAT,version:WP_TASK_EXPORT_VERSION,cipher:'AES-256-GCM',kdf:'PBKDF2-SHA-256',iterations:WP_TASK_EXPORT_ITERATIONS,salt:wpTaskBytesToBase64(salt),iv:wpTaskBytesToBase64(iv),ciphertext:wpTaskBytesToBase64(new Uint8Array(ciphertext))};
+}
+async function wpDecryptTaskPayload(envelope,password) {
+  if(!wpIsObj(envelope)||envelope.format!==WP_TASK_EXPORT_FORMAT||envelope.version!==WP_TASK_EXPORT_VERSION||envelope.cipher!=='AES-256-GCM'||envelope.kdf!=='PBKDF2-SHA-256'||envelope.iterations!==WP_TASK_EXPORT_ITERATIONS) throw new Error('unsupported task export');
+  const salt=wpTaskBase64ToBytes(envelope.salt,24,16),iv=wpTaskBase64ToBytes(envelope.iv,16,12),ciphertext=wpTaskBase64ToBytes(envelope.ciphertext,WP_TASK_EXPORT_MAX_FILE_BYTES,null);
+  if(ciphertext.length<16||ciphertext.length>WP_TASK_EXPORT_MAX_PLAINTEXT_BYTES+16) throw new Error('invalid ciphertext length');
+  const provider=wpTaskCrypto(),key=await wpTaskExportKey(password,salt);
+  const plain=await provider.subtle.decrypt({name:'AES-GCM',iv,additionalData:new TextEncoder().encode('SHELTER:task-export:v1'),tagLength:128},key,ciphertext);
+  if(plain.byteLength>WP_TASK_EXPORT_MAX_PLAINTEXT_BYTES) throw new Error('export too large');
+  return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(plain));
+}
+function wpOpenTaskExportDialog() {
+  if(S.taskMigrationOK===false) {toast(S.taskMigrationError||'Экспорт недоступен в режиме защиты данных.',{icon:'ban'});return;}
+  const choices=wpTaskProjectChoices(wpTaskTransferBoards()),hasProjects=choices.length>0;
+  const m=openModal({width:560,dismiss:false,html:`<div class="modal-h"><div class="mi-ic">${ico('upload')}</div><h3>Экспорт задач</h3><button type="button" class="icon-btn" data-wp-task-export="cancel" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="wp-transfer-scopes" role="radiogroup" aria-label="Выбор данных для экспорта"><label class="wp-transfer-choice"><input type="radio" name="wpTaskExportScope" value="all" checked><span><b>Всё</b><small>Все доски, проекты и задачи на этом устройстве.</small></span></label><label class="wp-transfer-choice"><input type="radio" name="wpTaskExportScope" value="projects" ${hasProjects?'':'disabled'}><span><b>Выбранные проекты</b><small>В файл попадут только отмеченные проекты и связанные с ними задачи, серии и история.</small></span></label></div><div class="wp-transfer-projects" id="wpTaskExportProjects" hidden>${wpTaskProjectGroupsHtml(choices,'export')}${!hasProjects?'<p class="wp-transfer-empty">Сначала создайте проект, чтобы экспортировать отдельные проекты.</p>':''}</div><div class="wp-transfer-passwords"><label class="field"><span>Код файла · от 8 до 1024 символов</span><input class="input" type="password" id="wpTaskExportPassword" autocomplete="new-password" maxlength="1024" spellcheck="false"></label><label class="field"><span>Повторите код</span><input class="input" type="password" id="wpTaskExportPasswordAgain" autocomplete="new-password" maxlength="1024" spellcheck="false"></label></div><p class="wp-transfer-note">Данные шифруются; после этого откроется системное окно выбора места сохранения. Используйте длинный уникальный код (лучше 12+ символов): он не хранится в SHELTER, и забытый код восстановить нельзя.</p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-task-export="cancel">Отмена</button><button type="button" class="btn primary" data-wp-task-export="save">${ico('lock')}Зашифровать и скачать</button></div>`});
+  const root=m.scrim,projectList=$('#wpTaskExportProjects',root);m.guard=null;
+  m.onClose=()=>{$('#wpTaskExportPassword',root).value='';$('#wpTaskExportPasswordAgain',root).value='';};
+  root.addEventListener('change',event=>{if(event.target&&event.target.name==='wpTaskExportScope'&&projectList)projectList.hidden=event.target.value!=='projects';});
+  root.addEventListener('click',async event=>{
+    const button=event.target.closest('[data-wp-task-export]');if(!button)return;
+    if(button.dataset.wpTaskExport==='cancel'){closeModal(m);return;}
+    if(button.dataset.wpTaskExport!=='save')return;
+    const password=$('#wpTaskExportPassword',root),again=$('#wpTaskExportPasswordAgain',root),scope=$('input[name="wpTaskExportScope"]:checked',root);
+    const code=String(password&&password.value||''),confirmation=String(again&&again.value||'');
+    if([...code.normalize('NFC')].length<WP_TASK_EXPORT_MIN_PASSWORD_CHARS){if(password)password.focus();toast('Код файла должен содержать не менее 8 символов.',{icon:'info'});return;}
+    if(code.normalize('NFC')!==confirmation.normalize('NFC')){if(again)again.focus();toast('Коды не совпадают.',{icon:'info'});return;}
+    const selected=scope&&scope.value==='projects'?wpTaskSelectedProjects(root,'export'):[];
+    if(scope&&scope.value==='projects'&&!selected.length){toast('Выберите хотя бы один проект.',{icon:'info'});return;}
+    button.disabled=true;
+    try {
+      const payload=wpExportPayload(scope&&scope.value==='projects'?'projects':'all',selected),envelope=await wpEncryptTaskPayload(payload,code);
+      if(!OV.stack.includes(m))return;
+      if(!downloadFile('shelter-tasks-backup-'+wpDateKey(Date.now())+'.json',JSON.stringify(envelope,null,2))){button.disabled=false;return;}
+      if(password)password.value='';if(again)again.value='';closeModal(m);
+    } catch(_) {if(!OV.stack.includes(m))return;button.disabled=false;if(password)password.value='';if(again)again.value='';toast('Не удалось зашифровать экспорт. Файл не создан.',{icon:'ban'});}
+  });
+}
+function wpExportTasks() { wpOpenTaskExportDialog(); }
+function wpOpenMigrationBackupExport(raw,currentSnapshot=false) {
+  const description=currentSnapshot?'Исходной копии миграции ещё нет: будет сохранён текущий снимок данных задач.':'Техническая копия содержит исходные данные всех досок.';
+  const filename=currentSnapshot?'shelter-tasks-technical-backup.json':'shelter-planner-migration-backup.json';
+  const m=openModal({width:520,dismiss:false,html:`<div class="modal-h"><div class="mi-ic">${ico('archive')}</div><h3>Зашифровать копию миграции</h3><button type="button" class="icon-btn" data-wp-migration-export="cancel" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><p class="wp-form-hint">${esc(description)} После шифрования откроется системное окно выбора места сохранения. Для экспорта отдельных проектов используйте «Экспорт задач и серий». Установите код длиной от 8 до 1024 символов; код не хранится в SHELTER.</p><div class="wp-transfer-passwords"><label class="field"><span>Код файла</span><input class="input" type="password" id="wpMigrationExportPassword" autocomplete="new-password" maxlength="1024" spellcheck="false"></label><label class="field"><span>Повторите код</span><input class="input" type="password" id="wpMigrationExportPasswordAgain" autocomplete="new-password" maxlength="1024" spellcheck="false"></label></div></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-migration-export="cancel">Отмена</button><button type="button" class="btn primary" data-wp-migration-export="save">${ico('lock')}Зашифровать и скачать</button></div>`});
+  const root=m.scrim,password=$('#wpMigrationExportPassword',root),again=$('#wpMigrationExportPasswordAgain',root);m.guard=null;
+  m.onClose=()=>{if(password)password.value='';if(again)again.value='';};
+  root.addEventListener('click',async event=>{
+    const button=event.target.closest('[data-wp-migration-export]');if(!button)return;
+    if(button.dataset.wpMigrationExport==='cancel'){closeModal(m);return;}
+    if(button.dataset.wpMigrationExport!=='save')return;
+    const code=String(password&&password.value||''),confirmation=String(again&&again.value||'');
+    if([...code.normalize('NFC')].length<WP_TASK_EXPORT_MIN_PASSWORD_CHARS){if(password)password.focus();toast('Код файла должен содержать не менее 8 символов.',{icon:'info'});return;}
+    if(code.normalize('NFC')!==confirmation.normalize('NFC')){if(again)again.focus();toast('Коды не совпадают.',{icon:'info'});return;}
+    button.disabled=true;
+    try {
+      const envelope=await wpEncryptTaskPayload({kind:'SHELTER_PLANNER_MIGRATION_BACKUP_FILE',migrationBackupText:String(raw)},code);
+      if(!OV.stack.includes(m))return;
+      if(!downloadFile(filename,JSON.stringify(envelope,null,2))){button.disabled=false;return;}
+      if(password)password.value='';if(again)again.value='';closeModal(m);
+    } catch(_) {if(!OV.stack.includes(m))return;button.disabled=false;if(password)password.value='';if(again)again.value='';toast('Не удалось зашифровать копию миграции. Файл не создан.',{icon:'ban'});}
+  });
 }
 function wpDownloadMigrationBackup() {
   const latest=store.get('shelter:planner:migration-backup:latest');
-  let raw=(latest&&store.get(latest))||store.get('shelter:planner:migration-backup:v6')||store.get('shelter:planner:migration-backup:v5')||store.get('shelter:planner:migration-backup:v4');
+  let raw=(latest&&store.get(latest))||store.get('shelter:planner:migration-backup:v6')||store.get('shelter:planner:migration-backup:v5')||store.get('shelter:planner:migration-backup:v4'),currentSnapshot=false;
   if(!raw) {
     try { const keys=Object.keys(window.localStorage||{}).filter(k=>k.startsWith('shelter:planner:migration-backup:v6:')||k.startsWith('shelter:planner:migration-backup:v5:')||k.startsWith('shelter:planner:migration-backup:v4:')); const candidates=keys.map(k=>({key:k,value:store.get(k)})).filter(x=>x.value).sort((a,b)=>{try{return JSON.parse(b.value).createdAt.localeCompare(JSON.parse(a.value).createdAt)}catch(_){return b.key.localeCompare(a.key)}}); raw=candidates[0]&&candidates[0].value; } catch(_) {}
   }
-  if(!raw) { toast('Копия миграции пока не создавалась.',{icon:'info'}); return; }
-  downloadFile('shelter-planner-migration-backup.json',raw);
+  if(!raw) {
+    const keys=['shelter:board','shelter:boards','shelter:eisenTasks','eisenTasks'],snapshotRaw={};
+    keys.forEach(key=>snapshotRaw[key]=store.get(key));
+    if(keys.some(key=>snapshotRaw[key]!=null&&snapshotRaw[key]!=='')) {
+      try {raw=JSON.stringify({kind:'SHELTER_PLANNER_MIGRATION_BACKUP',schemaVersion:WP_SCHEMA,createdAt:new Date().toISOString(),raw:snapshotRaw});currentSnapshot=true;} catch(_) {}
+    }
+  }
+  if(!raw&&S.taskMigrationOK!==false) {
+    try {
+      const boards=wpTaskTransferBoards(),activeId=String(S.boardId||S.board.id||boards[0]&&boards[0].id||''),active=boards.find(board=>String(board.id||'')===activeId)||boards[0];
+      const registry=Object.assign({},wpIsObj(S.boardsMeta)?wpClone(S.boardsMeta):{},{id:activeId,boards});
+      const snapshotRaw={'shelter:board':JSON.stringify(active),'shelter:boards':JSON.stringify(registry),'shelter:eisenTasks':null,eisenTasks:null};
+      raw=JSON.stringify({kind:'SHELTER_PLANNER_MIGRATION_BACKUP',schemaVersion:WP_SCHEMA,createdAt:new Date().toISOString(),raw:snapshotRaw});currentSnapshot=true;
+    } catch(_) {}
+  }
+  if(!raw) { toast('Исходная копия миграции недоступна в режиме защиты данных.',{icon:'info'}); return; }
+  wpOpenMigrationBackupExport(raw,currentSnapshot);
 }
 function wpCreatePreImportBackup() {
   const key='shelter:planner:preimport-backup:'+Date.now();
@@ -15140,49 +15344,172 @@ function wpCreatePreImportBackup() {
   const text=JSON.stringify({kind:'SHELTER_PLANNER_PRE_IMPORT_BACKUP',schemaVersion:WP_SCHEMA,createdAt:new Date().toISOString(),raw});
   store.set(key,text); if(store.get(key)!==text) return ''; store.set('shelter:planner:preimport-backup:latest',key); return store.get('shelter:planner:preimport-backup:latest')===key ? key : '';
 }
-async function wpImportPayload(obj) {
-  if(S.taskMigrationOK===false) {toast(S.taskMigrationError||'Импорт недоступен в режиме защиты данных.',{icon:'ban'});return;}
-  if(!wpIsObj(obj)) {toast('Файл не похож на резервную копию SHELTER.',{icon:'ban'});return;}
-  let newBoards=[],activeId='';
-  const boardList=Array.isArray(obj.boards)?obj.boards:[];
-  if(boardList.length) {
-    newBoards=boardList.filter(wpIsObj).map(b=>wpNormalizeBoard(wpClone(b)));
-    if(wpIsObj(obj.board)) {
-      const imported=wpNormalizeBoard(wpClone(obj.board)), i=newBoards.findIndex(b=>b.id===imported.id);
-      if(i>=0) newBoards[i]=imported; else newBoards.unshift(imported);
-    }
-    activeId=obj.activeBoardId||obj.selectedBoardId||obj.boardId||(obj.board&&obj.board.id)||newBoards[0].id;
-  } else if(wpIsObj(obj.board) && Array.isArray(obj.board.tasks)) {
-    const imported=wpNormalizeBoard(wpClone(obj.board)); newBoards=wpClone(S.boards||[]);
-    const i=newBoards.findIndex(b=>b && b.id===imported.id);
-    if(i>=0) newBoards[i]=imported; else newBoards.unshift(imported);
-    activeId=imported.id;
-  } else if(Array.isArray(obj.tasks)) {
-    const imported=wpNormalizeBoard(wpClone(obj)); newBoards=wpClone(S.boards||[]);
-    const i=newBoards.findIndex(b=>b && b.id===imported.id);
-    if(i>=0) newBoards[i]=imported; else newBoards.unshift(imported);
-    activeId=imported.id;
-  } else {toast('В резервной копии не найден список задач.',{icon:'ban'});return;}
-  if(!newBoards.length) {toast('В копии нет досок с задачами.',{icon:'ban'});return;}
-  newBoards=newBoards.filter((b,i,a)=>a.findIndex(x=>x && x.id===b.id)===i);
-  if(!newBoards.some(b=>b.id===activeId)) activeId=newBoards[0].id;
-  const active=newBoards.find(b=>b.id===activeId);
-  const description=`Будут восстановлены ${newBoards.length} доски, проекты, задачи, правила повторения и история экземпляров. Перед заменой будет создана отдельная локальная копия текущих данных.`;
-  if(!(await confirmDlg({title:'Восстановить данные задач?',text:description,ok:'Восстановить',danger:true,icon:'download'}))) return;
+function wpReadTaskExportBoards(obj) {
+  if(!wpIsObj(obj)||obj.app!=='SHELTER'||!Number.isInteger(obj.exportSchemaVersion)||obj.exportSchemaVersion<1||obj.exportSchemaVersion>WP_SCHEMA||!Number.isInteger(obj.taskSchemaVersion)||obj.taskSchemaVersion<1||obj.taskSchemaVersion>WP_SCHEMA) return null;
+  if(!wpIsObj(obj.exportScope)||!['all','projects'].includes(obj.exportScope.type)) return null;
+  const rawBoards=Array.isArray(obj.boards)&&obj.boards.length?obj.boards:(wpIsObj(obj.board)?[obj.board]:[]);
+  if(!rawBoards.length||rawBoards.length>200) return null;
+  const boards=new Map();let taskCount=0;
+  for(const raw of rawBoards) {
+    if(!wpIsObj(raw)||typeof raw.id!=='string'||!raw.id||raw.id.length>256||!Array.isArray(raw.tasks)||!Array.isArray(raw.projects)) return null;
+    taskCount+=raw.tasks.length;if(taskCount>200000||raw.projects.length>20000) return null;
+    const board=wpNormalizeBoard(wpClone(raw));
+    if(!board.id||!Array.isArray(board.tasks)||!Array.isArray(board.projects)) return null;
+    boards.set(String(board.id),board);
+  }
+  if(wpIsObj(obj.board)&&typeof obj.board.id==='string'&&obj.board.id) {
+    const active=wpNormalizeBoard(wpClone(obj.board));boards.set(String(active.id),active);
+  }
+  const result=[...boards.values()];
+  if(!result.length) return null;
+  if(obj.exportScope.type==='projects') {
+    if(!Array.isArray(obj.exportScope.projects)||!obj.exportScope.projects.length) return null;
+    const available=new Set(wpTaskProjectChoices(result).map(item=>`${item.boardId}\\u0000${item.projectId}`));
+    if(obj.exportScope.projects.some(item=>!wpIsObj(item)||!available.has(`${String(item.boardId||'')}\\u0000${String(item.projectId||'')}`))) return null;
+  }
+  return result;
+}
+function wpMergeImportedProjects(existingBoards,sourceBoards,selection) {
+  const result=(Array.isArray(existingBoards)?existingBoards:[]).filter(wpIsObj).map(wpClone),groups=new Map();
+  (Array.isArray(selection)?selection:[]).forEach(item=>{const boardId=String(item&&item.boardId||''),projectId=String(item&&item.projectId||'');if(!boardId||!projectId)return;if(!groups.has(boardId))groups.set(boardId,new Set());groups.get(boardId).add(projectId);});
+  if(!groups.size) return {ok:false,error:'Выберите хотя бы один проект.'};
+  const sources=new Map((Array.isArray(sourceBoards)?sourceBoards:[]).map(board=>[String(board.id||''),board]));
+  for(const [boardId,projectSet] of groups) {
+    const source=sources.get(boardId);if(!source)return {ok:false,error:'В файле не найден выбранный проект.'};
+    const ids=[...projectSet],subset=wpExportBoardProjects(source,ids);
+    if(!subset||subset.projects.length!==ids.length)return {ok:false,error:'Не удалось прочитать выбранный проект из файла.'};
+    const index=result.findIndex(board=>String(board.id||'')===boardId);
+    if(index<0){result.unshift(subset);continue;}
+    const target=wpNormalizeBoard(wpClone(result[index])),oldTasks=target.tasks.slice(),selectedIds=new Set(ids);
+    const oldSelectedTasks=oldTasks.filter(task=>selectedIds.has(wpTaskProjectId(task,target))),removedTaskIds=new Set(oldSelectedTasks.map(task=>String(task.id||'')).filter(Boolean));
+    const keptTasks=oldTasks.filter(task=>!selectedIds.has(wpTaskProjectId(task,target))),keptTaskIds=new Set(keptTasks.map(task=>String(task.id||'')));
+    const importedTaskIds=new Set();
+    for(const task of subset.tasks) { const id=String(task.id||'');if(!id||importedTaskIds.has(id))return {ok:false,error:'В выбранном проекте повторяются идентификаторы задач.'};if(keptTaskIds.has(id))return {ok:false,error:'Идентификатор импортируемой задачи конфликтует с другой локальной задачей.'};importedTaskIds.add(id); }
+    const removedRuleIds=new Set(oldSelectedTasks.map(task=>String(task.recurrenceRuleId||'')).filter(Boolean));
+    const keptRules=target.recurrenceRules.filter(rule=>!removedTaskIds.has(wpTaskRuleTaskId(rule,oldTasks))&&!removedRuleIds.has(String(rule&&rule.id||'')));
+    const keptRuleIds=new Set(keptRules.map(rule=>String(rule&&rule.id||'')));
+    for(const rule of subset.recurrenceRules) {const id=String(rule&&rule.id||'');if(id&&keptRuleIds.has(id))return {ok:false,error:'Идентификатор серии конфликтует с другой локальной серией.'};if(id)keptRuleIds.add(id);}
+    const keptOccurrences=target.occurrences.filter(record=>{
+      const linked=String(record&&(record.seriesTaskId||record.taskId||record.parentTaskId)||''),overrides=wpIsObj(record&&record.overrides)?record.overrides:{};
+      const projectId=String(overrides.homeId||overrides.projectId||record&&(record.homeId||record.projectId)||'');
+      return !removedTaskIds.has(linked)&&!selectedIds.has(projectId);
+    });
+    const keptOccurrenceIds=new Set(keptOccurrences.map(record=>String(record&&record.id||'')));
+    for(const record of subset.occurrences) {const id=String(record&&record.id||'');if(id&&keptOccurrenceIds.has(id))return {ok:false,error:'Идентификатор истории экземпляра конфликтует с другими данными.'};if(id)keptOccurrenceIds.add(id);}
+    target.projects=target.projects.filter(project=>!selectedIds.has(String(project&&project.id||''))).concat(wpClone(subset.projects));
+    target.tasks=keptTasks.concat(wpClone(subset.tasks));
+    target.recurrenceRules=keptRules.concat(wpClone(subset.recurrenceRules));
+    target.occurrences=keptOccurrences.concat(wpClone(subset.occurrences));
+    const invites=(Array.isArray(target.invites)?target.invites:[]).filter(invite=>!selectedIds.has(String(invite&&invite.projectId||'')));
+    target.invites=invites.concat(wpClone(subset.invites||[]));
+    const people=[...(Array.isArray(target.people)?target.people:[]),...(Array.isArray(subset.people)?subset.people:[])],seenPeople=new Set();
+    target.people=people.filter(person=>{const value=person&&typeof person==='object'?(person.name||person.email||person.id||''):person,key=String(value||'').trim().toLocaleLowerCase();if(!key||seenPeople.has(key))return false;seenPeople.add(key);return true;});
+    target.taskSchemaVersion=WP_SCHEMA;result[index]=target;
+  }
+  return {ok:true,boards:result,activeBoardId:result.some(board=>String(board.id||'')===String(S.boardId||''))?String(S.boardId):groups.keys().next().value};
+}
+async function wpApplyImportedTaskData(obj,sourceBoards,mode,selection) {
+  if(S.taskMigrationOK===false) {toast(S.taskMigrationError||'Импорт недоступен в режиме защиты данных.',{icon:'ban'});return false;}
+  const scopedFile=obj.exportScope.type==='projects',merge=mode==='projects'||scopedFile;
+  let newBoards=[],activeId='',newMeta=wpClone(S.boardsMeta||{});
+  if(merge) {
+    const chosen=mode==='projects'?selection:wpTaskProjectChoices(sourceBoards).map(item=>({boardId:item.boardId,projectId:item.projectId}));
+    const merged=wpMergeImportedProjects(wpTaskTransferBoards(),sourceBoards,chosen);
+    if(!merged.ok){toast(merged.error||'Выбранные проекты не удалось объединить.',{icon:'ban'});return false;}
+    newBoards=merged.boards;activeId=merged.activeBoardId;
+  } else {
+    newBoards=sourceBoards.map(wpClone);activeId=String(obj.activeBoardId||obj.selectedBoardId||obj.boardId||(obj.board&&obj.board.id)||newBoards[0].id||'');
+    if(wpIsObj(obj.boardsMeta))newMeta=wpClone(obj.boardsMeta);
+    if(!newBoards.some(board=>String(board.id||'')===activeId))activeId=String(newBoards[0].id||'');
+  }
+  if(!newBoards.length){toast('В файле нет досок с задачами.',{icon:'ban'});return false;}
+  const active=newBoards.find(board=>String(board.id||'')===activeId)||newBoards[0];activeId=String(active.id||'');
+  const description=merge
+    ? `Будут добавлены или заменены выбранные проекты и их задачи. Остальные проекты и задачи сохранятся. Перед импортом будет создана локальная копия текущих данных.`
+    : `Будут восстановлены ${newBoards.length} доски, проекты, задачи, правила повторения и история экземпляров вместо текущих данных. Перед заменой будет создана локальная копия.`;
+  if(!(await confirmDlg({title:merge?'Импортировать проекты?':'Восстановить все задачи?',text:description,ok:merge?'Импортировать':'Восстановить',danger:!merge,icon:'download'}))) return false;
   const backupKey=wpCreatePreImportBackup();
-  if(!backupKey) {toast('Не удалось проверить резервную копию текущих данных. Импорт отменён.',{icon:'ban'});return;}
-  const oldBoards=wpClone(S.boards||[]), oldBoard=wpClone(S.board), oldId=S.boardId, oldMeta=wpClone(S.boardsMeta||{});
-  S.boards=newBoards; S.board=active; S.boardId=activeId; if(wpIsObj(obj.boardsMeta)) S.boardsMeta=wpClone(obj.boardsMeta); ensureBoard();
-  if(!wpPersistBoard()) {S.boards=oldBoards;S.board=oldBoard;S.boardId=oldId;S.boardsMeta=oldMeta;toast('Импорт не сохранён. Данные в хранилище откатились; локальная pre-import копия сохранена.',{icon:'ban'});return;}
+  if(!backupKey){toast('Не удалось проверить локальную копию текущих данных. Импорт отменён.',{icon:'ban'});return false;}
+  const oldBoards=wpClone(S.boards||[]),oldBoard=wpClone(S.board),oldId=S.boardId,oldMeta=wpClone(S.boardsMeta||{});
+  S.boards=newBoards;S.board=active;S.boardId=activeId;S.boardsMeta=newMeta;ensureBoard();
+  if(!wpPersistBoard()){S.boards=oldBoards;S.board=oldBoard;S.boardId=oldId;S.boardsMeta=oldMeta;toast('Импорт не сохранён. Данные откатились; локальная pre-import копия сохранена.',{icon:'ban'});return false;}
   WP.projectId='';WP.query='';WP.view='week';wpResetAllFilters(false);WP.weekStart=wpWeekStart(wpDateKey(Date.now()));WP.mobileDate=wpDateKey(Date.now());WP.reviewSelected=[];
-  wpRenderTaskPageFull();toast('Резервная копия задач восстановлена',{icon:'check'});
+  wpRenderTaskPageFull();toast(merge?'Выбранные проекты импортированы; остальные данные сохранены':'Резервная копия задач восстановлена',{icon:'check'});return true;
+}
+function wpTaskPayloadFromMigrationBackupFile(value) {
+  if(!wpIsObj(value)||value.kind!=='SHELTER_PLANNER_MIGRATION_BACKUP_FILE'||typeof value.migrationBackupText!=='string') return null;
+  let backup;try { backup=JSON.parse(value.migrationBackupText); } catch(_) { return null; }
+  if(!wpIsObj(backup)||backup.kind!=='SHELTER_PLANNER_MIGRATION_BACKUP'||!wpIsObj(backup.raw)) return null;
+  const parseStored=key=>{const raw=backup.raw[key];if(raw==null||raw==='')return null;if(typeof raw==='string'){try{return JSON.parse(raw);}catch(_){return null;}}return raw;};
+  const boardValue=parseStored('shelter:board'),registry=parseStored('shelter:boards');
+  let boards=wpIsObj(registry)&&Array.isArray(registry.boards)?registry.boards.filter(wpIsObj).map(wpClone):[];
+  if(wpIsObj(boardValue)) {const index=boards.findIndex(board=>String(board.id||'')===String(boardValue.id||''));if(index>=0)boards[index]=wpClone(boardValue);else boards.unshift(wpClone(boardValue));}
+  if(!boards.length)return null;
+  const activeId=String((wpIsObj(registry)&&registry.id)||(wpIsObj(boardValue)&&boardValue.id)||boards[0].id||'');
+  const looseTasks=[parseStored('shelter:eisenTasks'),parseStored('eisenTasks')].filter(Array.isArray).flat();
+  if(looseTasks.length) {
+    let active=boards.find(board=>String(board.id||'')===activeId)||boards[0];
+    active.eisenTasks=(Array.isArray(active.eisenTasks)?active.eisenTasks:[]).concat(wpClone(looseTasks));
+  }
+  boards=boards.map(board=>wpNormalizeBoard(wpClone(board)));
+  const active=boards.find(board=>String(board.id||'')===activeId)||boards[0];
+  return {app:'SHELTER',exportSchemaVersion:WP_SCHEMA,taskSchemaVersion:WP_SCHEMA,exportScope:{type:'all'},activeBoardId:String(active.id||''),board:wpClone(active),boards,boardsMeta:{}};
+}
+function wpImportPayload(obj) {
+  if(S.taskMigrationOK===false) {toast(S.taskMigrationError||'Импорт недоступен в режиме защиты данных.',{icon:'ban'});return;}
+  if(wpIsObj(obj)&&obj.kind==='SHELTER_PLANNER_MIGRATION_BACKUP_FILE') obj=wpTaskPayloadFromMigrationBackupFile(obj);
+  const boards=wpReadTaskExportBoards(obj);
+  if(!boards){toast('Файл не похож на зашифрованную резервную копию задач SHELTER.',{icon:'ban'});return;}
+  const choices=wpTaskProjectChoices(boards),scoped=obj.exportScope.type==='projects',allDescription=scoped?'Все проекты из файла будут добавлены или заменены; остальные данные сохранятся.':'Будут заменены все локальные доски и задачи. Перед этим создаётся локальная копия.';
+  const m=openModal({width:560,dismiss:false,html:`<div class="modal-h"><div class="mi-ic">${ico('download')}</div><h3>Импорт задач</h3><button type="button" class="icon-btn" data-wp-task-import="cancel" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="wp-transfer-scopes" role="radiogroup" aria-label="Выбор данных для импорта"><label class="wp-transfer-choice"><input type="radio" name="wpTaskImportScope" value="all" checked><span><b>Всё из файла</b><small>${esc(allDescription)}</small></span></label><label class="wp-transfer-choice"><input type="radio" name="wpTaskImportScope" value="projects" ${choices.length?'':'disabled'}><span><b>Выбрать проекты</b><small>Заменяются только выбранные проекты; остальные проекты и задачи сохраняются.</small></span></label></div><div class="wp-transfer-projects" id="wpTaskImportProjects" hidden>${wpTaskProjectGroupsHtml(choices,'import')}</div><p class="wp-transfer-note">Пароль уже проверен. До подтверждения импорт ничего не меняет. Для обычной полной копии режим «Всё» заменяет локальные доски; выбор проектов выполняет точечное объединение.</p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-task-import="cancel">Отмена</button><button type="button" class="btn primary" data-wp-task-import="apply">${ico('download')}Продолжить</button></div>`});
+  const root=m.scrim,projectList=$('#wpTaskImportProjects',root);m.guard=null;
+  root.addEventListener('change',event=>{if(event.target&&event.target.name==='wpTaskImportScope'&&projectList)projectList.hidden=event.target.value!=='projects';});
+  root.addEventListener('click',async event=>{
+    const button=event.target.closest('[data-wp-task-import]');if(!button)return;
+    if(button.dataset.wpTaskImport==='cancel'){closeModal(m);return;}
+    if(button.dataset.wpTaskImport!=='apply')return;
+    const scope=$('input[name="wpTaskImportScope"]:checked',root),mode=scope&&scope.value==='projects'?'projects':'all',selection=mode==='projects'?wpTaskSelectedProjects(root,'import'):[];
+    if(mode==='projects'&&!selection.length){toast('Выберите хотя бы один проект.',{icon:'info'});return;}
+    button.disabled=true;
+    const applied=await wpApplyImportedTaskData(obj,boards,mode,selection);
+    if(applied)closeModal(m);else button.disabled=false;
+  });
+}
+function wpPromptTaskImportPassword(envelope,filename) {
+  return new Promise(resolve=>{
+    let done=false;
+    const m=openModal({width:440,dismiss:false,html:`<div class="modal-h"><div class="mi-ic">${ico('lock')}</div><h3>Код файла</h3><button type="button" class="icon-btn" data-wp-import-password="cancel" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><p class="wp-form-hint">Введите код, установленный при экспорте файла <b>${esc(filename||'резервная копия')}</b>. Содержимое будет прочитано только после успешной проверки кода.</p><label class="field"><span>Код файла</span><input class="input" type="password" id="wpTaskImportPassword" autocomplete="current-password" maxlength="1024" spellcheck="false"></label><p class="wp-transfer-note" id="wpTaskImportPasswordResult" aria-live="polite"></p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-import-password="cancel">Отмена</button><button type="button" class="btn primary" data-wp-import-password="unlock">${ico('unlock')}Проверить код</button></div>`});
+    const root=m.scrim,input=$('#wpTaskImportPassword',root),result=$('#wpTaskImportPasswordResult',root);m.guard=null;
+    const finish=value=>{if(done)return;done=true;if(input)input.value='';closeModal(m);resolve(value);};
+    m.onClose=()=>{if(!done){done=true;if(input)input.value='';resolve(null);}};
+    root.addEventListener('click',async event=>{
+      const button=event.target.closest('[data-wp-import-password]');if(!button)return;
+      if(button.dataset.wpImportPassword==='cancel'){finish(null);return;}
+      if(button.dataset.wpImportPassword!=='unlock')return;
+      const password=String(input&&input.value||''),passwordLength=[...password.normalize('NFC')].length;
+      if(passwordLength<WP_TASK_EXPORT_MIN_PASSWORD_CHARS||passwordLength>WP_TASK_EXPORT_MAX_PASSWORD_CHARS){if(result)result.textContent='Введите код длиной от 8 до 1024 символов.';if(input)input.focus();return;}
+      button.disabled=true;if(result)result.textContent='Проверяю код файла…';
+      try { const payload=await wpDecryptTaskPayload(envelope,password);finish(payload); }
+      catch(_) {button.disabled=false;if(input){input.value='';input.focus();}if(result)result.textContent='Код неверный или файл повреждён. Попробуйте ещё раз.';}
+    });
+    root.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();const button=root.querySelector('[data-wp-import-password="unlock"]');if(button)button.click();}});
+    setTimeout(()=>input&&input.focus(),20);
+  });
+}
+function wpIsTaskExportEnvelope(value) {
+  return wpIsObj(value)&&value.format===WP_TASK_EXPORT_FORMAT&&value.version===WP_TASK_EXPORT_VERSION&&value.cipher==='AES-256-GCM'&&value.kdf==='PBKDF2-SHA-256'&&value.iterations===WP_TASK_EXPORT_ITERATIONS&&typeof value.salt==='string'&&typeof value.iv==='string'&&typeof value.ciphertext==='string';
 }
 function wpImportFile() {
-  const input=document.createElement('input'); input.type='file'; input.accept='.json,application/json';
+  const input=document.createElement('input');input.type='file';input.accept='.json,application/json';
   input.addEventListener('change',async()=>{
     const file=input.files&&input.files[0];if(!file)return;
-    try { const obj=JSON.parse(await file.text()); await wpImportPayload(obj); }
-    catch(_) {toast('Не удалось прочитать JSON. Данные не менялись.',{icon:'ban'});}
+    if(Number(file.size)>WP_TASK_EXPORT_MAX_FILE_BYTES){toast('Файл слишком большой для импорта.',{icon:'ban'});return;}
+    let envelope;
+    try { envelope=JSON.parse(await file.text()); }
+    catch(_) {toast('Не удалось прочитать JSON. Данные не менялись.',{icon:'ban'});return;}
+    if(!wpIsTaskExportEnvelope(envelope)){toast('Файл не зашифрован кодом SHELTER. Импорт открытого JSON отключён.',{icon:'ban'});return;}
+    const payload=await wpPromptTaskImportPassword(envelope,file.name||'резервная копия');if(payload==null)return;
+    wpImportPayload(payload);
   });
   input.click();
 }

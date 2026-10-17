@@ -20,7 +20,8 @@ class UiClient : public CefClient,
                  public CefRequestHandler,
                  public CefDragHandler,
                  public CefContextMenuHandler,
-                 public CefKeyboardHandler {
+                 public CefKeyboardHandler,
+                 public CefDownloadHandler {
  public:
   UiClient();
   ~UiClient() override;
@@ -33,6 +34,7 @@ class UiClient : public CefClient,
     return this;
   }
   CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
+  CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
   bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                 CefRefPtr<CefFrame> frame,
                                 CefProcessId source_process,
@@ -83,6 +85,16 @@ class UiClient : public CefClient,
                      const CefKeyEvent& event,
                      CefEventHandle os_event,
                      bool* is_keyboard_shortcut) override;
+
+  // Файлы, созданные интерфейсом (например, зашифрованный экспорт задач),
+  // сохраняются через системный диалог выбора места.
+  bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,
+                        CefRefPtr<CefDownloadItem> item,
+                        const CefString& suggested_name,
+                        CefRefPtr<CefBeforeDownloadCallback> callback) override;
+  void OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefDownloadItem> item,
+                         CefRefPtr<CefDownloadItemCallback> callback) override;
 
  private:
   class BridgeHandler;

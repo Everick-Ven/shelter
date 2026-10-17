@@ -50,6 +50,7 @@ const uiDownloadStart = clientsSource.indexOf('bool UiClient::OnBeforeDownload')
 const uiDownloadEnd = clientsSource.indexOf('void UiClient::OnDownloadUpdated', uiDownloadStart);
 const uiDownloadHandler = clientsSource.slice(uiDownloadStart, uiDownloadEnd);
 assert(uiDownloadHandler.includes('Shell::Get().IsUiBrowser(browser)') && uiDownloadHandler.includes('IsUiUrl(frame->GetURL().ToString())') && uiDownloadHandler.includes('callback->Continue(default_path, true)'), 'the UI-origin-only native handler opens a Save As dialog for generated files');
+assert(uiDownloadHandler.includes('const auto utf8_path') && uiDownloadHandler.includes('reinterpret_cast<const char*>(utf8_path.data())'), 'Save As converts filesystem UTF-8 bytes safely under C++17 and C++20');
 
 const harness = String.raw`
 const DAY = 86400000;

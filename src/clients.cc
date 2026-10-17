@@ -487,7 +487,10 @@ bool UiClient::OnBeforeDownload(
     std::error_code error;
     std::filesystem::create_directories(directory, error);
     if (!error) {
-      default_path = (directory / std::filesystem::u8path(filename)).u8string();
+      const auto utf8_path =
+          (directory / std::filesystem::u8path(filename)).u8string();
+      default_path.assign(reinterpret_cast<const char*>(utf8_path.data()),
+                          utf8_path.size());
     }
   }
 

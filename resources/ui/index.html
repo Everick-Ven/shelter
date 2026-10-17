@@ -13858,7 +13858,7 @@ function wpTaskCard(task, opts={}) {
   if(entityType==='occurrence') { d['data-series-id']=task.seriesTaskId; d['data-original-date']=task.originalDate; }
   const dataAttrs=Object.entries(d).map(([k,v])=>`${k}="${esc(v)}"`).join(' ');
   const ruleLabel=entityType==='occurrence' ? `Повтор · ${wpFmtDate(task.originalDate)}` : wpRuleDescription(task);
-  const planned=task.scheduledDate && !opts.inDay ? `План · ${wpFmtDate(task.scheduledDate, true)}` : '';
+  const planned=task.scheduledDate && !opts.inDay ? `Начало · ${wpFmtDate(task.scheduledDate, true)}` : '';
   const showHome=(WP.view==='all'||WP.view==='week'||opts.board) && !opts.hideHome;
   const homeLabel=wpHomeLabel(task);
   const sub=task.entityType==='task' ? wpSubtaskSummary(task.id) : '';
@@ -14019,7 +14019,7 @@ function wpReviewCard(task) {
   const attrs=`data-id="${esc(task.id)}" data-entity-type="${esc(task.entityType||'task')}"${task.entityType==='occurrence'?` data-series-id="${esc(task.seriesTaskId)}" data-original-date="${esc(task.originalDate)}"`:''}`;
   return `<div class="wp-review-item ${selected?'selected':''}">
     <label class="wp-review-select"><input type="checkbox" data-act="wpReviewSelect" ${attrs} ${selected?'checked':''} aria-label="Выбрать ${esc(task.title)}"></label>
-    <div class="wp-review-copy"><b class="wp-title-marquee-clip"><span class="wp-title-marquee-text">${esc(task.title||'Без названия')}</span></b><span>${task.entityType==='occurrence'?`Повтор · ${wpFmtDate(task.originalDate)}`:`План был ${wpFmtDate(task.scheduledDate,true)}`} · ${esc(wpProjectName(task))}</span></div>
+    <div class="wp-review-copy"><b class="wp-title-marquee-clip"><span class="wp-title-marquee-text">${esc(task.title||'Без названия')}</span></b><span>${task.entityType==='occurrence'?`Повтор · ${wpFmtDate(task.originalDate)}`:`Дата начала была ${wpFmtDate(task.scheduledDate,true)}`} · ${esc(wpProjectName(task))}</span></div>
     <div class="wp-review-actions"><button class="btn sm ghost" data-act="wpReviewResolve" data-choice="today" ${attrs}>Сегодня</button><button class="btn sm ghost" data-act="wpReviewPick" ${attrs}>Дата…</button><button class="wp-icon-btn" data-act="wpReviewMenu" ${attrs} aria-label="Другие решения">${ico('dots')}</button></div>
   </div>`;
 }
@@ -14156,7 +14156,7 @@ function wpListEmpty(label) {
 }
 function wpInboxView() {
   const list=wpInboxEntities(), unplanned=list.filter(t=>!t.scheduledDate).length;
-  return `<div class="wp-subbar"><div><b>${list.length}</b><span> задач · ${unplanned} без плана</span></div><span>Входящие — место задачи. Плановая дата показывает её в Неделе, не меняя место.</span></div>${wpQuickGlobalArea()}<div class="wp-task-list">${list.map(t=>wpTaskCard(t)).join('')||wpListEmpty('Входящие пока пусты')}</div>`;
+  return `<div class="wp-subbar"><div><b>${list.length}</b><span> задач · ${unplanned} без даты начала</span></div><span>Входящие — место задачи. Дата начала показывает её в Неделе, не меняя место.</span></div>${wpQuickGlobalArea()}<div class="wp-task-list">${list.map(t=>wpTaskCard(t)).join('')||wpListEmpty('Входящие пока пусты')}</div>`;
 }
 function wpAllFilterToolbar() {
   const assignees=wpAssigneeChoices(), projects=visibleProjects().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
@@ -14452,7 +14452,7 @@ function wpApplySchedule(ref,date) {
 function wpRescheduleRef(ref,date) {
   const ent=wpFindEntity(ref); if(!ent) return;
   if((ent.scheduledDate||null)===(wpDateKey(date)||null)) return;
-  wpCommit(date?`План перенесён на ${wpFmtDate(date,true)}`:'Плановая дата снята · место не изменено',()=>wpApplySchedule(ref,date));
+  wpCommit(date?`Дата начала перенесена на ${wpFmtDate(date,true)}`:'Дата начала снята · место не изменено',()=>wpApplySchedule(ref,date));
 }
 function wpSetDeadline(ref,date) {
   const ent=wpFindEntity(ref); if(!ent) return;
@@ -14519,7 +14519,7 @@ function wpApplyReviewChoice(ref,choice,date,weekStart) {
   }
 }
 function wpResolveRef(ref,choice,date) {
-  const label=choice==='today'?'Перенесено на сегодня':choice==='date'?`Перенесено на ${wpFmtDate(date,true)}`:choice==='clear'?'Плановая дата снята · место не изменено':choice==='inbox'?'Перемещено во Входящие · план снят':choice==='done'?'Отмечено выполненным':choice==='cancel'?'Экземпляр пропущен':'Задача оставлена на прежней дате';
+  const label=choice==='today'?'Перенесено на сегодня':choice==='date'?`Перенесено на ${wpFmtDate(date,true)}`:choice==='clear'?'Дата начала снята · место не изменено':choice==='inbox'?'Перемещено во Входящие · дата начала снята':choice==='done'?'Отмечено выполненным':choice==='cancel'?'Экземпляр пропущен':'Задача оставлена на прежней дате';
   wpCommit(label,()=>wpApplyReviewChoice(ref,choice,date,WP.weekStart));
   WP.reviewSelected=WP.reviewSelected.filter(id=>id!==ref.id);
 }
@@ -14532,7 +14532,7 @@ function wpOpenDatePicker(refs,kind='schedule',title='Выбрать дату') 
   const list=Array.isArray(refs)?refs:[refs];
   const first=list.length===1?wpFindEntity(list[0]):null;
   const current=first ? (kind==='deadline'?wpDeadlineKey(first.deadlineAt):first.scheduledDate||'') : '';
-  const m=openModal({width:410,html:`<div class="modal-h"><div class="mi-ic">${ico(kind==='deadline'?'clock':'calendar')}</div><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-wp-picker="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><label class="field"><span>${kind==='deadline'?'Крайний срок':'Плановая дата'}</span><input class="input" id="wpDatePick" type="date" value="${esc(current)}"></label><div class="wp-picker-quick"><button class="btn sm ghost" type="button" data-wp-quick-date="today">Сегодня</button><button class="btn sm ghost" type="button" data-wp-quick-date="tomorrow">Завтра</button>${kind==='schedule'?'<button class="btn sm ghost" type="button" data-wp-quick-date="none">Снять план</button>':'<button class="btn sm ghost" type="button" data-wp-quick-date="none">Снять дедлайн</button>'}</div></div><div class="modal-f"><button class="btn ghost" data-wp-picker="close">Отмена</button><button class="btn primary" data-wp-picker="save">Сохранить</button></div>`});
+  const m=openModal({width:410,html:`<div class="modal-h"><div class="mi-ic">${ico(kind==='deadline'?'clock':'calendar')}</div><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-wp-picker="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><label class="field"><span>${kind==='deadline'?'Крайний срок':'Дата начала'}</span><input class="input" id="wpDatePick" type="date" value="${esc(current)}"></label><div class="wp-picker-quick"><button class="btn sm ghost" type="button" data-wp-quick-date="today">Сегодня</button><button class="btn sm ghost" type="button" data-wp-quick-date="tomorrow">Завтра</button>${kind==='schedule'?'<button class="btn sm ghost" type="button" data-wp-quick-date="none">Снять дату начала</button>':'<button class="btn sm ghost" type="button" data-wp-quick-date="none">Снять дедлайн</button>'}</div></div><div class="modal-f"><button class="btn ghost" data-wp-picker="close">Отмена</button><button class="btn primary" data-wp-picker="save">Сохранить</button></div>`});
   const root=m.scrim, input=$('#wpDatePick',root); let clearDate=false;
   input.addEventListener('change',()=>{clearDate=false;});
   root.addEventListener('click',e=>{
@@ -14541,15 +14541,15 @@ function wpOpenDatePicker(refs,kind='schedule',title='Выбрать дату') 
     if(b.dataset.wpPicker==='close') { closeModal(m); return; }
     if(b.dataset.wpPicker==='save') {
       const value=wpDateKey(input.value)||null;
-      if(kind==='schedule' && !value && !clearDate) { toast('Выберите дату или явно нажмите «Снять план».',{icon:'info'}); return; }
+      if(kind==='schedule' && !value && !clearDate) { toast('Выберите дату или явно нажмите «Снять дату начала».',{icon:'info'}); return; }
       if(kind==='deadline') {
         wpCommit(value?`Дедлайн установлен · ${wpFmtDate(value,true)}`:'Дедлайн снят',()=>list.forEach(ref=>wpSetDeadline(ref,value)));
       } else if(list.length===1 && list[0] && list[0].decision) { wpResolveRef(list[0],clearDate?'clear':'date',value); }
       else if(list.length>1 && list.every(r=>r.decision)) {
         const choice=clearDate?'clear':'date';
-        wpCommit(clearDate?'Плановые даты сняты · место не изменено':`${list.length} задач перенесено`,()=>list.forEach(ref=>wpApplyReviewChoice(ref,choice,value,WP.weekStart)));
+        wpCommit(clearDate?'Даты начала сняты · место не изменено':`${list.length} задач перенесено`,()=>list.forEach(ref=>wpApplyReviewChoice(ref,choice,value,WP.weekStart)));
         WP.reviewSelected=[]; wpRenderView();
-      } else if(list.length) wpCommit(clearDate?'Плановые даты сняты · место не изменено':`План перенесён на ${wpFmtDate(value,true)}`,()=>list.forEach(ref=>wpApplySchedule(ref,clearDate?null:value)));
+      } else if(list.length) wpCommit(clearDate?'Даты начала сняты · место не изменено':`Дата начала перенесена на ${wpFmtDate(value,true)}`,()=>list.forEach(ref=>wpApplySchedule(ref,clearDate?null:value)));
       closeModal(m);
     }
   });
@@ -14559,7 +14559,7 @@ function wpReviewMenu(anchor) {
   const ref=wpRefFromElement(anchor);
   openMenu(anchor,[
     {label:'Оставить на прежней дате',icon:'calendar',run:()=>wpResolveRef(ref,'keep')},
-    {label:'Во Входящие · снять план',icon:'inbox',run:()=>wpResolveRef(ref,'inbox')},
+    {label:'Во Входящие · снять дату начала',icon:'inbox',run:()=>wpResolveRef(ref,'inbox')},
     {label:'Отметить выполненной',icon:'check',run:()=>wpResolveRef(ref,'done')},
     {label:'Отменить этот экземпляр',icon:'x',danger:true,run:()=>wpResolveRef(ref,'cancel')}
   ],{place:'bottom-end'});
@@ -14573,8 +14573,8 @@ function wpTaskMenu(anchor) {
   items.push({label:moveLabel,icon:'folder',run:()=>wpMoveHomePicker(ref,recurring&&!isOccurrence?{scope:'series'}:{})});
   if(isOccurrence || !recurring) items.push({label:isOccurrence?'Изменить этот экземпляр':'Изменить',icon:'pencil',run:()=>wpOpenEditor(ref)});
   if(isOccurrence) {
-    items.push({label:'Перенести экземпляр…',icon:'calendar',run:()=>wpOpenDatePicker(ref,'schedule','Выбрать плановую дату экземпляра')});
-    items.push({label:'Снять плановую дату',icon:'calendar',run:()=>wpRescheduleRef(ref,null)});
+    items.push({label:'Перенести экземпляр…',icon:'calendar',run:()=>wpOpenDatePicker(ref,'schedule','Выбрать дату начала экземпляра')});
+    items.push({label:'Снять дату начала',icon:'calendar',run:()=>wpRescheduleRef(ref,null)});
     items.push({label:'Изменить крайний срок…',icon:'clock',run:()=>wpOpenDatePicker(ref,'deadline','Изменить крайний срок')});
     if(wpTaskStatus(task)==='open') items.push({label:'Перевести в ожидание',icon:'pause',run:()=>wpSetWaiting(ref)});
     if(wpTaskStatus(task)==='waiting') items.push({label:'Вернуть в работу',icon:'play',run:()=>wpSetWaiting(ref,false)});
@@ -14584,8 +14584,8 @@ function wpTaskMenu(anchor) {
     const rule=wpTaskRule(task);
     items.push({label:'Изменить всю серию',icon:'ref',run:()=>wpOpenEditor(ref,{scope:'series'})},{label:rule.active?'Приостановить серию':'Возобновить серию',icon:rule.active?'pause':'play',run:()=>wpToggleSeries(task.id)},{label:'Завершить серию…',icon:'archive',danger:true,run:()=>wpEndSeries(task.id)});
   } else {
-    items.push({label:'Изменить плановую дату…',icon:'calendar',run:()=>wpOpenDatePicker(ref,'schedule','Выбрать плановую дату')});
-    items.push({label:'Снять плановую дату',icon:'calendar',run:()=>wpRescheduleRef(ref,null)});
+    items.push({label:'Изменить дату начала…',icon:'calendar',run:()=>wpOpenDatePicker(ref,'schedule','Выбрать дату начала')});
+    items.push({label:'Снять дату начала',icon:'calendar',run:()=>wpRescheduleRef(ref,null)});
     items.push({label:'Изменить крайний срок…',icon:'clock',run:()=>wpOpenDatePicker(ref,'deadline','Изменить крайний срок')});
     if(wpTaskStatus(task)==='open') items.push({label:'Перевести в ожидание',icon:'pause',run:()=>wpSetWaiting(ref)});
     if(wpTaskStatus(task)==='waiting') items.push({label:'Вернуть в работу',icon:'play',run:()=>wpSetWaiting(ref,false)});
@@ -14684,10 +14684,10 @@ function wpMoveHomePicker(ref,opts={}) {
   const legacyMatrix=currentType==='matrix', currentValue=legacyMatrix?'legacy-matrix':currentType==='project'?`project:${currentId}`:currentType;
   const scopeHtml=isOccurrence&&series?`<fieldset class="wp-move-scope"><legend>Область переноса</legend><label><input type="radio" name="wpMoveScope" value="instance" ${opts.scope==='series'?'':'checked'}> Только этот экземпляр</label><label><input type="radio" name="wpMoveScope" value="series" ${opts.scope==='series'?'checked':''}> Вся серия</label></fieldset>`:'';
   const target=(homeType,id)=>homeType==='project'?((S.board.projects||[]).find(p=>p&&p.id===id)?.name||'Проект'):homeType==='inbox'?'Входящие':'Личные';
-  const m=openModal({width:440,html:`<div class="modal-h"><div class="mi-ic">${ico('folder')}</div><h3>${isOccurrence?'Переместить экземпляр':'Переместить задачу'}</h3><button type="button" class="icon-btn" data-wp-move="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="wp-move-route"><b id="wpMoveSourceLabel">${esc(wpHomeLabel(initialSource))}</b><span>→</span><strong id="wpMoveTargetLabel">${esc(wpHomeLabel(initialSource))}</strong></div><label class="field"><span>Куда переместить</span><select class="select" id="wpMoveTarget">${legacyMatrix?'<option value="legacy-matrix" selected disabled>Матрица · прежний список</option>':''}${choices.map(([v,l])=>`<option value="${esc(v)}" ${currentValue===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><p class="wp-form-hint" id="wpMovePreserve">Плановая дата, крайний срок, статус и исполнитель сохранятся. Меняется место той же задачи, не копия.</p>${scopeHtml}</div><div class="modal-f"><button type="button" class="btn ghost" data-wp-move="close">Отмена</button><button type="button" class="btn primary" data-wp-move="save">Переместить</button></div>`});
+  const m=openModal({width:440,html:`<div class="modal-h"><div class="mi-ic">${ico('folder')}</div><h3>${isOccurrence?'Переместить экземпляр':'Переместить задачу'}</h3><button type="button" class="icon-btn" data-wp-move="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="wp-move-route"><b id="wpMoveSourceLabel">${esc(wpHomeLabel(initialSource))}</b><span>→</span><strong id="wpMoveTargetLabel">${esc(wpHomeLabel(initialSource))}</strong></div><label class="field"><span>Куда переместить</span><select class="select" id="wpMoveTarget">${legacyMatrix?'<option value="legacy-matrix" selected disabled>Матрица · прежний список</option>':''}${choices.map(([v,l])=>`<option value="${esc(v)}" ${currentValue===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><p class="wp-form-hint" id="wpMovePreserve">Дата начала, крайний срок, статус и исполнитель сохранятся. Меняется место той же задачи, не копия.</p>${scopeHtml}</div><div class="modal-f"><button type="button" class="btn ghost" data-wp-move="close">Отмена</button><button type="button" class="btn primary" data-wp-move="save">Переместить</button></div>`});
   const root=m.scrim, select=$('#wpMoveTarget',root), targetLabel=$('#wpMoveTargetLabel',root), sourceLabel=$('#wpMoveSourceLabel',root);
   const selectedScope=()=>root.querySelector('input[name="wpMoveScope"]:checked')?.value || initialScope;
-  const renderTarget=()=>{const scope=selectedScope(), source=scope==='series'?base:ent; sourceLabel.textContent=wpHomeLabel(source); const hint=$('#wpMovePreserve',root); if(select.value==='legacy-matrix') {targetLabel.textContent='Старое место · Матрица'; if(hint) hint.textContent='Эта задача сохранит прежнее место, пока вы не выберете Входящие, Личные или проект.'; return;} const v=select.value, parts=v.split(':'), homeType=parts[0], projectId=parts.slice(1).join(':'), count=descendantCount&&(!isOccurrence||scope==='series')?descendantCount:0, q=wpQuadrant(source); targetLabel.textContent=homeType==='project'?target('project',projectId):target(homeType); if(hint) hint.textContent=`Плановая дата, крайний срок, статус и исполнитель сохранятся. Меняется место той же записи, не создаётся копия.${count?` Вместе переместятся ${count} ${plural(count,['подзадача','подзадачи','подзадач'])}.`:''}${q!=null?' Классификация Матрицы останется меткой задачи.':''}`;};
+  const renderTarget=()=>{const scope=selectedScope(), source=scope==='series'?base:ent; sourceLabel.textContent=wpHomeLabel(source); const hint=$('#wpMovePreserve',root); if(select.value==='legacy-matrix') {targetLabel.textContent='Старое место · Матрица'; if(hint) hint.textContent='Эта задача сохранит прежнее место, пока вы не выберете Входящие, Личные или проект.'; return;} const v=select.value, parts=v.split(':'), homeType=parts[0], projectId=parts.slice(1).join(':'), count=descendantCount&&(!isOccurrence||scope==='series')?descendantCount:0, q=wpQuadrant(source); targetLabel.textContent=homeType==='project'?target('project',projectId):target(homeType); if(hint) hint.textContent=`Дата начала, крайний срок, статус и исполнитель сохранятся. Меняется место той же записи, не создаётся копия.${count?` Вместе переместятся ${count} ${plural(count,['подзадача','подзадачи','подзадач'])}.`:''}${q!=null?' Классификация Матрицы останется меткой задачи.':''}`;};
   select.addEventListener('change',renderTarget);
   root.addEventListener('change',e=>{if(e.target.name==='wpMoveScope') renderTarget();});
   root.addEventListener('click',e=>{
@@ -14751,7 +14751,7 @@ async function wpRenameProject(id) {
 async function wpDeleteProject(id) {
   const p=(S.board.projects||[]).find(x=>x && x.id===id); if(!p) return;
   const count=(S.board.tasks||[]).filter(t=>t && wpTaskHomeType(t)==='project' && (t.homeId||t.projectId)===id).length;
-  if(!(await confirmDlg({title:`Удалить проект «${p.name}»?`,text:`Сам проект будет удалён; ${count} ${plural(count,['задача','задачи','задач'])} останутся на доске как личные/без проекта. Плановые даты, дедлайны и повторения сохранятся.`,ok:'Удалить проект',danger:true,icon:'trash'}))) return;
+  if(!(await confirmDlg({title:`Удалить проект «${p.name}»?`,text:`Сам проект будет удалён; ${count} ${plural(count,['задача','задачи','задач'])} останутся на доске как личные/без проекта. Даты начала, дедлайны и повторения сохранятся.`,ok:'Удалить проект',danger:true,icon:'trash'}))) return;
   wpCommit('Проект удалён · задачи сохранены без проекта',()=>{
     (S.board.tasks||[]).forEach(t=>{if(wpTaskHomeType(t)==='project' && (t.homeId||t.projectId)===id){t.legacy=Object.assign({},t.legacy||{},{previousProjectId:id,previousProjectName:p.name});wpSetTaskHome(t,'personal');}});
     (S.board.occurrences||[]).forEach(rec=>{
@@ -14893,7 +14893,7 @@ function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
       <label class="field"><span>${isNew?'Добавить в':'Список'}</span><select class="select" id="wpKind" ${isNew?'':'disabled'}>${kindOptions}</select></label>
       <label class="field" id="wpProjectWrap" ${values.kind==='project'?'':'hidden'}><span>Проект</span><select class="select" id="wpProject">${projectOptions}</select></label>
       <label class="field"><span>Исполнитель</span><select class="select" id="wpAssignee">${assigneeOptions}</select></label>
-      <label class="field"><span>Плановая дата</span><input class="input" id="wpScheduled" type="date" value="${esc(values.scheduledDate||'')}"></label>
+      <label class="field"><span>Дата начала</span><input class="input" id="wpScheduled" type="date" value="${esc(values.scheduledDate||'')}"></label>
       <label class="field"><span>Крайний срок</span><input class="input" id="wpDeadline" type="date" value="${esc(values.deadlineAt||'')}"></label>
       ${statusField}
       <label class="field"><span>Приоритет</span><select class="select" id="wpPriority">${[['none','Без приоритета'],['normal','Обычный'],['high','Срочный'],['critical','Критичный']].map(([v,l])=>`<option value="${v}" ${values.priorityKey===v?'selected':''}>${l}</option>`).join('')}</select></label>
@@ -15072,7 +15072,7 @@ function wpOpenEditor(ref=null,opts={}) {
     if(b.dataset.wpEditor!=='save') return;
     const v=wpEditorValues(root); if(!v.title) { $('#wpTitle',root).focus(); toast('Укажите название задачи.',{icon:'info'}); return; }
     if(v.kind==='project' && !v.projectId) { toast('Выберите проект для задачи.',{icon:'info'}); $('#wpProject',root).focus(); return; }
-    if(scope!=='instance' && v.frequency!=='none' && !v.scheduledDate) { toast('Для серии задайте плановую дату первого экземпляра. Дедлайн её не заменяет.',{icon:'info'}); $('#wpScheduled',root).focus(); return; }
+    if(scope!=='instance' && v.frequency!=='none' && !v.scheduledDate) { toast('Для серии задайте дату начала первого экземпляра. Дедлайн её не заменяет.',{icon:'info'}); $('#wpScheduled',root).focus(); return; }
     if(scope!=='instance' && v.frequency==='weekly' && !v.weekdays.length) { toast('Выберите хотя бы один день недели.',{icon:'info'}); return; }
     const before=wpClone(S.board), newId=isNew?uid('task'):sourceTask.id;
     const saveLabel=isNew?'Задача добавлена':scope==='instance'?'Экземпляр сохранён':'Задача / серия сохранена';
@@ -15105,7 +15105,7 @@ function wpMigrationPreviewData() {
 function wpOpenTaskMigrationPreview() {
   if(!S.taskMigrationPending) return;
   const x=wpMigrationPreviewData(), backup=S.taskMigrationBackupKey||'shelter:planner:migration-backup:v6';
-  const m=openModal({width:590,html:`<div class="modal-h"><div class="mi-ic">${ico('shield')}</div><h3>Переход задач на схему v7</h3><button type="button" class="icon-btn" data-wp-migration="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><p class="wp-form-hint">Перед изменением создана и проверена копия исходных строк. Ключ копии: <code>${esc(backup)}</code>. До подтверждения схема в хранилище не меняется.</p><div class="wp-migration-stats"><div><b>${x.boards}</b><span>досок</span></div><div><b>${x.projects}</b><span>проектов</span></div><div><b>${x.tasks}</b><span>задач</span></div><div><b>${x.series}</b><span>правил повторения</span></div><div><b>${x.occurrences}</b><span>записей истории</span></div></div><div class="wp-migration-homes"><b>Куда попадут задачи после перехода</b><ul><li>Входящие: ${x.inbox}</li><li>Личные: ${x.personal}</li><li>Матрица: ${x.matrix}${x.eisen?` (включая ${x.eisen} задач из отдельного старого списка Eisenhower)`:''}</li><li>Проекты: ${x.project}</li></ul></div><p class="wp-form-hint">Задачи с проектом останутся в проектах; явные <code>inbox:true</code> без проекта — во Входящих; остальные старые непроектные задачи — в «Личных». Старые <code>importance / urgency / qm</code> сохраняются как классификация, но сами по себе не перемещают задачу в Матрицу. Плановая дата задаёт начало календарного диапазона, а «Крайний срок» — его конец; старое поле даты окончания объединяется с дедлайном, существующий дедлайн при конфликте сохраняется.</p>${x.inboxProjectFlags?`<p class="wp-form-hint">${x.inboxProjectFlags} старых задач имели одновременно проект и Inbox-флаг. После перехода задача останется в проекте; прежний флаг сохранён в legacy-метаданных и проверенной копии.</p>`:''}${x.quadrantOnly?`<p class="wp-form-hint">Задач с квадрантом, которые останутся в других списках: ${x.quadrantOnly}. Они останутся в прежних местах; проверьте их через «Список задач».</p>`:''}<p id="wpMigrationResult" class="wp-migration-result" aria-live="polite"></p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-migration="close">Пока оставить только чтение</button><button type="button" class="btn primary" data-wp-migration="continue">${ico('check')}Подтвердить и записать v7</button></div>`});
+  const m=openModal({width:590,html:`<div class="modal-h"><div class="mi-ic">${ico('shield')}</div><h3>Переход задач на схему v7</h3><button type="button" class="icon-btn" data-wp-migration="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><p class="wp-form-hint">Перед изменением создана и проверена копия исходных строк. Ключ копии: <code>${esc(backup)}</code>. До подтверждения схема в хранилище не меняется.</p><div class="wp-migration-stats"><div><b>${x.boards}</b><span>досок</span></div><div><b>${x.projects}</b><span>проектов</span></div><div><b>${x.tasks}</b><span>задач</span></div><div><b>${x.series}</b><span>правил повторения</span></div><div><b>${x.occurrences}</b><span>записей истории</span></div></div><div class="wp-migration-homes"><b>Куда попадут задачи после перехода</b><ul><li>Входящие: ${x.inbox}</li><li>Личные: ${x.personal}</li><li>Матрица: ${x.matrix}${x.eisen?` (включая ${x.eisen} задач из отдельного старого списка Eisenhower)`:''}</li><li>Проекты: ${x.project}</li></ul></div><p class="wp-form-hint">Задачи с проектом останутся в проектах; явные <code>inbox:true</code> без проекта — во Входящих; остальные старые непроектные задачи — в «Личных». Старые <code>importance / urgency / qm</code> сохраняются как классификация, но сами по себе не перемещают задачу в Матрицу. Дата начала определяет начало календарного диапазона, а «Крайний срок» — его конец; старое поле даты окончания объединяется с дедлайном, существующий дедлайн при конфликте сохраняется.</p>${x.inboxProjectFlags?`<p class="wp-form-hint">${x.inboxProjectFlags} старых задач имели одновременно проект и Inbox-флаг. После перехода задача останется в проекте; прежний флаг сохранён в legacy-метаданных и проверенной копии.</p>`:''}${x.quadrantOnly?`<p class="wp-form-hint">Задач с квадрантом, которые останутся в других списках: ${x.quadrantOnly}. Они останутся в прежних местах; проверьте их через «Список задач».</p>`:''}<p id="wpMigrationResult" class="wp-migration-result" aria-live="polite"></p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-migration="close">Пока оставить только чтение</button><button type="button" class="btn primary" data-wp-migration="continue">${ico('check')}Подтвердить и записать v7</button></div>`});
   const root=m.scrim; m.guard=null;
   root.addEventListener('click',e=>{const b=e.target.closest('[data-wp-migration]');if(!b)return;if(b.dataset.wpMigration==='close'){closeModal(m);return;}if(b.dataset.wpMigration!=='continue')return;if(wpFinalizeTaskMigration()){closeModal(m);wpRenderTaskPageFull();toast('Схема v7 записана и проверена. Резервная копия доступна в меню действий.',{icon:'check'});}else{const result=$('#wpMigrationResult',root);if(result)result.textContent=S.taskMigrationError||'Не удалось проверить запись. Исходные данные восстановлены.';const preview=$('#wpView');if(preview)preview.querySelectorAll('.wp-migration-error').forEach(el=>el.textContent=S.taskMigrationError);}});
 }
@@ -15191,7 +15191,7 @@ function wpReviewSelect(e) {
   else WP.reviewSelected=WP.reviewSelected.filter(x=>x!==id);
   wpRenderView();
 }
-function wpReviewPick(el) { const ref=wpRefFromElement(el); ref.decision=true; wpOpenDatePicker(ref,'schedule','Решить: выбрать новую плановую дату'); }
+function wpReviewPick(el) { const ref=wpRefFromElement(el); ref.decision=true; wpOpenDatePicker(ref,'schedule','Решить: выбрать новую дату начала'); }
 function wpBulkPick() {
   const refs=wpDecisionEntities(WP.weekStart).filter(x=>WP.reviewSelected.includes(x.id)).map(x=>({id:x.id,entityType:x.entityType,seriesTaskId:x.seriesTaskId,originalDate:x.originalDate,decision:true}));
   if(!refs.length)return;
@@ -15309,7 +15309,7 @@ function wpQuickProject(el) { WP.quick={targetDate:null,projectId:el.dataset.pro
 function wpClickQuick(el) { wpQuickAddOpen(el.dataset.date||null,el.dataset.projectId||null); }
 function wpResolveAction(el) { wpResolveRef(wpRefFromElement(el),el.dataset.choice||'today'); }
 function wpBulkAction(el) { wpBulkResolve(el.dataset.choice||'today'); }
-function wpSetTaskMatrixDate(el) { const ref=wpRefFromElement(el); wpOpenDatePicker(ref,'schedule','Выбрать плановую дату'); }
+function wpSetTaskMatrixDate(el) { const ref=wpRefFromElement(el); wpOpenDatePicker(ref,'schedule','Выбрать дату начала'); }
 function wpDragMove(ref,date) { wpRescheduleRef(ref,date); }
 function wpChangeProjectFromPage(el) { wpProjectMenu(el); }
 function wpTaskImportExportMenu(anchor) { wpMoreMenu(anchor); }

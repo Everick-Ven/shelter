@@ -27,6 +27,7 @@ assert(planner.includes('restored.focus({preventScroll:true})') && planner.inclu
 assert(planner.includes("const search=page&&page.querySelector('#wpSearch'); if(search&&search.value!==WP.query) search.value=WP.query;"), 'view changes preserve the planner search query');
 assert(planner.includes("kb('⌘⇧K')"), 'the task search shortcut label must adapt to the platform');
 assert(planner.includes("await wpAddProjectFromEditor(target,projectSelection)") && planner.includes('wpPersistBoard()'), 'the task editor persists a project selected from its add-project option');
+assert(planner.includes("kind==='deadline'?'Крайний срок':'Дата начала'") && !planner.includes('Плановая дата'), 'the planner consistently calls the scheduled start date “Дата начала”');
 assert(planner.includes('plannerCalendarShowCompletedTasks') && planner.includes('plannerBoardShowCompletedTasks'), 'calendar and board completed-visibility preferences persist independently');
 assert(!planner.includes('WP.showCompleted'), 'completed-visibility state is not shared across planner views');
 
@@ -382,6 +383,7 @@ const formValues = {
   waitingReason: '', reviewAt: '', frequency: 'none', interval: 1, intervalDays: 1, weekdays: [1], mode: 'calendar', endDate: ''
 };
 const createForm = api.wpEditorBodyHtml(null, 'series', true, formValues, false, null);
+assert(createForm.includes('<span>Дата начала</span>') && !createForm.includes('Плановая дата'), 'the task form labels the schedule as its start date');
 assert(createForm.includes('<option value="__add">+ Добавить новый проект</option>'), 'new-task project selector always offers project creation');
 const projectsBeforeEmptyForm = state.board.projects;
 state.board.projects = [];
@@ -436,6 +438,8 @@ assert(taskMarkup.includes('class="wp-task-title wp-title-marquee-clip"'));
 assert(taskMarkup.includes(`<span class="wp-title-marquee-text">${longTitle}</span>`));
 assert(taskMarkup.includes('До: 19.10.2026'));
 assert(taskMarkup.includes('class="wp-task qnone p-normal'), 'task cards expose the priority class used for urgency coloring');
+const startDateMarkup = api.wpTaskCard({ id: 'start-date-task', title: 'Дата старта', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true });
+assert(startDateMarkup.includes('Начало ·') && !startDateMarkup.includes('План ·'), 'task cards use the renamed start-date label');
 const compactDateMarkup = api.wpTaskCard({ id: 'week-date-task', title: 'Короткая карточка', homeType: 'personal', assignee: 'Alex', deadlineAt: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true, inDay: true });
 assert(compactDateMarkup.includes('title="До: 19.10.2026"') && compactDateMarkup.includes('До: 19.10</span>'), 'week cells keep the date compact while retaining the full numeric deadline on hover');
 const makeTitleClip = (scrollWidth, clientWidth, textContent=longTitle) => {

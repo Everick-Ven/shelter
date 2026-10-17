@@ -225,7 +225,8 @@ elseif(OS_MAC)
   add_executable(ShelterCrx3VerifyTest
     tests/crx3_verify_test.cc src/crx3.cc src/crx3_verify_mac.mm
     src/crx3.h src/crx3_crypto.h src/crx3_format.h)
-  target_link_libraries(ShelterCrx3VerifyTest PRIVATE "-framework Security")
+  target_link_libraries(ShelterCrx3VerifyTest PRIVATE
+    "-framework Security" "-framework CoreFoundation")
 endif()
 
 if(OS_WINDOWS OR OS_MAC)

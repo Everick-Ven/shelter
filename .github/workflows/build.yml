@@ -60,13 +60,13 @@ jobs:
       - name: Verify real CRX3 signatures with BCrypt/CNG
         shell: pwsh
         run: |
-          python -m pip install --disable-pip-version-check "cryptography>=43"
+          python -m pip install --disable-pip-version-check "cryptography>=43" 2>&1 | Tee-Object -FilePath fixture-setup.log
           if ($LASTEXITCODE -ne 0) { throw "cryptography install failed" }
-          python tools/gen_crx3_fixtures.py --check
+          python tools/gen_crx3_fixtures.py --check 2>&1 | Tee-Object -FilePath crx3-fixtures.log
           if ($LASTEXITCODE -ne 0) { throw "CRX3 fixtures are stale or non-deterministic" }
-          cmake --build build --target ShelterCrx3VerifyTest --parallel 2
+          cmake --build build --target ShelterCrx3VerifyTest --parallel 2 2>&1 | Tee-Object -FilePath crx3-test-build.log
           if ($LASTEXITCODE -ne 0) { throw "CRX3 platform verifier test build failed" }
-          cmake --build build --target ShelterDownloadRevealPathTest --parallel 2
+          cmake --build build --target ShelterDownloadRevealPathTest --parallel 2 2>&1 | Tee-Object -FilePath reveal-test-build.log
           if ($LASTEXITCODE -ne 0) { throw "Windows download-reveal path test build failed" }
           ctest --test-dir build -C Release -R "crx3-platform-signature-verification|shelter-download-reveal-path" --output-on-failure 2>&1 | Tee-Object -FilePath platform-tests.log
           if ($LASTEXITCODE -ne 0) { throw "Windows CRX3 or download-reveal path tests failed" }
@@ -152,7 +152,7 @@ jobs:
       - name: Report Windows failure diagnostics
         if: failure()
         shell: pwsh
-        run: python tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log platform-tests.log package.log install.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
+        run: python tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log install.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
 
       - name: Portable zip
         shell: pwsh
@@ -197,6 +197,10 @@ jobs:
             configure-ci.log
             build.log
             build-ci.log
+            fixture-setup.log
+            crx3-fixtures.log
+            crx3-test-build.log
+            reveal-test-build.log
             platform-tests.log
             package.log
             install.log
@@ -243,10 +247,10 @@ jobs:
       - name: Verify real CRX3 signatures with Security.framework
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check 'cryptography>=43'
-          python3 tools/gen_crx3_fixtures.py --check
-          cmake --build build --target ShelterCrx3VerifyTest --parallel 2
-          cmake --build build --target ShelterDownloadRevealPathTest --parallel 2
+          python3 -m pip install --disable-pip-version-check 'cryptography>=43' 2>&1 | tee fixture-setup.log
+          python3 tools/gen_crx3_fixtures.py --check 2>&1 | tee crx3-fixtures.log
+          cmake --build build --target ShelterCrx3VerifyTest --parallel 2 2>&1 | tee crx3-test-build.log
+          cmake --build build --target ShelterDownloadRevealPathTest --parallel 2 2>&1 | tee reveal-test-build.log
           ctest --test-dir build -C Release -R "crx3-platform-signature-verification|shelter-download-reveal-path" --output-on-failure 2>&1 | tee platform-tests.log
 
       - name: Verify macOS sandbox library
@@ -344,7 +348,7 @@ jobs:
 
       - name: Report macOS failure diagnostics
         if: failure()
-        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log platform-tests.log package.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
+        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -365,6 +369,10 @@ jobs:
             configure-ci.log
             build.log
             build-ci.log
+            fixture-setup.log
+            crx3-fixtures.log
+            crx3-test-build.log
+            reveal-test-build.log
             platform-tests.log
             package.log
             geometry.log

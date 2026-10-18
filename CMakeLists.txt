@@ -1,16 +1,37 @@
 # SHELTER — приватный браузер на Chromium Embedded Framework.
 cmake_minimum_required(VERSION 3.21)
 
-set(CMAKE_CONFIGURATION_TYPES Release)
+# Debug builds enable development-only mock services. Branch builds use a
+# separate Beta channel for promotional codes; tagged production builds leave it off.
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Supported build configurations" FORCE)
 project(shelter)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-set(SHELTER_VERSION "1.0.165")
+set(SHELTER_VERSION "1.0.294")
+if(NOT SHELTER_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+  message(FATAL_ERROR "SHELTER_VERSION must be numeric major.minor.patch")
+endif()
+string(TIMESTAMP SHELTER_BUILD_TIMESTAMP "%Y%m%d%H%M%S" UTC)
+string(RANDOM LENGTH 12 ALPHABET 0123456789abcdef SHELTER_BUILD_NONCE)
+set(SHELTER_BUILD_ID "${SHELTER_BUILD_TIMESTAMP}-${SHELTER_BUILD_NONCE}")
+set(SHELTER_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${SHELTER_GENERATED_DIR}/src")
+configure_file(cmake/app_version.h.in
+               "${SHELTER_GENERATED_DIR}/src/app_version.h" @ONLY)
+configure_file(cmake/app_version.txt.in
+               "${CMAKE_CURRENT_BINARY_DIR}/shelter-version.txt" @ONLY)
+string(REPLACE "." "," _SHELTER_VERSION_COMMA "${SHELTER_VERSION}")
+set(SHELTER_FILE_VERSION_RC "${_SHELTER_VERSION_COMMA},0")
+set(SHELTER_ICON_RESOURCE "${CMAKE_CURRENT_SOURCE_DIR}/win/shelter.ico")
+configure_file(win/shelter.rc.in
+               "${SHELTER_GENERATED_DIR}/shelter.rc" @ONLY)
 
 # ---- CEF ---------------------------------------------------------------------
 set(CEF_VERSION "154.0.32+g682c378+chromium-154.0.8037.58")
 set(CEF_CHANNEL "minimal")
 option(USE_SANDBOX "Enable CEF's per-process sandbox" ON)
+option(SHELTER_BETA_BUILD "Enable beta-only promotional code access" OFF)
+option(SHELTER_CI_HOOKS "Enable CI-only smoke and diagnostic hooks" OFF)
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
   # Целевая платформа — Intel (x86_64).
@@ -36,32 +57,52 @@ find_package(CEF REQUIRED)
 list(REMOVE_ITEM CEF_COMPILER_FLAGS -Werror /WX)
 
 add_subdirectory(${CEF_LIBCEF_DLL_WRAPPER_PATH} libcef_dll_wrapper)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} "${SHELTER_GENERATED_DIR}")
 
 # ---- Исходники ---------------------------------------------------------------
 set(SHELTER_COMMON_SRCS
   src/common.cc src/common.h
-  src/secret_key.cc
+  src/secret_key.cc src/secret_crypto.cc src/secret_crypto.h
+  src/crx3.cc src/crx3.h src/crx3_crypto.h src/crx3_format.h
   src/renderer_app.cc src/renderer_app.h
   src/ui_scheme.cc src/ui_scheme.h
   src/key_map.cc src/key_map.h
-  src/clients.cc src/clients.h
+  src/clients.cc src/clients.h src/favicon_hosts.h src/extension_match.h
+  src/extension_engine.h src/color_scheme.h
+  src/blocker.cc src/blocker.h
+  src/netguard.cc src/netguard.h
   src/shell.cc src/shell_bridge.cc src/shell.h
   src/browser_app.cc src/browser_app.h
   src/platform.h src/security_paths.h
 )
-set(SHELTER_SRCS_WINDOWS src/main_win.cc src/platform_win.cc win/shelter.rc)
-set(SHELTER_SRCS_MAC src/main_mac.mm src/platform_mac.mm)
+set(SHELTER_SRCS_WINDOWS src/main_win.cc src/platform_win.cc
+                         src/crx3_verify_win.cc
+                         "${SHELTER_GENERATED_DIR}/shelter.rc")
+set(SHELTER_SRCS_MAC src/main_mac.mm src/platform_mac.mm
+                     src/crx3_verify_mac.mm)
 set(SHELTER_SRCS ${SHELTER_COMMON_SRCS})
 APPEND_PLATFORM_SOURCES(SHELTER_SRCS)
 
 set(SHELTER_UI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources/ui")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  "${SHELTER_UI_DIR}/index.html"
+  "${SHELTER_UI_DIR}/host-bridge.js")
 set(CEF_TARGET "Shelter")
 SET_CEF_TARGET_OUT_DIR()
 
 # ---- Windows -----------------------------------------------------------------
 if(OS_WINDOWS)
   if(USE_SANDBOX)
+    # Version resources are linked into Shelter.dll; mirror the same resource
+    # onto CEF's copied bootstrap.exe so Explorer reports the app version.
+    add_executable(ShelterVersionUpdater tools/patch_version_resource.cc)
+    foreach(_cfg DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
+      set_target_properties(ShelterVersionUpdater PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_${_cfg} "${CMAKE_CURRENT_BINARY_DIR}/version-tools")
+    endforeach()
+    set_target_properties(ShelterVersionUpdater PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/version-tools")
+
     # CEF M138+ runs the client as a DLL loaded by its signed bootstrap host.
     add_library(${CEF_TARGET} SHARED ${SHELTER_SRCS})
     SET_LIBRARY_TARGET_PROPERTIES(${CEF_TARGET})
@@ -79,16 +120,26 @@ if(OS_WINDOWS)
 
   ADD_LOGICAL_TARGET("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
   add_dependencies(${CEF_TARGET} libcef_dll_wrapper)
+  if(USE_SANDBOX)
+    add_dependencies(${CEF_TARGET} ShelterVersionUpdater)
+  endif()
   target_link_libraries(${CEF_TARGET} libcef_lib libcef_dll_wrapper ${CEF_STANDARD_LIBS}
-                        shell32 ole32 user32 uuid crypt32)
+                        shell32 ole32 user32 uuid crypt32 bcrypt)
 
   COPY_FILES("${CEF_TARGET}" "${CEF_BINARY_FILES}" "${CEF_BINARY_DIR}" "${CEF_TARGET_OUT_DIR}")
   COPY_FILES("${CEF_TARGET}" "${CEF_RESOURCE_FILES}" "${CEF_RESOURCE_DIR}" "${CEF_TARGET_OUT_DIR}")
   add_custom_command(TARGET ${CEF_TARGET} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${SHELTER_UI_DIR}" "${CEF_TARGET_OUT_DIR}/ui"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/resources/filters" "${CEF_TARGET_OUT_DIR}/filters"
     VERBATIM)
   if(USE_SANDBOX)
     SET_LPAC_ACLS("${CEF_TARGET}")
+    add_custom_command(TARGET ${CEF_TARGET} POST_BUILD
+      COMMAND $<TARGET_FILE:ShelterVersionUpdater>
+              "$<TARGET_FILE:${CEF_TARGET}>"
+              "${CEF_TARGET_OUT_DIR}/${CEF_TARGET}.exe"
+      COMMENT "Applying SHELTER version resource to the CEF bootstrap executable"
+      VERBATIM)
   endif()
 endif()
 
@@ -150,8 +201,49 @@ if(OS_MAC)
   add_custom_command(TARGET ${CEF_TARGET} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CEF_APP}/Contents/Resources"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${SHELTER_UI_DIR}" "${CEF_APP}/Contents/Resources/ui"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/resources/filters" "${CEF_APP}/Contents/Resources/filters"
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/mac/Shelter.icns" "${CEF_APP}/Contents/Resources/Shelter.icns"
     VERBATIM)
 endif()
 
+if(SHELTER_BETA_BUILD)
+  target_compile_definitions(${CEF_TARGET} PRIVATE SHELTER_BETA_BUILD=1)
+endif()
+if(SHELTER_CI_HOOKS)
+  target_compile_definitions(${CEF_TARGET} PRIVATE SHELTER_CI_HOOKS=1)
+endif()
+
 PRINT_CEF_CONFIG()
+
+# Тесты подписи CRX3 связываются с теми же системными API, что и SHELTER.
+if(OS_WINDOWS)
+  add_executable(ShelterCrx3VerifyTest
+    tests/crx3_verify_test.cc src/crx3.cc src/crx3_verify_win.cc
+    src/crx3.h src/crx3_crypto.h src/crx3_format.h)
+  target_link_libraries(ShelterCrx3VerifyTest PRIVATE bcrypt crypt32)
+elseif(OS_MAC)
+  add_executable(ShelterCrx3VerifyTest
+    tests/crx3_verify_test.cc src/crx3.cc src/crx3_verify_mac.mm
+    src/crx3.h src/crx3_crypto.h src/crx3_format.h)
+  target_link_libraries(ShelterCrx3VerifyTest PRIVATE
+    "-framework Security" "-framework CoreFoundation")
+endif()
+
+if(OS_WINDOWS OR OS_MAC)
+  add_executable(ShelterDownloadRevealPathTest
+    tests/download_reveal_path_test.cc)
+endif()
+
+if(TARGET ShelterCrx3VerifyTest)
+  target_include_directories(ShelterCrx3VerifyTest PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_compile_features(ShelterCrx3VerifyTest PRIVATE cxx_std_17)
+  target_include_directories(ShelterDownloadRevealPathTest PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_compile_features(ShelterDownloadRevealPathTest PRIVATE cxx_std_17)
+  enable_testing()
+  add_test(NAME crx3-platform-signature-verification
+    COMMAND ShelterCrx3VerifyTest "${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
+  add_test(NAME shelter-download-reveal-path
+    COMMAND ShelterDownloadRevealPathTest)
+endif()

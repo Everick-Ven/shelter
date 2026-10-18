@@ -7,7 +7,10 @@
 внутри hero-зоны: x>0, y>0, w<client_w, h<client_h.
 
 Выход 0 = геометрия верна; 1 = провал (или приложение не стартовало).
+При любом провале печатает хвосты логов приложения, чтобы падание было видно
+в CI без доступа к blob-storage.
 """
+import glob
 import os
 import platform
 import re
@@ -25,6 +28,34 @@ def user_data_dir():
         base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or "."
         return os.path.join(base, "SHELTER")
     return os.path.expanduser("~/Library/Application Support/SHELTER")
+
+
+def tail_lines(path, n=80):
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        return [l.rstrip("\n") for l in lines[-n:]]
+    except OSError:
+        return []
+
+
+def dump_diagnostics(logfile, stderr_file):
+    out("--- shelter.log tail ---")
+    for l in tail_lines(logfile):
+        out(l)
+    out("--- app stderr tail ---")
+    for l in tail_lines(stderr_file):
+        out(l)
+    if platform.system() == "Darwin":
+        reports = []
+        for d in (os.path.expanduser("~/Library/Logs/DiagnosticReports"),
+                  "/Library/Logs/DiagnosticReports"):
+            reports.extend(glob.glob(os.path.join(d, "Shelter*")))
+        if reports:
+            newest = max(reports, key=os.path.getmtime)
+            out(f"--- newest crash report: {newest} ---")
+            for l in tail_lines(newest, 120):
+                out(l)
 
 
 def kill(proc):
@@ -51,6 +82,7 @@ def main():
     exe = sys.argv[1]
     budget = int(sys.argv[2]) if len(sys.argv) > 2 else 45
     logfile = os.path.join(user_data_dir(), "shelter.log")
+    stderr_file = "geometry-app.log"
     marker = "shell: content bounds"
 
     seen = 0
@@ -65,32 +97,42 @@ def main():
     env["SHELTER_SMOKE_URL"] = "shelter://app/index.html?smoke=site"
     out("launch:", exe)
     out("log:", logfile)
+    stderr_fh = open(stderr_file, "w", encoding="utf-8", errors="replace")
     proc = subprocess.Popen([exe], env=env,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            stdout=subprocess.DEVNULL, stderr=stderr_fh)
 
     deadline = time.time() + budget
     line = None
-    while time.time() < deadline:
-        if proc.poll() is not None:
-            out("FAIL: app exited early with code", proc.returncode)
-            kill(proc)
-            sys.exit(1)
-        time.sleep(1)
-        if not os.path.exists(logfile):
-            continue
+    try:
+        while time.time() < deadline:
+            if proc.poll() is not None:
+                out("FAIL: app exited early with code", proc.returncode)
+                kill(proc)
+                stderr_fh.flush()
+                dump_diagnostics(logfile, stderr_file)
+                sys.exit(1)
+            time.sleep(1)
+            if not os.path.exists(logfile):
+                continue
+            try:
+                with open(logfile, "r", encoding="utf-8", errors="replace") as f:
+                    lines = f.readlines()
+            except OSError:
+                continue
+            fresh = [l.strip() for l in lines[seen:] if marker in l]
+            if fresh:
+                line = fresh[-1]
+                break
+    finally:
+        kill(proc)
         try:
-            with open(logfile, "r", encoding="utf-8", errors="replace") as f:
-                lines = f.readlines()
+            stderr_fh.close()
         except OSError:
-            continue
-        fresh = [l.strip() for l in lines[seen:] if marker in l]
-        if fresh:
-            line = fresh[-1]
-            break
+            pass
 
-    kill(proc)
     if not line:
         out(f"FAIL: marker {marker!r} not found in {logfile} within {budget}s")
+        dump_diagnostics(logfile, stderr_file)
         sys.exit(1)
 
     out("geometry:", line)

@@ -6,12 +6,14 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iterator>
 #include <string>
 #include <system_error>
 #include <vector>
 
 #if defined(_WIN32)
 #include <windows.h>
+#include <winioctl.h>
 #endif
 
 namespace shelter {
@@ -29,6 +31,38 @@ inline bool IsSafeProfileId(const std::string& id) {
     }
   }
   return true;
+}
+
+// Persistent profiles live directly under the CEF user-data directory
+// (Chrome only accepts profile paths that are immediate children of it).
+// Names owned by Chrome/CEF itself must never be reused as profile ids; the
+// comparison is case-insensitive because Windows/macOS paths are.
+inline bool IsReservedProfileName(const std::string& id) {
+  std::string lower(id);
+  for (char& c : lower) {
+    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+  }
+  static const char* const kReserved[] = {
+      "default",
+      "system_profile",
+      "systemprofile",
+      "crashpad",
+      "shadercache",
+      "grshadercache",
+      "subresource_filter",
+      "subresourcefilter",
+      "certificate_transparency",
+      "certificatetransparency",
+      "trust_tokens",
+      "trusttokens",
+      "lastactivetabs",
+      "local_state",
+      "pending_wipe",
+  };
+  for (const char* name : kReserved) {
+    if (lower == name) return true;
+  }
+  return false;
 }
 
 inline bool IsReservedWindowsDeviceName(const std::string& component) {
@@ -109,6 +143,59 @@ inline bool IsLinkOrReparsePoint(const std::filesystem::path& path) {
 #endif
 }
 
+// Для «Показать в папке» облачные placeholder-файлы OneDrive не считаются
+// ссылками: запрещены только символьная ссылка и точка подключения. Cloud Files
+// использует отдельные IO_REPARSE_TAG_CLOUD*: https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags
+inline bool IsSymlinkOrJunction(const std::filesystem::path& path) {
+#if defined(_WIN32)
+  const DWORD attributes = GetFileAttributesW(path.c_str());
+  if (attributes == INVALID_FILE_ATTRIBUTES) return true;
+  if ((attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) return false;
+
+  WIN32_FIND_DATAW data{};
+  HANDLE search = FindFirstFileW(path.c_str(), &data);
+  if (search == INVALID_HANDLE_VALUE) return true;
+  FindClose(search);
+  if ((data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) return true;
+  return data.dwReserved0 == IO_REPARSE_TAG_SYMLINK ||
+         data.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT;
+#else
+  std::error_code ec;
+  const auto status = std::filesystem::symlink_status(path, ec);
+  return ec || std::filesystem::is_symlink(status);
+#endif
+}
+
+inline bool IsDirectoryWithoutSymlinkOrJunction(
+    const std::filesystem::path& path) {
+#if defined(_WIN32)
+  const DWORD attributes = GetFileAttributesW(path.c_str());
+  return attributes != INVALID_FILE_ATTRIBUTES &&
+         (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0 &&
+         !IsSymlinkOrJunction(path);
+#else
+  std::error_code ec;
+  const auto status = std::filesystem::symlink_status(path, ec);
+  return !ec && std::filesystem::is_directory(status) &&
+         !IsSymlinkOrJunction(path);
+#endif
+}
+
+inline bool IsRegularFileWithoutSymlinkOrJunction(
+    const std::filesystem::path& path) {
+#if defined(_WIN32)
+  const DWORD attributes = GetFileAttributesW(path.c_str());
+  return attributes != INVALID_FILE_ATTRIBUTES &&
+         (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0 &&
+         !IsSymlinkOrJunction(path);
+#else
+  std::error_code ec;
+  const auto status = std::filesystem::symlink_status(path, ec);
+  return !ec && std::filesystem::is_regular_file(status) &&
+         !IsSymlinkOrJunction(path);
+#endif
+}
+
 inline bool IsDirectoryWithoutLink(const std::filesystem::path& path) {
   std::error_code ec;
   const auto status = std::filesystem::symlink_status(path, ec);
@@ -121,6 +208,66 @@ inline bool IsRegularFileWithoutLink(const std::filesystem::path& path) {
   const auto status = std::filesystem::symlink_status(path, ec);
   return !ec && std::filesystem::is_regular_file(status) &&
          !IsLinkOrReparsePoint(path);
+}
+
+// Проверяет файл вместе со всеми родительскими каталогами от корня тома:
+// одного IsPathWithin недостаточно, если промежуточный каталог — ссылка.
+inline bool IsRegularFileWithoutLinkChain(
+    const std::filesystem::path& path) {
+  namespace fs = std::filesystem;
+  if (path.empty() || !path.is_absolute()) return false;
+  for (const fs::path& component : path) {
+    if (component == "." || component == "..") return false;
+  }
+
+  const fs::path normalized = path.lexically_normal();
+  fs::path current = normalized.root_path();
+  if (current.empty() || IsLinkOrReparsePoint(current)) return false;
+  const fs::path relative = normalized.relative_path();
+  if (relative.empty()) return false;
+
+  for (auto it = relative.begin(); it != relative.end(); ++it) {
+    const fs::path component = *it;
+    if (component.empty() || component == "." || component == "..")
+      return false;
+    current /= component;
+    if (IsLinkOrReparsePoint(current)) return false;
+    const bool last = std::next(it) == relative.end();
+    if (last) return IsRegularFileWithoutLink(current);
+    if (!IsDirectoryWithoutLink(current)) return false;
+  }
+  return false;
+}
+
+// Проверяет путь к файлу загрузки, не отклоняя облачные reparse-теги.
+inline bool IsRegularFileWithoutSymlinkOrJunctionChain(
+    const std::filesystem::path& path) {
+  namespace fs = std::filesystem;
+  if (path.empty() || !path.is_absolute()) return false;
+  for (const fs::path& component : path) {
+    if (component == "." || component == "..") return false;
+  }
+
+  const fs::path normalized = path.lexically_normal();
+  fs::path current = normalized.root_path();
+  if (current.empty() || IsSymlinkOrJunction(current) ||
+      !IsDirectoryWithoutSymlinkOrJunction(current)) {
+    return false;
+  }
+  const fs::path relative = normalized.relative_path();
+  if (relative.empty()) return false;
+
+  for (auto it = relative.begin(); it != relative.end(); ++it) {
+    const fs::path component = *it;
+    if (component.empty() || component == "." || component == "..")
+      return false;
+    current /= component;
+    if (IsSymlinkOrJunction(current)) return false;
+    const bool last = std::next(it) == relative.end();
+    if (last) return IsRegularFileWithoutSymlinkOrJunction(current);
+    if (!IsDirectoryWithoutSymlinkOrJunction(current)) return false;
+  }
+  return false;
 }
 
 inline bool EnsureDirectoryWithoutLink(const std::filesystem::path& path) {

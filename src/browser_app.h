@@ -3,6 +3,7 @@
 #define SHELTER_BROWSER_APP_H_
 
 #include "include/cef_app.h"
+#include "include/cef_command_line.h"
 #include "src/renderer_app.h"
 
 namespace shelter {
@@ -20,6 +21,8 @@ class BrowserApp final : public AppBase, public CefBrowserProcessHandler {
 
   // CefBrowserProcessHandler
   void OnContextInitialized() override;
+  void OnBeforeChildProcessLaunch(
+      CefRefPtr<CefCommandLine> command_line) override;
 
  private:
   IMPLEMENT_REFCOUNTING(BrowserApp);

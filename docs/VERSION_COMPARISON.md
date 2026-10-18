@@ -10,11 +10,17 @@
 
 The source histories do not share a merge base in this checkout. Therefore this port uses the **full tracked tree** from `02e99c2` as the coherent source snapshot (UI, `host-bridge.js`, CEF shell, platform code, packaging, and installer), rather than copying only the 55-line UI commit onto the incompatible `app/` bridge.
 
+The labels and version numbers above describe historical snapshots; they do not
+set the current product version. For current builds, `SHELTER_VERSION` in
+`CMakeLists.txt` generates the native/UI and Windows resource versions, supplies
+installer and workflow packaging metadata, and determines the versioned macOS
+DMG name. The release job checks that the pushed `v*` tag agrees with that value.
+
 ## Acceptance gates
 
 The packaged runtime job is intentionally blocking, not `continue-on-error`. It must:
 
-1. report the packaged UI version as `1.0.165`;
+1. report the packaged UI version generated from `SHELTER_VERSION`;
 2. pass dashboard horizontal-overflow checks at browser viewport widths 1280, 997, 768, and 390 px;
 3. open and render `https://example.com/` in a native CEF tab;
 4. navigate that tab to `https://example.org/` and verify Back returns to `example.com`;

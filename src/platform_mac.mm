@@ -2,8 +2,11 @@
 #import <QuartzCore/QuartzCore.h>
 #import <Security/Security.h>
 
+#include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <cstdarg>
 #include <cstdio>
 #include <filesystem>
@@ -11,6 +14,8 @@
 #include <string>
 #include <system_error>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include "src/platform.h"
 #include "src/security_paths.h"
@@ -127,17 +132,22 @@ bool KeychainDeleteNoPrompt(const char* service, const char* account) {
 
 }  // namespace
 
-bool KeychainGet(const char* service, const char* account, std::string* out) {
-  if (!out) return false;
-  return KeychainReadNoPrompt(service, account, out) == errSecSuccess;
+KeychainReadResult KeychainGet(const char* service, const char* account,
+                               std::string* out) {
+  if (!out) return KeychainReadResult::kError;
+  const OSStatus status = KeychainReadNoPrompt(service, account, out);
+  if (status == errSecSuccess) return KeychainReadResult::kFound;
+  if (status == errSecItemNotFound) return KeychainReadResult::kMissing;
+  return KeychainReadResult::kError;
 }
 
 bool KeychainPutOpen(const char* service, const char* account,
                      const std::string& value) {
-  // ACL «любое приложение, без запросов» — та же модель, что DPAPI на Windows:
-  // процессы текущего пользователя читают молча, на диске запись защищена
-  // ключом логина. Нужна ещё и потому, что ad-hoc подпись меняет cdhash каждую
-  // сборку — иначе после обновления пришлось бы отвечать на запрос доступа.
+  // Просим ACL «любое приложение, без запросов», но macOS также может
+  // ограничивать запись partition ID конкретной подписью. Для SHELTER master
+  // key поэтому дополнительно хранится 0600 mirror-файл в secret_key.cc:
+  // ad-hoc подпись меняется между сборками и Keychain-запись может стать
+  // недоступной после обновления. Chromium Safe Storage управляется отдельно.
   CFStringRef svc = MakeCF(service);
   CFStringRef acct = MakeCF(account);
   CFStringRef desc = MakeCF(service);
@@ -278,12 +288,31 @@ std::string UiResourceDir() {
   return std::string([res UTF8String]) + "/ui";
 }
 
+std::string FiltersDir() {
+  NSString* res = [[NSBundle mainBundle] resourcePath];
+  return std::string([res UTF8String]) + "/filters";
+}
+
 std::string UserDataDir() {
   NSArray* dirs = NSSearchPathForDirectoriesInDomains(
       NSApplicationSupportDirectory, NSUserDomainMask, YES);
   NSString* base = dirs.count ? dirs[0] : NSHomeDirectory();
   return std::string([base UTF8String]) + "/SHELTER";
 }
+
+
+bool RandomBytes(size_t size, std::string* out) {
+  if (!out) return false;
+  out->assign(size, '\0');
+  if (size == 0) return true;
+  if (SecRandomCopyBytes(kSecRandomDefault, size,
+                         reinterpret_cast<std::uint8_t*>(out->data())) ==
+      errSecSuccess)
+    return true;
+  out->clear();
+  return false;
+}
+
 
 std::string DownloadsDir() {
   NSArray* dirs = NSSearchPathForDirectoriesInDomains(
@@ -293,16 +322,11 @@ std::string DownloadsDir() {
 }
 
 void ShowInFolder(const std::string& path) {
-  NSString* p = [NSString stringWithUTF8String:path.c_str()];
-  [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[
-    [NSURL fileURLWithPath:p]
-  ]];
-}
-
-void OpenExternal(const std::string& url) {
-  NSString* u = [NSString stringWithUTF8String:url.c_str()];
-  NSURL* nsurl = [NSURL URLWithString:u];
-  if (nsurl) [[NSWorkspace sharedWorkspace] openURL:nsurl];
+  NSString* path_string = [NSString stringWithUTF8String:path.c_str()];
+  if (!path_string || path_string.length == 0) return;
+  NSURL* file_url = [NSURL fileURLWithPath:path_string];
+  if (!file_url || !file_url.isFileURL) return;
+  [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[file_url]];
 }
 
 std::string ClipboardRead() {
@@ -324,12 +348,31 @@ void SetColorScheme(bool dark) {
 }
 
 
+#if defined(SHELTER_CI_HOOKS)
 static int g_forced_key = 0;
 static int g_redirected = 0;
+#endif
 static bool g_redirecting = false;
 static NSWindow* g_overlay_win = nil;  // окно вида вкладки (не retain)
-static std::vector<std::array<int, 4>> g_holes;
+static std::vector<std::array<int, 5>> g_holes;  // {x, y, w, h, радиус}
 static int g_hole_view_w = 0, g_hole_view_h = 0;
+
+struct ViewClipCache {
+  bool valid = false;
+  NSWindow* window = nil;
+  NSView* root = nil;
+  CALayer* root_layer = nil;
+  CAShapeLayer* mask = nil;
+  std::array<double, 4> radii{};
+  std::vector<std::array<int, 5>> holes;
+  int view_w = 0;
+  int view_h = 0;
+  CGFloat content_w = 0;
+  CGFloat content_h = 0;
+  bool visible = false;
+};
+
+static ViewClipCache g_view_clip_cache;
 
 static bool InHole(NSEvent* e) {
   NSWindow* w = e.window;
@@ -367,14 +410,18 @@ static NSEvent* RedirectToUi(NSEvent* e) {
                                  clickCount:e.clickCount
                                    pressure:e.pressure];
   if (!ne) return e;
+#if defined(SHELTER_CI_HOOKS)
   g_redirected++;
+#endif
   [ui sendEvent:ne];
   return nil;
 }
 static id g_mouse_monitor = nil;
 
+#if defined(SHELTER_CI_HOOKS)
 void SetClipLevel(int) {}
 std::string DumpWindowChain(void*) { return std::string(); }
+#endif
 
 void InstallInputFixes() {
   if (g_mouse_monitor) return;
@@ -407,7 +454,9 @@ void InstallInputFixes() {
                                          // делаем его ключевым ДО доставки события, иначе клик тратится
                                          // на активацию и приходится кликать дважды.
                                          [w makeKeyWindow];
+#if defined(SHELTER_CI_HOOKS)
                                          g_forced_key++;
+#endif
                                        }
                                      }
                                      return e;
@@ -416,58 +465,155 @@ void InstallInputFixes() {
 }
 
 void ApplyViewClip(void* handle, const double radii[4],
-                   const std::vector<std::array<int, 4>>& holes, int view_w, int view_h) {
-  NSView* v = (NSView*)handle;
-  NSWindow* win = v ? v.window : nil;
-  if (!win || !win.contentView) return;
-  g_overlay_win = win;
+                   const std::vector<std::array<int, 5>>& holes, int /*view_x*/,
+                   int /*view_y*/, int view_w, int view_h, bool visible,
+                   std::uint32_t /*mask_color*/) {
+  NSView* view = static_cast<NSView*>(handle);
+  NSWindow* window = view ? view.window : nil;
+  if (!window || !window.contentView) return;
+  NSView* root = window.contentView.superview ? window.contentView.superview
+                                               : window.contentView;
+  if (visible && !root.wantsLayer) {
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    root.wantsLayer = YES;
+    [CATransaction commit];
+  }
+  CALayer* layer = root.layer;
+  if (visible && !layer) return;
+
+  const CGFloat width = window.contentView.frame.size.width;
+  const CGFloat height = window.contentView.frame.size.height;
+  std::array<double, 4> current_radii{};
+  for (int i = 0; i < 4; ++i) current_radii[i] = radii[i];
+  const bool same_geometry = g_view_clip_cache.valid &&
+      g_view_clip_cache.window == window && g_view_clip_cache.root == root &&
+      g_view_clip_cache.root_layer == layer &&
+      g_view_clip_cache.radii == current_radii &&
+      g_view_clip_cache.holes == holes &&
+      g_view_clip_cache.view_w == view_w &&
+      g_view_clip_cache.view_h == view_h &&
+      g_view_clip_cache.content_w == width &&
+      g_view_clip_cache.content_h == height;
+  CAShapeLayer* existing_mask =
+      [layer.mask isKindOfClass:[CAShapeLayer class]]
+          ? (CAShapeLayer*)layer.mask
+          : nil;
+  if (same_geometry && g_view_clip_cache.visible == visible &&
+      (!visible || existing_mask == g_view_clip_cache.mask)) {
+    return;
+  }
+
+  if (!visible) {
+    // Скрытие меняет только состояние маршрутизации мыши; маска слоя остаётся.
+    if (g_overlay_win == window) {
+      g_overlay_win = nil;
+      g_holes.clear();
+      g_hole_view_w = g_hole_view_h = 0;
+    }
+    g_view_clip_cache.valid = true;
+    g_view_clip_cache.window = window;
+    g_view_clip_cache.root = root;
+    g_view_clip_cache.root_layer = layer;
+    g_view_clip_cache.mask = existing_mask;
+    g_view_clip_cache.radii = current_radii;
+    g_view_clip_cache.holes = holes;
+    g_view_clip_cache.view_w = view_w;
+    g_view_clip_cache.view_h = view_h;
+    g_view_clip_cache.content_w = width;
+    g_view_clip_cache.content_h = height;
+    g_view_clip_cache.visible = false;
+    return;
+  }
+
+  g_overlay_win = window;
   g_holes = holes;
   g_hole_view_w = view_w;
   g_hole_view_h = view_h;
-  NSView* root = win.contentView.superview ? win.contentView.superview : win.contentView;
-  bool any = !holes.empty();
-  for (int i = 0; i < 4; ++i) any = any || radii[i] > 0.5;
-  if (!any) {
-    if (root.layer) root.layer.mask = nil;
+  if (same_geometry && existing_mask &&
+      existing_mask == g_view_clip_cache.mask) {
+    // После hide/show того же вида слой и его путь уже готовы.
+    g_view_clip_cache.visible = true;
     return;
   }
-  root.wantsLayer = YES;
-  CALayer* layer = root.layer;
-  if (!layer) return;
-  const CGFloat W = win.contentView.frame.size.width, H = win.contentView.frame.size.height;
-  const CGFloat sx = view_w > 0 ? W / view_w : 1, sy = view_h > 0 ? H / view_h : 1;
-  const CGFloat tl = radii[0] * sx, tr = radii[1] * sx, br = radii[2] * sx, bl = radii[3] * sx;
 
-  // Путь в координатах «сверху вниз», затем переворачиваем под систему координат слоя окна.
-  CGMutablePathRef p = CGPathCreateMutable();
-  CGPathMoveToPoint(p, nullptr, tl, 0);
-  CGPathAddLineToPoint(p, nullptr, W - tr, 0);
-  if (tr > 0) CGPathAddArc(p, nullptr, W - tr, tr, tr, -M_PI_2, 0, false);
-  CGPathAddLineToPoint(p, nullptr, W, H - br);
-  if (br > 0) CGPathAddArc(p, nullptr, W - br, H - br, br, 0, M_PI_2, false);
-  CGPathAddLineToPoint(p, nullptr, bl, H);
-  if (bl > 0) CGPathAddArc(p, nullptr, bl, H - bl, bl, M_PI_2, M_PI, false);
-  CGPathAddLineToPoint(p, nullptr, 0, tl);
-  if (tl > 0) CGPathAddArc(p, nullptr, tl, tl, tl, M_PI, 3 * M_PI_2, false);
-  CGPathCloseSubpath(p);
-  for (const auto& h : holes) {
-    CGPathAddRect(p, nullptr, CGRectMake(h[0] * sx, h[1] * sy, h[2] * sx, h[3] * sy));
+  const CGFloat sx = view_w > 0 ? width / view_w : 1;
+  const CGFloat sy = view_h > 0 ? height / view_h : 1;
+  const CGFloat tl = current_radii[0] * sx;
+  const CGFloat tr = current_radii[1] * sx;
+  const CGFloat br = current_radii[2] * sx;
+  const CGFloat bl = current_radii[3] * sx;
+
+  // Путь задаётся сверху вниз, затем переворачивается в координаты слоя окна.
+  CGMutablePathRef path = CGPathCreateMutable();
+  CGPathMoveToPoint(path, nullptr, tl, 0);
+  CGPathAddLineToPoint(path, nullptr, width - tr, 0);
+  if (tr > 0) CGPathAddArc(path, nullptr, width - tr, tr, tr,
+                           -M_PI_2, 0, false);
+  CGPathAddLineToPoint(path, nullptr, width, height - br);
+  if (br > 0) CGPathAddArc(path, nullptr, width - br, height - br, br,
+                           0, M_PI_2, false);
+  CGPathAddLineToPoint(path, nullptr, bl, height);
+  if (bl > 0) CGPathAddArc(path, nullptr, bl, height - bl, bl,
+                           M_PI_2, M_PI, false);
+  CGPathAddLineToPoint(path, nullptr, 0, tl);
+  if (tl > 0) CGPathAddArc(path, nullptr, tl, tl, tl,
+                           M_PI, 3 * M_PI_2, false);
+  CGPathCloseSubpath(path);
+  for (const auto& hole : holes) {
+    // Дырка повторяет скругление попапа, чтобы не оставлять квадратную рамку.
+    const CGRect rect = CGRectMake(hole[0] * sx, hole[1] * sy,
+                                   hole[2] * sx, hole[3] * sy);
+    const CGFloat hr = static_cast<CGFloat>(hole[4]) * sx;
+    const CGFloat radius = std::max<CGFloat>(
+        0, std::min<CGFloat>(hr, std::min(CGRectGetWidth(rect),
+                                         CGRectGetHeight(rect)) / 2));
+    if (radius > 0.5) {
+      CGPathAddRoundedRect(path, nullptr, rect, radius, radius);
+    } else {
+      CGPathAddRect(path, nullptr, rect);
+    }
   }
-  CGAffineTransform flip = CGAffineTransformMake(1, 0, 0, -1, 0, H);
-  CGPathRef flipped = CGPathCreateCopyByTransformingPath(p, &flip);
-  CGPathRelease(p);
+  CGAffineTransform flip = CGAffineTransformMake(1, 0, 0, -1, 0, height);
+  CGPathRef flipped = CGPathCreateCopyByTransformingPath(path, &flip);
+  CGPathRelease(path);
+  if (!flipped) return;
 
-  CAShapeLayer* mask = [CAShapeLayer layer];
-  mask.frame = layer.bounds;
-  mask.path = flipped;
-  CGColorRef black = CGColorCreateGenericGray(0, 1);
-  mask.fillColor = black;
-  CGColorRelease(black);
-  mask.fillRule = kCAFillRuleEvenOdd;
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
+  CAShapeLayer* mask = existing_mask;
+  if (!mask) {
+    mask = [CAShapeLayer layer];
+    CGColorRef black = CGColorCreateGenericGray(0, 1);
+    mask.fillColor = black;
+    CGColorRelease(black);
+    mask.fillRule = kCAFillRuleEvenOdd;
+    layer.mask = mask;
+  }
+  if (!CGRectEqualToRect(mask.frame, layer.bounds)) {
+    mask.frame = layer.bounds;
+  }
+  if (!mask.path || !CGPathEqualToPath(mask.path, flipped)) {
+    mask.path = flipped;
+  }
+  [CATransaction commit];
   CGPathRelease(flipped);
-  layer.mask = mask;
+
+  g_view_clip_cache.valid = true;
+  g_view_clip_cache.window = window;
+  g_view_clip_cache.root = root;
+  g_view_clip_cache.root_layer = layer;
+  g_view_clip_cache.mask = mask;
+  g_view_clip_cache.radii = current_radii;
+  g_view_clip_cache.holes = holes;
+  g_view_clip_cache.view_w = view_w;
+  g_view_clip_cache.view_h = view_h;
+  g_view_clip_cache.content_w = width;
+  g_view_clip_cache.content_h = height;
+  g_view_clip_cache.visible = true;
 }
 
+#if defined(SHELTER_CI_HOOKS)
 static void DumpView(NSView* v, int depth, NSMutableString* out) {
   if (!v || depth > 5) return;
   NSRect f = v.frame;
@@ -475,6 +621,7 @@ static void DumpView(NSView* v, int depth, NSMutableString* out) {
                     f.origin.x, f.origin.y, f.size.width, f.size.height, v.hidden ? @" HIDDEN" : @""];
   for (NSView* c in v.subviews) DumpView(c, depth + 1, out);
 }
+#endif  // SHELTER_CI_HOOKS
 
 // ---- миниатюра главного окна: CEF Views о сворачивании не знает ----
 // (паттерн cefclient root_window_mac.mm: windowDidMiniaturize -> Hide,
@@ -509,6 +656,7 @@ void WatchMainWindow(void* nswindow, void (*on_mini)(void*),
                               }] retain];
 }
 
+#if defined(SHELTER_CI_HOOKS)
 std::string DebugHitTest(double x, double y) {
   NSMutableString* out = [NSMutableString string];
   for (NSWindow* w in [NSApp windows]) {
@@ -527,6 +675,7 @@ std::string DebugHitTest(double x, double y) {
   }
   return std::string([out UTF8String]);
 }
+#endif  // SHELTER_CI_HOOKS
 
 }  // namespace platform
 }  // namespace shelter

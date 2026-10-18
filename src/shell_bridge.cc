@@ -1,6 +1,8 @@
 // SHELTER — мост UI -> native (window.shelterNative / window.shelter* хуки из host-bridge.js).
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <filesystem>
 #include <sstream>
 
 #include "include/cef_cookie.h"
@@ -8,9 +10,12 @@
 #include "include/cef_task.h"
 #include "include/cef_thread.h"
 #include "include/wrapper/cef_helpers.h"
+#include "src/blocker.h"
 #include "src/clients.h"
+#include "src/color_scheme.h"
 #include "src/common.h"
 #include "src/platform.h"
+#include "src/security_paths.h"
 #include "src/shell.h"
 
 namespace shelter {
@@ -58,29 +63,51 @@ CefRect RectOf(CefRefPtr<CefDictionaryValue> args) {
                  static_cast<int>(std::lround(Num(r, "h"))));
 }
 
-// Нормализация адреса для навигации вкладки. Схема shelter:// и javascript:
-// во вкладках запрещены (иначе страница получила бы доступ к UI).
+// Во вкладки передаём только HTTP(S) или about:blank. Файл, выбранный в
+// системном диалоге, проходит отдельный одноразовый путь ниже.
 std::string NavUrl(std::string url) {
-  auto b = url.find_first_not_of(" \t\r\n");
-  auto e = url.find_last_not_of(" \t\r\n");
-  url = b == std::string::npos ? "" : url.substr(b, e - b + 1);
+  const auto begin = url.find_first_not_of(" \t\r\n");
+  const auto end = url.find_last_not_of(" \t\r\n");
+  url = begin == std::string::npos ? "" : url.substr(begin, end - begin + 1);
   if (url.empty()) return "about:blank";
+  for (unsigned char c : url) {
+    if (c <= 0x20 || c == 0x7f) return "about:blank";
+  }
 
   std::string lower = url;
   std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
-  auto has = [&](const char* p) { return lower.rfind(p, 0) == 0; };
-  if (has("javascript:") || has(std::string(std::string(kUiScheme) + ":").c_str())) {
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  if (lower == "about:blank") return "about:blank";
+
+  const size_t colon = lower.find(':');
+  const size_t delimiter = lower.find_first_of("/?#");
+  const bool has_scheme = colon != std::string::npos && colon > 0 &&
+                          (delimiter == std::string::npos || colon < delimiter) &&
+                          lower[0] >= 'a' && lower[0] <= 'z' &&
+                          std::all_of(lower.begin(), lower.begin() + colon,
+                                      [](unsigned char c) {
+                                        return (c >= 'a' && c <= 'z') ||
+                                               (c >= '0' && c <= '9') ||
+                                               c == '+' || c == '-' || c == '.';
+                                      });
+  std::string candidate = url;
+  if (has_scheme) {
+    const std::string scheme = lower.substr(0, colon);
+    if (scheme != "http" && scheme != "https") return "about:blank";
+  } else {
+    candidate = "https://" + url;
+  }
+
+  CefURLParts parts;
+  if (!CefParseURL(CefString(candidate), parts)) return "about:blank";
+  std::string scheme = CefString(&parts.scheme).ToString();
+  std::transform(scheme.begin(), scheme.end(), scheme.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  if ((scheme != "http" && scheme != "https") ||
+      CefString(&parts.host).ToString().empty()) {
     return "about:blank";
   }
-  bool has_scheme = false;
-  for (size_t i = 0; i < lower.size(); ++i) {
-    char c = lower[i];
-    if (c == ':') { has_scheme = i > 0; break; }
-    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '+' ||
-          c == '-' || c == '.')) break;
-  }
-  return has_scheme ? url : "https://" + url;
+  return candidate;
 }
 
 // ---- снимок вкладки через DevTools-протокол --------------------------------
@@ -144,14 +171,48 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                          CefRefPtr<CefDictionaryValue> a,
                          CefRefPtr<Callback> cb) {
   CEF_REQUIRE_UI_THREAD();
+  // Centralize the renderer-to-host trust boundary so new bridge methods
+  // cannot accidentally omit the UI-browser authorization check.
+  if (!IsUiBrowser(browser)) {
+    cb->Failure(403, "operation is restricted to the SHELTER UI");
+    return true;
+  }
+
+  const auto can_reveal_download = [this](const std::string& raw_path) {
+    if (raw_path.empty()) return false;
+    for (unsigned char c : raw_path) {
+      if (c < 0x20 || c == 0x7f || c == '"' || c == '\'') return false;
+    }
+    const std::filesystem::path candidate = std::filesystem::u8path(raw_path);
+    if (!candidate.is_absolute()) return false;
+    for (const std::filesystem::path& component : candidate) {
+      if (component == "." || component == "..") return false;
+    }
+    const std::filesystem::path normalized = candidate.lexically_normal();
+    const std::filesystem::path downloads =
+        std::filesystem::u8path(platform::DownloadsDir()).lexically_normal();
+    const bool in_downloads = downloads.is_absolute() &&
+                              security::IsPathWithin(downloads, normalized);
+    const bool accepted = accepted_download_paths_.count(raw_path) != 0;
+    if (!in_downloads && !accepted) return false;
+    return security::IsRegularFileWithoutSymlinkOrJunctionChain(normalized);
+  };
+
+  if (m == "premium.status") {
+    // Fail closed until a server-backed verifier is configured. Client storage
+    // and the development checkout are never evidence of a paid entitlement.
+    cb->Success("{\"ok\":false,\"verified\":false,\"status\":\"unavailable\"}");
+    return true;
+  }
+  if (m == "premium.checkout") {
+    // There is no payment provider in this build; do not create a local order
+    // or grant access. A production integration must return only a server order.
+    cb->Success("{\"ok\":false,\"error\":\"payment_provider_unavailable\"}");
+    return true;
+  }
 
   if (m == "user-data.delete") {
-    // Destructive host operations are accepted only from SHELTER's own UI,
-    // never from a site that happens to share the CEF message router.
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "operation is restricted to the SHELTER UI");
-      return true;
-    }
+    // Destructive host operation; UI authorization is enforced above.
     if (closing_ || delete_user_data_on_exit()) {
       cb->Failure(409, "application is already closing");
       return true;
@@ -188,8 +249,25 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
+  if (m == "favicon.ensure") {
+    // Догрузка иконок сайтов по запросу UI (закладки/история без иконки в
+    // кэше). Разрешено только небольшой пачкой: это сетевой запрос,
+    // инициированный UI, который не должен задаваться сторонним кодом.
+    const std::string hosts = Str(a, "hosts");
+    if (hosts.size() > 1024) {
+      cb->Failure(400, "too many hosts in one request");
+      return true;
+    }
+    RequestFavicons(hosts, browser);
+    cb->Success("{}");
+    return true;
+  }
   if (m == "ext.list") {
     ExtList(cb);
+    return true;
+  }
+  if (m == "ext.setMode") {
+    ExtSetMode(Flag(a, "engine", true), cb);
     return true;
   }
   if (m == "ext.install") {
@@ -204,6 +282,11 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   }
   if (m == "ext.pick") {
     ExtPick();
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "file.open") {  // Ctrl+O: нативный диалог, затем file-open в UI
+    PickLocalFile();
     cb->Success("{}");
     return true;
   }
@@ -229,7 +312,7 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
       t = nullptr;
     }
     bool created = false, navigated = false;
-    const std::string nav = NavUrl(url);
+    const std::string nav = ConsumeSelectedLocalFileUrl(url) ? url : NavUrl(url);
     if (!t) {
       t = CreateTab(id, partition, nav, zoom);
       created = navigated = true;
@@ -244,13 +327,16 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
       navigated = true;
     }
     active_tab_ = id;
-    for (auto& kv : tabs_) {
-      if (kv.first != id && kv.second.overlay && kv.second.overlay->IsValid()) {
-        kv.second.overlay->SetVisible(false);
+    const bool view_visible = Flag(a, "visible", true);
+    LayoutTab(t, RectOf(a), view_visible);
+    if (!view_visible) HideInactiveTabs(t);
+    if (Flag(a, "focus", true)) {
+      if (t->view) {
+        t->view->RequestFocus();
+      } else {
+        t->pending_focus = true;  // профиль ещё инициализируется
       }
     }
-    LayoutTab(t, RectOf(a), Flag(a, "visible", true));
-    if (Flag(a, "focus", true) && t->view) t->view->RequestFocus();
     std::ostringstream os;
     os << "{\"created\":" << (created ? "true" : "false") << ",\"navigated\":"
        << (navigated ? "true" : "false") << ",\"loading\":"
@@ -264,8 +350,13 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
-  if (m == "view.clip") {  // скругление углов и «дыры» (оверлеи UI поверх страницы)
+  if (m == "view.clip") {  // скругление сцены и цвет фоновой маски
     for (int i = 0; i < 4; ++i) clip_radii_[i] = 0;
+    if (a->HasKey("maskColor")) {
+      const long long color = std::llround(Num(a, "maskColor", 0));
+      clip_mask_color_ = static_cast<std::uint32_t>(
+          std::clamp<long long>(color, 0, 0x00ffffff));
+    }
     clip_holes_.clear();
     if (a->HasKey("radii") && a->GetType("radii") == VTYPE_LIST) {
       CefRefPtr<CefListValue> l = a->GetList("radii");
@@ -280,8 +371,8 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
         if (l->GetType(i) != VTYPE_LIST) continue;
         CefRefPtr<CefListValue> r = l->GetList(i);
         if (r->GetSize() < 4) continue;
-        std::array<int, 4> h{};
-        for (size_t k = 0; k < 4; ++k) {
+        std::array<int, 5> h{};
+        for (size_t k = 0; k < r->GetSize() && k < 5; ++k) {
           const int ty = r->GetType(k);
           h[k] = static_cast<int>(std::lround(ty == VTYPE_DOUBLE ? r->GetDouble(k) : ty == VTYPE_INT ? r->GetInt(k) : 0));
         }
@@ -364,8 +455,14 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
   if (m == "devtools") {
-    if (Str(a, "act") == "window") TabAction(active_tab_, "devtools", "");
-    cb->Success("{\"ok\":false}");
+    // UI просит отдельное окно DevTools для активной вкладки. Док-панель
+    // (act=open/close) нативно не реализована — отвечаем честным ok:false.
+    if (Str(a, "act") == "window" && !active_tab_.empty()) {
+      TabAction(active_tab_, "devtools", "");
+      cb->Success("{\"ok\":true}");
+    } else {
+      cb->Success("{\"ok\":false}");
+    }
     return true;
   }
 
@@ -380,20 +477,83 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
   if (m == "theme.scheme") {
-    platform::SetColorScheme(Str(a, "mode") != "light");
+    const bool dark = ColorSchemeDarkFromMode(Str(a, "mode"));
+    platform::SetColorScheme(dark);
+    // Тема интерфейса сообщается и Chromium: от режима зависят
+    // prefers-color-scheme на страницах, скроллбары и элементы управления.
+    SetColorSchemeAll(dark);
     cb->Success("{}");
     return true;
   }
   if (m == "shell.show") {
-    platform::ShowInFolder(Str(a, "path"));
+    const std::string path = Str(a, "path");
+    if (can_reveal_download(path)) platform::ShowInFolder(path);
     cb->Success("{}");
     return true;
   }
+  if (m == "block.setEnabled") {
+    // UI-настройка «Блокировка трекеров и рекламы»: включаем/выключаем
+    // сетевую и косметическую фильтрацию на нативной стороне.
+    blocker::SetEnabled(Flag(a, "on", false));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "fp.setEnabled") {
+    // UI-настройка «Анти-отпечаток»: состояние уходит рендерерам, где до JS
+    // страниц встраивается шум Canvas/WebGL/Audio.
+    Shell::Get().SetFpEnabled(Flag(a, "on", false));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "cookie.setEnabled") {
+    // UI-настройка «Автосогласие cookies»: рендерер подтверждает на сайтах
+    // минимальный (технический) набор до появления баннера согласия.
+    Shell::Get().SetAutoConsentEnabled(Flag(a, "on", false));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "https.setEnabled") {
+    // UI-настройка «Безопасный HTTPS + приватный DNS»: автоподъём навигаций
+    // на https:// и шифрованный DNS в сетевом стеке профиля.
+    Shell::Get().SetHttpsOnlyEnabled(Flag(a, "on", false));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "dns.setProvider") {
+    // Провайдер DoH (Cloudflare / Google / Quad9 / системный). Применяется
+    // сразу ко всем инициализированным контекстам.
+    Shell::Get().SetDohProvider(Str(a, "provider"));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "strict.setEnabled") {
+    // UI-настройка «Строгий режим»: сторонние скрипты блокируются на сетевом
+    // уровне, пока сайт не получит разрешение пользователя.
+    Shell::Get().SetStrictEnabled(Flag(a, "on", false));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "strict.allow") {
+    // Пользователь разрешил сторонние скрипты сайту из тоста «Разрешить».
+    Shell::Get().StrictAllow(Str(a, "host"));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "ghost.setEnabled") {
+    // Режим «Призрак»: новые вкладки уходят в in-memory профили на стороне
+    // моста; нативная часть при выключении сразу освобождает пустые
+    // приватные контексты.
+    Shell::Get().SetGhostMode(Flag(a, "on", false));
+    cb->Success("{}");
+    return true;
+  }
+  if (m == "shell.filestate") {
+    // Проверяем тот же ограниченный набор путей, что и перед «Показать в папке».
+    const bool exists = can_reveal_download(Str(a, "path"));
+    cb->Success(std::string("{\"exists\":") + (exists ? "true" : "false") + "}");
+    return true;
+  }
   if (m == "dl.decision" || m == "dl.control") {
-    if (!browser || !IsUiBrowser(browser)) {
-      cb->Failure(403, "download operations are restricted to the SHELTER UI");
-      return true;
-    }
     const std::string id = Str(a, "id");
     const std::string action = Str(a, "action");
     const bool ok = m == "dl.decision"
@@ -412,6 +572,17 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                  cb);
     return true;
   }
+#if defined(SHELTER_CI_HOOKS)
+  if (m == "dbg.protections") {  // диагностика (CI): состояние защит в браузерном процессе
+    // Приёмка обязана уметь отличить «тумблер не дошёл до нативной части» от
+    // «дошёл, но рендерер применил старое значение»: без этого сбой в цепочке
+    // выглядит одинаково и объясняется догадками.
+    const int flags = Shell::Get().ProtectionFlags();
+    cb->Success(std::string("{\"fp\":") +
+                ((flags & 1) ? "true" : "false") + ",\"cookies\":" +
+                ((flags & 2) ? "true" : "false") + "}");
+    return true;
+  }
   if (m == "dbg.hit") {  // диагностика hitTest (macOS), только для CI
     cb->Success(JsString(platform::DebugHitTest(Num(a, "x", 0), Num(a, "y", 0))));
     return true;
@@ -421,10 +592,14 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     if (t && t->browser) {
       // сбросить область на прежнем окне
       double zr[4] = {0, 0, 0, 0};
-      std::vector<std::array<int, 4>> none;
-      platform::ApplyViewClip(reinterpret_cast<void*>(t->browser->GetHost()->GetWindowHandle()), zr, none,
-                              std::max(1, last_rect_.width), std::max(1, last_rect_.height));
+      std::vector<std::array<int, 5>> none;
+      platform::ApplyViewClip(
+          reinterpret_cast<void*>(t->browser->GetHost()->GetWindowHandle()), zr,
+          none, last_rect_.x, last_rect_.y,
+          std::max(1, last_rect_.width), std::max(1, last_rect_.height), false,
+          clip_mask_color_);
       if (a->HasKey("level")) platform::SetClipLevel(static_cast<int>(Num(a, "level", -1)));
+      t->has_last_clip = false;
       ApplyClip(t);
       cb->Success(JsString(platform::DumpWindowChain(
           reinterpret_cast<void*>(t->browser->GetHost()->GetWindowHandle()))));
@@ -433,10 +608,7 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     }
     return true;
   }
-  if (m == "auth.window") {  // TODO(этап 3): окно входа SHELTER ID
-    cb->Success("{\"ok\":false}");
-    return true;
-  }
+#endif  // SHELTER_CI_HOOKS
   return false;
 }
 

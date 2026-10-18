@@ -3,6 +3,8 @@
 #define SHELTER_PLATFORM_H_
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
@@ -12,6 +14,10 @@ namespace platform {
 
 // Каталог с ресурсами UI (index.html, host-bridge.js, иконки).
 std::string UiResourceDir();
+
+// Каталог списков блокировщика (tracker-domains.txt, url-patterns.txt,
+// cosmetic.css) — рядом с ресурсами UI, обновляется без пересборки.
+std::string FiltersDir();
 
 // Каталог пользовательских данных (профили, кэш).
 std::string UserDataDir();
@@ -26,9 +32,6 @@ std::string DownloadsDir();
 // Показать файл в Проводнике / Finder.
 void ShowInFolder(const std::string& path);
 
-// Открыть ссылку во внешнем приложении (mailto:, tel:, ...).
-void OpenExternal(const std::string& url);
-
 // Буфер обмена (текст, UTF-8).
 std::string ClipboardRead();
 bool ClipboardWrite(const std::string& text);
@@ -37,15 +40,20 @@ bool ClipboardWrite(const std::string& text);
 void SetColorScheme(bool dark);
 
 // Скругление углов и «дыры» (прозрачные участки) нативного вида вкладки.
-// handle — CefBrowserHost::GetWindowHandle(); radii = {tl, tr, br, bl} и holes {x, y, w, h}
-// задаются в DIP относительно вида вкладки (размер view_w x view_h DIP).
+// handle — CefBrowserHost::GetWindowHandle(); radii = {tl, tr, br, bl} и
+// holes {x, y, w, h, r} задаются в DIP относительно вида вкладки. На Windows
+// holes остаются snapshot-fallback; углы маскируются отдельным click-through
+// слоем поверх DirectComposition-содержимого. mask_color — RGB сцены.
 void ApplyViewClip(void* handle, const double radii[4],
-                   const std::vector<std::array<int, 4>>& holes, int view_w,
-                   int view_h);
+                   const std::vector<std::array<int, 5>>& holes, int view_x,
+                   int view_y, int view_w, int view_h, bool visible,
+                   std::uint32_t mask_color);
 
-// Диагностика (CI): уровень предка окна, которому задаётся область (Windows), и дамп цепочки HWND.
+#if defined(SHELTER_CI_HOOKS)
+// Диагностика (CI): дамп цепочки HWND / предков окна.
 void SetClipLevel(int level);
 std::string DumpWindowChain(void* handle);
+#endif
 
 // macOS: первый клик по неактивному окну приложения не должен «съедаться».
 void InstallInputFixes();
@@ -59,15 +67,20 @@ void WatchMainWindow(void* nswindow, void (*on_mini)(void*),
                      void (*on_demini)(void*), void* ctx);
 void UnwatchMainWindow(void* nswindow);
 
-// Мастер-ключ секретов UI: 32 байта в hex (создаётся при первом запуске).
-std::string SecretKeyHex();
+// OS-CSPRNG, используемый для мастер-ключа и nonce шифрования.
+bool RandomBytes(size_t size, std::string* out);
 
-// macOS Keychain: чтение/запись generic-пароли БЕЗ запросов доступа
-// (ACL «любое приложение» — тот же модельный уровень, что DPAPI на Windows:
-//  процессы текущего пользователя читают молча, на диске зашифровано ключом
-//  логина). Любая ошибка → false, у вызывающей стороны обязан быть
-//  файловый fallback (secret.key, 0600).
-bool KeychainGet(const char* service, const char* account, std::string* out);
+// Мастер-ключ секретов остаётся в browser process. false означает, что ключ
+// нельзя безопасно прочитать/сохранить; в этом случае его нельзя использовать.
+bool SecretKeyHex(std::string* out, std::string* error);
+
+enum class KeychainReadResult { kFound, kMissing, kError };
+
+// macOS Keychain: чтение generic-пароля без запросов доступа. Результат
+// различает отсутствие записи и ошибку доступа — нельзя заменять неизвестный
+// старый ключ новым.
+KeychainReadResult KeychainGet(const char* service, const char* account,
+                               std::string* out);
 bool KeychainPutOpen(const char* service, const char* account,
                      const std::string& value);
 
@@ -85,8 +98,10 @@ bool EnsureCookieKeychain();
 // блокирует старт и отдачу ресурсов (script src) навсегда.
 bool RunTimed(const std::function<bool()>& op, int timeout_ms);
 
-// Диагностика (macOS): результат hitTest окон приложения в точке (x, y) окна, DIP от верхнего левого угла.
+#if defined(SHELTER_CI_HOOKS)
+// Диагностика (macOS): результат hitTest окон приложения в точке (x, y) окна.
 std::string DebugHitTest(double x, double y);
+#endif
 
 }  // namespace platform
 }  // namespace shelter

@@ -8,6 +8,7 @@ viewport sizes and a real HTTPS page loads in a native browser tab.
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import socket
@@ -43,6 +44,115 @@ class LongPageHandler(BaseHTTPRequestHandler):
         if path == "/favicon.ico":
             self.send_response(204)
             self.end_headers()
+            return
+        if path == "/adsbygoogle.js":
+            # Рекламный скрипт: совпадает с правилом /adsbygoogle.js и грузится
+            # прямо из документа страницы, то есть из главного фрейма.
+            late = "late" in self.path
+            script = (
+                "window.__adLoaded=(window.__adLoaded||0)+1;"
+                + ("window.__adLateLoaded=true;" if late else "")
+                + "document.title='AD SCRIPT LOADED';"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/javascript; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(script)))
+            self.end_headers()
+            try:
+                self.wfile.write(script)
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError,
+                    ConnectionAbortedError):
+                pass
+            return
+        if path in ("/consent", "/consent-late"):
+            late = path.endswith("-late")
+            immediate = (
+                '<div id="cmp" class="cookie-consent" role="dialog">'
+                '<p>Мы используем cookies</p>'
+                '<button id="c-min" onclick="window.__answer(\'necessary\')">'
+                'Принять только необходимые</button>'
+                '<button id="c-all" onclick="window.__answer(\'all\')">Принять все</button>'
+                '</div>'
+            )
+            mount = (
+                "" if not late
+                else """<script>
+                  setTimeout(function(){
+                    var box = document.createElement('div');
+                    box.id = 'cmp';
+                    box.className = 'cookie-consent';
+                    box.setAttribute('role', 'dialog');
+                    box.innerHTML = '<p>Мы используем cookies</p>' +
+                      '<button onclick="window.__answer(\\'necessary\\')">Принять только необходимые</button>' +
+                      '<button onclick="window.__answer(\\'all\\')">Принять все</button>';
+                    document.body.appendChild(box);
+                    window.__lateMounted = true;
+                  }, 700);
+                </script>"""
+            )
+            document = (
+                "<!doctype html><html lang='ru'><head><meta charset='utf-8'>"
+                "<title>Consent fixture</title></head><body>"
+                "<h1>SHELTER consent fixture</h1>"
+                + ("" if late else immediate)
+                + "<script>window.__consent=null;window.__lateMounted=false;"
+                  "window.__answer=function(kind){window.__consent=kind;"
+                  "var b=document.getElementById('cmp');"
+                  "if(b&&b.parentNode)b.parentNode.removeChild(b);};</script>"
+                + mount
+                + """<script>
+                  /* Видимость считаем в момент чтения флагов: rAF в скрытом
+                     окне может не сработать, а решение CMP видно сразу. */
+                  window.__visible = function(){
+                    var el = document.getElementById('cmp');
+                    if (!el || !el.isConnected) return false;
+                    for (var n = el; n && n.nodeType === 1; n = n.parentElement) {
+                      var st = getComputedStyle(n);
+                      if (st.display === 'none' || st.visibility === 'hidden' ||
+                          st.opacity === '0') return false;
+                    }
+                    return true;
+                  };
+                </script>"""
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(document)))
+            self.end_headers()
+            try:
+                self.wfile.write(document)
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError,
+                    ConnectionAbortedError):
+                pass
+            return
+        if path == "/adpage":
+            document = (
+                "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
+                "<title>Ad fixture</title>"
+                "<script src='/adsbygoogle.js'></script>"
+                "</head><body><h1>SHELTER ad fixture</h1>"
+                "<ins class='adsbygoogle' id='adSlot'>"
+                "<div id='adSlotInner'>AD SLOT</div></ins>"
+                "<script>setTimeout(function(){var s=document.createElement('script');"
+                "s.src='/adsbygoogle.js?late=1';document.head.appendChild(s);},250);"
+                "</script></body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(document)))
+            self.end_headers()
+            try:
+                self.wfile.write(document)
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError,
+                    ConnectionAbortedError):
+                pass
             return
         variant = path.rsplit("/", 1)[-1]
         palettes = {
@@ -92,7 +202,9 @@ p{{max-width:60ch}}
                     split = len(document) // 4
                 self.wfile.write(document[:split])
                 self.wfile.flush()
-                time.sleep(2.0)
+                # Keep the document loading long enough for slower CI runners
+                # to open the native popup and sample its fallback appearance.
+                time.sleep(8.0)
                 self.wfile.write(document[split:])
             else:
                 self.wfile.write(document)
@@ -101,8 +213,23 @@ p{{max-width:60ch}}
             pass
 
 
+class QuietThreadingHTTPServer(ThreadingHTTPServer):
+    """Сервер фикстур: оборванное соединение — не ошибка, не сыпем трейсбеки.
+
+    Браузер штатно закрывает сокеты при переходах между страницами, и
+    socketserver печатал на каждое такое закрытие многострочный traceback,
+    который забивал diagnostics-лог приёмочного прогона."""
+
+    def handle_error(self, request, client_address) -> None:  # noqa: D102
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (BrokenPipeError, ConnectionResetError,
+                            ConnectionAbortedError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def start_long_page_server() -> Tuple[ThreadingHTTPServer, threading.Thread, str]:
-    server = ThreadingHTTPServer(("127.0.0.1", 0), LongPageHandler)
+    server = QuietThreadingHTTPServer(("127.0.0.1", 0), LongPageHandler)
     server.daemon_threads = True
     thread = threading.Thread(target=server.serve_forever, name="acceptance-long-pages", daemon=True)
     thread.start()
@@ -140,6 +267,12 @@ class Cdp:
     ) -> Dict[str, Any]:
         self.next_id += 1
         call_id = self.next_id
+        # Лимит ожидания ставится на сокет: соединение создаётся с 12 с, и без
+        # этого recv падал бы раньше, чем истекал запрошенный вызову лимит
+        # (приёмочные пробы местами просят 60-90 с на тяжёлые выражения).
+        # Ответы с чужим id ниже отбрасываются как события, поэтому опоздавший
+        # ответ прежнего вызова не подменит текущий.
+        self.socket.settimeout(timeout)
         self.socket.send(
             json.dumps({"id": call_id, "method": method, "params": params or {}})
         )
@@ -220,7 +353,8 @@ def viewport_measurement(ui: Cdp) -> Dict[str, Any]:
         const bottom = document.querySelector('.dash-bottom');
         if (!viewport || !page || !top) return null;
         const edge = viewport.getBoundingClientRect().right;
-        const pageEdge = page.getBoundingClientRect().right;
+        const dashboard = page.querySelector('.dashboard-page');
+        const dashboardEdge = dashboard ? dashboard.getBoundingClientRect().right : page.getBoundingClientRect().right;
         let overflow = 0;
         document.querySelectorAll(
           '.dash-top > *, .dash-right > *, .dash-bottom > *'
@@ -239,22 +373,30 @@ def viewport_measurement(ui: Cdp) -> Dict[str, Any]:
         });
         const overflowNodes = Array.from(page.querySelectorAll('*')).map(function(el) {
           const rect = el.getBoundingClientRect();
-          const rightPx = Math.max(0, rect.right - pageEdge);
+          const rightPx = Math.max(0, rect.right - dashboardEdge);
           const scrollPx = Math.max(0, el.scrollWidth - el.clientWidth);
           const amount = Math.max(rightPx, scrollPx);
           if (amount <= 1 || rect.width <= 0 || rect.height <= 0) return null;
           const classes = Array.from(el.classList || []).slice(0, 2).join('.');
+          const style = getComputedStyle(el);
           return {
             element: el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') +
               (classes ? '.' + classes : ''),
             rightPx: Math.round(rightPx),
             scrollPx: Math.round(scrollPx),
+            left: Math.round(rect.left),
+            right: Math.round(rect.right),
             width: Math.round(rect.width),
-            scrollWidth: el.scrollWidth
+            scrollWidth: el.scrollWidth,
+            clientWidth: el.clientWidth,
+            display: style.display,
+            position: style.position,
+            minWidth: style.minWidth,
+            overflowX: style.overflowX
           };
         }).filter(Boolean).sort(function(a, b) {
           return Math.max(b.rightPx, b.scrollPx) - Math.max(a.rightPx, a.scrollPx);
-        }).slice(0, 8);
+        }).slice(0, 12);
         return JSON.stringify({
           windowWidth: window.innerWidth,
           viewportWidth: viewport.clientWidth,
@@ -368,20 +510,28 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
     """Verify that toolbar actions and the trimmed overflow menu stay in place."""
     expression = r"""
       (async function() {
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const quick = document.getElementById('quickBtn');
         const settings = document.getElementById('settingsBtn');
         const more = document.getElementById('moreBtn');
         const controls = document.getElementById('ctlGrid');
-        const mode = document.getElementById('schemeModeBtn');
+        const prot = document.getElementById('protBtn');
+        const ext = document.getElementById('extBtn');
         const header = document.querySelector('.tb');
         const fire = controls && controls.querySelector('.ctl.fire');
-        if (!quick || !settings || !more || !controls || !mode || !fire || !header)
+        if (!quick || !settings || !more || !controls || !prot || !ext || !fire || !header)
           return null;
         const fireRect = fire.getBoundingClientRect();
-        const modeRect = mode.getBoundingClientRect();
+        const protRect = prot.getBoundingClientRect();
+        const extRect = ext.getBoundingClientRect();
         const quickRect = quick.getBoundingClientRect();
         const settingsRect = settings.getBoundingClientRect();
         const moreRect = more.getBoundingClientRect();
@@ -391,11 +541,17 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
             settings.nextElementSibling === more &&
             Math.abs(settingsRect.top - moreRect.top) <= 1 &&
             Math.abs(moreRect.left - settingsRect.right) <= 12,
-          themeAfterFire: controls.lastElementChild === fire &&
-            mode.previousElementSibling === controls &&
-            Math.abs(modeRect.top - fireRect.top) <= 1 &&
-            modeRect.left >= fireRect.right - 1,
-          extraGapBeforeQuick: quickRect.left - modeRect.right >= 20,
+          fireIsOnlyTile: controls.children.length === 1 &&
+            controls.firstElementChild === fire &&
+            controls.getAttribute('aria-label') === 'Удаление сессий' &&
+            Math.abs(fireRect.top - quickRect.top) <= 1,
+          shieldBeforeSettings: prot.parentElement === settings.parentElement &&
+            prot.nextElementSibling === settings &&
+            Math.abs(protRect.top - settingsRect.top) <= 1 &&
+            settingsRect.left - protRect.right <= 12,
+          extensionsIconPresent: ext.parentElement === prot.parentElement &&
+            ext.getAttribute('data-act') === 'extList',
+          extraGapBeforeQuick: quickRect.left - extRect.right >= 20,
           quickLabelUpdated: quick.dataset.tip === 'Оформление и вкладки' &&
             quick.getAttribute('aria-label') === 'Оформление и вкладки',
           noHorizontalOverflow: header.scrollWidth <= header.clientWidth + 1 &&
@@ -421,20 +577,23 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         await frame();
         const quickMenu = document.querySelector('.menu-quick');
         const opacity = quickMenu && quickMenu.querySelector('#glassOpSec');
-        const palette = quickMenu && quickMenu.querySelector('#quickThemeSec');
-        const swatchWrap = palette && palette.querySelector('.q-theme-swatches');
-        const swatches = swatchWrap ? Array.from(swatchWrap.querySelectorAll('.swatch[data-theme]')) : [];
-        const wrapRect = swatchWrap && swatchWrap.getBoundingClientRect();
-        const firstRect = swatches[0] && swatches[0].getBoundingClientRect();
-        const lastRect = swatches[swatches.length - 1] && swatches[swatches.length - 1].getBoundingClientRect();
-        const leftInset = wrapRect && firstRect ? firstRect.left - wrapRect.left : null;
-        const rightInset = wrapRect && lastRect ? wrapRect.right - lastRect.right : null;
-        const paletteState = {
-          immediatelyAfterOpacity: !!opacity && opacity.nextElementSibling === palette,
-          swatchCount: swatches.length,
-          leftInset: leftInset,
-          rightInset: rightInset,
-          equalSideInsets: leftInset !== null && rightInset !== null && Math.abs(leftInset - rightInset) <= 1.5
+        const radiusRange = quickMenu && quickMenu.querySelector('#radiusRange');
+        const radiusSec = radiusRange && radiusRange.closest('.q-sec');
+        const tabPosition = quickMenu && quickMenu.querySelector('.seg[data-seg="tabPos"]');
+        const bookmarkPosition = quickMenu && quickMenu.querySelector('.seg[data-seg="bmPos"]');
+        const quickSchemeMode = quickMenu && quickMenu.querySelector('.seg[data-seg="schemeMode"]');
+        const quickSchemeModeAvailable = !!(quickSchemeMode &&
+          quickSchemeMode.querySelector('button[data-v="light"]') &&
+          quickSchemeMode.querySelector('button[data-v="dark"]') &&
+          quickSchemeMode.querySelectorAll('button[data-v]').length === 2);
+        const hasQuickThemePalette = !!(quickMenu && quickMenu.querySelector(
+          '#quickThemeSec, .q-theme-swatches, .swatch[data-theme], .theme-cards, .tcard, [data-act="theme"]'));
+        const quickAppearanceState = {
+          radiusAfterOpacity: !!opacity && !!radiusSec && radiusSec.previousElementSibling === opacity,
+          tabPositionAvailable: !!tabPosition,
+          bookmarkPositionAvailable: !!bookmarkPosition,
+          themeModeSwitchAvailable: quickSchemeModeAvailable,
+          themePaletteHidden: !hasQuickThemePalette
         };
         quick.click();
         await frame();
@@ -445,7 +604,7 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           menuLabels: labels,
           visibleForbidden: visibleForbidden,
           profileLast: profileLast,
-          palette: paletteState
+          quickAppearance: quickAppearanceState
         });
       })()
     """
@@ -464,9 +623,15 @@ def performance_mode_probe(ui: Cdp) -> Dict[str, Any]:
           throw new Error('performance test surface is missing');
         const original = test.state().prefs.gfx || 'balance';
         const originalGlow = test.state().prefs.glow !== false;
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const quick = document.getElementById('quickBtn');
         if (!quick) throw new Error('quick-menu button is missing');
         quick.click(); await frame();
@@ -661,49 +826,483 @@ def performance_mode_probe(ui: Cdp) -> Dict[str, Any]:
         raise AcceptanceError(f"Quick-menu glow preference was not preserved: {result}")
     return result
 
-def quick_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
-    """Verify quick-menu theme changes keep the menu open and can be restored."""
+def tab_width_probe(ui: Cdp) -> Dict[str, Any]:
+    """Tabs must share one width (standard browser logic) in every dock.
+
+    Wide windows: equal widths, capped by the tab standard (200 px by default).
+    Narrow windows: equal widths that may shrink, but not below the standard
+    minimum of 72 px — the horizontal strip scrolls instead of squeezing tabs
+    further.
+    """
+    expression = r"""
+      (async function() {
+        const test = window.shelterTest;
+        if (!test || !test.setTabPos || !test.state)
+          throw new Error('tab position test surface is missing');
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
+        /* Стандарт горизонтальных вкладок: по умолчанию 200 px, минимум 72 px
+           (см. .tab-mount .tab в resources/ui/index.html). */
+        const MIN = 72, MAX = 200;
+        const originalPos = test.state().ui.tabPos;
+        const openIds = ids => ids.filter(id => id && id !== test.state().activeTabId);
+        const titles = [
+          'Короткая',
+          'Очень длинное название страницы проверки равной ширины вкладок',
+          'Mid',
+          'Ещё одно длинное имя вкладки для проверки'
+        ];
+        const results = {};
+        const problems = [];
+        try {
+          for (const pos of ['top', 'bottom', 'right', 'left']) {
+           try {
+            test.setTabPos(pos);
+            await frame(); await pause(120);
+            const list = document.getElementById('tabList');
+            if (!list) throw new Error('tab list is missing for ' + pos);
+            const space = () => {
+              const state = test.state();
+              const key = state.currentSpace;
+              return (state.spaces && (state.spaces[key] || state.spaces)) || null;
+            };
+            const dropExtras = () => {
+              const sp = space();
+              const tabs = sp && sp.tabs ? sp.tabs.slice() : [];
+              openIds(tabs.map(tab => tab.id)).forEach(id => window.closeTab(id));
+            };
+            dropExtras();
+            await frame(); await pause(60);
+            for (let i = 0; i < 3; i++) window.newTab();
+            await frame(); await pause(140);
+            const tabs = Array.from(list.querySelectorAll('.tab:not(.new)'));
+            if (tabs.length < 4)
+              throw new Error('expected four tabs in ' + pos + ' dock, got ' + tabs.length);
+            tabs.forEach((tab, i) => {
+              const label = tab.querySelector('.t');
+              if (label) label.textContent = titles[i % titles.length];
+            });
+            await frame();
+            const measure = () => Array.from(
+              document.querySelectorAll('#tabList .tab:not(.new)')
+            ).map(tab => {
+              const rect = tab.getBoundingClientRect();
+              return {w: Math.round(rect.width * 100) / 100, h: Math.round(rect.height)};
+            });
+            /* Диагностика раскладки: если ширины когда-нибудь разъедутся,
+               отчёт должен объяснять причину без второго прогона CI. */
+            const diag = () => {
+              const app = document.getElementById('app');
+              const track = document.querySelector('#dockLeft') || document.querySelector('.sb');
+              const first = list.querySelector('.tab:not(.new)');
+              const label = first ? first.querySelector('.t') : null;
+              const rect = el => el ? Math.round(el.getBoundingClientRect().width * 100) / 100 : -1;
+              const css = el => el ? getComputedStyle(el) : null;
+              const listCss = css(list), tabCss = css(first);
+              return {
+                dock: pos,
+                viewport: [innerWidth, innerHeight],
+                appClass: app ? app.className : '',
+                side: track ? (track.id || track.className) : '',
+                sideW: rect(track),
+                listW: rect(list),
+                listClientW: list.clientWidth,
+                listDisplay: listCss ? listCss.display + '/' + listCss.flexDirection : '',
+                tabW: rect(first),
+                tabH: rect(first),
+                tabDisplay: tabCss ? tabCss.display : '',
+                tabFlex: tabCss ? tabCss.flex : '',
+                tabMin: tabCss ? tabCss.minWidth : '',
+                tabMax: tabCss ? tabCss.maxWidth : '',
+                tabIsCollapsedChild: !!(track && first && first.parentElement === track),
+                labelW: rect(label),
+                labelOpacity: label ? getComputedStyle(label).opacity : '',
+                labelText: Array.from(list.querySelectorAll('.tab:not(.new) .t'))
+                  .slice(0, 3).map(el => String(el.textContent || '').slice(0, 24)),
+                sbVar: getComputedStyle(document.documentElement)
+                  .getPropertyValue('--sb-w').trim(),
+                sbVarCompact: getComputedStyle(document.documentElement)
+                  .getPropertyValue('--sb-wc').trim(),
+                uiCollapsed: !!test.state().ui.collapsed
+              };
+            };
+            const dockWidth = () => Math.round(list.getBoundingClientRect().width * 100) / 100;
+            const few = measure();
+            const fewDock = dockWidth();
+            const spread = Math.max(...few.map(t => t.w)) - Math.min(...few.map(t => t.w));
+            if (spread > 1)
+              throw new Error(
+                'tabs differ in width in the ' + pos + ' dock: ' +
+                JSON.stringify(few)
+              );
+            /* Порог «рабочей» ширины не может быть больше самого дока: в
+               компактной боковой панели (или узком окне) место объективно
+               меньше, и тогда требование — заполнять док, а не выдумывать
+               пиксели. При нормальном доке порог остаётся 44px. */
+            if (few.some(t => t.w < Math.min(44, fewDock) - 0.5))
+              throw new Error(
+                'tab collapsed below a usable width in ' + pos + ': ' +
+                JSON.stringify(few) + ' of ' + fewDock + 'px dock ' +
+                JSON.stringify(diag())
+              );
+            const horizontal = pos === 'top' || pos === 'bottom';
+            if (horizontal && (few[0].w < MIN - 0.5 || few[0].w > MAX + 0.5))
+              throw new Error(
+                'horizontal tab width ' + few[0].w + ' left the ' + MIN + '–' + MAX +
+                ' range in ' + pos
+              );
+            // Too many tabs: widths must still match and never drop below the
+            // standard minimum — the strip scrolls instead.
+            for (let i = 0; i < 10; i++) window.newTab();
+            await frame(); await pause(180);
+            /* Новые вкладки перерисовывают список и стирают подставленные
+               заголовки: возвращаем разные длины, иначе проверка «ширина не
+               зависит от названия» под нагрузкой ничего не значит. */
+            Array.from(list.querySelectorAll('.tab:not(.new)')).forEach((tab, i) => {
+              const label = tab.querySelector('.t');
+              if (label) label.textContent = titles[(i * 3) % titles.length];
+            });
+            await frame(); await pause(40);
+            const many = measure();
+            const manySpread = Math.max(...many.map(t => t.w)) - Math.min(...many.map(t => t.w));
+            if (many.length < 12)
+              throw new Error('expected twelve tabs in ' + pos + ', got ' + many.length);
+            if (manySpread > 1)
+              throw new Error(
+                'tabs differ in width under load in the ' + pos + ' dock: ' +
+                JSON.stringify(many.slice(0, 4))
+              );
+            const manyDock = dockWidth();
+            const crowdedFloor = Math.min(MIN, manyDock) - 0.5;
+            if (many[0].w < crowdedFloor)
+              throw new Error(
+                'crowded tabs shrank below the layout floor in ' + pos +
+                ': ' + many[0].w + ' of ' + manyDock + 'px dock ' +
+                JSON.stringify(diag())
+              );
+            results[pos] = {
+              few: few[0], many: many[0], count: many.length,
+              dockFew: fewDock, dockMany: manyDock, diag: diag()
+            };
+            dropExtras();
+            await frame(); await pause(60);
+           } catch (err) {
+            /* Сломанный док не должен скрывать состояние остальных: собираем
+               все проблемы и падаем один раз — с полным отчётом по каждому. */
+            problems.push(pos + ': ' + String((err && err.message) || err));
+           }
+          }
+          if (problems.length)
+            throw new Error('tab layout problems: ' + problems.join(' | '));
+          return JSON.stringify({min: MIN, max: MAX, docks: results});
+        } finally {
+          test.setTabPos(originalPos);
+        }
+      })()
+    """
+    result = ui.evaluate(expression, timeout=90)
+    if not isinstance(result, str):
+        raise AcceptanceError(f"Tab width probe returned no result: {result!r}")
+    data = json.loads(result)
+    if set(data.get("docks", {})) != {"top", "bottom", "right", "left"}:
+        raise AcceptanceError(f"Tab width probe missed a dock: {data}")
+    return data
+
+
+def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
+    """Check assistant surfaces plus desktop split-view/mobile overlay geometry.
+
+    Decorative surfaces need equal positive corner radii. In the wide layout,
+    the rail and main panel meet at a one-pixel seam; in the narrow layout, the
+    rail is intentionally off-canvas until opened and must not reserve a gap.
+    """
+    ui.evaluate("window.openPage('deepthink')")
+    expression = r"""
+      (async function() {
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const app = document.getElementById('dtApp');
+        if (!app) throw new Error('assistant page did not render');
+        await frame();
+        const parse = value => String(value || '').split(/\s+/).map(part => {
+          const n = parseFloat(part);
+          if (!isFinite(n)) throw new Error('unparsable radius: ' + value);
+          return part.endsWith('%') ? n : n;
+        });
+        const corners = el => {
+          const style = getComputedStyle(el);
+          const tl = parse(style.borderTopLeftRadius);
+          const tr = parse(style.borderTopRightRadius);
+          const br = parse(style.borderBottomRightRadius);
+          const bl = parse(style.borderBottomLeftRadius);
+          const values = [tl[0], tr[0], br[0], bl[0]];
+          return {
+            values: values,
+            min: Math.min(...values),
+            max: Math.max(...values),
+            radius: values.join('/')
+          };
+        };
+        /* Карточки и капсулы ассистента: у каждой все четыре угла скруглены
+           одинаково. Панели .dt-rail/.dt-main сюда не входят: в текущем
+           макете это macOS Split View — панели стыкуются встык и разделены
+           волосяной линией, их проверяет блок ниже. */
+        const surfaces = ['.dt-new', '.dt-thread-search', '.dt-kpis',
+                          '.dt-welcome-mark', '.omni.dt-omni', '.dt-privacy-pill',
+                          '.dt-private'];
+        const report = {};
+        /* Приветственный экран живёт только в пустом диалоге: на чистом
+           профиле Открыт ознакомительный диалог с сообщениями. Открываем
+           новый диалог штатной кнопкой, измеряем экран, затем возвращаемся
+           в прежний — иначе проба проверяла бы поверхность, которой в этом
+           состоянии просто нет. */
+        const restoreThread =
+          (app.querySelector('.dt-thread.active') || {}).dataset;
+        const welcomeHome = app.querySelector('[data-act="dtNew"]');
+        for (const selector of surfaces) {
+          if (selector === '.dt-welcome-mark' && !app.querySelector(selector)) {
+            if (!welcomeHome)
+              throw new Error('assistant new-dialog button is missing');
+            welcomeHome.click();
+            await frame(); await pause(120);
+          }
+          const el = app.querySelector(selector);
+          if (!el) throw new Error('missing assistant surface: ' + selector);
+          const measured = corners(el);
+          if (measured.min <= 0)
+            throw new Error('sharp corner on ' + selector + ': ' + measured.radius);
+          if (measured.max - measured.min > 0.5)
+            throw new Error('uneven corners on ' + selector + ': ' + measured.radius);
+          report[selector] = measured.radius;
+        }
+        /* Панели-полосы .dt-topbar/.dt-composer-area могут быть и скруглёнными,
+           и прямоугольными (встык к карточке), но углы одной полосы обязаны
+           совпадать: «один угол скруглён, другой срезан» — уже поломка. */
+        const edgeTrays = ['.dt-topbar', '.dt-composer-area'];
+        for (const selector of edgeTrays) {
+          const el = app.querySelector(selector);
+          if (!el) throw new Error('missing assistant surface: ' + selector);
+          const measured = corners(el);
+          if (measured.max - measured.min > 0.5)
+            throw new Error('uneven corners on ' + selector + ': ' + measured.radius);
+          report[selector] = measured.radius;
+        }
+        // Message surfaces appear only after a conversation exists: build them
+        // in place, measure the real cascade, then remove the probes.
+        const holder = document.createElement('div');
+        holder.className = 'dt-message-list';
+        holder.style.cssText = 'position:absolute;left:-10000px;top:0;width:640px';
+        app.appendChild(holder);
+        /* .dt-kpi — не карточка, а ячейка внутри скруглённой группы .dt-kpis
+           (волосяные разделители внутри, прямые углы), поэтому в списке её
+           нет: скругление проверяется у самой группы. */
+        const messageSurface = ['.dt-user-bubble', '.dt-answer', '.dt-answer-tools',
+                                '.bub', '.bub.me'];
+        try {
+          for (const selector of messageSurface) {
+            const probe = document.createElement('div');
+            probe.className = selector.replace(/^\./, '').replace(/\./g, ' ');
+            probe.textContent = 'проба';
+            holder.appendChild(probe);
+            const measured = corners(probe);
+            if (measured.min <= 0)
+              throw new Error('sharp corner on ' + selector + ': ' + measured.radius);
+            if (measured.max - measured.min > 0.5)
+              throw new Error('uneven corners on ' + selector + ': ' + measured.radius);
+            report[selector] = measured.radius;
+            probe.remove();
+          }
+        } finally {
+          holder.remove();
+        }
+        /* Макет ассистента — macOS Split View: панели стыкуются встык, но
+           обязаны читаться двумя областями. Признак разделения — волосяная
+           линия на стыке (border-right у боковой панели либо border-left у
+           основной), а не зазор: «слипшиеся» панели без линии — поломка. */
+        const railEl = app.querySelector('.dt-rail');
+        const mainEl = app.querySelector('.dt-main');
+        const rail = railEl.getBoundingClientRect();
+        const main = mainEl.getBoundingClientRect();
+        const appRect = app.getBoundingClientRect();
+        const gap = Math.round((main.left - rail.right) * 10) / 10;
+        const railCss = getComputedStyle(railEl), mainCss = getComputedStyle(mainEl);
+        const railMode = railCss.position;
+        let layout = 'split-view';
+        if (railMode === 'absolute') {
+          /* Narrow container-query mode deliberately slides the rail 14 px
+             beyond the app edge and lets the detail panel occupy the full
+             width. That off-canvas distance is not a visual gutter. */
+          layout = 'mobile-overlay';
+          const railOpen = app.classList.contains('rail-open');
+          if (Math.abs(main.left - appRect.left) > 1 ||
+              Math.abs(main.right - appRect.right) > 1)
+            throw new Error('mobile assistant detail panel does not fill its shell: main=' +
+              main.left + '..' + main.right + ', shell=' + appRect.left + '..' + appRect.right);
+          if (railOpen) {
+            if (rail.left < appRect.left - 1 || rail.right > appRect.right + 1)
+              throw new Error('open mobile assistant rail is outside its shell');
+          } else if (rail.right > appRect.left + 1) {
+            throw new Error('closed mobile assistant rail covers the detail panel');
+          }
+        } else if (gap > 1) {
+          throw new Error('assistant panels parted without a reason, gap=' + gap);
+        }
+        const seam = Math.max(parseFloat(railCss.borderRightWidth) || 0,
+                              parseFloat(mainCss.borderLeftWidth) || 0);
+        if (!(seam >= 0.5))
+          throw new Error('assistant panels merged without a separator seam: ' + seam);
+        const appCss = corners(app);
+        if (appCss.min !== 0)
+          throw new Error('assistant shell is drawn as a card, not a split view: ' + appCss.radius);
+        if (restoreThread && restoreThread.id) {
+          const back = app.querySelector(
+            '[data-act="dtOpen"][data-id="' + restoreThread.id + '"]'
+          );
+          if (back) { back.click(); await frame(); await pause(80); }
+        }
+        return JSON.stringify({gap: gap, layout: layout, surfaces: report});
+      })()
+    """
+    result = ui.evaluate(expression, timeout=60)
+    if not isinstance(result, str):
+        raise AcceptanceError(f"Assistant corner probe returned no result: {result!r}")
+    data = json.loads(result)
+    missing = [
+        selector
+        for selector in (
+            ".dt-user-bubble",
+            ".dt-answer",
+            ".bub.me",
+        )
+        if selector not in data.get("surfaces", {})
+    ]
+    if missing:
+        raise AcceptanceError(f"Assistant corner probe skipped surfaces: {missing}")
+    return data
+
+
+def settings_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
+    """Verify the quick panel switches light/dark while Settings selects and restores palettes."""
     expression = r"""
       (async function() {
         const quick = document.getElementById('quickBtn');
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        const settingsButton = document.getElementById('settingsBtn');
+        if (!quick || !settingsButton) throw new Error('appearance/settings buttons are missing');
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         const waitForTheme = async theme => {
           const deadline = performance.now() + 2500;
           while (performance.now() < deadline) {
             if (document.documentElement.getAttribute('data-theme') === theme) return true;
-            await new Promise(resolve => setTimeout(resolve, 25));
+            await pause(25);
           }
           return false;
         };
         const original = document.documentElement.getAttribute('data-theme');
+        if (original !== 'graphite') throw new Error('fresh install did not default to Graphite: ' + original);
         quick.click(); await frame();
-        let menu = document.querySelector('.menu-quick:not(.closing)');
-        if (!menu) throw new Error('quick menu did not open');
-        const swatches = Array.from(menu.querySelectorAll('.swatch[data-theme]'));
-        const target = swatches.find(button => button.dataset.theme !== original);
-        if (!target) throw new Error('alternate theme is missing');
+        const quickMenu = document.querySelector('.menu-quick:not(.closing)');
+        if (!quickMenu) throw new Error('quick menu did not open');
+        const quickSchemeMode = quickMenu.querySelector('.seg[data-seg="schemeMode"]');
+        const quickLight = quickSchemeMode && quickSchemeMode.querySelector('button[data-v="light"]');
+        const quickDark = quickSchemeMode && quickSchemeMode.querySelector('button[data-v="dark"]');
+        const quickModeSwitchAvailable = !!(quickLight && quickDark &&
+          quickSchemeMode.querySelectorAll('button[data-v]').length === 2);
+        const quickPaletteHidden = !quickMenu.querySelector(
+          '#quickThemeSec, .q-theme-swatches, .swatch[data-theme], .theme-cards, .tcard, [data-act="theme"]');
+        if (!quickModeSwitchAvailable || !quickPaletteHidden)
+          throw new Error('quick panel must expose only the light/dark switch, not named theme palettes');
+        const uiPrefs = window.shelterTest.state().ui || {};
+        const lightTheme = uiPrefs.schemeLightTheme || 'ivory';
+        const darkTheme = uiPrefs.schemeDarkTheme || original;
+        quickLight.click();
+        const lightModeApplied = await waitForTheme(lightTheme); await pause(620); await frame();
+        const lightModeSelected = quickLight.classList.contains('on');
+        const quickOpenInLightMode = !!document.querySelector('.menu-quick:not(.closing)');
+        quickDark.click();
+        const darkModeApplied = await waitForTheme(darkTheme); await pause(620); await frame();
+        const darkModeSelected = quickDark.classList.contains('on');
+        const quickOpenInDarkMode = !!document.querySelector('.menu-quick:not(.closing)');
+        quick.click(); await frame();
+        if (!lightModeApplied || !darkModeApplied || !lightModeSelected || !darkModeSelected ||
+            !quickOpenInLightMode || !quickOpenInDarkMode ||
+            document.documentElement.getAttribute('data-theme') !== darkTheme)
+          throw new Error('quick light/dark switch did not apply the selected schemes');
+
+        settingsButton.click(); await frame();
+        let settings = document.querySelector('.settings.settings-page');
+        if (!settings) throw new Error('Settings page did not open');
+        let cards = Array.from(settings.querySelectorAll('.theme-cards .tcard[data-theme]'));
+        if (document.documentElement.getAttribute('data-theme') !== original) {
+          const restoreOriginalCard = cards.find(button => button.dataset.theme === original);
+          if (!restoreOriginalCard) throw new Error('Settings could not restore the initial theme');
+          restoreOriginalCard.click();
+          const initialThemeRestored = await waitForTheme(original); await pause(620); await frame();
+          settings = document.querySelector('.settings.settings-page');
+          cards = settings ? Array.from(settings.querySelectorAll('.theme-cards .tcard[data-theme]')) : [];
+          if (!initialThemeRestored || !settings) throw new Error('Settings did not restore the initial theme');
+        }
+        const originalCard = cards.find(button => button.dataset.theme === original);
+        const target = cards.find(button => button.dataset.theme !== original);
+        if (cards.length !== 6 || !originalCard || !originalCard.classList.contains('on') || !target)
+          throw new Error('Settings theme cards do not match the active theme');
+        const settingsModePresent = !!settings.querySelector('.seg[data-seg="schemeMode"]');
+        const graphiteDarkOptionPresent = !!settings.querySelector(
+          '.seg[data-seg="schemeDark"] button[data-v="graphite"]');
         const selected = target.dataset.theme;
         target.click();
-        const applied = await waitForTheme(selected); await frame();
-        menu = document.querySelector('.menu-quick:not(.closing)');
-        const stayedOpen = !!menu;
-        const selectedState = menu && menu.querySelector('.swatch[data-theme="' + selected + '"]')?.getAttribute('aria-pressed') === 'true';
-        if (!applied || !stayedOpen || !selectedState)
-          throw new Error('theme change did not preserve/update quick menu');
-        menu.querySelector('.swatch[data-theme="' + original + '"]').click();
-        const restored = await waitForTheme(original); await frame();
-        const menuAfterRestore = !!document.querySelector('.menu-quick:not(.closing)');
-        quick.click(); await frame();
-        if (!restored || !menuAfterRestore) throw new Error('original theme could not be restored in open menu');
-        return JSON.stringify({original:original, selected:selected, stayedOpen:stayedOpen,
-          selectedState:selectedState, restored:restored, menuAfterRestore:menuAfterRestore});
+        const applied = await waitForTheme(selected); await pause(620); await frame();
+        settings = document.querySelector('.settings.settings-page');
+        cards = settings ? Array.from(settings.querySelectorAll('.theme-cards .tcard[data-theme]')) : [];
+        const stayedOpen = !!settings;
+        const selectedState = !!cards.find(button =>
+          button.dataset.theme === selected && button.classList.contains('on'));
+        const selectedStored = localStorage.getItem('shelter:theme') === selected;
+
+        const restoreCard = cards.find(button => button.dataset.theme === original);
+        if (restoreCard) restoreCard.click();
+        const restored = await waitForTheme(original); await pause(620); await frame();
+        const restoredStored = localStorage.getItem('shelter:theme') === original;
+        const stateRestored = !!(window.shelterTest && window.shelterTest.state().theme === original);
+        window.openPage('start'); await frame();
+        if (!applied || !stayedOpen || !selectedState || !selectedStored || !restored ||
+            !restoredStored || !stateRestored || !settingsModePresent || !graphiteDarkOptionPresent)
+          throw new Error('Settings palette selection or preference restore failed');
+        return JSON.stringify({original:original, selected:selected,
+          quickModeSwitchAvailable:quickModeSwitchAvailable, quickPaletteHidden:quickPaletteHidden,
+          lightModeApplied:lightModeApplied, darkModeApplied:darkModeApplied,
+          lightModeSelected:lightModeSelected, darkModeSelected:darkModeSelected,
+          quickOpenInLightMode:quickOpenInLightMode, quickOpenInDarkMode:quickOpenInDarkMode,
+          settingsThemeCards:cards.length, settingsModePresent:settingsModePresent,
+          graphiteDarkOptionPresent:graphiteDarkOptionPresent, applied:applied, stayedOpen:stayedOpen,
+          selectedState:selectedState, selectedStored:selectedStored, restored:restored,
+          restoredStored:restoredStored, stateRestored:stateRestored});
       })()
     """
-    raw = ui.evaluate(expression, timeout=20)
+    raw = ui.evaluate(expression, timeout=30)
     if not raw:
-        raise AcceptanceError("Quick-menu theme probe returned no result")
+        raise AcceptanceError("Settings theme probe returned no result")
     return json.loads(raw)
 
 def bridge_state(ui: Cdp) -> Dict[str, Any]:
@@ -762,18 +1361,28 @@ def popup_fallback_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
         const original = test.state().prefs.gfx || 'balance';
         const originalGlow = test.state().prefs.glow !== false;
         const originalGlass = Math.max(40, Math.min(100, +test.state().prefs.glassOp || 82));
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const alphaOf = value => {
           const color = String(value || '').trim();
+          if (!color || color === 'none') return null;
+          if (color === 'transparent') return 0;
           const slash = color.match(/\/\s*([0-9.]+)(%)?\s*\)$/);
           if (slash) return slash[2] ? Number(slash[1]) / 100 : Number(slash[1]);
           if (/^rgba\(/i.test(color)) {
             const parts = color.slice(color.indexOf('(') + 1, -1).split(',');
-            return parts.length > 3 ? Number(parts[3]) : null;
+            return parts.length > 3 ? Number(parts[3]) : 1;
           }
-          if (/^rgb\(/i.test(color)) return 1;
+          // Color functions without an alpha component are fully opaque
+          // ("rgb(...)" legacy form, "color(srgb r g b)" modern serialization).
+          if (/^(rgb|hsl|lab|lch|oklab|oklch|color)\(/i.test(color)) return 1;
           return null;
         };
         const checked = [];
@@ -903,9 +1512,15 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
           throw new Error('opacity test surface is missing');
         const originalMode = test.state().prefs.gfx || 'balance';
         const originalGlass = Math.max(40, Math.min(100, +test.state().prefs.glassOp || 82));
-        const frame = () => new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve))
-        );
+        /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
+           requestAnimationFrame может не сработать вовсе, и проба обязана
+           либо измерить раскладку после паузы, либо честно упасть. */
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
         const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         const storedGlass = () => {
           try {
@@ -913,15 +1528,28 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             return saved && saved.prefs ? +saved.prefs.glassOp : null;
           } catch (_) { return null; }
         };
+        const waitForStoredGlass = async expected => {
+          const deadline = performance.now() + 2500;
+          let saved = storedGlass();
+          while (saved !== expected && performance.now() < deadline) {
+            await pause(25);
+            saved = storedGlass();
+          }
+          return saved;
+        };
         const alphaOf = value => {
           const color = String(value || '').trim();
+          if (!color || color === 'none') return null;
+          if (color === 'transparent') return 0;
           const slash = color.match(/\/\s*([0-9.]+)(%)?\s*\)$/);
           if (slash) return slash[2] ? Number(slash[1]) / 100 : Number(slash[1]);
           if (/^rgba\(/i.test(color)) {
             const parts = color.slice(color.indexOf('(') + 1, -1).split(',');
-            return parts.length > 3 ? Number(parts[3]) : null;
+            return parts.length > 3 ? Number(parts[3]) : 1;
           }
-          if (/^rgb\(/i.test(color)) return 1;
+          // Color functions without an alpha component are fully opaque
+          // ("rgb(...)" legacy form, "color(srgb r g b)" modern serialization).
+          if (/^(rgb|hsl|lab|lch|oklab|oklch|color)\(/i.test(color)) return 1;
           return null;
         };
         const quick = document.getElementById('quickBtn');
@@ -948,6 +1576,7 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             range.dispatchEvent(new Event('input', {bubbles:true}));
             await frame();
             await pause(500);
+            const persisted = await waitForStoredGlass(value);
             const popup = getComputedStyle(menu);
             const state = test.state();
             const actualAlpha = alphaOf(popup.backgroundColor);
@@ -956,7 +1585,7 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             checked.push({
               value:value,
               saved:saved,
-              persisted:storedGlass(),
+              persisted:persisted,
               label:label ? label.textContent : '',
               popupAlpha:actualAlpha,
               popupColor:popup.backgroundColor,
@@ -973,6 +1602,7 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
             range.dispatchEvent(new Event('input', {bubbles:true}));
             await frame();
             await pause(500);
+            await waitForStoredGlass(originalGlass);
           }
           test.setGfxMode(originalMode, {persist:false, notify:false});
           await frame();
@@ -1021,6 +1651,480 @@ def glass_opacity_probe(ui: Cdp, process: subprocess.Popen) -> Dict[str, Any]:
     wait_native_overlay_idle(ui, process)
     return result
 
+
+AD_FIXTURE_FLAGS = (
+    "JSON.stringify({"
+    "title:document.title,"
+    "ready:(document.readyState||''),"
+    "search:location.search,"
+    "loaded:window.__adLoaded||0,"
+    "late:window.__adLateLoaded===true,"
+    "slotDisplay:(function(){var s=document.getElementById('adSlot');"
+    "return s?getComputedStyle(s).display:'missing';})(),"
+    "slotHeight:(function(){var s=document.getElementById('adSlot');"
+    "return s?Math.round(s.getBoundingClientRect().height):-1;})()"
+    "})"
+)
+
+
+def read_ad_flags(page: Cdp) -> Dict[str, Any]:
+    """Read the ad-fixture state, retrying while the page swaps contexts."""
+    last_error: Optional[Exception] = None
+    for _ in range(20):
+        try:
+            raw = page.evaluate(AD_FIXTURE_FLAGS)
+        except AcceptanceError as exc:
+            last_error = exc
+            time.sleep(0.25)
+            continue
+        if raw:
+            try:
+                return json.loads(raw)
+            except ValueError as exc:  # pragma: no cover - defensive
+                last_error = exc
+        time.sleep(0.25)
+    raise AcceptanceError(f"Ad fixture did not report its state: {last_error}")
+
+
+BLOCKER_STATS = (
+    "JSON.stringify((function(){"
+    "var st=window.shelterTest.state();"
+    "var sp=st.spaces[st.currentSpace]||{tabs:[]};"
+    "var tabs=(sp.tabs||[]).map(function(t){return {id:t.id,blocked:t.blocked|0,"
+    "url:String(t.url||'').slice(0,80)};});"
+    "var ad=tabs.filter(function(t){return t.url.indexOf('/adpage')>=0;}).pop();"
+    "var b=st.blocks||{},ks=Object.keys(b),total=0;"
+    "for(var i=0;i<ks.length;i++){var v=b[ks[i]];"
+    "total+=(v.t|0)+(v.a|0)+(v.f|0)+(v.h|0)+(v.s|0);}"
+    "return {tabBlocked:ad?(ad.blocked|0):-1,today:total,activeId:st.activeTabId,"
+    "trackers:st.prefs.trackers===true,"
+    "hooks:{host:typeof window.__shelterHost,"
+    "stats:typeof window.shelterBlockedStats,"
+    "dispatch:typeof window.shelterCefDispatch},"
+    "tabs:tabs.slice(-4)};})())"
+)
+
+
+def read_blocker_stats(ui: Cdp) -> Dict[str, Any]:
+    """Снимок статистики блокировщика на стороне UI (для диагностики падений)."""
+    try:
+        raw = ui.evaluate(BLOCKER_STATS)
+    except AcceptanceError:
+        return {}
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return {}
+
+
+# Самопроверка UI: работает ли учёт блокировок без нативных событий. Запускается
+# ТОЛЬКО в ветке падения — синтетическое событие не должно маскировать ошибку.
+BLOCKER_SELF_TEST = (
+    "JSON.stringify((function(){"
+    "var out={hook:typeof window.shelterBlockedStats,before:null,after:null,error:null};"
+    "try{var st=window.shelterTest.state();"
+    "var sp=st.spaces[st.currentSpace]||{tabs:[]};"
+    "var ad=(sp.tabs||[]).filter(function(t){"
+    "return String(t.url||'').indexOf('/adpage')>=0;}).pop();"
+    "out.before=ad?(ad.blocked|0):-1;"
+    "if(typeof window.shelterBlockedStats==='function'){"
+    "window.shelterBlockedStats({a:1,id:ad?ad.id:''});}"
+    "out.after=ad?(ad.blocked|0):-1;"
+    "}catch(e){out.error=String((e&&e.message)||e);}return out;})())"
+)
+
+
+def blocker_probe(
+    ui: Cdp,
+    port: int,
+    base: str,
+    process: subprocess.Popen,
+    site_pages: List[Cdp],
+) -> Dict[str, Any]:
+    """Prove the tracker/ad blocker really cuts ad requests on a live page.
+
+    The fixture serves an ad script from the page's own document (a main-frame
+    subresource), injects a second one after load and embeds a cosmetic ad
+    container. Blocking must cover all three; the control pass with the toggle
+    off must let the same script load, so a passing probe cannot be explained
+    by a broken fixture.
+    """
+    fixture = base + "/adpage"
+    test = "window.shelterTest"
+    original = ui.evaluate(f"{test}.state().prefs.trackers")
+    ui.evaluate(f"{test}.setPref('trackers', true)")
+    time.sleep(0.8)
+    if ui.evaluate(f"{test}.state().prefs.trackers") is not True:
+        raise AcceptanceError("Tracker blocker preference did not turn on")
+    ui.evaluate("window.newTab(" + json.dumps(fixture) + ")")
+    target, page, state = wait_for_site(port, "127.0.0.1", process, path_contains="/adpage")
+    site_pages.append(page)
+    if "SHELTER ad fixture" not in (state.get("text", "") + state.get("title", "")):
+        raise AcceptanceError(f"Ad fixture did not render: {state}")
+    time.sleep(1.1)  # window for the late script attempt
+    blocked = read_ad_flags(page)
+    if blocked.get("loaded", 0) != 0:
+        raise AcceptanceError(
+            "Ad script from the page's own frame was not blocked: " + json.dumps(blocked)
+        )
+    if blocked.get("late"):
+        raise AcceptanceError(
+            "Late ad script request was not blocked: " + json.dumps(blocked)
+        )
+    if blocked.get("slotDisplay") != "none":
+        raise AcceptanceError(
+            "Cosmetic filter did not hide the ad container: " + json.dumps(blocked)
+        )
+    # События фильтра приходят из браузерного процесса асинхронно, поэтому
+    # счётчик вкладки может отставать от сетевых блокировок: ждём его роста.
+    counter, snapshot = -1, {}
+    deadline = time.monotonic() + 15
+    while True:
+        snapshot = read_blocker_stats(ui)
+        counter = snapshot.get("tabBlocked", -1) if snapshot else -1
+        if isinstance(counter, int) and counter >= 2:
+            break
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.4)
+    if not isinstance(counter, int) or counter < 2:
+        self_test = ui.evaluate(BLOCKER_SELF_TEST)
+        raise AcceptanceError(
+            "Blocked-request counter did not grow: " + json.dumps(snapshot)
+            + " ui_self_test=" + json.dumps(self_test)
+        )
+
+    control: Dict[str, Any] = {}
+    try:
+        ui.evaluate(f"{test}.setPref('trackers', false)")
+        time.sleep(0.8)
+        ui.evaluate("window.navigate(" + json.dumps(fixture + "?noblock=1") + ")")
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            control = read_ad_flags(page)
+            if "noblock=1" in control.get("search", ""):
+                break
+            time.sleep(0.3)
+        time.sleep(1.1)
+        control = read_ad_flags(page)
+        if control.get("loaded", 0) < 1:
+            raise AcceptanceError(
+                "Control pass with the blocker off did not load the ad script: "
+                + json.dumps(control)
+            )
+    finally:
+        ui.evaluate(f"{test}.setPref('trackers', {json.dumps(original)})")
+        time.sleep(0.4)
+        ui.evaluate(
+            "(function(){var st=window.shelterTest.state();"
+            "var sp=st.spaces[st.currentSpace];"
+            "var t=(sp&&sp.tabs||[]).filter(x=>x.url.indexOf('/adpage')>=0).pop();"
+            "if(t&&window.closeTab)window.closeTab(t.id);return true;})()"
+        )
+    return {
+        "blocked": blocked,
+        "control": control,
+        "counter": counter,
+        "stats": snapshot,
+        "original": original,
+    }
+
+
+CONSENT_FLAGS = (
+    "JSON.stringify({"
+    "href:location.href,"
+    # Метки, которые ставят сами скрипты защит: видно, что именно
+    # применил рендерер в этом документе (а не то, что думает UI).
+    "armedConsent:window.__shConsent===1,"
+    "armedFp:window.__shFp===1,"
+    "consent:window.__consent||null,"
+    "visible:(typeof window.__visible==='function')&&window.__visible(),"
+    "lateMounted:window.__lateMounted===true,"
+    "banner:(function(){var b=document.getElementById('cmp');"
+    "if(!b||!b.isConnected)return 'removed';var st=getComputedStyle(b);"
+    "return st.display==='none'?'hidden':'shown';})()"
+    "})"
+)
+
+
+def read_consent_flags(page: Cdp) -> Dict[str, Any]:
+    for _ in range(20):
+        try:
+            raw = page.evaluate(CONSENT_FLAGS)
+        except AcceptanceError:
+            time.sleep(0.25)
+            continue
+        if raw:
+            try:
+                return json.loads(raw)
+            except ValueError:
+                pass
+        time.sleep(0.25)
+    return {}
+
+
+def wait_for_consent(page: Cdp, name: str, deadline_seconds: float = 12) -> Dict[str, Any]:
+    """Ждёт ответа CMP; для маршрута late — ещё и монтирования позднего баннера.
+
+    У поздней фикстуры баннер появляется через 700 мс, поэтому «флаги вообще
+    есть» — не повод что-то утверждать: ждём именно решения.
+    """
+    deadline = time.monotonic() + deadline_seconds
+    flags = read_consent_flags(page)
+    if name == "late":
+        while time.monotonic() < deadline and flags.get("lateMounted") is not True:
+            time.sleep(0.3)
+            flags = read_consent_flags(page)
+        if flags.get("lateMounted") is not True:
+            raise AcceptanceError(
+                "Late consent banner never mounted: " + json.dumps(flags)
+            )
+    while time.monotonic() < deadline and flags.get("consent") is None:
+        time.sleep(0.3)
+        flags = read_consent_flags(page)
+    time.sleep(0.4)
+    return read_consent_flags(page)
+
+
+def assert_minimal_consent(route: str, flags: Dict[str, Any]) -> None:
+    """Минимальный набор подтверждён, баннер не видел пользователь и удалён."""
+    if flags.get("consent") != "necessary":
+        raise AcceptanceError(
+            f"Consent banner {route} was not answered with the minimal set: "
+            + json.dumps(flags)
+        )
+    if flags.get("visible") is not False:
+        raise AcceptanceError(
+            f"Consent banner {route} became visible before it was answered: "
+            + json.dumps(flags)
+        )
+    if flags.get("banner") != "removed":
+        raise AcceptanceError(
+            f"Consent banner {route} stayed in the page after consent: "
+            + json.dumps(flags)
+        )
+
+
+def read_native_protections(ui: Cdp) -> Dict[str, Any]:
+    """Состояние защит глазами браузерного процесса (диагностика dbg.protections).
+
+    Нужно, чтобы сбой в цепочке «тумблер → нативная часть → рендерер» не
+    выглядел одинаково на любом её разрыве.
+    """
+    expression = (
+        "new Promise(function(resolve){"
+        "if (typeof window.cefQuery !== 'function') { resolve(''); return; }"
+        "window.cefQuery({request:'{\"m\":\"dbg.protections\"}',"
+        " persistent:false,"
+        "onSuccess:function(r){resolve(r||'');},"
+        "onFailure:function(){resolve('');}});"
+        "})"
+    )
+    raw = ui.evaluate(expression)
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return {}
+
+
+def evaluate_retry(ui: Cdp, expression: str, timeout: float = 12,
+                   attempts: int = 4) -> Any:
+    """Чтение состояния интерфейса с повтором при обрыве канала.
+
+    Канал DevTools может не ответить, пока приложение занято (нагруженный
+    раннер, тяжёлая страница в соседней вкладке). Это не поведение продукта,
+    поэтому повторяем; если интерфейс молчит все попытки — падаем как раньше.
+    Повторяются только чтения и идемпотентные действия.
+    """
+    last: Optional[Exception] = None
+    for _ in range(max(1, attempts)):
+        try:
+            return ui.evaluate(expression, timeout=timeout)
+        except AcceptanceError as exc:
+            text = f"{exc}"
+            if "timed out" not in text.lower():
+                raise
+            last = exc
+            print("SHELTER_ACCEPTANCE_UI_RETRY " + text[:200], flush=True)
+            time.sleep(1.5)
+    raise AcceptanceError("UI did not answer over CDP: " + f"{last}")
+
+
+def cookie_consent_probe(
+    ui: Cdp,
+    port: int,
+    base: str,
+    process: subprocess.Popen,
+    site_pages: List[Cdp],
+    require_native_hooks: bool = True,
+) -> Dict[str, Any]:
+    """Consent banners must be answered before the user can see them.
+
+    The fixture mirrors a real CMP: an immediate banner and a late-mounted one,
+    both offering "only necessary" next to "accept all". The probe checks that
+    the minimal set is chosen, that the banner never became visible, and — with
+    the toggle off — that the same banner stays visible and unanswered.
+
+    Три ноги проверяют три разных пути доставки состояния в рендерер:
+    обычные ноги подряд по одному сайту — живой процесс (его догоняет
+    сообщение), нога после перехода на другой сайт — процесс, поднятый заново
+    или взятый из запаса, свежая нога на новом сайте — процесс, рождённый после
+    переключения тумблеров. Требование у всех одно: решение пользователя
+    (или его отсутствие) должно быть видно на каждой странице.
+    """
+    test = "window.shelterTest"
+    original = evaluate_retry(ui, f"{test}.state().prefs.cookies")
+    original_fp = evaluate_retry(ui, f"{test}.state().prefs.fp")
+    native: Dict[str, Any] = {}
+
+    def set_cookie_pref(value: bool, wait: float = 0.8) -> None:
+        evaluate_retry(ui, f"{test}.setPref('cookies', " + json.dumps(value) + ")")
+        time.sleep(wait)
+        if evaluate_retry(ui, f"{test}.state().prefs.cookies") is not value:
+            raise AcceptanceError(
+                f"Cookie auto-consent preference did not switch to {value}"
+            )
+        flag = read_native_protections(ui) if require_native_hooks else {}
+        if require_native_hooks and flag.get("cookies") is not value:
+            raise AcceptanceError(
+                "Auto-consent never reached the native layer when switched to "
+                f"{value}: " + json.dumps(flag)
+            )
+        return flag
+
+    native["on"] = set_cookie_pref(True)
+
+    results: Dict[str, Any] = {}
+    for name, route in (("immediate", "/consent"), ("late", "/consent-late")):
+        evaluate_retry(ui, "window.navigate(" + json.dumps(base + route) + ")")
+        target, page, state = wait_for_site(
+            port, "127.0.0.1", process, path_contains=route
+        )
+        site_pages.append(page)
+        if "consent fixture" not in (state.get("text", "") + state.get("title", "")):
+            raise AcceptanceError(f"Consent fixture {route} did not render: {state}")
+        flags = wait_for_consent(page, name)
+        assert_minimal_consent(route, flags)
+        if name == "late" and flags.get("lateMounted") is not True:
+            raise AcceptanceError(
+                "Late consent banner stayed unmounted: " + json.dumps(flags)
+            )
+        results[name] = flags
+
+    def assert_banner_waits(label: str) -> Dict[str, Any]:
+        """Страница не должна ни отвечать за пользователя, ни прятать баннер."""
+        evaluate_retry(
+            ui, "window.navigate(" + json.dumps(base + "/consent?manual=1") + ")"
+        )
+        try:
+            _target, page, _state = wait_for_site(
+                port, "127.0.0.1", process, path_contains="manual=1", timeout=25
+            )
+        except AcceptanceError as exc:
+            raise AcceptanceError(
+                f"Control consent page ({label}) did not load: " + str(exc)
+            ) from exc
+        site_pages.append(page)
+        flags: Dict[str, Any] = {}
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            flags = read_consent_flags(page)
+            if flags.get("consent") is None and flags.get("visible") is True:
+                break
+            time.sleep(0.3)
+        if flags.get("consent") is not None:
+            raise AcceptanceError(
+                f"Cookie auto-consent kept answering while switched off ({label}): "
+                + json.dumps(flags, ensure_ascii=False)
+                + " native=" + json.dumps(native.get("off", {}))
+            )
+        if flags.get("visible") is not True:
+            raise AcceptanceError(
+                f"With auto-consent off the banner must stay visible ({label}): "
+                + json.dumps(flags, ensure_ascii=False)
+            )
+        return flags
+
+    # 1. Тумблер выключается сразу после обычных ног, и контрольная нога идёт по
+    #    тому же сайту: процесс заведомо жив — проверяется, что тумблер догоняет
+    #    уже работающую вкладку.
+    native["off"] = set_cookie_pref(False)
+    control = assert_banner_waits("живой процесс")
+
+    # 2. Свежий сайт: другой сайт означает процесс, которого ещё не было, и он
+    #    обязан получить состояние защит при рождении. Метка анти-отпечатка в
+    #    документе показывает, что именно применил этот процесс: если тумблер
+    #    включён, а метки нет — новые страницы защит не получают. Недоступность
+    #    площадки — внешняя причина: тогда предупреждаем и идём дальше.
+    fresh: Dict[str, Any] = {}
+    fresh_error = ""
+    fresh_page: Optional[Cdp] = None
+    fresh_state: Dict[str, Any] = {}
+    try:
+        evaluate_retry(ui, f"{test}.setPref('cookies', " + json.dumps(True) + ")")
+        evaluate_retry(ui, f"{test}.setPref('fp', " + json.dumps(True) + ")")
+        time.sleep(0.5)
+        evaluate_retry(
+            ui,
+            "window.navigate("
+            + json.dumps(base.replace("127.0.0.1", "localhost") + "/consent")
+            + ")",
+        )
+        _target, fresh_page, fresh_state = wait_for_site(
+            port, "localhost", process, path_contains="/consent", timeout=25
+        )
+    except AcceptanceError as exc:
+        fresh_error = f"{exc}"
+        fresh_page = None
+    if fresh_page is not None:
+        site_pages.append(fresh_page)
+        if "consent fixture" not in (
+            fresh_state.get("text", "") + fresh_state.get("title", "")
+        ):
+            raise AcceptanceError(
+                f"Fresh-site consent fixture did not render: {fresh_state}"
+            )
+        fresh = wait_for_consent(fresh_page, "fresh")
+        assert_minimal_consent("fresh site", fresh)
+        if fresh.get("armedFp") is not True:
+            raise AcceptanceError(
+                "A page opened after the app started missed fingerprint "
+                "protection, so protections do not reach new pages: "
+                + json.dumps(fresh, ensure_ascii=False)
+            )
+    if fresh_error:
+        print(
+            "SHELTER_ACCEPTANCE_COOKIE_CONSENT_FRESH_SKIPPED " + fresh_error,
+            flush=True,
+        )
+
+    # 3. Обратный переход на прежний сайт: здесь Chromium может поднять процесс
+    #    заново или взять заранее созданный «запасной». Именно на этом шаге
+    #    раньше и всплыло, что страница отвечает вопреки выключенному тумблеру,
+    #    поэтому проверяем явно.
+    native["off2"] = set_cookie_pref(False)
+    control_return = assert_banner_waits("возврат на прежний сайт")
+
+    set_cookie_pref(original if isinstance(original, bool) else True, wait=0.5)
+    evaluate_retry(ui, f"{test}.setPref('fp', " + json.dumps(original_fp) + ")")
+    time.sleep(0.5)
+    native["restored"] = (
+        read_native_protections(ui) if require_native_hooks else {}
+    )
+    native["hooks"] = "verified" if require_native_hooks else "skipped-release-build"
+    return {
+        "toggles": results,
+        "control": control,
+        "control_return": control_return,
+        "fresh": fresh,
+        "fresh_error": fresh_error,
+        "native": native,
+        "original": original,
+    }
 
 def start_scroll_sweep(page: Cdp, frames: int = 48) -> Dict[str, Any]:
     expression = r"""
@@ -1308,11 +2412,20 @@ def stop_process(process: subprocess.Popen) -> None:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
-        print("usage: acceptance_smoke.py <packaged-shelter-executable>", file=sys.stderr)
-        return 2
+    parser = argparse.ArgumentParser()
+    parser.add_argument("executable", type=Path)
+    parser.add_argument("--expected-version", required=True)
+    parser.add_argument(
+        "--allow-missing-ci-hooks",
+        action="store_true",
+        help="skip native debug-hook assertions for packaged release builds",
+    )
+    args = parser.parse_args()
 
-    executable = Path(sys.argv[1]).expanduser().resolve()
+    executable = args.executable.expanduser().resolve()
+    expected_version = args.expected_version
+    if not expected_version or not all(part.isdigit() for part in expected_version.split(".")):
+        parser.error("--expected-version must be a dot-separated numeric version")
     if not executable.is_file():
         print(f"Packaged executable not found: {executable}", file=sys.stderr)
         return 2
@@ -1334,7 +2447,7 @@ def main() -> int:
 
     try:
         long_page_server, long_page_thread, long_page_base = start_long_page_server()
-        print(f"SHELTER_ACCEPTANCE_VERSION expected=1.0.165", flush=True)
+        print(f"SHELTER_ACCEPTANCE_VERSION expected={expected_version}", flush=True)
         print(f"SHELTER_ACCEPTANCE_EXECUTABLE {executable}", flush=True)
         with log_path.open("w", encoding="utf-8") as app_log:
             process = subprocess.Popen(
@@ -1342,6 +2455,7 @@ def main() -> int:
                 cwd=str(executable.parent),
                 stdout=app_log,
                 stderr=subprocess.STDOUT,
+                env=dict(os.environ, SHELTER_DIAG="1"),  # CEF debug.log только для диагностики
             )
             ui_target = wait_until(
                 lambda: next(
@@ -1373,9 +2487,37 @@ def main() -> int:
                 timeout=45,
             )
             version = ui.evaluate("window.shelter && window.shelter.version")
-            if version != "1.0.165":
+            if version != expected_version:
                 raise AcceptanceError(
-                    f"Packaged UI version mismatch: expected 1.0.165, got {version!r}"
+                    f"Packaged UI version mismatch: expected {expected_version}, got {version!r}"
+                )
+            secret_probe = ui.evaluate(
+                "(() => { const n = window.shelterNative; "
+                "const sample = 'SHELTER native crypto probe · тест'; "
+                "const encrypted = n && n.secretEnc(sample); "
+                "const decrypted = encrypted && n.secretDec(encrypted); "
+                "const probe = { encrypted: typeof encrypted === 'string' && encrypted.startsWith('ss1:'), "
+                "roundTrip: decrypted === sample, keyHidden: !!n && "
+                "typeof n.masterKey === 'undefined' && typeof n.secretKeyHex === 'undefined' }; "
+                "if (!probe.encrypted || !probe.roundTrip) { "
+                "try { const xhr = new XMLHttpRequest(); "
+                "xhr.open('POST', '/secret/encrypt', false); "
+                "xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8'); "
+                "xhr.send(sample); const body = JSON.parse(xhr.responseText || '{}'); "
+                "probe.routeStatus = xhr.status; probe.routeBodyOk = body.ok === true; "
+                "probe.routeHasValue = typeof body.value === 'string'; "
+                "probe.routeValuePrefix = probe.routeHasValue ? body.value.slice(0, 4) : ''; "
+                "probe.routeResponseLength = xhr.responseText.length; "
+                "} catch (e) { probe.routeError = e && e.name || 'Error'; } "
+                "probe.secretFailureFlag = !!window.__shelterSecretFailure; } "
+                "return probe; })()"
+            )
+            if not isinstance(secret_probe, dict) or not all(
+                secret_probe.get(key) is True
+                for key in ("encrypted", "roundTrip", "keyHidden")
+            ):
+                raise AcceptanceError(
+                    f"Native secret crypto bridge failed or exposed key material: {secret_probe!r}"
                 )
             print(f"SHELTER_ACCEPTANCE_UI_READY version={version}", flush=True)
             original_gfx = ui.evaluate("window.shelterTest.state().prefs.gfx || 'balance'")
@@ -1516,10 +2658,17 @@ def main() -> int:
                         "Profile with avatar is not the last burger-menu item: "
                         f"{toolbar_menu}"
                     )
-                palette = toolbar_menu["palette"]
-                if not palette["immediatelyAfterOpacity"] or palette["swatchCount"] != 6 or not palette["equalSideInsets"]:
+                quick_appearance = toolbar_menu["quickAppearance"]
+                if (
+                    not quick_appearance["radiusAfterOpacity"]
+                    or not quick_appearance["tabPositionAvailable"]
+                    or not quick_appearance["bookmarkPositionAvailable"]
+                    or not quick_appearance["themeModeSwitchAvailable"]
+                    or not quick_appearance["themePaletteHidden"]
+                ):
                     raise AcceptanceError(
-                        f"Theme palette is not directly after opacity: {toolbar_menu}"
+                        "Quick panel must offer a light/dark switch without a named color palette: "
+                        f"{toolbar_menu}"
                     )
                 print(
                     "SHELTER_ACCEPTANCE_TOOLBAR_MENU_PASS "
@@ -1527,9 +2676,9 @@ def main() -> int:
                     flush=True,
                 )
 
-            theme_probe = quick_theme_switch_probe(ui)
-            print("SHELTER_ACCEPTANCE_QUICK_THEME " + json.dumps(theme_probe, ensure_ascii=False), flush=True)
-            print("SHELTER_ACCEPTANCE_QUICK_THEME_PASS", flush=True)
+            theme_probe = settings_theme_switch_probe(ui)
+            print("SHELTER_ACCEPTANCE_SETTINGS_THEME " + json.dumps(theme_probe, ensure_ascii=False), flush=True)
+            print("SHELTER_ACCEPTANCE_SETTINGS_THEME_PASS", flush=True)
 
             mode_probe = performance_mode_probe(ui)
             print("SHELTER_ACCEPTANCE_PERFORMANCE " + json.dumps(mode_probe, ensure_ascii=False), flush=True)
@@ -1618,6 +2767,47 @@ def main() -> int:
             )
             print("SHELTER_ACCEPTANCE_LONG_SCROLL " + json.dumps(scroll_probes, ensure_ascii=False), flush=True)
             print("SHELTER_ACCEPTANCE_LONG_SCROLL_PASS", flush=True)
+
+            blocker_result = blocker_probe(
+                ui, port, long_page_base, process, site_pages
+            )
+            print(
+                "SHELTER_ACCEPTANCE_BLOCKER "
+                + json.dumps(blocker_result, ensure_ascii=False),
+                flush=True,
+            )
+            print("SHELTER_ACCEPTANCE_BLOCKER_PASS", flush=True)
+
+            # Пробы оформления идут раньше сетевых: они герметичны (живут
+            # внутри UI) и не должны зависеть от фикстур, а их отчёт — теряться
+            # из-за сбоя сетевой проверки.
+            corner_probe = assistant_corners_probe(ui)
+            print(
+                "SHELTER_ACCEPTANCE_ASSISTANT_CORNERS "
+                + json.dumps(corner_probe, ensure_ascii=False),
+                flush=True,
+            )
+            print("SHELTER_ACCEPTANCE_ASSISTANT_CORNERS_PASS", flush=True)
+
+            tab_probe = tab_width_probe(ui)
+            print(
+                "SHELTER_ACCEPTANCE_TAB_WIDTH "
+                + json.dumps(tab_probe, ensure_ascii=False),
+                flush=True,
+            )
+            print("SHELTER_ACCEPTANCE_TAB_WIDTH_PASS", flush=True)
+
+            consent_result = cookie_consent_probe(
+                ui, port, long_page_base, process, site_pages,
+                require_native_hooks=not args.allow_missing_ci_hooks,
+            )
+            print(
+                "SHELTER_ACCEPTANCE_COOKIE_CONSENT "
+                + json.dumps(consent_result, ensure_ascii=False),
+                flush=True,
+            )
+            print("SHELTER_ACCEPTANCE_COOKIE_CONSENT_PASS", flush=True)
+
             ui.evaluate(
                 "window.shelterTest.setGfxMode(" + json.dumps(original_gfx) +
                 ",{persist:false,notify:false})"
@@ -1626,7 +2816,11 @@ def main() -> int:
             print("SHELTER_ACCEPTANCE_PASS", flush=True)
         return 0
     except Exception as exc:
-        print(f"SHELTER_ACCEPTANCE_FAIL {exc}", file=sys.stderr, flush=True)
+        message = " ".join(str(exc).split())
+        # Короткая строка идёт и в лог, и в аннотацию GitHub Actions: длинные
+        # JSON-дампы обрезаются, а причину падения видно сразу.
+        print(f"SHELTER_ACCEPTANCE_FAIL {message}", file=sys.stderr, flush=True)
+        print(f"::error::SHELTER_ACCEPTANCE_FAIL {message[:900]}", flush=True)
         if process is not None and process.poll() is not None:
             print(
                 f"SHELTER_ACCEPTANCE_APP_EXIT status={process.returncode}",
@@ -1639,6 +2833,24 @@ def main() -> int:
                 if tail:
                     print("--- packaged app output ---", file=sys.stderr)
                     print(tail, file=sys.stderr)
+            except OSError:
+                pass
+        if sys.platform == "darwin":
+            keychain_log = (
+                Path.home()
+                / "Library"
+                / "Application Support"
+                / "SHELTER"
+                / "keychain.log"
+            )
+            try:
+                if keychain_log.is_file():
+                    diagnostics = keychain_log.read_text(
+                        encoding="utf-8", errors="replace"
+                    )[-4000:]
+                    if diagnostics:
+                        print("--- native keychain diagnostics ---", file=sys.stderr)
+                        print(diagnostics, file=sys.stderr)
             except OSError:
                 pass
         return 1

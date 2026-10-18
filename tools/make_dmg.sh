@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Собирает установочный DMG для macOS: SHELTER.app + ярлык «Applications».
-# usage: make_dmg.sh <path/to/Shelter.app> <out.dmg> [version]
+# usage: make_dmg.sh <path/to/Shelter.app> <out.dmg> <version>
 #
 # Подпись: ad-hoc (без сертификата Apple Developer). Вложенные части подписываются
 # «изнутри наружу»; для распространения без предупреждений Gatekeeper нужна подпись
@@ -9,7 +9,7 @@ set -euo pipefail
 
 APP="$1"
 OUT="$2"
-VER="${3:-1.0.165}"
+VER="${3:?pass version from the configured CMake build}"
 
 [ -d "$APP" ] || { echo "нет приложения: $APP"; exit 1; }
 
@@ -37,7 +37,18 @@ ln -s /Applications "$STAGE/Applications"
 
 echo "== создание DMG"
 rm -f "$OUT"
-hdiutil create -volname "SHELTER $VER" -srcfolder "$STAGE" -ov -format UDZO -fs HFS+ "$OUT"
+for attempt in 1 2 3; do
+  if hdiutil create -volname "SHELTER $VER" -srcfolder "$STAGE" -ov -format UDZO -fs HFS+ "$OUT"; then
+    break
+  else
+    status=$?
+    if [[ $attempt -eq 3 ]]; then
+      exit "$status"
+    fi
+    echo "hdiutil create failed (attempt $attempt/3, exit $status); retrying"
+    sleep "$((attempt * 2))"
+  fi
+done
 hdiutil verify "$OUT"
 ls -la "$OUT"
 rm -rf "$STAGE"

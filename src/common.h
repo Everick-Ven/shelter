@@ -5,18 +5,20 @@
 #include <string>
 
 #include "include/cef_values.h"
+#include "src/app_version.h"
 
 namespace shelter {
 
 inline constexpr char kAppName[] = "SHELTER";
-inline constexpr char kAppVersion[] = "1.0.165";
 
 // Внутренняя схема, по которой отдаётся chrome-UI (resources/ui/*).
 // Зарегистрирована как standard + secure + cors + fetch, поэтому у UI есть
 // нормальный origin (localStorage, navigator.clipboard, CSP 'self').
 inline constexpr char kUiScheme[] = "shelter";
 inline constexpr char kUiHost[] = "app";
-inline constexpr char kUiUrl[] = "shelter://app/index.html";
+inline const std::string kUiUrl =
+    std::string("shelter://app/index.html?v=") + kAppVersion + "-" +
+    kAppBuildId;
 inline constexpr char kUiOriginPrefix[] = "shelter://app/";
 
 // Платформа в терминах window.shelterNative.platform (как process.platform).
@@ -35,6 +37,10 @@ CefRefPtr<CefValue> ParseJson(const std::string& json);
 
 // Строка в виде JS-литерала (с кавычками), безопасная для вставки в скрипт.
 std::string JsString(const std::string& s);
+
+// Регистрируемый домен хоста (последние два ярлыка, три для co.uk-подобных).
+// Используется там, где нужно сравнение «сторонний или свой» (строгий режим).
+std::string RegistrableDomain(const std::string& host);
 
 // Имя раздела (partition) -> безопасное имя каталога.
 std::string SanitizeForPath(const std::string& s);

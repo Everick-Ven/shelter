@@ -17,6 +17,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <string>
@@ -49,6 +50,7 @@ struct Tab {
   bool find_kick = false;     // после нового запроса выделить первое совпадение
   std::string error_url;      // URL, не открывшийся (показана страница ошибки)
   bool loading = false;
+  bool view_visible = false;
   int browser_id = 0;
   CefRefPtr<CefBrowserView> view;
   CefRefPtr<CefOverlayController> overlay;
@@ -57,15 +59,49 @@ struct Tab {
   std::string pending_url;  // если браузер ещё не создан
   CefRefPtr<CefDevToolsMessageObserver> snap_observer;
   CefRefPtr<CefRegistration> snap_registration;
+  // Вкладка ждёт инициализации дискового профиля (контекст ещё не готов).
+  bool awaiting_context = false;
+  CefRect pending_rect;
+  bool has_pending_layout = false;
+  bool pending_visible = false;
+  bool pending_focus = false;
+  CefRect last_bounds;
+  bool has_last_bounds = false;
+  bool last_overlay_visibility = false;
+  bool has_last_overlay_visibility = false;
+  void* last_clip_handle = nullptr;
+  CefRect last_clip_bounds;
+  std::array<double, 4> last_clip_radii{};
+  std::vector<std::array<int, 5>> last_clip_holes;
+  std::uint32_t last_clip_mask_color = 0;
+  bool last_clip_visible = false;
+  bool has_last_clip = false;
 };
 
 struct PendingDownload {
   CefRefPtr<CefBeforeDownloadCallback> callback;
   std::string filename;
+  // Загрузка из приватной («призрачной») вкладки: её адрес и путь не попадают
+  // даже в собственный лог SHELTER.
+  bool priv = false;
 };
 
 struct ActiveDownload {
   CefRefPtr<CefDownloadItemCallback> callback;
+};
+
+struct PendingExtensionInstall {
+  // Архив хранится только в памяти, пока открыт запрос подтверждения. После
+  // согласия пакет повторно проверяется и распаковывается в новый каталог.
+  std::string archive_bytes;
+  std::string expected_id;
+  std::string name;
+  std::string version;
+  std::string extension_id;
+  std::vector<std::string> permissions;
+  std::vector<std::string> host_permissions;
+  bool local_file = false;
+  bool unsigned_zip = false;
 };
 
 class Shell {
@@ -81,6 +117,10 @@ class Shell {
   void OnBrowserCreated();      // счётчик живых браузеров (все клиенты)
   void OnBrowserClosed();
   bool closing() const { return closing_; }
+  // Chrome создаёт дисковый профиль асинхронно; браузер вкладки можно
+  // привязывать к контексту только после его инициализации. Вызывается
+  // хэндлером контекста (публичный, т.к. хэндлер живёт вне класса).
+  void OnContextReady(const std::string& partition);
 
   // ---- окно ----
   bool CanCloseWindow();
@@ -89,6 +129,11 @@ class Shell {
   void TrackPopupWindow(CefRefPtr<CefWindow> window);
   void UntrackPopupWindow(CefRefPtr<CefWindow> window);
   CefRefPtr<CefWindow> window() const { return window_; }
+
+  // Догрузка иконок сайтов для хостов, которых нет в кэше UI (закладки,
+  // история). Список приходит из UI разделённым пробелами; проверка имени и
+  // запрос — стандартным сетевым контекстом, результат уходит событием 'fav'.
+  void RequestFavicons(const std::string& hosts, CefRefPtr<CefBrowser> ui_browser);
 
   // ---- UI-браузер ----
   CefRefPtr<CefBrowserView> CreateUiView();
@@ -113,6 +158,9 @@ class Shell {
   // ---- события вкладок (TabClient -> Shell) ----
   Tab* FindTab(const std::string& id);
   Tab* FindTabByBrowser(int browser_id);
+  // id вкладки по идентификатору CEF-браузера; пусто, если вкладки уже нет.
+  // Нужен событиям статистики, которые приходят асинхронно с IO-потока.
+  std::string TabIdForBrowser(int browser_id);
   void OnTabCreated(CefRefPtr<CefBrowser> browser, const std::string& id);
   void OnTabAddress(CefRefPtr<CefBrowser> browser, const std::string& url);
   void OnTabTitle(CefRefPtr<CefBrowser> browser, const std::string& title);
@@ -123,14 +171,83 @@ class Shell {
   void OnTabLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame);
   void OnTabLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame);
 
+  // Анти-отпечаток: настройка из UI.
+  void SetFpEnabled(bool on);
+  // Пересобирает protection_flags_ из текущих тумблеров (UI-поток).
+  void SyncProtectionFlags();
+
+  // Автосогласие cookies: согласие «только необходимое» подтверждается в
+  // рендерере до первого кадра баннера.
+  void SetAutoConsentEnabled(bool on);
+
+  // Состояние защит уходит в рендерер одним сообщением (shelter.protections):
+  // при рождении вкладки, при переключении тумблера и — главное — в начале
+  // каждой навигации главного фрейма. Сообщения «браузер → рендерер» идут по
+  // одному каналу в порядке отправки, поэтому состояние оказывается в процессе
+  // раньше документа: даже процесс, переживший переключение тумблера (spare
+  // или повторно используемый сайт), не применит старое значение к новой
+  // странице.
+  void PushProtections(CefRefPtr<CefFrame> frame);
+  void PushProtectionsToTabs();
+
+  // Биты защит для командной строки новых дочерних процессов (см.
+  // BrowserApp::OnBeforeChildProcessLaunch): 1 — анти-отпечаток, 2 — cookies.
+  // Без этого новый процесс (переход на другой сайт) рождался бы со значениями
+  // по умолчанию, и тумблеры «переставали работать» до перезагрузки страницы.
+  int ProtectionFlags() const {
+    return protection_flags_.load(std::memory_order_relaxed);
+  }
+
+  // Цветовая схема Chromium для всех контекстов (тема интерфейса). Вызывается
+  // из моста theme.scheme и при инициализации каждого нового контекста, чтобы
+  // страницы получали prefers-color-scheme темы, а не системной схемы.
+  void SetColorSchemeAll(bool dark);
+
+  // HTTPS-only + DoH: настройка из UI («Безопасный HTTPS + приватный DNS»)
+  // и применение шифрованного DNS ко всем готовым контекстам (сессиям).
+  void SetHttpsOnlyEnabled(bool on);
+  void SetDohProvider(const std::string& provider);
+  void ApplyNetGuard();
+
+  // Строгий режим: сторонние скрипты — только по разрешению.
+  void SetStrictEnabled(bool on);
+  void StrictAllow(const std::string& host);
+
+  // «Призрак»: режим приходит из UI; при выключении сразу освобождаем
+  // in-memory контексты, у которых не осталось вкладок.
+  void SetGhostMode(bool on);
+
+  // ---- приватность: разрешения и иконки сайтов ----
+  // Сайт попросил разрешение (камера/микрофон/геолокация/…). Оболочка всегда
+  // отказывает; UI получает событие, чтобы показать это пользователю.
+  void NotePermissionRequest(const std::string& origin, uint32_t mask,
+                             bool media);
+  // Иконка сайта: берём у самого сайта, кэшируем в UI. Призрачные вкладки
+  // пропускаются, повторные запросы к тому же хосту — тоже.
+  bool FaviconNeeded(const std::string& tab_id, const std::string& host);
+  void FaviconRequestStarted(const std::string& url,
+                             CefRefPtr<CefURLRequest> request);
+  void OnFaviconReady(const std::string& tab_id, const std::string& host,
+                      const std::string& url, const std::string& data);
+  // Нативный диалог «открыть файл» (Ctrl+O): выбранный путь открывается
+  // вкладкой в UI — без выдуманных путей на стороне вёрстки.
+  void PickLocalFile();
+  void OnLocalFileSelected(const std::string& path);
+
   // ---- расширения (Chrome Web Store / .crx) ----
   void ExtList(CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
+  // Режим расширений: «движок Chromium» (MV3 через --load-extension) или
+  // «оболочка» (ручное внедрение content-scripts). Смена режима действует со
+  // следующего запуска: аргумент командной строки фиксируется до старта CEF.
+  void ExtSetMode(bool engine,
+                  CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
   void ExtInstall(const std::string& src);
   void ExtRemove(const std::string& id);
   void ExtPick();
   void ExtToast(const std::string& text, bool err);
   void ExtPushList();
-  void ExtInstallBytes(std::string bytes, const std::string& origin);
+  void ExtInstallBytes(std::string bytes, const std::string& expected_id,
+                       bool local_file);
   bool OnTabKey(CefRefPtr<CefBrowser> browser, const CefKeyEvent& event);
   void OnTabFindResult(CefRefPtr<CefBrowser> browser, int count, int idx,
                        bool final_update);
@@ -162,8 +279,13 @@ class Shell {
                  const std::string& url,
                  double zoom);
   void DestroyTab(const std::string& id);
+  // Создаёт browser view вкладки, когда её контекст уже инициализирован.
+  void FinishTabBrowser(Tab* t);
+  bool ContextReady(const std::string& partition) const;
   void HideAllTabs();
+  void HideInactiveTabs(Tab* active);
   void LayoutTab(Tab* tab, const CefRect& rect, bool visible);
+  void SetOverlayVisibility(Tab* tab, bool visible);
   CefRefPtr<CefBrowser> ActiveBrowser();
   void CaptureSnapshot(const std::string& tab_id, int quality,
                        CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
@@ -186,14 +308,17 @@ class Shell {
                  const std::string& url);
 
  private:
+  void ResolveExtensionInstall(const std::string& token, bool install);
   bool DownloadDecision(const std::string& id, const std::string& action,
                         bool show_dialog);
   bool DownloadControl(const std::string& id, const std::string& action);
+  bool ConsumeSelectedLocalFileUrl(const std::string& url);
 
   CefRefPtr<CefWindow> window_;
   CefRefPtr<CefBrowserView> ui_view_;
   CefRefPtr<CefBrowser> ui_browser_;
   std::atomic<int> ui_browser_id_{-1};  // Published for IO-thread scheme checks.
+  bool ui_http_cache_cleared_ = false;
   std::vector<CefDraggableRegion> drag_regions_;
   std::set<CefRefPtr<CefWindow>> popup_windows_;
 
@@ -202,13 +327,50 @@ class Shell {
   CefRect last_rect_;
   double zoom_ = 1.0;
   double clip_radii_[4] = {0, 0, 0, 0};
-  std::vector<std::array<int, 4>> clip_holes_;
+  // Дырки: {x, y, w, h, радиус скругления} в DIP вида вкладки.
+  std::vector<std::array<int, 5>> clip_holes_;
+  std::uint32_t clip_mask_color_ = 0x0e0f13;
   std::map<std::string, CefRefPtr<CefRequestContext>> contexts_;
+  std::map<std::string, bool> context_ready_;
+  // partition -> id вкладок, ждущих инициализации контекста.
+  std::map<std::string, std::vector<std::string>> context_waiters_;
   std::map<std::string, PendingDownload> pending_downloads_;
-  // Downloads are surfaced only after the user accepts the confirmation prompt.
-  // The accepted map also retains the CEF-suggested filename as a safe fallback.
+  // Один пакет ждёт явного решения пользователя; распакованный каталог в
+  // ожидании не хранится, архив ограничен и остаётся только в памяти.
+  std::map<std::string, PendingExtensionInstall> pending_extension_installs_;
+  // Хосты, для которых иконка уже запрошена (в этой сессии), и живые запросы.
+  std::set<std::string> favicon_hosts_;
+  // Отдельно — хосты, догруженные по запросу UI: у вкладок лимит общий, а тут
+  // не нужно исключать хост, иконку которого уже принесла навигация.
+  std::set<std::string> ui_favicon_hosts_;
+  std::map<std::string, CefRefPtr<CefURLRequest>> favicon_requests_;
+  // Загрузки из «призрачных» вкладок: их адрес/путь не пишутся в лог.
+  std::set<std::string> private_downloads_;
+  // Загрузки появляются в UI только после явного согласия пользователя.
+  // Имя CEF сохраняется как безопасное запасное имя для строки загрузки.
   std::map<std::string, std::string> accepted_downloads_;
+  // Точные пути подтверждённых загрузок нужны для «Показать в папке», если
+  // пользователь выбрал место вне стандартной папки загрузок. История ограничена.
+  std::set<std::string> accepted_download_paths_;
+  std::vector<std::string> accepted_download_path_order_;
+  // Одноразовые file:// URL, выданные только после выбора файла в системном диалоге.
+  std::set<std::string> selected_local_file_urls_;
   std::map<std::string, ActiveDownload> active_downloads_;
+  // Включён ли «Анти-отпечаток» (шум Canvas/WebGL/Audio в рендерере).
+  bool fp_enabled_ = false;
+  // Включено ли автосогласие cookies (по умолчанию — да: пользователь не
+  // должен видеть баннер согласия вообще).
+  bool auto_consent_enabled_ = true;
+  // Текущая тема приложения в терминах Chromium (тёмная/светлая). Хранится,
+  // чтобы новые контексты (пространства) получали ту же схему, а не системную.
+  bool dark_scheme_ = false;
+  // Те же два состояния в одном atomic: значение читает IO-поток, когда
+  // запускает GPU-процесс (для render-процессов вызов идёт с UI-потока).
+  std::atomic<int> protection_flags_{2};  // бит 1: анти-отпечаток, бит 2: cookies
+  // id -> {временный путь («не подтверждено», *.crdownload), итоговый путь}.
+  // Пока загрузка идёт, файл виден в папке под временным именем и получает
+  // окончательное имя только после полного завершения.
+  std::map<std::string, std::pair<std::string, std::string>> temp_downloads_;
   std::string last_ctx_tab_;
 
   int browser_count_ = 0;

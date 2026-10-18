@@ -150,7 +150,7 @@ const plannerPageRenderer = section('function wpRenderTaskPage() {', 'function w
 assert(plannerPageRenderer.includes('Локально на устройстве') && !plannerPageRenderer.includes('Q · быстро добавить'), 'remove the quick-add caption but keep the local-storage notice');
 assert(plannerPageRenderer.includes('wp-workspace-header') && plannerPageRenderer.includes('class="wp-rail-scrim" data-act="wpRailClose"') && plannerPageRenderer.includes('aria-label="Рабочая область задач"'), 'the task page uses the full workspace shell with a responsive navigation rail');
 const legacyMovePicker = section('function wpMoveHomePicker(ref,opts={}) {', 'function wpMoveToQuadrant(ref,q) {');
-assert(legacyMovePicker.includes("[['legacy-matrix','Матрица · прежний список',true]]") && legacyMovePicker.includes('const moveOptions='), 'a legacy Matrix task remains in its old location as a disabled choice');
+assert(legacyMovePicker.includes('<option value="legacy-matrix" selected disabled>Матрица · прежний список</option>'), 'a legacy Matrix task remains in its old location as a disabled choice');
 assert(!legacyMovePicker.includes("['matrix','Матрица']"), 'legacy Matrix tasks must not restore Matrix as a move destination');
 
 console.log('UI appearance defaults, light/dark quick switch, and planner responsiveness tests passed');

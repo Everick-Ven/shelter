@@ -31,6 +31,54 @@ const taskPersistStart=planner.indexOf('function wpPersistBoard()');
 const taskPersistEnd=planner.indexOf('\nfunction wpUndoSnapshot',taskPersistStart);
 const taskPersistSource=planner.slice(taskPersistStart,taskPersistEnd);
 assert(taskPersistSource.includes("store.set('shelter:board',raw)") && taskPersistSource.includes("store.get('shelter:boards')!==regRaw") && !taskPersistSource.includes('JSON.parse') && !taskPersistSource.includes('saveNow()'), 'task updates verify exact board writes without parsing a second copy or rewriting unrelated application data');
+assert(!taskPersistSource.includes('scheduleAchievementReconcile'), 'task-board persistence must not trigger achievement reconciliation');
+const saveNowStart = html.indexOf('function saveNow() {');
+const saveNowEnd = html.indexOf("\ndocument.addEventListener('visibilitychange'", saveNowStart);
+assert(saveNowStart >= 0 && saveNowEnd > saveNowStart && html.slice(saveNowStart, saveNowEnd).includes('scheduleAchievementReconcile()'), 'profile changes continue to reconcile achievements through the general save path');
+const profileActivityStart = html.indexOf('function profileActivity(raw = false) {');
+const profileActivityEnd = html.indexOf('\nfunction storedProfileUnlocks()', profileActivityStart);
+assert(profileActivityStart >= 0 && profileActivityEnd > profileActivityStart, 'the active profile-activity calculation must be present');
+const profileActivitySource = html.slice(profileActivityStart, profileActivityEnd);
+assert(!/\bS\.(?:board|boards)\b/.test(profileActivitySource), 'achievement metrics must not read task boards');
+const runProfileActivity = profileState => {
+  const transient = { premiumServerEntitlement: { verified: true, firstPaymentConfirmed: true }, premiumVerificationStatus: 'checked' };
+  const engines = { google: {}, bing: {}, yandex: {} };
+  const hostOf = value => { try { return new URL(value).hostname.toLowerCase(); } catch (_) { return ''; } };
+  const profileDomainMatch = (host, roots) => roots.some(root => host === root || host.endsWith('.' + root));
+  const profileTabKind = value => {
+    const host = hostOf(value);
+    if (profileDomainMatch(host, ['music.yandex.ru', 'spotify.com'])) return 'music';
+    if (profileDomainMatch(host, ['youtube.com', 'youtu.be'])) return 'video';
+    if (profileDomainMatch(host, ['wikipedia.org', 'habr.com'])) return 'reading';
+    return '';
+  };
+  const profileKnownSearchEngines = () => [...new Set((profileState.ui.profileSearchEngines || []).filter(key => engines[key]))];
+  const activity = new Function('S', 'T', 'PROFILE_PRIVACY_PROTECTIONS', 'ENGINES', 'profileKnownSearchEngines', 'profileCounter', 'hostOf', 'urlMeta', 'visitDur', 'profileDomainMatch', 'profileTabKind', `${profileActivitySource}\nreturn profileActivity;`)(
+    profileState, transient,
+    [{ key: 'trackers' }, { key: 'https' }, { key: 'fp' }, { key: 'strict' }], engines,
+    profileKnownSearchEngines, () => 0, hostOf,
+    value => ({ kind: hostOf(value) === 'search.example' ? 'search' : 'site' }),
+    visit => Math.max(0, Number(visit.duration) || 0), profileDomainMatch, profileTabKind);
+  return activity();
+};
+const profileAt = Date.UTC(2026, 1, 1, 12);
+const profileFixture = {
+  visits: [
+    { url: 'https://gosuslugi.ru/', at: profileAt, duration: 30 },
+    { url: 'https://stepik.org/lesson', at: profileAt + 60000, duration: 600 },
+    { url: 'https://youtube.com/watch', at: profileAt + 120000, duration: 90 },
+    { url: 'https://search.example/?q=one', at: profileAt + 150000, duration: 0 }
+  ],
+  spaces: { main: { tabs: [{ url: 'https://music.yandex.ru/' }, { url: 'https://wikipedia.org/' }] } },
+  prefs: { trackers: true, https: true, fp: false, strict: true },
+  bookmarks: [{ id: 'b1' }, { id: 'custom-1' }],
+  ui: { profileSearchEngines: ['google', 'bing'] },
+  ghost: false
+};
+const profileBeforeTasks = JSON.stringify(runProfileActivity(profileFixture));
+profileFixture.board = { tasks: [{ id: 'private-task', title: 'private task text', statusKey: 'done' }] };
+profileFixture.boards = [{ tasks: profileFixture.board.tasks }];
+assert.strictEqual(JSON.stringify(runProfileActivity(profileFixture)), profileBeforeTasks, 'adding or changing tasks cannot alter profile achievements because profileActivity derives only from browser activity and preferences');
 assert(planner.includes('restored.focus({preventScroll:true})') && planner.includes('setSelectionRange(focusState.start,focusState.end)'), 'planner updates restore focused controls and text selection');
 assert(planner.includes("const openFilterMenuKey=root&&root.querySelector('.wp-filter-menu[open]')?.dataset.wpFilterMenu||'';") && planner.includes('if(filterMenu) filterMenu.open=true;'), 'filter dropdowns stay open when their selection rerenders the view');
 assert(planner.includes("const search=page&&page.querySelector('#wpSearch'); if(search&&search.value!==WP.query) search.value=WP.query;"), 'view changes preserve the planner search query');

@@ -59,11 +59,17 @@ assert(plannerStyleStart >= 0 && plannerStyleEnd > plannerStyleStart);
 const plannerCss = html.slice(plannerStyleStart, plannerStyleEnd);
 const plannerPageRules = [...plannerCss.matchAll(/\.planner-page\{([^}]*)\}/g)].map(match => match[1]);
 assert(plannerPageRules.length >= 5, 'planner padding must be responsive across the supported breakpoints');
-assert(plannerPageRules.every(rule => {
+const plannerPageGutterRules = plannerPageRules.filter(rule => {
   const padding = (rule.match(/(?:^|;)padding:([^;]+)/) || [])[1] || '';
   const values = padding.replace(/clamp\([^)]*\)/g, 'clamp').trim().split(/\s+/);
-  return values.length === 3 && ['12px', 'clamp'].includes(values[1]);
+  return values.length === 3;
+});
+assert(plannerPageGutterRules.length >= 5 && plannerPageGutterRules.every(rule => {
+  const padding = (rule.match(/(?:^|;)padding:([^;]+)/) || [])[1] || '';
+  const values = padding.replace(/clamp\([^)]*\)/g, 'clamp').trim().split(/\s+/);
+  return ['12px', 'clamp'].includes(values[1]);
 }), 'the task page must keep a modest responsive horizontal gutter');
+assert(plannerCss.includes('.planner-page{display:flex;height:100%;min-height:100%;padding:0;overflow:hidden}'), 'the integrated task layout fills the workspace');
 assert(plannerCss.includes('.planner-page{padding:clamp(22px,2.4vw,38px) clamp(12px,1.3vw,18px) 56px;'));
 assert(plannerCss.includes('.wp-layout.is-sidebar-collapsed{grid-template-columns:68px minmax(0,1fr);gap:16px}'));
 assert(plannerCss.includes('.wp-rail-toggle{display:grid;place-items:center;'));
@@ -133,7 +139,7 @@ assert(!plannerMoreMenu.includes("label:'Календарь'") && !plannerMoreMe
 const plannerPageRenderer = section('function wpRenderTaskPage() {', 'function wpSetView(');
 assert(plannerPageRenderer.includes('Локально на устройстве') && !plannerPageRenderer.includes('Q · быстро добавить'), 'remove the quick-add caption but keep the local-storage notice');
 const legacyMovePicker = section('function wpMoveHomePicker(ref,opts={}) {', 'function wpMoveToQuadrant(ref,q) {');
-assert(legacyMovePicker.includes("value=\"legacy-matrix\"") && legacyMovePicker.includes('selected disabled'));
+assert(legacyMovePicker.includes("[['legacy-matrix','Матрица · прежний список',true]]") && legacyMovePicker.includes('const moveOptions='), 'a legacy Matrix task remains in its old location as a disabled choice');
 assert(!legacyMovePicker.includes("['matrix','Матрица']"), 'legacy Matrix tasks must not restore Matrix as a move destination');
 
 console.log('UI appearance defaults, light/dark quick switch, and planner responsiveness tests passed');

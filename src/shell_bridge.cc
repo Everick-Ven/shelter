@@ -244,6 +244,13 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                          CefRefPtr<CefDictionaryValue> a,
                          CefRefPtr<Callback> cb) {
   CEF_REQUIRE_UI_THREAD();
+  // Centralize the renderer-to-host trust boundary so new bridge methods
+  // cannot accidentally omit the UI-browser authorization check.
+  if (!IsUiBrowser(browser)) {
+    cb->Failure(403, "operation is restricted to the SHELTER UI");
+    return true;
+  }
+
 #if defined(SHELTER_CI_HOOKS)
   const auto bridge_started = BridgePerfClock::now();
   auto log_bridge_perf = [this, &m, bridge_started]() {
@@ -275,12 +282,6 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   };
   ScopeExit<decltype(log_bridge_perf)> bridge_perf_scope(std::move(log_bridge_perf));
 #endif
-  // Centralize the renderer-to-host trust boundary so new bridge methods
-  // cannot accidentally omit the UI-browser authorization check.
-  if (!IsUiBrowser(browser)) {
-    cb->Failure(403, "operation is restricted to the SHELTER UI");
-    return true;
-  }
 
   const auto can_reveal_download = [this](const std::string& raw_path) {
     if (raw_path.empty()) return false;

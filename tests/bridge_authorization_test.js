@@ -12,6 +12,8 @@ const handler = bridge.slice(start, end);
 assert.match(handler, /CEF_REQUIRE_UI_THREAD\(\);\s*\/\/[\s\S]*?if \(!IsUiBrowser\(browser\)\)/);
 assert.strictEqual((handler.match(/IsUiBrowser\(/g) || []).length, 1,
   'all bridge methods must rely on the single entry authorization check');
+assert(handler.indexOf('if (!IsUiBrowser(browser))') < handler.indexOf('#if defined(SHELTER_CI_HOOKS)'),
+  'CI bridge timing starts only after the renderer passes UI-browser authorization');
 for (const method of ['clip.read', 'clip.write', 'ext.install']) {
   assert(handler.includes(`m == "${method}"`), `${method} must remain handled by the authorized bridge`);
 }

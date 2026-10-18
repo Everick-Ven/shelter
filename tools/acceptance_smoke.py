@@ -2486,10 +2486,33 @@ def main() -> int:
                 process,
                 timeout=45,
             )
-            version = ui.evaluate("window.shelter && window.shelter.version")
+            version_probe = ui.evaluate(
+                "(() => { const n=window.shelterNative; "
+                "const script=Array.from(document.scripts).find(x=>x.src.includes('host-bridge.js')); "
+                "const resources=performance.getEntriesByType('resource') "
+                ".filter(x=>x.name.includes('host-bridge.js')) "
+                ".map(x=>({status:typeof x.responseStatus==='number'?x.responseStatus:null, "
+                "duration:Math.round(x.duration), transferSize:x.transferSize})); "
+                "return {page:location.href, uiVersion:window.shelter&&window.shelter.version||null, "
+                "nativeVersion:n&&typeof n.version!=='undefined'?n.version:null, "
+                "nativeVersionType:n?typeof n.version:'missing', nativeEngine:n&&n.engine||null, "
+                "nativeIsNative:!!(n&&n.isNative), bridgePerf:!!window.__shPerf, "
+                "bridgeScript:script&&(script.currentSrc||script.src)||null, resources}; })()"
+            )
+            version = (
+                version_probe.get("uiVersion")
+                if isinstance(version_probe, dict)
+                else None
+            )
             if version != expected_version:
+                # Диагностика показывает, загрузился ли нативный мост и чем
+                # отличается его версия от версии, видимой интерфейсу.
+                details = json.dumps(
+                    version_probe, ensure_ascii=False, separators=(",", ":")
+                )[:650]
                 raise AcceptanceError(
-                    f"Packaged UI version mismatch: expected {expected_version}, got {version!r}"
+                    f"Packaged UI version mismatch: expected {expected_version}, "
+                    f"got {version!r}; bridge={details}"
                 )
             secret_probe = ui.evaluate(
                 "(() => { const n = window.shelterNative; "

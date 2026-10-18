@@ -90,14 +90,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python -m pip install --disable-pip-version-check websocket-client
           python tools/check_geometry.py build-ci/Release/Shelter.exe 2>&1 | tee geometry.log
 
       - name: CI-hook runtime acceptance
         timeout-minutes: 10
         shell: pwsh
         run: |
-          python -m pip install --disable-pip-version-check websocket-client
-          if ($LASTEXITCODE -ne 0) { throw "websocket-client install failed" }
           $version = (Get-Content build-ci/shelter-version.txt -Raw).Trim()
           $env:PYTHONIOENCODING = "utf-8"
           python tools/acceptance_smoke.py "$PWD\build-ci\Release\Shelter.exe" --expected-version $version 2>&1 | Tee-Object -FilePath acceptance-ci.log
@@ -274,15 +273,16 @@ jobs:
       - name: Geometry acceptance (CI hooks)
         run: |
           set -euo pipefail
-          python3 tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --disable-pip-version-check websocket-client
+          python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
 
       - name: CI-hook runtime acceptance
         timeout-minutes: 8
         run: |
           set -euo pipefail
-          python3 -m venv .venv
           . .venv/bin/activate
-          python -m pip install --disable-pip-version-check websocket-client
           version="$(tr -d '\r\n' < build-ci/shelter-version.txt)"
           python tools/acceptance_smoke.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" 2>&1 | tee acceptance-ci.log
 

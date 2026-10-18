@@ -15,6 +15,7 @@ const win = read('src/platform_win.cc');
 const mac = read('src/platform_mac.mm');
 const checker = read('tools/check_ci_hooks.py');
 const ui = read('resources/ui/index.html');
+const geometry = read('tools/check_geometry.py');
 
 const from = (text, start, end) => {
   const i = text.indexOf(start);
@@ -106,6 +107,17 @@ assert.match(workflow, /rm -rf "\$HOME\/Library\/Application Support\/SHELTER"/)
 assert.match(workflow, /SourceDir=.*build\\Release/);
 assert.match(workflow, /make_dmg\.sh build\/Release/);
 assert.match(checker, /SHELTER_SMOKE_URL/);
+assert.match(geometry, /--remote-debugging-port=/);
+assert.match(geometry, /--remote-debugging-address=127\.0\.0\.1/);
+assert.match(geometry, /import websocket/);
+assert.match(geometry, /window\.shelter\.navigate\('https:\/\/example\.com\/'\)/);
+assert.match(geometry, /shell: content bounds/);
+const geometrySteps = workflow.match(/- name: Geometry acceptance \(CI hooks\)[\s\S]*?(?=\n      - name: )/g) || [];
+assert.equal(geometrySteps.length, 2, 'geometry acceptance must run on both target platforms');
+for (const step of geometrySteps) {
+  assert.match(step, /check_geometry\.py/);
+  assert.match(step, /websocket-client/);
+}
 assert.doesNotMatch(checker, /dbg\.protections/);
 
 const textExtensions = new Set(['.cc', '.h', '.mm', '.js', '.html', '.py', '.yml', '.yaml', '.cmake', '.sh', '.iss', '.txt']);

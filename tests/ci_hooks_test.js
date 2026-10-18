@@ -14,6 +14,7 @@ const platformHeader = read('src/platform.h');
 const win = read('src/platform_win.cc');
 const mac = read('src/platform_mac.mm');
 const checker = read('tools/check_ci_hooks.py');
+const ui = read('resources/ui/index.html');
 
 const from = (text, start, end) => {
   const i = text.indexOf(start);
@@ -86,6 +87,15 @@ assert.match(workflow, /-DSHELTER_CI_HOOKS=ON/);
 assert.match(workflow, /check_ci_hooks\.py build off/);
 assert.match(workflow, /check_ci_hooks\.py build-ci on/);
 assert.match(workflow, /check_geometry\.py build-ci/);
+const smokeStart = ui.indexOf("if (!/[?&#]smoke=site\\b/.test(location.href)) return;");
+assert.notEqual(smokeStart, -1, 'the geometry smoke URL must activate its native-view check');
+const smokeListenerStart = ui.lastIndexOf("document.addEventListener('DOMContentLoaded', () => {", smokeStart);
+const smokeEnd = ui.indexOf("  }, { once: true });", smokeStart);
+assert.ok(smokeListenerStart >= 0 && smokeEnd > smokeStart, 'geometry smoke must run after DOM initialization');
+const smokeBootstrap = ui.slice(smokeStart, smokeEnd);
+assert.match(smokeBootstrap, /window\.shelter\.navigate\(target\)/, 'geometry smoke navigates the active UI tab to a real site');
+assert.match(smokeBootstrap, /window\.shelterOpen\(target, \{ reveal: true \}\)/, 'geometry smoke retries the native view bridge until the viewport is ready');
+assert.match(smokeBootstrap, /attempts < 60/);
 assert.match(workflow, /acceptance_smoke\.py[^\n]*build-ci/);
 assert.match(workflow, /check_ci_hooks\.py "\$dir" off --binary-only/);
 assert.match(workflow, /check_ci_hooks\.py "\$portableCheck" off --binary-only/);

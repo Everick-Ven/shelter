@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-P1FS90FVP+70jjC/V3CB4CI/d4z/nDX/SJ6iG89vY5o=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-ULXINnYXarXEFJoon5NychtHTMtz4zPB3gqZc7r0M/s=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tWSX4K8ifjT3IM23yzfJFllS2QQD7DP1rNsMUp6P6Vk=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-ULXINnYXarXEFJoon5NychtHTMtz4zPB3gqZc7r0M/s=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -5056,8 +5056,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   });
 
   /* ui:ready — native запоминает версию UI и показывает её в заголовке
-     окна (помогает отличить установленную сборку). smoke=site — CI-смоук
-     открывает реальный сайт, чтобы натив залогировал геометрию контента. */
+     окна (помогает отличить установленную сборку). */
   window.addEventListener('load', () => {
     try {
       // VERSION живёт в скоупе основного скрипта; window.shelter.version
@@ -5065,13 +5064,29 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
       const v = (window.shelter && window.shelter.version) || '';
       if (isCefEnv) cefSend('ui:ready', { version: v });
     } catch (_) {}
-    try {
-      // 7s: навигация в первые секунды после загрузки гасится boot-гейтом.
-      if (/[?&#]smoke=site\b/.test(location.href) && window.shelter && typeof window.shelter.navigate === 'function') {
-        setTimeout(() => { try { window.shelter.navigate('https://example.com/'); } catch (_) {} }, 7000);
-      }
-    } catch (_) {}
   });
+
+  /* Проверка геометрии запускается после инициализации UI и не должна зависеть
+     от загрузки всех внешних ресурсов страницы. */
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!/[?&#]smoke=site\b/.test(location.href)) return;
+    const target = 'https://example.com/';
+    let attempts = 0;
+    let navigationRequested = false;
+    const openSmokeView = () => {
+      try {
+        if (!navigationRequested && window.shelter && typeof window.shelter.navigate === 'function') {
+          window.shelter.navigate(target);
+          navigationRequested = true;
+        }
+        if (typeof window.shelterOpen === 'function' && window.shelterOpen(target, { reveal: true })) return;
+      } catch (_) {}
+      if (++attempts < 60) setTimeout(openSmokeView, 500);
+    };
+    // К этому моменту UI создал активную вкладку; повторяем открытие,
+    // пока геометрия viewport не станет доступна нативной оболочке.
+    setTimeout(openSmokeView, 7000);
+  }, { once: true });
 })();
 </script>
 <script>

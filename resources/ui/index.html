@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-P1FS90FVP+70jjC/V3CB4CI/d4z/nDX/SJ6iG89vY5o=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-wI2PFLJv4Mjct6Aqr19qwh9LK0sX8dYAUIhNZizkkLU=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-P1FS90FVP+70jjC/V3CB4CI/d4z/nDX/SJ6iG89vY5o=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-ULXINnYXarXEFJoon5NychtHTMtz4zPB3gqZc7r0M/s=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -5123,8 +5123,14 @@ function pwToStore(list) {
   if (S.__pwBlob) return S.__pwBlob;
   const arr = Array.isArray(list) ? list : [];
   if (!arr.length) return arr;
-  const b = secretEnc(JSON.stringify(arr));
-  return b || undefined;
+  const serialized = JSON.stringify(arr);
+  const memo = S.__encMemo || (S.__encMemo = {});
+  if (memo['__passwords:s'] === serialized) return memo['__passwords:b'];
+  const encrypted = secretEnc(serialized);
+  if (!encrypted) return undefined;
+  memo['__passwords:s'] = serialized;
+  memo['__passwords:b'] = encrypted;
+  return encrypted;
 }
 function pwFromStore(v) {
   if (Array.isArray(v)) return v;

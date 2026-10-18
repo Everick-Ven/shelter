@@ -129,4 +129,29 @@ check('на узком экране инструменты возвращают�
 check('узкий ассистент: detail занимает всю ширину при выносе рейла',
   /@container dt-shell \(max-width:900px\)\s*\{\s*\/\*[\s\S]*?\*\/\s*\.dt-app > \.dt-main\{grid-column:1 \/ -1\}/.test(css));
 
+const sidebarStart = html.indexOf('<aside class="sb" id="sb"');
+const sidebarEnd = html.indexOf('</aside>', sidebarStart);
+const sidebar = sidebarStart >= 0 && sidebarEnd > sidebarStart ? html.slice(sidebarStart, sidebarEnd) : '';
+const tabScrollStart = sidebar.indexOf('<div class="sb-scroll" id="sbScroll">');
+const toolsStart = sidebar.indexOf('<div class="sb-tools" id="sbTools">');
+const tabScroll = tabScrollStart >= 0 && toolsStart > tabScrollStart ? sidebar.slice(tabScrollStart, toolsStart) : '';
+check('в левой панели прокручивается только область вкладок',
+  tabScroll.includes('id="spaceRow"') && tabScroll.includes('id="tabList"') && !tabScroll.includes('data-page="widgets"') && toolsStart > tabScrollStart);
+check('инструменты закреплены отдельно в нижней части левой панели',
+  toolsStart >= 0 && ['widgets','dashboard','downloads','passwords','history','extensions'].every(page => sidebar.indexOf(`data-page="${page}"`) > toolsStart) &&
+  css.includes('.sb-inner{position:relative;display:flex;flex:1 1 0%;flex-direction:column;min-height:0;overflow:hidden') &&
+  css.includes('.sb-scroll{flex:1 1 0;min-height:0;overflow-y:auto') &&
+  css.includes('.sb-tools{flex:0 0 auto;margin:auto -12px 0'));
+check('кнопки имеют центрированное содержимое, включая проверку кода импорта',
+  /\.btn\{[^}]*text-align:center/.test(css) &&
+  html.includes('.wp-import-password-submit-content{position:relative;display:block;width:100%;text-align:center') &&
+  html.includes('.wp-import-password-submit-content>.i{position:absolute;left:0;top:50%') &&
+  html.includes('wp-import-password-submit-content') && html.includes('<span>Проверить код</span>'));
+const plannerStyle = (html.match(/<style id="shelter-week-planner-style">([\s\S]*?)<\/style>/) || [])[1] || '';
+check('экран задач использует левое меню на всю высоту и прокрутку рабочего поля',
+  plannerStyle.includes('.planner-page{display:flex;height:100%;min-height:100%;padding:0;overflow:hidden}') &&
+  plannerStyle.includes('.wp-view{flex:1 1 auto;min-height:0;overflow:auto'));
+check('месячная сетка задач использует компактные пропорции календаря истории',
+  plannerStyle.includes('.wp-month-day{min-height:84px;aspect-ratio:1.22}'));
+
 finish();

@@ -13,7 +13,17 @@ assert(start >= 0, 'the v7 planner module must be installed in the active UI');
 const end = html.indexOf('\ninit();\n})();', start);
 assert(end > start, 'the planner module must load before the application initializes');
 const planner = html.slice(start, end);
+const domSelectStart = html.indexOf('function wpNormalizeDomSelectOptions(options) {');
+const domSelectEnd = html.indexOf("\ndocument.addEventListener('pointerdown', e => {\n  const sel = e.target.closest && e.target.closest('select.select');", domSelectStart);
+assert(domSelectStart >= 0 && domSelectEnd > domSelectStart, 'the reusable DOM-list controls must be present before native-select compatibility hooks');
+const domSelectSource = html.slice(domSelectStart, domSelectEnd);
 assert.strictEqual((planner.match(/function wpAllView\(/g) || []).length, 1, 'the task-list renderer has one definition and preserves the indexed filter/count path');
+assert(!planner.includes('<select') && !/type=["']date["']/.test(planner), 'planner task screens must not contain native select or date-picker controls');
+const legacyTaskStart = html.indexOf('function tasksBody() {');
+const legacyTaskEnd = html.indexOf('\nfunction taskMenu(anchor)', legacyTaskStart);
+assert(legacyTaskStart >= 0 && legacyTaskEnd > legacyTaskStart, 'the legacy task view and editor source must be present');
+const legacyTaskSource = html.slice(legacyTaskStart, legacyTaskEnd);
+assert(!legacyTaskSource.includes('<select') && !/type=["']date["']/.test(legacyTaskSource), 'the legacy task view and editor must not contain native select or date-picker controls');
 
 assert(html.includes('<style id="shelter-week-planner-style">'), 'the task planner stylesheet must be present');
 const plannerStyle = html.match(/<style id="shelter-week-planner-style">([\s\S]*?)<\/style>/);
@@ -126,6 +136,8 @@ assert(!planner.includes('WP.showCompleted'), 'completed-visibility state is not
 assert(planner.includes('function wpExportTasks() { wpOpenTaskExportDialog(); }'), 'task export opens the protected scope and password dialog');
 assert(planner.includes("if(!wpIsTaskExportEnvelope(envelope))"), 'task import rejects JSON files without the encrypted envelope');
 assert(planner.includes('const payload=await wpDecryptTaskPayload(envelope,password)'), 'task import authenticates and decrypts before passing payload to the importer');
+assert(planner.includes('function wpMergeImportedTaskData(') && planner.includes('wpMergeImportedTaskData(wpTaskTransferBoards(),sourceBoards'), 'a fully decrypted export is merged with local boards before it is persisted');
+assert(planner.includes('Совпадающие идентификаторы сохранят локальные записи') && planner.includes('новую доску из файла приложение выберет автоматически'), 'the import confirmation explains non-destructive merge and automatic selection of a new imported board');
 const settingsExportLine = html.split(/\r?\n/).find(line => line.includes("else if (a === 'export')"));
 assert(settingsExportLine && !settingsExportLine.includes('board: S.board'), 'the unencrypted general settings export does not include task boards');
 assert(!html.includes("downloadFile('shelter-tasks.json'"), 'the legacy task export path does not generate plaintext JSON');
@@ -212,7 +224,7 @@ const state = {
 };
 const data = new Map();
 const context = { __state: state, __data: data, __denyBackup: false, __failNextStoreKey: '', __window: { crypto: webcrypto }, __reducedMotion: false, crypto: webcrypto, TextEncoder, TextDecoder, btoa, atob, console, setTimeout, clearTimeout };
-vm.runInNewContext(harness + '\n' + planner + `
+vm.runInNewContext(harness + '\n' + domSelectSource + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, saveNowCount:()=>__saveNowCount, ensureBoardCount:()=>__ensureBoardCount, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
@@ -223,7 +235,7 @@ globalThis.__api = {
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpSetStatusRef, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload,
-  wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects,
+  wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects, wpMergeImportedTaskData, wpApplyImportedTaskData,
   wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
 };`, context, { timeout: 5000 });
 const api = context.__api;
@@ -467,7 +479,7 @@ assert(allToolbar.includes('wp-filter-menu-panel') && allToolbar.includes('data-
 assert(['Активные','Все','Выполненные','Отменённые'].every(label=>allToolbar.includes(label)), 'the dropdown contains all four task-status filters');
 assert(!boardToolbar.includes('data-wp-filter="sort"'), 'sorting controls are not added to the board');
 assert(allToolbar.includes('data-wp-filter="assignee"'), 'the existing executor selector remains available');
-assert(allToolbar.includes('data-wp-filter="sort"') && ['urgency','tag','deadline'].every(value=>allToolbar.includes(`value="${value}"`)), 'the task list offers urgency, tag, and deadline sorting');
+assert(allToolbar.includes('data-wp-filter="sort"') && ['urgency','tag','deadline'].every(value=>allToolbar.includes(`&quot;value&quot;:&quot;${value}&quot;`)), 'the task list offers urgency, tag, and deadline sorting through DOM menus');
 assert(!allToolbar.includes('value="assignee"'), 'the duplicate By Assignee sort is removed');
 const sortBoardBefore=state.board,sortBoardIdBefore=state.boardId;
 const sortPrefsBefore={allFilter:api.WP.allFilter,allAssigneeFilter:api.WP.allAssigneeFilter,allMineOnly:api.WP.allMineOnly,allProjectFilter:api.WP.allProjectFilter,allSort:api.WP.allSort,allTagFilter:api.WP.allTagFilter,query:api.WP.query,boardHomeFilter:api.WP.boardHomeFilter,boardAssigneeFilter:api.WP.boardAssigneeFilter,boardMineOnly:api.WP.boardMineOnly,boardFocus:api.WP.boardFocus,boardShowCompleted:api.WP.boardShowCompleted};
@@ -543,7 +555,7 @@ assert.strictEqual(state.board.occurrences.some(record=>record.id===newOccurrenc
 assert.strictEqual(state.board.recurrenceRules.some(rule=>rule.id==='temporary-rule'),false,'focused snapshots also restore recurrence-rule changes when requested');
 api.wpSetAllViewFilter('sort','tag');
 assert.strictEqual(api.WP.allSort,'tag','the sort control updates the selected task-list mode');
-assert(/value="tag" selected/.test(api.wpAllFilterToolbar()),'the selected sort remains visible in the toolbar');
+assert(api.wpAllFilterToolbar().includes('id="wpAllFilterSort" value="tag"'),'the selected sort remains visible in the DOM menu control');
 api.wpSetAllViewFilter('sort','unknown');
 assert.strictEqual(api.WP.allSort,'urgency','unsupported sort values fall back to urgency');
 api.WP.allSort='deadline';
@@ -704,12 +716,12 @@ const formValues = {
 };
 const createForm = api.wpEditorBodyHtml(null, 'series', true, formValues, false, null);
 const projectForm = api.wpEditorBodyHtml(null, 'series', true, { ...formValues, kind: 'project', projectId: 'project-1' }, false, null);
-assert(projectForm.includes('<option value="project-1" selected>Проект</option>'), 'the project task editor preselects the active project');
+assert(projectForm.includes('id="wpProject" value="project-1"'), 'the project task editor preselects the active project in its DOM control');
 for (const field of ['wpTitle', 'wpProject', 'wpAssignee', 'wpScheduled', 'wpDeadline', 'wpPriority', 'wpDescription', 'wpTags']) {
   assert(projectForm.includes(`id="${field}"`), `project add opens the full editor field ${field}`);
 }
-assert(createForm.includes('<span>Дата начала</span>') && !createForm.includes('Плановая дата'), 'the task form labels the schedule as its start date');
-assert(createForm.includes('<option value="__add">+ Добавить новый проект</option>'), 'new-task project selector always offers project creation');
+assert(createForm.includes('class="wp-date-field-label">Дата начала</span>') && !createForm.includes('Плановая дата'), 'the task form labels the schedule as its start date');
+assert(createForm.includes('&quot;value&quot;:&quot;__add&quot;') && createForm.includes('+ Добавить новый проект'), 'new-task project DOM menu always offers project creation');
 const projectsBeforeEmptyForm = state.board.projects;
 state.board.projects = [];
 const emptyProjectForm = api.wpEditorBodyHtml(null, 'series', true, { ...formValues, kind: 'project', projectId: '' }, false, null);
@@ -1057,6 +1069,58 @@ assert.strictEqual(typeof api.actions.wpView, 'function');
   collisionBoard.tasks[0].id = 'task-b';
   const collision = api.wpMergeImportedProjects([existing], [collisionBoard], selection);
   assert.strictEqual(collision.ok, false, 'project import refuses to overwrite an unrelated task with a colliding ID');
+
+  const transferLocal=JSON.parse(JSON.stringify(existing)),transferOther=JSON.parse(JSON.stringify(otherBoard));
+  const storedLocalRaw=JSON.stringify(transferLocal),storedRegistryRaw=JSON.stringify({id:'board-a',boards:[transferLocal,transferOther],retainedRegistryValue:true});
+  state.board=transferLocal;state.boards=[transferLocal,transferOther];state.boardId='board-a';state.boardsMeta={retainedMetaValue:true};state.taskMigrationOK=true;state.taskMigrationPendingKeys=[];
+  data.set('shelter:board',storedLocalRaw);data.set('shelter:boards',storedRegistryRaw);
+  for(const key of [...data.keys()]) if(String(key).startsWith('shelter:planner:preimport-backup')) data.delete(key);
+  const importedBoard={
+    id:'board-a',name:'Чужое имя доски',code:'REMOTE-A',taskSchemaVersion:7,people:['Анна','Борис'],
+    projects:[{id:'project-a',name:'Импортированное имя Альфа',members:[]},{id:'project-c',name:'Проект Гамма',members:[]}],
+    tasks:[
+      {id:'task-a',title:'REMOTE DUPLICATE MUST NOT REPLACE LOCAL',homeType:'project',homeId:'project-a',projectId:'project-a',project:'Импортированное имя Альфа',recurrenceRuleId:'old-rule'},
+      {id:'task-c',title:'REMOTE NEW TASK',homeType:'project',homeId:'project-c',projectId:'project-c',project:'Проект Гамма',recurrenceRuleId:'new-rule'}
+    ],
+    recurrenceRules:[
+      {id:'old-rule',taskId:'task-a',frequency:'weekly',startDate:'2026-10-12',weekdays:[1],active:true},
+      {id:'new-rule',taskId:'task-c',frequency:'weekly',startDate:'2026-10-12',weekdays:[1],active:true}
+    ],
+    occurrences:[
+      {id:'old-occ',seriesTaskId:'task-a',originalDate:'2026-10-12',scheduledDate:'2026-10-12',statusKey:'done'},
+      {id:'new-occ',seriesTaskId:'task-c',originalDate:'2026-10-19',scheduledDate:'2026-10-19',statusKey:'done'}
+    ],invites:[{id:'invite-new',projectId:'project-c',email:'anna@example.test'}],customField:'REMOTE MUST NOT REPLACE',remoteOnlyField:'kept'
+  };
+  const foreignBoard={id:'foreign-board',name:'Доска из другого устройства',code:'FOREIGN',taskSchemaVersion:7,projects:[],people:[],tasks:[{id:'foreign-task',title:'ВИДИМАЯ ИМПОРТИРОВАННАЯ ЗАДАЧА',homeType:'personal',statusKey:'open'}],invites:[],recurrenceRules:[],occurrences:[]};
+  const fullPayload={app:'SHELTER',exportSchemaVersion:7,taskSchemaVersion:7,exportScope:{type:'all'},activeBoardId:'foreign-board',board:foreignBoard,boards:[importedBoard,foreignBoard],boardsMeta:{remoteOnlyMeta:true}};
+  const fullEnvelope=await api.wpEncryptTaskPayload(fullPayload,'Transfer code on two devices');
+  assert(!JSON.stringify(fullEnvelope).includes('REMOTE NEW TASK'),'the transfer file stores encrypted payload rather than plaintext tasks');
+  const fullDecrypted=await api.wpDecryptTaskPayload(fullEnvelope,'Transfer code on two devices');
+  const fullSourceBoards=api.wpReadTaskExportBoards(fullDecrypted);
+  assert(fullSourceBoards&&fullSourceBoards.length===2,'a decrypted full export passes payload validation before import');
+  const applied=await api.wpApplyImportedTaskData(fullDecrypted,fullSourceBoards,'all',[]);
+  assert.strictEqual(applied,true,'a correctly decrypted full export is applied after confirmation and backup');
+  assert.strictEqual(state.boardId,'foreign-board','a newly imported board becomes active so its tasks are visible on another device');
+  assert(state.board.tasks.some(task=>task.id==='foreign-task'),'the imported board task is present in the active board');
+  const transferredBoard=state.boards.find(board=>board.id==='board-a');
+  assert.deepStrictEqual([...transferredBoard.tasks.map(task=>task.id)].sort(),['personal-existing','task-a','task-b','task-c']);
+  assert.strictEqual(transferredBoard.tasks.find(task=>task.id==='task-a').title,'OLD ALPHA TASK','a matching task ID keeps the local task instead of overwriting it');
+  assert.deepStrictEqual([...transferredBoard.projects.map(project=>project.id)].sort(),['project-a','project-b','project-c']);
+  assert.deepStrictEqual([...transferredBoard.recurrenceRules.map(rule=>rule.id)].sort(),['new-rule','old-rule','rule-b']);
+  assert.deepStrictEqual([...transferredBoard.occurrences.map(record=>record.id)].sort(),['new-occ','occ-b','old-occ']);
+  assert.strictEqual(transferredBoard.customField,'preserve','local board fields survive the full import');
+  assert.strictEqual(transferredBoard.remoteOnlyField,'kept','missing board metadata is copied from the export');
+  assert(transferredBoard.invites.some(invite=>invite.id==='invite-new'));
+  assert(state.boards.some(board=>board.id==='other-board'),'unrelated local boards survive the full import');
+  assert.strictEqual(state.boardsMeta.retainedMetaValue,true);assert.strictEqual(state.boardsMeta.remoteOnlyMeta,true);
+  const preImportKey=data.get('shelter:planner:preimport-backup:latest');
+  const preImport=JSON.parse(data.get(preImportKey));
+  assert.strictEqual(preImport.kind,'SHELTER_PLANNER_PRE_IMPORT_BACKUP');
+  assert.strictEqual(preImport.raw['shelter:board'],storedLocalRaw,'the exact original local board is backed up before import');
+  assert.strictEqual(preImport.raw['shelter:boards'],storedRegistryRaw,'the exact original local registry is backed up before import');
+  const repeated=api.wpMergeImportedTaskData(state.boards,fullSourceBoards,state.boardId,fullDecrypted.activeBoardId);
+  assert.strictEqual(repeated.ok,true);assert.strictEqual(repeated.boards.find(board=>board.id==='board-a').tasks.length,4,'re-importing the same full file does not duplicate task IDs');
+
   for (const key of [...data.keys()]) if (String(key).startsWith('shelter:planner:migration-backup')) data.delete(key);
   api.wpDownloadMigrationBackup();
   assert(context.__lastModalHtml.includes('текущий снимок данных задач'), 'the migration-copy action offers a real current-data snapshot when no historical migration copy exists');

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-ULXINnYXarXEFJoon5NychtHTMtz4zPB3gqZc7r0M/s=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-qCdxFAbIqKp9q6lR/0WjJm5MDd/dyPI/uncgQYaIi3U=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -285,7 +285,7 @@ html.theme-anim body{
 .app.collapsed .main{padding-left:0}
 
 /* ---------- Боковая панель ---------- */
-.sb{width:var(--sb-w);flex:none;display:flex;flex-direction:column;padding:14px 12px 12px;position:relative;z-index:6;
+.sb{width:var(--sb-w);flex:none;display:flex;flex-direction:column;min-height:0;padding:14px 12px 12px;position:relative;z-index:6;
   transition:width .46s var(--ease),transform .46s var(--ease);overflow:hidden}
 .app.collapsed .sb{width:var(--sb-wc)}
 .hc{transition:opacity .22s var(--ease)}
@@ -347,14 +347,12 @@ html[data-theme="ivory"] .logo::after,html[data-theme="porcelain"] .logo::after,
 .sb-search .i{width:17px;height:17px}
 .sb-search span:not(.kbd){flex:1;text-align:left;font-size:13.5px;white-space:nowrap}
 .kbd{display:inline-flex;align-items:center;gap:2px;font:500 11.5px/1 var(--font);padding:5px 7px;border-radius:calc(7px*var(--rs));background:var(--card-2);border:1px solid var(--line-2);color:var(--text-2);white-space:nowrap}
-.sb-scroll{flex:0 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;margin:6px -12px 0;padding:0 12px;scrollbar-width:thin;scrollbar-color:var(--line-3) transparent;
-  /* Scrollport follows the list's intrinsic height and only shrinks when it
-     must fit between the pinned navigation and the fixed footer. Do not fade
-     or pad after the final real item: it is the scroll boundary. */
+.sb-scroll{flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;margin:6px -12px 0;padding:0 12px;scrollbar-width:thin;scrollbar-color:var(--line-3) transparent;
   -webkit-mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 100%);
   mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 100%)}
 .sb-scroll::-webkit-scrollbar{display:none}
-.sb-inner{position:relative;padding-top:4px}
+.sb-inner{position:relative;display:flex;flex:1 1 0%;flex-direction:column;min-height:0;overflow:hidden;padding-top:4px}
+.sb-tools{flex:0 0 auto;margin:auto -12px 0;padding:0 12px}
 .sb-pin{position:relative;flex:none;padding-top:4px}
 .sb-label{display:flex;align-items:center;height:28px;margin-top:10px;padding:0 10px;font-size:12px;color:var(--text-3);font-weight:500;white-space:nowrap}
 .nav-ind{position:absolute;left:0;right:0;top:0;height:36px;border-radius:calc(12px*var(--rs));pointer-events:none;opacity:0;z-index:0;
@@ -784,7 +782,7 @@ html[data-theme="ivory"] .omni,html[data-theme="porcelain"] .omni,html[data-them
 /* =========================================================
    Компоненты
    ========================================================= */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 15px;border-radius:calc(11px*var(--rs));font-weight:500;font-size:13px;white-space:nowrap;
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 15px;border-radius:calc(11px*var(--rs));font-weight:500;font-size:13px;text-align:center;white-space:nowrap;
   background:var(--card-2);border:1px solid var(--line-2);color:var(--text);transition:background-color .22s var(--ease),border-color .22s var(--ease),transform .16s var(--ease),box-shadow .26s var(--ease),color .2s var(--ease),filter .22s var(--ease)}
 .btn:hover{background:var(--card-3);border-color:var(--line-3)}
 .btn:active{transform:scale(.97)}
@@ -3784,7 +3782,41 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-more{min-width:36px;padding:0}
 .wp-currentbar{min-height:0}.wp-week-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:7px 0 10px;padding:9px 11px;border:1px solid var(--line);border-radius:calc(13px*var(--rs));background:linear-gradient(120deg,color-mix(in srgb,var(--card-2) 84%,transparent),var(--card));box-shadow:var(--hi)}
 .wp-week-controls>div:first-child{display:flex;align-items:baseline;gap:8px;min-width:0}.wp-week-controls>div:first-child b{font-size:13px;font-weight:600;white-space:nowrap}.wp-week-controls>div:first-child span{color:var(--text-3);font-size:10.5px;white-space:nowrap}
-.wp-date-actions{display:flex;align-items:center;gap:5px}.wp-icon-btn{display:inline-grid;place-items:center;width:31px;height:31px;flex:none;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card-2);color:var(--text-2);cursor:pointer;transition:background .15s,border-color .15s,color .15s}.wp-icon-btn:hover{background:var(--card-3);color:var(--text);border-color:var(--line-3)}.wp-icon-btn .i{width:15px;height:15px}.wp-date-jump{width:32px;height:31px;display:grid;place-items:center;position:relative;overflow:hidden;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card-2);color:var(--text-2);cursor:pointer}.wp-date-jump:before{content:'';position:absolute;width:14px;height:14px;background:currentColor;opacity:.7;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M16 3v4M8 3v4M3 11h18'/%3E%3C/svg%3E") center/contain no-repeat}.wp-date-jump input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;color:transparent}
+.wp-date-actions{display:flex;align-items:center;gap:5px}.wp-icon-btn{display:inline-grid;place-items:center;width:31px;height:31px;flex:none;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card-2);color:var(--text-2);cursor:pointer;transition:background .15s,border-color .15s,color .15s}.wp-icon-btn:hover{background:var(--card-3);color:var(--text);border-color:var(--line-3)}.wp-icon-btn .i{width:15px;height:15px}.wp-date-jump{width:32px;height:31px;display:grid;place-items:center;position:relative;overflow:hidden;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card-2);color:var(--text-2);cursor:pointer}.wp-date-jump:before{content:'';position:absolute;width:14px;height:14px;background:currentColor;opacity:.7;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M16 3v4M8 3v4M3 11h18'/%3E%3C/svg%3E") center/contain no-repeat}
+/* Пользовательские списки и календарь не вызывают системные меню выбора. */
+.wp-dom-select-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;text-align:left;white-space:nowrap;overflow:hidden}
+.wp-dom-select-trigger.select{padding-right:9px;background-image:none}
+.wp-dom-select-trigger[disabled]{opacity:.55;cursor:not-allowed}
+.wp-dom-select-trigger:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}
+.wp-dom-select-label{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.wp-dom-select-chevron{display:grid;place-items:center;flex:none;opacity:.58}
+.wp-dom-select-chevron .i{width:12px;height:12px;transform:rotate(90deg)}
+.wp-date-field-wrap{min-width:0}
+.wp-date-field-wrap>.wp-date-field-label{display:block;margin:0 0 5px;color:var(--text-2);font-size:12px;font-weight:500}
+.wp-date-control{display:flex;align-items:center;gap:6px;min-width:0;width:100%}
+.wp-date-value.input{flex:1;width:auto;min-width:0;cursor:pointer}
+.wp-date-trigger{display:grid;place-items:center;flex:none;width:36px;height:36px;border:1px solid var(--line);border-radius:calc(11px*var(--rs));background:var(--card-2);color:var(--text-2);cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.wp-date-trigger:hover,.wp-date-trigger[aria-expanded="true"]{background:var(--card-3);border-color:var(--line-3);color:rgb(var(--accent))}
+.wp-date-trigger:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}
+.wp-date-trigger .i{width:16px;height:16px}
+.wp-date-popover{box-sizing:border-box;width:326px;min-width:min(230px,calc(100vw - 16px));max-width:calc(100vw - 16px);padding:10px;overflow:auto;overscroll-behavior:contain}
+.wp-date-calendar-head{display:grid;grid-template-columns:32px minmax(0,1fr) 32px;align-items:center;gap:7px;margin:0 0 9px}
+.wp-date-calendar-title{text-align:center;color:var(--text);font-size:13px;font-weight:600;text-transform:capitalize}
+.wp-date-calendar-nav{display:grid;place-items:center;width:32px;height:30px;padding:0;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card-2);color:var(--text-2);cursor:pointer}
+.wp-date-calendar-nav:hover{background:var(--card-3);color:var(--text)}
+.wp-date-calendar-nav .i{width:14px;height:14px}
+.wp-date-calendar-grid{display:flex;flex-direction:column;gap:3px}
+.wp-date-calendar-weekdays,.wp-date-calendar-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.wp-date-calendar-weekdays{margin:0 0 2px;text-align:center;color:var(--text-3);font-size:9px;font-weight:600}
+.wp-date-calendar-weekdays>span{display:grid;place-items:center;min-width:0;height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wp-date-calendar-day{display:grid;place-items:center;min-width:0;height:32px;padding:0;border:1px solid transparent;border-radius:calc(8px*var(--rs));background:transparent;color:var(--text-2);font:500 11px var(--font);cursor:pointer}
+.wp-date-calendar-day:hover{background:var(--card-3);color:var(--text)}
+.wp-date-calendar-day.outside{color:var(--text-4)}
+.wp-date-calendar-day.today{border-color:rgb(var(--accent)/.48);color:rgb(var(--accent));font-weight:650}
+.wp-date-calendar-day.selected{background:rgb(var(--accent));border-color:rgb(var(--accent));color:var(--surface);font-weight:650}
+.wp-date-calendar-day:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:1px}
+.wp-date-calendar-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--line)}
+.wp-date-calendar-actions .btn{height:28px;font-size:10px}
 .wp-week-summary{display:flex;align-items:center;flex-wrap:wrap;gap:7px 15px;margin:0 1px 11px;padding:0 2px;color:var(--text-3);font-size:10.5px}.wp-week-summary span{display:flex;align-items:center;gap:5px}.wp-week-summary .i{width:13px;height:13px;color:var(--text-4)}.wp-week-summary b{color:var(--text-2);font-weight:600}.wp-week-summary .danger,.wp-week-summary .danger b,.wp-week-summary .danger .i{color:rgb(var(--danger))}
 .wp-decision{margin:0 0 12px;padding:11px 12px;border:1px solid color-mix(in srgb,rgb(var(--warn)) 28%,var(--line));border-radius:calc(14px*var(--rs));background:color-mix(in srgb,rgb(var(--warn)) 5%,var(--card));box-shadow:var(--hi)}
 .wp-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.wp-section-head>div{display:flex;align-items:center;gap:10px;min-width:0}.wp-section-icon{display:grid;place-items:center;width:31px;height:31px;border-radius:calc(10px*var(--rs));background:color-mix(in srgb,rgb(var(--warn)) 13%,var(--card-2));color:rgb(var(--warn));flex:none}.wp-section-icon .i{width:16px;height:16px}.wp-section-head h2{margin:0;font-size:12px;font-weight:650}.wp-section-head p{margin:3px 0 0;color:var(--text-3);font-size:10px}.wp-review-list{display:flex;flex-direction:column;gap:5px}.wp-review-item{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px 8px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));background:color-mix(in srgb,var(--card) 88%,transparent)}.wp-review-item.selected{border-color:rgb(var(--accent)/.45);background:color-mix(in srgb,rgb(var(--accent)) 7%,var(--card))}.wp-review-select{display:grid;place-items:center}.wp-review-select input{width:15px;height:15px;accent-color:rgb(var(--accent));cursor:pointer}.wp-review-copy{min-width:0;display:flex;flex-direction:column;gap:3px}.wp-review-copy b{font-size:11px;font-weight:570;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wp-review-copy span{font-size:9.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wp-review-actions{display:flex;align-items:center;gap:4px}.wp-review-actions .btn{height:27px;font-size:10px;padding:0 8px}.wp-review-bulk{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);color:var(--text-2);font-size:10px}.wp-review-bulk>span{margin-right:auto;font-weight:600}
@@ -4355,10 +4387,30 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-transfer-project input{accent-color:rgb(var(--accent));flex:none}
 .wp-transfer-empty{margin:5px;color:var(--text-3);font-size:9px}
 .wp-transfer-passwords{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.wp-import-password-submit{width:168px;min-width:168px;justify-content:center;text-align:center}
+.wp-import-password-submit-content{position:relative;display:block;width:100%;text-align:center;white-space:nowrap;line-height:16px}
+.wp-import-password-submit-content>.i{position:absolute;left:0;top:50%;transform:translateY(-50%)}
+.wp-import-password-submit-content>span{display:block;text-align:center}
 .wp-transfer-passwords .field{min-width:0}
 .wp-transfer-passwords .field>span{display:block;margin:0 0 5px;color:var(--text-2);font-size:10px;font-weight:550}
 .wp-transfer-note{margin:10px 0 0;color:var(--text-3);font-size:9px;line-height:1.45}
 @media(max-width:560px){.wp-transfer-passwords{grid-template-columns:1fr}}
+
+/* В раскладке задач меню занимает всю высоту, а прокручивается только рабочее поле. */
+.planner-page{display:flex;height:100%;min-height:100%;padding:0;overflow:hidden}
+.wp-layout{flex:1 1 auto;grid-template-columns:170px minmax(0,1fr);gap:0;align-items:stretch;height:100%;min-height:0}
+.wp-rail{position:relative;top:auto;align-self:stretch;height:100%;min-height:0;padding:15px 10px;border:0;border-right:1px solid var(--line);border-radius:0;box-shadow:none}
+.wp-main{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;padding:22px 28px 26px}
+.wp-topbar,.wp-currentbar{flex:none}
+.wp-view{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+.wp-month-day{min-height:84px;aspect-ratio:1.22}
+@container shelter (max-width:620px){.wp-month-day{min-height:54px}}
+@media(max-width:900px){
+  .wp-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:10px}
+  .wp-rail{height:auto;min-height:0;padding:7px;border:1px solid var(--line);border-radius:calc(14px*var(--rs));box-shadow:var(--hi)}
+  .wp-main{padding:12px 14px 16px}
+}
+@media(max-width:620px){.wp-month-day{min-height:54px}}
 </style>
 </head>
 <body>
@@ -4506,15 +4558,15 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
       <button class="ni" data-act="page" data-page="bookmarks" data-tip="Закладки"><svg class="i"><use href="#i-bookmark"/></svg><span class="lbl hc">Закладки</span><span class="badge hc" id="bdgBm">0</span></button>
     </div>
 
-    <div class="sb-scroll" id="sbScroll">
-      <div class="sb-inner" id="sbInner">
-        <div class="nav-ind" id="navInd"></div>
-
+    <div class="sb-inner" id="sbInner">
+      <div class="nav-ind" id="navInd"></div>
+      <div class="sb-scroll" id="sbScroll">
         <div class="dock-left" id="dockLeft">
           <div class="space-row" id="spaceRow"></div>
           <div class="tabs" id="tabList"></div>
         </div>
-
+      </div>
+      <div class="sb-tools" id="sbTools">
         <div class="sb-label"><span class="hc">Инструменты</span></div>
         <button class="ni" data-act="page" data-page="widgets" data-tip="Виджеты"><svg class="i"><use href="#i-timer"/></svg><span class="lbl hc">Виджеты</span></button>
         <button class="ni" data-act="page" data-page="dashboard" data-tip="Дашборд"><svg class="i"><use href="#i-grid"/></svg><span class="lbl hc">Дашборд</span></button>
@@ -4522,7 +4574,6 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
         <button class="ni" data-act="page" data-page="passwords" data-tip="Пароли"><svg class="i"><use href="#i-key"/></svg><span class="lbl hc">Пароли</span></button>
         <button class="ni" data-act="page" data-page="history" data-tip="История"><svg class="i"><use href="#i-history"/></svg><span class="lbl hc">История</span></button>
         <button class="ni" data-act="page" data-page="extensions" data-tip="Расширения"><svg class="i"><use href="#i-puzzle"/></svg><span class="lbl hc">Расширения</span><span class="badge new hc">Новое</span></button>
-
       </div>
     </div>
 
@@ -5520,7 +5571,7 @@ function addProject(name) {
 function switchBoard(id) {
   ensureBoard();
   const b = (S.boards || []).find(x => x.id === id);
-  if (!b || b === S.board) { const sel = $('#tkBoard'); if (sel) sel.value = S.boardId || ''; return; }
+  if (!b || b === S.board) { const sel = $('#tkBoard'); if (sel) wpSetDomSelectValue(sel,S.boardId||''); return; }
   S.board = b; S.boardId = b.id;
   ensureBoard();
   const F = TK0(); F.q = ''; F.project = ''; F.person = '';
@@ -5528,7 +5579,7 @@ function switchBoard(id) {
 }
 async function newBoardFlow() {
   const v = await promptDlg({ title: 'Новая доска', placeholder: 'Название доски', ok: 'Создать' });
-  if (!v) { const sel = $('#tkBoard'); if (sel) sel.value = S.boardId || ''; return; }
+  if (!v) { const sel = $('#tkBoard'); if (sel) wpSetDomSelectValue(sel,S.boardId||''); return; }
   ensureBoard();
   const nb = defaultBoard();
   nb.id = uid('brd'); nb.name = v; nb.code = boardCode(); nb.ownerEmail = accountEmail() || '';
@@ -5946,6 +5997,120 @@ function openSelectMenu(sel) {
   const el = openMenu(sel, items, { cls: 'menu-select', place: 'bottom-start' });
   if (el) el.style.minWidth = Math.max(140, sel.offsetWidth) + 'px';
 }
+function wpNormalizeDomSelectOptions(options) {
+  return (Array.isArray(options) ? options : []).map(option => {
+    const item = Array.isArray(option)
+      ? { value: option[0], label: option[1], disabled: option[2] }
+      : (option || {});
+    return { value: String(item.value == null ? '' : item.value), label: String(item.label == null ? '' : item.label), disabled: item.disabled === true };
+  });
+}
+function wpDomSelectControl(id, value, options, { inputAttrs = '', buttonAttrs = '', className = 'select', disabled = false } = {}) {
+  const items = wpNormalizeDomSelectOptions(options);
+  const requested = String(value == null ? '' : value);
+  const selected = items.some(item => item.value === requested) ? requested : (items[0] ? items[0].value : '');
+  const current = items.find(item => item.value === selected) || { value: '', label: '—' };
+  const inputId = id ? ` id="${esc(id)}"` : '';
+  const buttonId = id ? ` data-wp-dom-select="${esc(id)}"` : '';
+  return `<input type="hidden"${inputId} value="${esc(selected)}" data-wp-dom-select-value ${inputAttrs}>
+    <button type="button" class="${className} wp-dom-select-trigger"${buttonId} data-wp-dom-select-options="${esc(JSON.stringify(items))}" aria-haspopup="menu" aria-expanded="false" ${disabled ? 'disabled' : ''} ${buttonAttrs}><span class="wp-dom-select-label">${esc(current.label)}</span><span class="wp-dom-select-chevron">${ico('chev-r')}</span></button>`;
+}
+function wpDomSelectField(label, id, value, options, opts = {}) {
+  const fieldClass = opts.fieldClass ? ` ${opts.fieldClass}` : '';
+  const hidden = opts.hidden ? ' hidden' : '';
+  const fieldId = opts.fieldId ? ` id="${esc(opts.fieldId)}"` : '';
+  const controlOpts = Object.assign({},opts,{buttonAttrs:opts.buttonAttrs||`aria-label="${esc(label)}"`});
+  return `<div class="field${fieldClass}"${fieldId}${hidden}><span>${esc(label)}</span>${wpDomSelectControl(id, value, options, controlOpts)}</div>`;
+}
+function wpDomSelectButton(input) {
+  if (!input) return null;
+  const next = input.nextElementSibling;
+  if (next && next.matches('[data-wp-dom-select]')) return next;
+  return Array.from(document.querySelectorAll('[data-wp-dom-select]')).find(button => button.dataset.wpDomSelect === input.id) || null;
+}
+function wpSetDomSelectValue(input, value) {
+  if (!input) return;
+  input.value = String(value == null ? '' : value);
+  const button = wpDomSelectButton(input);
+  if (!button) return;
+  const options = wpNormalizeDomSelectOptions(JSON.parse(button.dataset.wpDomSelectOptions || '[]'));
+  const selected = options.find(item => item.value === input.value);
+  const label = button.querySelector('.wp-dom-select-label');
+  if (selected && label) label.textContent = selected.label;
+}
+function wpSetDomSelectOptions(input, options, value) {
+  if (!input) return;
+  const button = wpDomSelectButton(input);
+  if (!button) return;
+  const items = wpNormalizeDomSelectOptions(options);
+  button.dataset.wpDomSelectOptions = JSON.stringify(items);
+  const next = value == null ? input.value : String(value);
+  input.value = items.some(item => item.value === next) ? next : (items[0] ? items[0].value : '');
+  wpSetDomSelectValue(input, input.value);
+}
+function wpSetDomSelectOptionDisabled(input, value, disabled) {
+  const button = wpDomSelectButton(input);
+  if (!button) return;
+  const options = wpNormalizeDomSelectOptions(JSON.parse(button.dataset.wpDomSelectOptions || '[]'));
+  options.forEach(item => { if (item.value === String(value)) item.disabled = !!disabled; });
+  button.dataset.wpDomSelectOptions = JSON.stringify(options);
+}
+function openWpDomSelect(button) {
+  const input = button && button.dataset.wpDomSelect ? document.getElementById(button.dataset.wpDomSelect) : null;
+  if (!input || button.disabled) return;
+  let options = [];
+  try { options = wpNormalizeDomSelectOptions(JSON.parse(button.dataset.wpDomSelectOptions || '[]')); } catch (_) {}
+  if (!options.length) return;
+  const selectedIndex=options.findIndex(option=>option.value===input.value);
+  const items = options.map(option => ({
+    label: option.label || '—', checked: input.value === option.value, disabled: option.disabled,
+    run: () => {
+      const changed=input.value!==option.value;
+      input.value = option.value;
+      const label = button.querySelector('.wp-dom-select-label');
+      if (label) label.textContent = option.label;
+      if(changed||option.value==='__add') {
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      const trigger=button.isConnected?button:Array.from(document.querySelectorAll('[data-wp-dom-select]')).find(item=>item.dataset.wpDomSelect===input.id);
+      if(trigger) trigger.focus({preventScroll:true});
+    }
+  }));
+  const el = openMenu(button, items, {
+    cls: 'menu-select', place: 'bottom-start',
+    onOpen: menu => { const current=menu.querySelector(`[data-mi="${selectedIndex}"]:not([disabled])`)||menu.querySelector('.mi:not([disabled])'); if(current) current.focus({preventScroll:true}); },
+    onClose: () => button.setAttribute('aria-expanded', 'false')
+  });
+  if (el) {
+    button.setAttribute('aria-expanded', 'true');
+    el.style.minWidth = Math.max(140, button.offsetWidth) + 'px';
+    el.addEventListener('keydown',event=>{
+      const enabled=Array.from(el.querySelectorAll('.mi:not([disabled])'));
+      if(!enabled.length) return;
+      const index=enabled.indexOf(document.activeElement);
+      let next=null;
+      if(event.key==='ArrowDown') next=enabled[(index+1+enabled.length)%enabled.length];
+      else if(event.key==='ArrowUp') next=enabled[(index-1+enabled.length)%enabled.length];
+      else if(event.key==='Home') next=enabled[0];
+      else if(event.key==='End') next=enabled[enabled.length-1];
+      if(next) { event.preventDefault(); next.focus(); }
+    });
+  }
+}
+document.addEventListener('click', e => {
+  const button = e.target.closest && e.target.closest('[data-wp-dom-select]');
+  if (button) { e.preventDefault(); openWpDomSelect(button); return; }
+});
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape'&&OV.menu&&OV.menu.anchor&&OV.menu.anchor.matches('[data-wp-dom-select]')) {
+    const trigger=OV.menu.anchor; e.preventDefault(); e.stopImmediatePropagation(); closeMenu();
+    if(trigger.isConnected) trigger.focus({preventScroll:true});
+    return;
+  }
+  const button = e.target.closest && e.target.closest('[data-wp-dom-select]');
+  if (button && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') && !OV.menu) { e.preventDefault(); openWpDomSelect(button); }
+});
 document.addEventListener('pointerdown', e => {
   const sel = e.target.closest && e.target.closest('select.select');
   if (!sel || sel.disabled) return;
@@ -9560,6 +9725,9 @@ function taskStats() {
   const st = (l, n, c) => `<div class="tk-stat"><small>${l}</small><b class="num" data-count="${n}" ${c ? `style="color:${c}"` : ''}>0</b></div>`;
   return st('В работе', open.length) + st('На сегодня', open.filter(t => t.deadline === today).length) + st('Просрочено', open.filter(isOverdue).length, open.filter(isOverdue).length ? 'rgb(var(--danger))' : '') + st('Выполнено', all.length - open.length, 'rgb(var(--ok))');
 }
+function taskBoardSelectOptions() {
+  return [...(S.boards||[]).map(board=>[board.id,board.name||'Доска']),['__new','＋ Новая доска…']];
+}
 RENDER.tasks = () => {
   ensureBoard();
   const b = S.board, F = TK0(), v = S.ui.taskView, vis = visibleProjects();
@@ -9570,13 +9738,13 @@ RENDER.tasks = () => {
     : `${open} в работе · ${pool.length - open} выполнено · ${vis.length} ${plural(vis.length, ['проект', 'проекта', 'проектов'])}`;
   return `<div class="page">
     <div class="page-h"><div class="ttl"><div class="page-title">Задачи</div><div class="page-sub" id="tkSub">${sub}</div></div>
-      <div class="page-actions"><select class="select" id="tkBoard" aria-label="Доска" style="width:auto;min-width:150px">${(S.boards || []).map(x => `<option value="${esc(x.id)}" ${x.id === S.boardId ? 'selected' : ''}>${esc(x.name || 'Доска')}</option>`).join('')}<option value="__new">＋ Новая доска…</option></select><button class="btn primary" data-act="taskNew">${ico('plus')}${v === 'eisen' ? 'Добавить дело' : 'Новая задача'}</button><button class="btn icon" data-act="taskMore" aria-label="Ещё">${ico('dots')}</button></div></div>
+      <div class="page-actions">${wpDomSelectControl('tkBoard',S.boardId||'',taskBoardSelectOptions(),{className:'select tk-board-select',inputAttrs:'aria-label="Доска"',buttonAttrs:'aria-label="Доска" style="width:auto;min-width:150px"'})}<button class="btn primary" data-act="taskNew">${ico('plus')}${v === 'eisen' ? 'Добавить дело' : 'Новая задача'}</button><button class="btn icon" data-act="taskMore" aria-label="Ещё">${ico('dots')}</button></div></div>
     <div class="tk-stats rise" id="tkStats">${taskStats()}</div>
     <div class="tk-bar">
       ${segHtml('taskView', [['open', 'Нужно выполнить'], ['done', 'Выполнены'], ['eisen', 'Эффективность']], S.ui.taskView)}
       <label class="search-in">${ico('search')}<input class="input" id="tkQ" placeholder="Поиск задач" value="${esc(F.q)}" autocomplete="off"></label>
-      ${v === 'eisen' ? '' : `<select class="select" id="tkProject" aria-label="Проект"><option value="">Все проекты</option>${vis.map(p => `<option value="${esc(p.id)}" ${p.id === F.project ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
-      <select class="select" id="tkPerson" aria-label="Исполнитель"><option value="">Все исполнители</option>${b.people.map(x => `<option ${x === F.person ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`}
+      ${v === 'eisen' ? '' : `${wpDomSelectControl('tkProject',F.project||'', [['','Все проекты'],...vis.map(project=>[project.id,project.name])],{className:'select tk-filter-select',inputAttrs:'aria-label="Проект"',buttonAttrs:'aria-label="Проект"'})}
+      ${wpDomSelectControl('tkPerson',F.person||'', [['','Все исполнители'],...b.people.map(person=>[person,person])],{className:'select tk-filter-select',inputAttrs:'aria-label="Исполнитель"',buttonAttrs:'aria-label="Исполнитель"'})}`}
     </div>
     <div id="tkBody">${tasksBody()}</div>
   </div>`;
@@ -9626,8 +9794,9 @@ function taskModal(id, opts) {
   const okLabel = isNew ? (asMatter ? 'В матрицу' : 'Создать') : 'Сохранить';
   const t = src ? Object.assign({}, src) : { title: '', project: '', projectId: '', created: ruDate(Date.now()), prio: simple ? 'Срочно' : 'Не срочные', term: b.terms.find(x => /Медиум/.test(x)) || b.terms[0], days: simple ? 1 : 7, deadline: ruDate(Date.now() + (simple ? 1 : 7) * DAY), format: b.formats[0] || '', assignee: 'Вы', comment: '', status: 'В работе', kind, qm: simple ? 0 : undefined };
   const toIso = s => { const d = parseRu(s); return d ? d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) : ''; };
-  const opt = (arr, v, addKey) => arr.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('') + (addKey ? `<option value="__add">＋ Добавить…</option>` : '');
-  const projOpts = () => vis.map(x => `<option value="${esc(x.id)}" ${x.id === t.projectId || x.name === t.project ? 'selected' : ''}>${esc(x.name)}</option>`).join('') + `<option value="__add">＋ Новый проект…</option>`;
+  const selectedProject = (vis.find(project => project.id === t.projectId || project.name === t.project) || {}).id || '';
+  const opt = (arr, addKey) => [...arr.map(value => [value,value]),...(addKey?[['__add','＋ Добавить…']]:[])];
+  const projOpts = () => [...vis.map(project=>[project.id,project.name]),['__add','＋ Новый проект…']];
   const QLAB = [['Сделать сейчас', 'Срочно и важно', 'var(--danger)'], ['Запланировать', 'Важно, не срочно', 'var(--accent)'], ['Делегировать', 'Срочно, не важно', 'var(--warn)'], ['Отложить', 'Не срочно и не важно', 'var(--text-3)']];
   const simpleHtml = `
     <div class="modal-h"><div class="mi-ic">${ico('tasks')}</div><h3>${hTitle}</h3><button class="icon-btn" data-r="0" aria-label="Закрыть">${ico('x')}</button></div>
@@ -9636,7 +9805,7 @@ function taskModal(id, opts) {
       <div class="field full"><span>Квадрант</span>
         <div class="tf-qm" id="tfQm">${QLAB.map((q, i) => `<button type="button" data-qm="${i}" class="${(t.qm || 0) === i ? 'on' : ''}" style="--qc:${q[2]}"><b>${q[0]}</b><small>${q[1]}</small></button>`).join('')}</div>
       </div>
-      <label class="field full"><span>Дедлайн</span><input class="input" id="tfDeadline" type="date" value="${toIso(t.deadline)}"></label>
+      ${wpDateFieldHtml('tfDeadline','Дедлайн',toIso(t.deadline))}
     </div></div>
     <div class="modal-f"><button class="btn ghost" data-r="0">Отмена</button><button class="btn primary" data-r="1">${okLabel}</button></div>`;
   const fullHtml = `
@@ -9644,13 +9813,13 @@ function taskModal(id, opts) {
     <div class="modal-b"><div class="form-grid">
       <label class="field full"><span>Название</span><input class="input" id="tfTitle" value="${esc(t.title)}" placeholder="${asMatter ? 'Что сделать?' : 'Что нужно сделать?'}"></label>
       ${lock ? '' : `<div class="field full"><span>Тип</span><div class="seg tf-kind" id="tfKind"><button type="button" data-kind="personal" class="${kind === 'personal' ? 'on' : ''}">Личное дело</button><button type="button" data-kind="project" class="${kind === 'project' ? 'on' : ''}">Задача проекта</button></div><div class="muted" style="margin-top:6px;font-size:12px" id="tfKindHint"></div></div>`}
-      <label class="field" id="tfProjWrap"><span>Проект</span><select class="select" id="tfProject">${projOpts()}</select></label>
-      <label class="field"><span>Исполнитель</span><select class="select" id="tfAssignee" data-dict="people">${opt(b.people, t.assignee, 1)}</select></label>
-      <label class="field"><span>Приоритет</span><select class="select" id="tfPrio">${opt(b.prios.filter(p => p !== 'Выполнено'), t.prio === 'Выполнено' ? (t.prevPrio || 'Не срочные') : t.prio)}</select></label>
-      <label class="field"><span>Статус</span><select class="select" id="tfStatus">${opt(b.statuses, t.status)}</select></label>
-      <label class="field"><span>Срок</span><select class="select" id="tfTerm">${opt(b.terms, t.term)}</select></label>
-      <div class="form-grid" style="gap:12px"><label class="field"><span>Дней</span><input class="input" id="tfDays" type="number" min="0" max="365" value="${esc(t.days)}"></label><label class="field"><span>Дедлайн</span><input class="input" id="tfDeadline" type="date" value="${toIso(t.deadline)}"></label></div>
-      <label class="field"><span>Формат</span><select class="select" id="tfFormat" data-dict="formats">${opt(b.formats, t.format, 1)}</select></label>
+      ${wpDomSelectField('Проект','tfProject',selectedProject,projOpts(),{fieldId:'tfProjWrap'})}
+      ${wpDomSelectField('Исполнитель','tfAssignee',t.assignee,opt(b.people,true),{inputAttrs:'data-dict="people"'})}
+      ${wpDomSelectField('Приоритет','tfPrio',t.prio === 'Выполнено' ? (t.prevPrio || 'Не срочные') : t.prio,opt(b.prios.filter(p => p !== 'Выполнено'),false))}
+      ${wpDomSelectField('Статус','tfStatus',t.status,opt(b.statuses,false))}
+      ${wpDomSelectField('Срок','tfTerm',t.term,opt(b.terms,false))}
+      <div class="form-grid" style="gap:12px"><label class="field"><span>Дней</span><input class="input" id="tfDays" type="number" min="0" max="365" value="${esc(t.days)}"></label>${wpDateFieldHtml('tfDeadline','Дедлайн',toIso(t.deadline))}</div>
+      ${wpDomSelectField('Формат','tfFormat',t.format,opt(b.formats,true),{inputAttrs:'data-dict="formats"'})}
       <label class="field"><span>Создано</span><input class="input" value="${esc(t.created)}" disabled></label>
       <label class="field full"><span>Комментарий</span><textarea class="input" id="tfComment" placeholder="Детали, ссылки, договорённости">${esc(t.comment)}</textarea></label>
     </div></div>
@@ -9701,20 +9870,27 @@ function taskModal(id, opts) {
   g('#tfTerm').addEventListener('change', e => { const n = taskTermDays(e.target.value); g('#tfDays').value = n; setDeadline(n); });
   g('#tfDays').addEventListener('input', e => setDeadline(+e.target.value || 0));
   }
-  if (!simple) g('#tfProject').addEventListener('change', async () => {
-    const sel = g('#tfProject');
-    if (sel.value !== '__add') return;
-    const v = await promptDlg({ title: 'Новый проект', placeholder: 'Название проекта', ok: 'Создать' });
-    if (!v) { sel.selectedIndex = 0; return; }
-    const pr = addProject(v); persist();
-    sel.innerHTML = vis.concat([pr]).filter((x, i, a) => a.findIndex(y => y.id === x.id) === i).map(x => `<option value="${esc(x.id)}" ${x.id === pr.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('') + `<option value="__add">＋ Новый проект…</option>`;
-    sel.value = pr.id;
-  });
-  $$('select[data-dict]', root).forEach(sel => { let prev = sel.value; sel.addEventListener('change', async () => {
-    if (sel.value !== '__add') { prev = sel.value; return; }
-    sel.value = prev; const v = await promptDlg({ title: 'Добавить значение', placeholder: 'Название', ok: 'Добавить' }); if (!v) return;
-    const arr = b[sel.dataset.dict]; if (!arr.includes(v)) arr.push(v); persist();
-    const o = document.createElement('option'); o.textContent = v; sel.insertBefore(o, sel.lastElementChild); sel.value = v; prev = v;
+  if (!simple) {
+    const projectSelect=g('#tfProject'); let projectSelection=projectSelect.value;
+    projectSelect.addEventListener('change', async () => {
+      if(projectSelect.value!=='__add') { projectSelection=projectSelect.value; return; }
+      wpSetDomSelectValue(projectSelect,projectSelection);
+      const v=await promptDlg({title:'Новый проект',placeholder:'Название проекта',ok:'Создать'});
+      if(!v) return;
+      const pr=addProject(v); persist();
+      const options=[...vis,pr].filter((project,index,all)=>all.findIndex(item=>item.id===project.id)===index).map(project=>[project.id,project.name]);
+      options.push(['__add','＋ Новый проект…']);
+      wpSetDomSelectOptions(projectSelect,options,pr.id); projectSelection=pr.id;
+    });
+  }
+  $$('[data-dict]',root).forEach(sel=>{let prev=sel.value;sel.addEventListener('change',async()=>{
+    if(sel.value!=='__add') { prev=sel.value; return; }
+    wpSetDomSelectValue(sel,prev);
+    const v=await promptDlg({title:'Добавить значение',placeholder:'Название',ok:'Добавить'}); if(!v) return;
+    const arr=b[sel.dataset.dict]; if(!arr.includes(v)) arr.push(v); persist();
+    const button=wpDomSelectButton(sel), options=button?wpNormalizeDomSelectOptions(JSON.parse(button.dataset.wpDomSelectOptions||'[]')):[];
+    const addAt=options.findIndex(option=>option.value==='__add'); options.splice(addAt<0?options.length:addAt,0,{value:v,label:v});
+    wpSetDomSelectOptions(sel,options,v); prev=v;
   }); });
   root.addEventListener('click', async e => {
     const r = e.target.closest('[data-r]'); if (!r) return;
@@ -9792,7 +9968,7 @@ function taskDicts() {
         S.board.name = v;
         const rb = (S.boards || []).find(x => x.id === S.board.id); if (rb) rb.name = v;
         persist(); re();
-        const sel = $('#tkBoard'); const opt = sel && sel.selectedOptions[0]; if (opt) opt.textContent = v;
+        const sel = $('#tkBoard'); if (sel) wpSetDomSelectOptions(sel,taskBoardSelectOptions(),S.boardId);
       }
       return;
     }
@@ -9853,7 +10029,7 @@ function projectInvite(projectId) {
         <label class="field full"><span>Email аккаунта</span><input class="input" id="invEmail" placeholder="name@gmail.com" type="email" autocomplete="off"></label>
         <label class="field full"><span>Имя (необязательно)</span><input class="input" id="invName" placeholder="Как подписывать" autocomplete="off"></label>
         <div class="field full"><span>Доступ</span><div class="seg" id="invScope"><button type="button" data-sc="project" class="${scope === 'project' ? 'on' : ''}">Только проект</button><button type="button" data-sc="all" class="${scope === 'all' ? 'on' : ''}">Вся доска</button></div></div>
-        <label class="field full" id="invProjWrap"><span>Проект</span><select class="select" id="invProject">${vis.map(x => `<option value="${esc(x.id)}" ${x.id === pid ? 'selected' : ''}>${esc(x.name)}</option>`).join('') || '<option value="">Сначала создайте проект</option>'}</select></label>
+        ${wpDomSelectField('Проект','invProject',pid,vis.length?vis.map(project=>[project.id,project.name]):[['','Сначала создайте проект']],{fieldId:'invProjWrap',fieldClass:'full'})}
       </div>
       ${pending.length ? `<div class="set-card" style="margin-top:16px">${pending.map(i => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(i.email)}</b><span>${i.projectId === '*' || i.scope === 'all' ? 'Все проекты' : esc((vis.find(p => p.id === i.projectId) || {}).name || 'проект')} · ожидает вход</span></div></div>`).join('')}</div>` : ''}
     </div>
@@ -13265,6 +13441,162 @@ function wpDateLabel(key) {
   const p=wpDateParts(key); if(!p) return 'Без даты';
   const d=wpDateObj(key); return `${WP_WEEKDAYS[(d.getDay()+6)%7]}, ${p.d} ${WP_MONTHS[p.m-1]}`;
 }
+const WP_DATE_PICKER = { active: null };
+function wpDateFieldHtml(id,label,value) {
+  const key=wpDateKey(value)||'';
+  return `<div class="field wp-date-field-wrap"><span class="wp-date-field-label">${esc(label)}</span><span class="wp-date-control"><input class="input wp-date-value" id="${esc(id)}" type="text" value="${esc(key)}" readonly inputmode="none" autocomplete="off" aria-label="${esc(label)}" data-wp-date-value><button type="button" class="wp-date-trigger" id="${esc(id)}Trigger" data-wp-date-open="${esc(id)}" aria-label="Выбрать дату: ${esc(label)}" aria-haspopup="dialog" aria-expanded="false">${ico('calendar')}</button></span></div>`;
+}
+function wpDateCalendarLocale() {
+  const locale=(document.documentElement.lang||navigator.language||'ru-RU').trim()||'ru-RU';
+  let firstDay=1;
+  try {
+    const info=new Intl.Locale(locale), week=info.weekInfo||(typeof info.getWeekInfo==='function'?info.getWeekInfo():null);
+    if(week && Number.isInteger(week.firstDay)) firstDay=week.firstDay%7;
+    else throw new Error('week info unavailable');
+  } catch(_) {
+    const region=(locale.match(/[-_]([A-Za-z]{2}|[0-9]{3})(?:-|$)/)||[])[1];
+    if(['US','JP','KR','IL','SA','TW','PH'].includes(region)) firstDay=0;
+    else if(['AE','BH','DJ','DZ','EG','IQ','IR','JO','KW','LY','OM','QA','SD','SY'].includes(region)) firstDay=6;
+  }
+  const weekday=new Intl.DateTimeFormat(locale,{weekday:'short',timeZone:'UTC'});
+  const weekdays=Array.from({length:7},(_,i)=>weekday.format(new Date(Date.UTC(2023,0,1+(firstDay+i)%7))));
+  return {locale,firstDay,weekdays};
+}
+function wpShiftDateMonth(key,delta) {
+  const p=wpDateParts(key); if(!p) return wpDateKey(Date.now());
+  const first=new Date(Date.UTC(p.y,p.m-1+(+delta||0),1));
+  const year=first.getUTCFullYear(),month=first.getUTCMonth()+1,days=new Date(Date.UTC(year,month,0)).getUTCDate();
+  return `${year}-${pad2(month)}-${pad2(Math.min(p.d,days))}`;
+}
+function wpDateCalendarBounds(anchor) {
+  const container=anchor.closest('.modal')||anchor.closest('.wp-main')||$('#viewport')||null;
+  const rect=container?container.getBoundingClientRect():{left:0,top:0,right:innerWidth,bottom:innerHeight};
+  return {left:Math.max(0,rect.left),top:Math.max(0,rect.top),right:Math.min(innerWidth,rect.right),bottom:Math.min(innerHeight,rect.bottom)};
+}
+function wpPositionDateCalendar(state) {
+  if(!state||!state.root.isConnected||!state.anchor.isConnected) {closeWpDateCalendar(false);return;}
+  const bounds=wpDateCalendarBounds(state.anchor), anchor=state.anchor.getBoundingClientRect(), pad=8;
+  const availableWidth=Math.max(180,bounds.right-bounds.left-pad*2);
+  state.root.style.width=Math.min(326,availableWidth)+'px';
+  state.root.style.maxHeight=Math.max(120,Math.min(420,bounds.bottom-bounds.top-pad*2))+'px';
+  const width=state.root.offsetWidth,height=state.root.offsetHeight;
+  const below=anchor.bottom+6, above=anchor.top-height-6;
+  let top=below+height<=bounds.bottom-pad?below:(above>=bounds.top+pad?above:below);
+  top=clamp(top,bounds.top+pad,bounds.bottom-height-pad);
+  const left=clamp(anchor.left,bounds.left+pad,bounds.right-width-pad);
+  state.root.style.left=left+'px'; state.root.style.top=top+'px';
+}
+function wpRenderDateCalendar(state,focusActive=false) {
+  const info=state.localeInfo, p=wpDateParts(state.monthStart), today=wpDateKey(Date.now()), selected=state.input?wpDateKey(state.input.value):'';
+  const monthTitle=new Intl.DateTimeFormat(info.locale,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(p.y,p.m-1,1,12)));
+  const start=wpAddDays(state.monthStart,-((new Date(Date.UTC(p.y,p.m-1,1)).getUTCDay()-info.firstDay+7)%7));
+  const dayLabel=key=>{const d=wpDateParts(key);return new Intl.DateTimeFormat(info.locale,{dateStyle:'full',timeZone:'UTC'}).format(new Date(Date.UTC(d.y,d.m-1,d.d,12)));};
+  const days=Array.from({length:42},(_,i)=>wpAddDays(start,i));
+  const rows=[];
+  for(let i=0;i<6;i++) rows.push(`<div class="wp-date-calendar-row" role="row">${days.slice(i*7,i*7+7).map(key=>{
+    const d=wpDateParts(key), outside=wpMonthStart(key)!==state.monthStart, active=key===state.activeDate;
+    return `<button type="button" class="wp-date-calendar-day${outside?' outside':''}${key===today?' today':''}${key===selected?' selected':''}" role="gridcell" data-wp-date-cell="${key}" aria-label="${esc(dayLabel(key))}" aria-selected="${key===selected}" ${key===today?'aria-current="date"':''} tabindex="${active?'0':'-1'}">${d.d}</button>`;
+  }).join('')}</div>`);
+  state.root.innerHTML=`<div class="wp-date-calendar-head"><button type="button" class="wp-date-calendar-nav" data-wp-date-calendar-nav="-1" aria-label="Предыдущий месяц">${ico('chev-l')}</button><div id="wpDateCalendarTitle" class="wp-date-calendar-title" aria-live="polite">${esc(monthTitle)}</div><button type="button" class="wp-date-calendar-nav" data-wp-date-calendar-nav="1" aria-label="Следующий месяц">${ico('chev-r')}</button></div><div class="wp-date-calendar-grid" role="grid" aria-labelledby="wpDateCalendarTitle"><div class="wp-date-calendar-weekdays" role="row">${info.weekdays.map(day=>`<span role="columnheader">${esc(day)}</span>`).join('')}</div>${rows.join('')}</div><div class="wp-date-calendar-actions"><button type="button" class="btn sm ghost" data-wp-date-calendar-action="today">Сегодня</button>${state.allowClear?'<button type="button" class="btn sm ghost" data-wp-date-calendar-action="clear">Очистить</button>':''}</div>`;
+  wpPositionDateCalendar(state);
+  if(focusActive) {
+    const target=state.root.querySelector(`[data-wp-date-cell="${state.activeDate}"]`);
+    if(target) target.focus({preventScroll:true});
+  }
+}
+function closeWpDateCalendar(restoreFocus=true) {
+  const state=WP_DATE_PICKER.active; if(!state) return;
+  WP_DATE_PICKER.active=null;
+  document.removeEventListener('scroll',state.reposition,true);
+  window.removeEventListener('resize',state.reposition);
+  if(state.root.isConnected) state.root.remove();
+  if(state.anchor && state.anchor.isConnected) {
+    state.anchor.setAttribute('aria-expanded','false');
+    state.anchor.removeAttribute('aria-controls');
+    if(restoreFocus) state.anchor.focus({preventScroll:true});
+  }
+}
+function wpCommitDateCalendar(state,value) {
+  closeWpDateCalendar(false);
+  if(state.input && state.input.isConnected) {
+    state.input.value=value;
+    state.input.dispatchEvent(new Event('input',{bubbles:true}));
+    state.input.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  if(state.onSelect) state.onSelect(value);
+  if(state.anchor && state.anchor.isConnected) state.anchor.focus({preventScroll:true});
+}
+function openWpDateCalendar(anchor,input,opts={}) {
+  if(!anchor||!anchor.isConnected) return;
+  closeWpDateCalendar(false); closeMenu(); hideTip();
+  const today=wpDateKey(Date.now()), initial=(input&&wpDateKey(input.value))||wpDateKey(opts.value)||today;
+  const root=document.createElement('div');
+  root.className='menu wp-date-popover'; root.id='wpDateCalendar'; root.setAttribute('role','dialog'); root.setAttribute('aria-modal','false'); root.setAttribute('aria-label',opts.title||'Выбрать дату');
+  const state={anchor,input:input||null,root,localeInfo:wpDateCalendarLocale(),activeDate:initial,monthStart:wpMonthStart(initial),allowClear:opts.allowClear!==false,onSelect:opts.onSelect||null};
+  state.reposition=()=>wpPositionDateCalendar(state);
+  WP_DATE_PICKER.active=state;
+  anchor.setAttribute('aria-expanded','true'); anchor.setAttribute('aria-controls','wpDateCalendar');
+  document.body.appendChild(root);
+  root.addEventListener('click',e=>{
+    const nav=e.target.closest('[data-wp-date-calendar-nav]');
+    if(nav) { state.activeDate=wpShiftDateMonth(state.activeDate,+nav.dataset.wpDateCalendarNav); state.monthStart=wpMonthStart(state.activeDate); wpRenderDateCalendar(state,true); return; }
+    const action=e.target.closest('[data-wp-date-calendar-action]');
+    if(action) { const value=action.dataset.wpDateCalendarAction==='clear'?'':today; wpCommitDateCalendar(state,value); return; }
+    const day=e.target.closest('[data-wp-date-cell]');
+    if(day) wpCommitDateCalendar(state,day.dataset.wpDateCell);
+  });
+  document.addEventListener('scroll',state.reposition,true);
+  window.addEventListener('resize',state.reposition,{passive:true});
+  wpRenderDateCalendar(state,true);
+}
+document.addEventListener('pointerdown',e=>{
+  const state=WP_DATE_PICKER.active; if(!state) return;
+  if(!state.root.contains(e.target)&&!state.anchor.contains(e.target)) closeWpDateCalendar(false);
+},true);
+document.addEventListener('keydown',e=>{
+  const state=WP_DATE_PICKER.active;
+  if(state) {
+    if(e.key==='Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeWpDateCalendar(true); return; }
+    const day=e.target.closest&&e.target.closest('[data-wp-date-cell]');
+    if(day) {
+      let next='';
+      if(e.key==='ArrowLeft') next=wpAddDays(day.dataset.wpDateCell,-1);
+      else if(e.key==='ArrowRight') next=wpAddDays(day.dataset.wpDateCell,1);
+      else if(e.key==='ArrowUp') next=wpAddDays(day.dataset.wpDateCell,-7);
+      else if(e.key==='ArrowDown') next=wpAddDays(day.dataset.wpDateCell,7);
+      else if(e.key==='Home'||e.key==='End') {
+        const p=wpDateParts(day.dataset.wpDateCell), wd=new Date(Date.UTC(p.y,p.m-1,p.d)).getUTCDay(), offset=(wd-state.localeInfo.firstDay+7)%7;
+        next=wpAddDays(day.dataset.wpDateCell,e.key==='Home'?-offset:6-offset);
+      } else if(e.key==='PageUp'||e.key==='PageDown') next=wpShiftDateMonth(day.dataset.wpDateCell,(e.key==='PageUp'?-1:1)*(e.shiftKey?12:1));
+      if(next) { e.preventDefault(); state.activeDate=next; state.monthStart=wpMonthStart(next); wpRenderDateCalendar(state,true); return; }
+    }
+    return;
+  }
+  const input=e.target.closest&&e.target.closest('[data-wp-date-value]');
+  if(input&&['Enter',' ','ArrowDown'].includes(e.key)) {
+    const trigger=input.closest('.wp-date-control')?.querySelector('[data-wp-date-open]');
+    if(trigger) { e.preventDefault(); openWpDateCalendar(trigger,input); }
+  }
+},true);
+document.addEventListener('click',e=>{
+  const trigger=e.target.closest&&e.target.closest('[data-wp-date-open]');
+  if(trigger) {
+    const input=document.getElementById(trigger.dataset.wpDateOpen);
+    if(input) { e.preventDefault(); openWpDateCalendar(trigger,input); }
+    return;
+  }
+  const input=e.target.closest&&e.target.closest('[data-wp-date-value]');
+  if(input) {
+    const button=input.closest('.wp-date-control')?.querySelector('[data-wp-date-open]');
+    if(button) { e.preventDefault(); openWpDateCalendar(button,input); }
+    return;
+  }
+  const jump=e.target.closest&&e.target.closest('[data-wp-date-jump]');
+  if(jump) {
+    const mode=jump.dataset.wpDateJump==='month'?'month':'week', value=mode==='month'?WP.monthStart:WP.weekStart;
+    e.preventDefault(); openWpDateCalendar(jump,null,{value,title:'Перейти к дате',allowClear:false,onSelect:date=>wpJumpCalendar(date,mode)});
+  }
+});
 function wpDeadlineOverdue(t, today=wpDateKey(Date.now())) {
   if(!t || wpTaskStatus(t)==='done' || wpTaskStatus(t)==='cancelled' || !t.deadlineAt) return false;
   const key=wpDeadlineKey(t.deadlineAt); return !!key && key < today;
@@ -14047,7 +14379,9 @@ function wpTaskCard(task, opts={}) {
   const tags=Array.isArray(task.tags) ? task.tags.filter(Boolean).slice(0,3) : [];
   const quadrant=wpQuadrant(task), quadrantChip=quadrant==null?'':`<span class="wp-chip quadrant" title="Матрица · ${esc(WP_QUADRANTS[quadrant][1])}" aria-label="Классификация Матрицы: ${esc(WP_QUADRANTS[quadrant][1])}">${ico('grid')}<span>${esc(WP_QUADRANTS[quadrant][1])}</span></span>`;
   const statusChip=opts.board?'':status==='waiting' ? `<span class="wp-chip waiting">Ожидание</span>` : done ? `<span class="wp-chip done">Готово</span>` : status==='cancelled' ? `<span class="wp-chip cancelled">Отменена</span>` : '';
-  const boardStatus=opts.board?`<div class="wp-board-task-status"><label><span class="sr-only">Статус</span><select class="select" data-act="wpBoardStatus" ${dataAttrs} aria-label="Статус задачи: ${esc(task.title||'Без названия')}" ${parentSeries?'disabled':''}>${wpStatusOptions(status)}</select></label></div>`:'';
+  const boardStatusId=`wpBoardStatus_${id.replace(/[^A-Za-z0-9_-]/g,'_')}_${entityType==='occurrence'?String(task.originalDate||'').replace(/[^A-Za-z0-9_-]/g,'_'):''}`;
+  const boardStatusOptions=[['open','Открыта'],['waiting','Ожидание'],['done','Выполнена'],['cancelled','Отменена']];
+  const boardStatus=opts.board?`<div class="wp-board-task-status"><span class="sr-only">Статус</span>${wpDomSelectControl(boardStatusId,status,boardStatusOptions,{className:'select wp-board-status-select',inputAttrs:`data-act="wpBoardStatus" ${dataAttrs}`,buttonAttrs:`aria-label="Статус задачи: ${esc(task.title||'Без названия')}"`,disabled:parentSeries})}</div>`:'';
   const deadline=wpDeadlineText(task,!!opts.inDay), deadlineFull=wpDeadlineText(task);
   const prio=wpPriority(task), prioLabel=WP_PRIORITY_RU[prio] || 'Обычный', assignee=wpAssigneeLabel(task);
   const commentCount=wpCanCommentTask(task)?wpTaskCommentList(task).length:null;
@@ -14113,9 +14447,10 @@ function wpQuickAddHtml(targetDate=null, label='Название задачи') 
   const homeType=project?'project':WP.quick.homeType==='inbox'?'inbox':'personal';
   const homeOptions=[['personal','Личные'],['inbox','Входящие'],...(S.board.projects||[]).filter(p=>p&&p.id).map(p=>['project:'+p.id,`Проект · ${p.name}`])];
   const selectedHome=homeType==='project'?`project:${WP.quick.projectId}`:homeType;
-  const homeSelect=WP.quick.context==='week'?`<label class="wp-quick-home"><span class="sr-only">Список или проект</span><select class="select" data-wp-quick-home aria-label="Список или проект">${homeOptions.map(([v,l])=>`<option value="${esc(v)}" ${selectedHome===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>`:'';
+  const homeSelect=WP.quick.context==='week'?`<div class="wp-quick-home"><span class="sr-only">Список или проект</span>${wpDomSelectControl('wpQuickHome',selectedHome,homeOptions,{inputAttrs:'data-wp-quick-home',buttonAttrs:'data-wp-quick-home aria-label="Список или проект"'})}</div>`:'';
   const quadrant=wpValidQuadrant(WP.quick.quadrant);
-  const quadrantSelect=`<label class="wp-quick-quadrant"><span class="sr-only">Классификация Матрицы</span><select class="select" data-wp-quick-quadrant aria-label="Классификация Матрицы"><option value="">Без метки Матрицы</option>${WP_QUADRANTS.map((q,i)=>`<option value="${i}" ${quadrant===i?'selected':''}>${q[0]} · ${q[1]}</option>`).join('')}</select></label>`;
+  const quadrantOptions=[['','Без метки Матрицы'],...WP_QUADRANTS.map((q,i)=>[String(i),`${q[0]} · ${q[1]}`])];
+  const quadrantSelect=`<div class="wp-quick-quadrant"><span class="sr-only">Классификация Матрицы</span>${wpDomSelectControl('wpQuickQuadrant',quadrant==null?'':String(quadrant),quadrantOptions,{inputAttrs:'data-wp-quick-quadrant',buttonAttrs:'data-wp-quick-quadrant aria-label="Классификация Матрицы"'})}</div>`;
   return `<div class="wp-quickadd-wrap"><div class="wp-quickadd"><span>${ico('plus')}</span><input class="input" data-wp-quick-input autocomplete="off" placeholder="${esc(label)}" value="${esc(WP.quick.value||'')}" aria-label="Название задачи">${homeSelect}${quadrantSelect}<button type="button" class="btn primary sm" data-act="wpQuickSubmit">Добавить</button><button type="button" class="wp-icon-btn" data-act="wpQuickCancel" aria-label="Отмена">${ico('x')}</button></div></div>`;
 }
 function wpQuickAddOpen(date=null, projectId=null, assignee=wpCurrentAssignee(), context='') {
@@ -14189,9 +14524,8 @@ function wpHeaderControls() {
 function wpDateControls() {
   if(WP.view!=='week') return '';
   const month=WP.calendarMode==='month', label=month?wpFmtMonth(WP.monthStart):wpFmtRange(WP.weekStart);
-  const pickerValue=month?WP.monthStart.slice(0,7):WP.weekStart, pickerType=month?'month':'date';
   const unit=month?'месяц':'неделю', previous=month?'Предыдущий месяц':'Предыдущая неделя', next=month?'Следующий месяц':'Следующая неделя';
-  return `<div class="wp-week-controls"><div class="wp-calendar-controls-left"><div class="wp-calendar-label"><b>${esc(label)}</b><span>· ${month?'Задачи за месяц':'Неделя с понедельника'}</span></div><div class="wp-calendar-mode" role="group" aria-label="Период календаря">${segHtml('plannerCalendarMode',[['week','Неделя'],['month','Месяц']],WP.calendarMode,'sm')}</div></div><div class="wp-date-actions"><button type="button" class="wp-icon-btn" data-act="wpCalendarMove" data-delta="-1" aria-label="${previous}">${ico('chev-l')}</button><label class="wp-date-jump" title="Перейти на ${unit}"><span class="sr-only">Перейти на ${unit}</span><input type="${pickerType}" value="${esc(pickerValue)}" data-wp-calendar-picker="${WP.calendarMode}" aria-label="Выбрать ${unit}"></label><button type="button" class="wp-icon-btn" data-act="wpCalendarMove" data-delta="1" aria-label="${next}">${ico('chev-r')}</button><button type="button" class="btn sm ghost" data-act="wpWeekToday">Сегодня</button></div></div>`;
+  return `<div class="wp-week-controls"><div class="wp-calendar-controls-left"><div class="wp-calendar-label"><b>${esc(label)}</b><span>· ${month?'Задачи за месяц':'Неделя с понедельника'}</span></div><div class="wp-calendar-mode" role="group" aria-label="Период календаря">${segHtml('plannerCalendarMode',[['week','Неделя'],['month','Месяц']],WP.calendarMode,'sm')}</div></div><div class="wp-date-actions"><button type="button" class="wp-icon-btn" data-act="wpCalendarMove" data-delta="-1" aria-label="${previous}">${ico('chev-l')}</button><button type="button" class="wp-date-jump" data-wp-date-jump="${WP.calendarMode}" title="Перейти на ${unit}" aria-label="Выбрать ${unit}" aria-haspopup="dialog" aria-expanded="false"><span class="sr-only">Перейти на ${unit}</span></button><button type="button" class="wp-icon-btn" data-act="wpCalendarMove" data-delta="1" aria-label="${next}">${ico('chev-r')}</button><button type="button" class="btn sm ghost" data-act="wpWeekToday">Сегодня</button></div></div>`;
 }
 function wpQuickGlobalArea() {
   if(!WP.quick) return '';
@@ -14352,7 +14686,7 @@ function wpAllFilterToolbar(items,total) {
   const tagOptions=WP.allSort==='tag'?[['all','Все теги'],['untagged','Без тега'],...wpAllTagChoices().map(tag=>['tag:'+tag,tag])]:[];
   const dirty=WP.allFilter!=='active'||mine||WP.allAssigneeFilter!=='all'||project!=='all'||WP.allSort!=='urgency'||tagFilter!=='all';
   const shown=Array.isArray(items)?items:wpAllEntities(), count=Number.isFinite(total)?total:wpAllEntities({ignoreFilters:true}).length;
-  return `<div class="wp-all-toolbar"><div class="wp-filter-layout wp-all-filter-row ${WP.allSort==='tag'?'is-tag-sort':''}"><div class="wp-filter-main"><details class="wp-filter-menu" data-wp-filter-menu="all"><summary class="wp-filter-menu-trigger"><span>Фильтр</span><b>${esc(currentStatus[1])}${mine?' · Мои задачи':''}</b>${ico('chev-r')}</summary><div class="wp-filter-menu-panel"><span class="wp-filter-menu-label">Статус</span><div class="wp-filter-menu-options" role="group" aria-label="Фильтр по статусу">${filters.map(([value,label])=>`<button type="button" class="wp-filter-menu-option ${WP.allFilter===value?'active':''}" data-act="wpAllFilter" data-filter="${value}" aria-pressed="${WP.allFilter===value}"><span>${label}</span><span class="wp-filter-menu-check">${WP.allFilter===value?'✓':''}</span></button>`).join('')}</div><div class="wp-filter-menu-divider"></div><button type="button" class="wp-filter-menu-option ${mine?'active':''}" data-act="wpAllMineToggle" aria-pressed="${mine}"><span>${ico('user')}Мои задачи</span><span class="wp-filter-menu-check">${mine?'✓':''}</span></button></div></details></div><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-filter="assignee" aria-label="Фильтр по исполнителю">${assigneeOptions.map(([value,label])=>`<option value="${esc(value)}" ${selected===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-filter="project" aria-label="Фильтр по списку и проекту">${projectOptions.map(([value,label])=>`<option value="${esc(value)}" ${project===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-sort"><span>Сортировать</span><select class="select" data-wp-filter="sort" aria-label="Сортировка задач">${sortOptions.map(([value,label])=>`<option value="${value}" ${WP.allSort===value?'selected':''}>${label}</option>`).join('')}</select></label>${WP.allSort==='tag'?`<label class="wp-filter-select wp-filter-tag"><span>Тег</span><select class="select" data-wp-filter="tag" aria-label="Фильтр по тегу">${tagOptions.map(([value,label])=>`<option value="${esc(value)}" ${tagFilter===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>`:''}${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpAllReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${shown.length}</b> из ${count}</div></div>`;
+  return `<div class="wp-all-toolbar"><div class="wp-filter-layout wp-all-filter-row ${WP.allSort==='tag'?'is-tag-sort':''}"><div class="wp-filter-main"><details class="wp-filter-menu" data-wp-filter-menu="all"><summary class="wp-filter-menu-trigger"><span>Фильтр</span><b>${esc(currentStatus[1])}${mine?' · Мои задачи':''}</b>${ico('chev-r')}</summary><div class="wp-filter-menu-panel"><span class="wp-filter-menu-label">Статус</span><div class="wp-filter-menu-options" role="group" aria-label="Фильтр по статусу">${filters.map(([value,label])=>`<button type="button" class="wp-filter-menu-option ${WP.allFilter===value?'active':''}" data-act="wpAllFilter" data-filter="${value}" aria-pressed="${WP.allFilter===value}"><span>${label}</span><span class="wp-filter-menu-check">${WP.allFilter===value?'✓':''}</span></button>`).join('')}</div><div class="wp-filter-menu-divider"></div><button type="button" class="wp-filter-menu-option ${mine?'active':''}" data-act="wpAllMineToggle" aria-pressed="${mine}"><span>${ico('user')}Мои задачи</span><span class="wp-filter-menu-check">${mine?'✓':''}</span></button></div></details></div>${wpDomSelectField('Исполнитель','wpAllFilterAssignee',selected,assigneeOptions,{fieldClass:'wp-filter-select wp-filter-assignee',inputAttrs:'data-wp-filter="assignee"',buttonAttrs:'data-wp-filter="assignee" aria-label="Фильтр по исполнителю"'})}${wpDomSelectField('Список / проект','wpAllFilterProject',project,projectOptions,{fieldClass:'wp-filter-select wp-filter-project',inputAttrs:'data-wp-filter="project"',buttonAttrs:'data-wp-filter="project" aria-label="Фильтр по списку и проекту"'})}${wpDomSelectField('Сортировать','wpAllFilterSort',WP.allSort,sortOptions,{fieldClass:'wp-filter-select wp-filter-sort',inputAttrs:'data-wp-filter="sort"',buttonAttrs:'data-wp-filter="sort" aria-label="Сортировка задач"'})}${WP.allSort==='tag'?`${wpDomSelectField('Тег','wpAllFilterTag',tagFilter,tagOptions,{fieldClass:'wp-filter-select wp-filter-tag',inputAttrs:'data-wp-filter="tag"',buttonAttrs:'data-wp-filter="tag" aria-label="Фильтр по тегу"'})}`:''}${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpAllReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${shown.length}</b> из ${count}</div></div>`;
 }
 function wpAllView() {
   const all=wpAllEntities(), total=wpAllEntities({ignoreFilters:true}).length;
@@ -14387,7 +14721,7 @@ function wpBoardToolbar(items) {
   const currentFocus=focus.find(([value])=>value===WP.boardFocus)||focus[0];
   const dirty=home!=='all'||who!=='all'||mine||WP.boardFocus!=='all';
   const total=wpAllEntities({ignoreFilters:true}).length;
-  return `<div class="wp-board-toolbar"><div class="wp-filter-layout wp-board-filter-row"><div class="wp-filter-main"><details class="wp-filter-menu wp-board-focus-menu" data-wp-filter-menu="board"><summary class="wp-filter-menu-trigger"><span>Фильтр</span><b>${esc(currentFocus[1])}</b>${ico('chev-r')}</summary><div class="wp-filter-menu-panel"><span class="wp-filter-menu-label">Приоритет и срок</span><div class="wp-filter-menu-options" role="group" aria-label="Фильтр по приоритету и сроку">${focus.map(([value,label])=>`<button type="button" class="wp-filter-menu-option ${WP.boardFocus===value?'active':''}" data-act="wpBoardFocus" data-filter="${value}" aria-pressed="${WP.boardFocus===value}"><span>${label}</span><span class="wp-filter-menu-check">${WP.boardFocus===value?'✓':''}</span></button>`).join('')}</div></div></details>${wpCalendarCompletedToggle('board')}</div><button type="button" class="wp-my-filter ${mine?'active':''}" data-act="wpBoardMineToggle" aria-pressed="${mine}">${ico('user')}Мои задачи</button><label class="wp-filter-select wp-filter-assignee"><span>Исполнитель</span><select class="select" data-wp-board-filter="assignee" aria-label="Фильтр по исполнителю">${whoOptions.map(([v,l])=>`<option value="${esc(v)}" ${whoSelected===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="wp-filter-select wp-filter-project"><span>Список / проект</span><select class="select" data-wp-board-filter="home" aria-label="Фильтр по списку и проекту">${homeOptions.map(([v,l])=>`<option value="${esc(v)}" ${home===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpBoardReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${items.length}</b> из ${total}</div></div>`;
+  return `<div class="wp-board-toolbar"><div class="wp-filter-layout wp-board-filter-row"><div class="wp-filter-main"><details class="wp-filter-menu wp-board-focus-menu" data-wp-filter-menu="board"><summary class="wp-filter-menu-trigger"><span>Фильтр</span><b>${esc(currentFocus[1])}</b>${ico('chev-r')}</summary><div class="wp-filter-menu-panel"><span class="wp-filter-menu-label">Приоритет и срок</span><div class="wp-filter-menu-options" role="group" aria-label="Фильтр по приоритету и сроку">${focus.map(([value,label])=>`<button type="button" class="wp-filter-menu-option ${WP.boardFocus===value?'active':''}" data-act="wpBoardFocus" data-filter="${value}" aria-pressed="${WP.boardFocus===value}"><span>${label}</span><span class="wp-filter-menu-check">${WP.boardFocus===value?'✓':''}</span></button>`).join('')}</div></div></details>${wpCalendarCompletedToggle('board')}</div><button type="button" class="wp-my-filter ${mine?'active':''}" data-act="wpBoardMineToggle" aria-pressed="${mine}">${ico('user')}Мои задачи</button>${wpDomSelectField('Исполнитель','wpBoardAssignee',whoSelected,whoOptions,{fieldClass:'wp-filter-select wp-filter-assignee',inputAttrs:'data-wp-board-filter="assignee"',buttonAttrs:'data-wp-board-filter="assignee" aria-label="Фильтр по исполнителю"'})}${wpDomSelectField('Список / проект','wpBoardHome',home,homeOptions,{fieldClass:'wp-filter-select wp-filter-project',inputAttrs:'data-wp-board-filter="home"',buttonAttrs:'data-wp-board-filter="home" aria-label="Фильтр по списку и проекту"'})}${dirty?`<button type="button" class="btn sm ghost wp-clear-filters" data-act="wpBoardReset">Сбросить</button>`:''}</div><div class="wp-filter-count">Показано <b>${items.length}</b> из ${total}</div></div>`;
 }
 function wpBoardView() {
   const items=wpBoardEntities(), columns=[['open','В работе'],['waiting','Ожидание'],['done','Готово'],['cancelled','Отменённые']];
@@ -14483,7 +14817,7 @@ function wpRenderView() {
   if(viewScroll&&root) { root.scrollTop=viewScroll.top; root.scrollLeft=viewScroll.left; const lanes=root.querySelector('.wp-board-lanes'); if(lanes) lanes.scrollLeft=viewScroll.board; }
   if(focusState&&page) {
     const candidates=page.querySelectorAll('[data-act],[data-view],[data-filter],[data-id],[data-date],[data-entity-type],[data-series-id],[data-original-date],[data-wp-filter],[data-wp-board-filter],[data-wp-calendar-picker],[data-wp-quick-input],[data-wp-quick-quadrant],[data-wp-quick-home],[data-wp-quick-priority],#wpSearch');
-    const restored=focusState.id?Array.from(page.querySelectorAll('[id]')).find(el=>el.id===focusState.id):Array.from(candidates).find(el=>Object.entries(focusState.attrs).every(([key,value])=>el.dataset&&el.dataset[key]===value));
+    const restored=focusState.id?Array.from(page.querySelectorAll('[id]')).find(el=>el.id===focusState.id):Array.from(candidates).find(el=>!(el.matches&&el.matches('input[type="hidden"]'))&&Object.entries(focusState.attrs).every(([key,value])=>el.dataset&&el.dataset[key]===value));
     if(restored) {
       try { restored.focus({preventScroll:true}); } catch(_) { restored.focus(); }
       if(focusState.value!==null&&'value' in restored) restored.value=focusState.value;
@@ -14788,12 +15122,14 @@ function wpOpenDatePicker(refs,kind='schedule',title='Выбрать дату') 
   const list=Array.isArray(refs)?refs:[refs];
   const first=list.length===1?wpFindEntity(list[0]):null;
   const current=first ? (kind==='deadline'?wpDeadlineKey(first.deadlineAt):first.scheduledDate||'') : '';
-  const m=openModal({width:410,html:`<div class="modal-h"><div class="mi-ic">${ico(kind==='deadline'?'clock':'calendar')}</div><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-wp-picker="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><label class="field"><span>${kind==='deadline'?'Крайний срок':'Дата начала'}</span><input class="input" id="wpDatePick" type="date" value="${esc(current)}"></label><div class="wp-picker-quick"><button class="btn sm ghost" type="button" data-wp-quick-date="today">Сегодня</button><button class="btn sm ghost" type="button" data-wp-quick-date="tomorrow">Завтра</button>${kind==='schedule'?'<button class="btn sm ghost" type="button" data-wp-quick-date="none">Снять дату начала</button>':'<button class="btn sm ghost" type="button" data-wp-quick-date="none">Снять дедлайн</button>'}</div></div><div class="modal-f"><button class="btn ghost" data-wp-picker="close">Отмена</button><button class="btn primary" data-wp-picker="save">Сохранить</button></div>`});
+  const label=kind==='deadline'?'Крайний срок':'Дата начала';
+  const m=openModal({width:410,html:`<div class="modal-h"><div class="mi-ic">${ico(kind==='deadline'?'clock':'calendar')}</div><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-wp-picker="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b">${wpDateFieldHtml('wpDatePick',label,current)}<div class="wp-picker-quick"><button class="btn sm ghost" type="button" data-wp-quick-date="today">Сегодня</button><button class="btn sm ghost" type="button" data-wp-quick-date="tomorrow">Завтра</button>${kind==='schedule'?'<button class="btn sm ghost" type="button" data-wp-quick-date="none">Снять дату начала</button>':'<button class="btn sm ghost" type="button" data-wp-quick-date="none">Снять дедлайн</button>'}</div></div><div class="modal-f"><button class="btn ghost" data-wp-picker="close">Отмена</button><button class="btn primary" data-wp-picker="save">Сохранить</button></div>`});
   const root=m.scrim, input=$('#wpDatePick',root); let clearDate=false;
-  input.addEventListener('change',()=>{clearDate=false;});
+  const syncClear=()=>{clearDate=input.value==='';};
+  input.addEventListener('input',syncClear); input.addEventListener('change',syncClear);
   root.addEventListener('click',e=>{
     const b=e.target.closest('[data-wp-picker],[data-wp-quick-date]'); if(!b) return;
-    if(b.dataset.wpQuickDate) { clearDate=b.dataset.wpQuickDate==='none'; input.value=clearDate?'':b.dataset.wpQuickDate==='today'?wpDateKey(Date.now()):wpAddDays(wpDateKey(Date.now()),1); return; }
+    if(b.dataset.wpQuickDate) { input.value=b.dataset.wpQuickDate==='none'?'':b.dataset.wpQuickDate==='today'?wpDateKey(Date.now()):wpAddDays(wpDateKey(Date.now()),1); input.dispatchEvent(new Event('input',{bubbles:true})); input.dispatchEvent(new Event('change',{bubbles:true})); return; }
     if(b.dataset.wpPicker==='close') { closeModal(m); return; }
     if(b.dataset.wpPicker==='save') {
       const value=wpDateKey(input.value)||null;
@@ -14810,7 +15146,7 @@ function wpOpenDatePicker(refs,kind='schedule',title='Выбрать дату') 
       if(saved) closeModal(m);
     }
   });
-  setTimeout(()=>input&&input.focus(),20);
+  setTimeout(()=>{const trigger=$('#wpDatePickTrigger',root); if(trigger) trigger.focus();},20);
 }
 function wpReviewMenu(anchor) {
   const ref=wpRefFromElement(anchor);
@@ -14941,7 +15277,8 @@ function wpMoveHomePicker(ref,opts={}) {
   const legacyMatrix=currentType==='matrix', currentValue=legacyMatrix?'legacy-matrix':currentType==='project'?`project:${currentId}`:currentType;
   const scopeHtml=isOccurrence&&series?`<fieldset class="wp-move-scope"><legend>Область переноса</legend><label><input type="radio" name="wpMoveScope" value="instance" ${opts.scope==='series'?'':'checked'}> Только этот экземпляр</label><label><input type="radio" name="wpMoveScope" value="series" ${opts.scope==='series'?'checked':''}> Вся серия</label></fieldset>`:'';
   const target=(homeType,id)=>homeType==='project'?((S.board.projects||[]).find(p=>p&&p.id===id)?.name||'Проект'):homeType==='inbox'?'Входящие':'Личные';
-  const m=openModal({width:440,html:`<div class="modal-h"><div class="mi-ic">${ico('folder')}</div><h3>${isOccurrence?'Переместить экземпляр':'Переместить задачу'}</h3><button type="button" class="icon-btn" data-wp-move="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="wp-move-route"><b id="wpMoveSourceLabel">${esc(wpHomeLabel(initialSource))}</b><span>→</span><strong id="wpMoveTargetLabel">${esc(wpHomeLabel(initialSource))}</strong></div><label class="field"><span>Куда переместить</span><select class="select" id="wpMoveTarget">${legacyMatrix?'<option value="legacy-matrix" selected disabled>Матрица · прежний список</option>':''}${choices.map(([v,l])=>`<option value="${esc(v)}" ${currentValue===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><p class="wp-form-hint" id="wpMovePreserve">Дата начала, крайний срок, статус и исполнитель сохранятся. Меняется место той же задачи, не копия.</p>${scopeHtml}</div><div class="modal-f"><button type="button" class="btn ghost" data-wp-move="close">Отмена</button><button type="button" class="btn primary" data-wp-move="save">Переместить</button></div>`});
+  const moveOptions=[...(legacyMatrix?[['legacy-matrix','Матрица · прежний список',true]]:[]),...choices];
+  const m=openModal({width:440,html:`<div class="modal-h"><div class="mi-ic">${ico('folder')}</div><h3>${isOccurrence?'Переместить экземпляр':'Переместить задачу'}</h3><button type="button" class="icon-btn" data-wp-move="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="wp-move-route"><b id="wpMoveSourceLabel">${esc(wpHomeLabel(initialSource))}</b><span>→</span><strong id="wpMoveTargetLabel">${esc(wpHomeLabel(initialSource))}</strong></div>${wpDomSelectField('Куда переместить','wpMoveTarget',currentValue,moveOptions)}<p class="wp-form-hint" id="wpMovePreserve">Дата начала, крайний срок, статус и исполнитель сохранятся. Меняется место той же задачи, не копия.</p>${scopeHtml}</div><div class="modal-f"><button type="button" class="btn ghost" data-wp-move="close">Отмена</button><button type="button" class="btn primary" data-wp-move="save">Переместить</button></div>`});
   const root=m.scrim, select=$('#wpMoveTarget',root), targetLabel=$('#wpMoveTargetLabel',root), sourceLabel=$('#wpMoveSourceLabel',root);
   const selectedScope=()=>root.querySelector('input[name="wpMoveScope"]:checked')?.value || initialScope;
   const renderTarget=()=>{const scope=selectedScope(), source=scope==='series'?base:ent; sourceLabel.textContent=wpHomeLabel(source); const hint=$('#wpMovePreserve',root); if(select.value==='legacy-matrix') {targetLabel.textContent='Старое место · Матрица'; if(hint) hint.textContent='Эта задача сохранит прежнее место, пока вы не выберете Входящие, Личные или проект.'; return;} const v=select.value, parts=v.split(':'), homeType=parts[0], projectId=parts.slice(1).join(':'), count=descendantCount&&(!isOccurrence||scope==='series')?descendantCount:0, q=wpQuadrant(source); targetLabel.textContent=homeType==='project'?target('project',projectId):target(homeType); if(hint) hint.textContent=`Дата начала, крайний срок, статус и исполнитель сохранятся. Меняется место той же записи, не создаётся копия.${count?` Вместе переместятся ${count} ${plural(count,['подзадача','подзадачи','подзадач'])}.`:''}${q!=null?' Классификация Матрицы останется меткой задачи.':''}`;};
@@ -15103,19 +15440,18 @@ function wpEditorBaseValues(task,scope,recurring) {
     mode:rule&&rule.mode==='afterCompletion'?'afterCompletion':'calendar',endDate:rule&&rule.endDate||''
   };
 }
-function wpEditorProjectOptions(selected='') {
+function wpEditorProjectOptions() {
   const projects=visibleProjects();
-  return `<option value="">Выберите проект</option>${projects.map(p=>`<option value="${esc(p.id)}" ${selected===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}<option value="__add">+ Добавить новый проект</option>`;
+  return [['','Выберите проект'],...projects.map(project=>[project.id,project.name]),['__add','+ Добавить новый проект']];
 }
 function wpRefreshEditorProjectOptions(select,selected='') {
   if(!select) return;
-  select.innerHTML=wpEditorProjectOptions();
-  select.value=selected||'';
+  wpSetDomSelectOptions(select,wpEditorProjectOptions(),selected||'');
 }
 async function wpAddProjectFromEditor(select,previousValue='') {
   const name=await promptDlg({title:'Новый проект',placeholder:'Название проекта',ok:'Создать'});
-  if(!name) { if(select) select.value=previousValue||''; return false; }
-  if(!String(name).trim()) { if(select) select.value=previousValue||''; toast('Укажите название проекта.',{icon:'info'}); return false; }
+  if(!name) { wpSetDomSelectValue(select,previousValue||''); return false; }
+  if(!String(name).trim()) { wpSetDomSelectValue(select,previousValue||''); toast('Укажите название проекта.',{icon:'info'}); return false; }
   const before=wpClone(S.board), project=addProject(name);
   if(!project || !wpPersistBoard()) {
     wpRestoreBoardMemory(before); wpRefreshEditorProjectOptions(select,previousValue);
@@ -15126,43 +15462,48 @@ async function wpAddProjectFromEditor(select,previousValue='') {
   return true;
 }
 function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
-  const assignees=wpAssigneeChoices(), assigneeOptions=`<option value="">Не назначено</option>${assignees.map(x=>`<option value="${esc(x)}" ${values.assignee===x?'selected':''}>${esc(x)}</option>`).join('')}`, projectOptions=wpEditorProjectOptions(values.projectId), kindOptions=`<option value="personal" ${values.kind==='personal'?'selected':''}>Личные</option><option value="inbox" ${values.kind==='inbox'?'selected':''}>Входящие</option>${!isNew&&values.kind==='matrix'?'<option value="matrix" selected>Матрица · прежний список</option>':''}<option value="project" ${values.kind==='project'?'selected':''}>Проект</option>`;
+  const assignees=wpAssigneeChoices(), assigneeOptions=[['','Не назначено'],...assignees.map(name=>[name,name])], projectOptions=wpEditorProjectOptions();
+  const kindOptions=[['personal','Личные'],['inbox','Входящие'],...(!isNew&&values.kind==='matrix'?[['matrix','Матрица · прежний список']]:[]),['project','Проект']];
+  const priorityOptions=[['none','Без приоритета'],['normal','Обычный'],['high','Срочный'],['critical','Критичный']];
+  const quadrantOptions=[['','Без метки Матрицы'],...WP_QUADRANTS.map((q,i)=>[String(i),`${q[0]} · ${q[1]}`])];
+  const frequencyOptions=[['none','Не повторяется'],['daily','Ежедневно'],['weekly','Еженедельно'],['monthly','Ежемесячно'],['interval','Через интервал']];
+  const modeOptions=[['calendar','По календарю'],['afterCompletion','От даты выполнения']];
+  const statusOptions=[['open','Открыта'],['waiting','Ожидание'],['done','Выполнена'],['cancelled','Отменена']];
   const isInstance=scope==='instance';
   const commentTask=sourceTask||task;
   const commentHtml=!isNew&&wpCanCommentTask(commentTask)?wpCommentThreadHtml(commentTask):'';
-  const freqOptions=[['none','Не повторяется'],['daily','Ежедневно'],['weekly','Еженедельно'],['monthly','Ежемесячно'],['interval','Через интервал']].map(([v,l])=>`<option value="${v}" ${values.frequency===v?'selected':''}>${l}</option>`).join('');
   const days=values.weekdays||[];
   const repeat= isInstance ? `<div class="wp-series-info">${ico('ref')}<span>Серия: <b>${esc(wpRuleDescription(sourceTask)||'повторение')}</b><small>Изменение даты здесь затрагивает только этот экземпляр.</small></span></div>` : `<details class="wp-editor-section" ${values.frequency!=='none'?'open':''}><summary>Повторение</summary><div class="wp-editor-repeat">
-      <label class="field"><span>Повторять</span><select class="select" id="wpFrequency">${freqOptions}</select></label>
+      ${wpDomSelectField('Повторять','wpFrequency',values.frequency,frequencyOptions)}
       <div class="wp-repeat-options" id="wpRepeatOptions" ${values.frequency==='none'?'hidden':''}>
         <label class="field"><span id="wpIntervalLabel">Интервал</span><input class="input" id="wpInterval" type="number" min="1" max="365" value="${esc(values.frequency==='interval'?values.intervalDays:values.interval)}"></label>
-        <label class="field"><span>Ритм</span><select class="select" id="wpMode"><option value="calendar" ${values.mode!=='afterCompletion'?'selected':''}>По календарю</option><option value="afterCompletion" ${values.mode==='afterCompletion'?'selected':''}>От даты выполнения</option></select></label>
-        <label class="field"><span>До даты (необязательно)</span><input class="input" id="wpEndDate" type="date" value="${esc(values.endDate||'')}"></label>
+        ${wpDomSelectField('Ритм','wpMode',values.mode,modeOptions)}
+        ${wpDateFieldHtml('wpEndDate','До даты (необязательно)',values.endDate||'')}
       </div>
       <div id="wpWeekdays" class="wp-weekdays" ${values.frequency==='weekly'?'':'hidden'}>${WP_WEEKDAYS.map((d,i)=>`<label><input type="checkbox" value="${i+1}" ${days.includes(i+1)?'checked':''}><span>${d}</span></label>`).join('')}</div>
       <p class="wp-form-hint" id="wpRepeatHint">Календарная серия остаётся на исходных днях. При завершении просроченного экземпляра следующая дата не сдвигается.</p>
     </div></details>`;
-  const statusField=isNew?'':hasSeries && !isInstance ? `<div class="wp-series-info">${ico('info')}<span>Статус задаётся отдельно для каждого экземпляра. Приоритет серии не меняется при завершении.</span></div>` : `<label class="field" id="wpStatusWrap"><span>Статус</span><select class="select" id="wpStatus">${wpStatusOptions(values.statusKey)}</select></label>`;
+  const statusField=isNew?'':hasSeries && !isInstance ? `<div class="wp-series-info">${ico('info')}<span>Статус задаётся отдельно для каждого экземпляра. Приоритет серии не меняется при завершении.</span></div>` : wpDomSelectField('Статус','wpStatus',values.statusKey,statusOptions,{fieldId:'wpStatusWrap'});
   return `<div id="wpEditorBody">
     ${isInstance && sourceTask ? `<div class="wp-scope-switch" role="group" aria-label="Область изменения"><button type="button" data-wp-scope="instance" class="${scope==='instance'?'active':''}">Этот экземпляр</button><button type="button" data-wp-scope="series" class="${scope==='series'?'active':''}">Вся серия</button></div>`:''}
     ${isInstance ? `<div class="wp-series-info">${ico('info')}<span>Экземпляр ${esc(wpFmtDate(task.originalDate,true))} · изменения серии не затрагиваются.</span></div>`:''}
     <div class="wp-form-grid">
       <label class="field full"><span>Название</span><input class="input" id="wpTitle" value="${esc(values.title)}" placeholder="Что нужно сделать?" required></label>
-      <label class="field"><span>${isNew?'Добавить в':'Список'}</span><select class="select" id="wpKind" ${isNew?'':'disabled'}>${kindOptions}</select></label>
-      <label class="field" id="wpProjectWrap" ${values.kind==='project'?'':'hidden'}><span>Проект</span><select class="select" id="wpProject">${projectOptions}</select></label>
-      <label class="field"><span>Исполнитель</span><select class="select" id="wpAssignee">${assigneeOptions}</select></label>
-      <label class="field"><span>Дата начала</span><input class="input" id="wpScheduled" type="date" value="${esc(values.scheduledDate||'')}"></label>
-      <label class="field"><span>Крайний срок</span><input class="input" id="wpDeadline" type="date" value="${esc(values.deadlineAt||'')}"></label>
+      ${wpDomSelectField(isNew?'Добавить в':'Список','wpKind',values.kind,kindOptions,{disabled:!isNew})}
+      ${wpDomSelectField('Проект','wpProject',values.projectId,projectOptions,{fieldId:'wpProjectWrap',hidden:values.kind!=='project'})}
+      ${wpDomSelectField('Исполнитель','wpAssignee',values.assignee,assigneeOptions)}
+      ${wpDateFieldHtml('wpScheduled','Дата начала',values.scheduledDate||'')}
+      ${wpDateFieldHtml('wpDeadline','Крайний срок',values.deadlineAt||'')}
       ${statusField}
-      <label class="field"><span>Приоритет</span><select class="select" id="wpPriority">${[['none','Без приоритета'],['normal','Обычный'],['high','Срочный'],['critical','Критичный']].map(([v,l])=>`<option value="${v}" ${values.priorityKey===v?'selected':''}>${l}</option>`).join('')}</select></label>
-      <label class="field"><span>Метка Матрицы</span><select class="select" id="wpQuadrant"><option value="">Без метки Матрицы</option>${WP_QUADRANTS.map((q,i)=>`<option value="${i}" ${String(values.quadrant)===String(i)?'selected':''}>${q[0]} · ${q[1]}</option>`).join('')}</select></label>
+      ${wpDomSelectField('Приоритет','wpPriority',values.priorityKey,priorityOptions)}
+      ${wpDomSelectField('Метка Матрицы','wpQuadrant',values.quadrant,quadrantOptions)}
     </div>
     <details class="wp-editor-section"><summary>Дополнительные поля</summary><div class="wp-form-grid">
       <label class="field full"><span>Описание / заметка</span><textarea class="input" id="wpDescription" rows="3" placeholder="Детали, ссылки, договорённости">${esc(values.description)}</textarea></label>
       <label class="field full"><span>Теги · через запятую</span><input class="input" id="wpTags" value="${esc(values.tags)}" placeholder="работа, поездка"></label>
       <label class="field"><span>Оценка длительности, мин</span><input class="input" id="wpDuration" type="number" min="1" max="100000" value="${esc(values.durationEstimateMinutes)}" placeholder="Не задана"></label>
       <label class="field"><span>Причина ожидания</span><input class="input" id="wpWaitingReason" value="${esc(values.waitingReason)}" placeholder="Например: ответ от коллеги"></label>
-      <label class="field"><span>Проверить снова</span><input class="input" id="wpReviewAt" type="date" value="${esc(values.reviewAt||'')}"></label>
+      ${wpDateFieldHtml('wpReviewAt','Проверить снова',values.reviewAt||'')}
     </div></details>
     ${repeat}
   </div>${commentHtml}`;
@@ -15175,7 +15516,7 @@ function wpSyncEditorUI(root,frequency) {
   if(opts) opts.hidden=f==='none'; if(wd) wd.hidden=f!=='weekly';
   const statusWrap=$('#wpStatusWrap',root); if(statusWrap) statusWrap.hidden=f!=='none';
   if(label) label.textContent=f==='daily'?'Каждые N дней':f==='weekly'?'Каждые N недель':f==='monthly'?'Каждые N месяцев':'Каждые N дней';
-  if(mode) { const after=mode.querySelector('option[value="afterCompletion"]'); if(after) after.disabled=f!=='interval'; if(f!=='interval' && mode.value==='afterCompletion') mode.value='calendar'; }
+  if(mode) { wpSetDomSelectOptionDisabled(mode,'afterCompletion',f!=='interval'); if(f!=='interval' && mode.value==='afterCompletion') wpSetDomSelectValue(mode,'calendar'); }
   if(hint) hint.textContent=f==='interval' && mode && mode.value==='afterCompletion'?'Следующий экземпляр появится через интервал от фактической даты выполнения.':'Календарная серия остаётся на исходных днях. Завершение просроченного экземпляра не сдвигает следующий цикл.';
 }
 function wpApplyQuadrant(task,q) {
@@ -15274,7 +15615,7 @@ function wpOpenEditor(ref=null,opts={}) {
     if(scope==='instance' && ent) { vals.scheduledDate=wpDateKey(ent.scheduledDate)||null; vals.deadlineAt=wpDeadlineKey(ent.deadlineAt)||null; vals.statusKey=wpTaskStatus(ent); vals.title=ent.title||''; }
     mount.innerHTML=wpEditorBodyHtml(base,scope,isNew,vals,!!(recurring && scope==='series'),sourceTask);
     const projectSelect=$('#wpProject',root);
-    if(projectSelect) { projectSelect.value=vals.projectId||''; projectSelection=projectSelect.value||''; }
+    if(projectSelect) { wpSetDomSelectValue(projectSelect,vals.projectId||''); projectSelection=projectSelect.value||''; }
     wpSyncEditorUI(root,vals.frequency);
     cleanSnap=wpEditorSnap(root);
     const h=root.querySelector('.modal-h h3'); if(h) h.textContent=isNew?'Новая задача':scope==='instance'?'Изменить экземпляр':'Изменить задачу / серию';
@@ -15286,7 +15627,7 @@ function wpOpenEditor(ref=null,opts={}) {
     const target=e.target;
     if(target.id==='wpProject') {
       if(target.value==='__add') {
-        target.value=projectSelection;
+        wpSetDomSelectValue(target,projectSelection);
         await wpAddProjectFromEditor(target,projectSelection);
         projectSelection=target.value||'';
       } else projectSelection=target.value||'';
@@ -15641,33 +15982,104 @@ function wpMergeImportedProjects(existingBoards,sourceBoards,selection) {
   }
   return {ok:true,boards:result,activeBoardId:result.some(board=>String(board.id||'')===String(S.boardId||''))?String(S.boardId):groups.keys().next().value};
 }
+function wpImportedRecordIdentity(item) {
+  if(wpIsObj(item)&&item.id!=null&&String(item.id)) return `id:${String(item.id)}`;
+  let raw;try { raw=JSON.stringify(item); } catch(_) { raw=String(item); }
+  return `value:${raw==null?String(item):raw}`;
+}
+function wpImportedValueIdentity(item) {
+  const value=wpIsObj(item)?(item.email||item.name||item.id||''):item;
+  const normalized=String(value||'').trim().toLocaleLowerCase();
+  return normalized?`value:${normalized}`:wpImportedRecordIdentity(item);
+}
+function wpMergeImportedArray(target,source,identity=wpImportedRecordIdentity) {
+  const result=(Array.isArray(target)?target:[]).map(wpClone),seen=new Set(result.map(identity));
+  (Array.isArray(source)?source:[]).forEach(item=>{
+    const key=identity(item);if(seen.has(key))return;
+    seen.add(key);result.push(wpClone(item));
+  });
+  return result;
+}
+function wpMergeImportedTaskData(existingBoards,sourceBoards,localActiveBoardId,importedActiveBoardId) {
+  const result=(Array.isArray(existingBoards)?existingBoards:[]).filter(wpIsObj).map(board=>wpNormalizeBoard(wpClone(board)));
+  const indexes=new Map();result.forEach((board,index)=>indexes.set(String(board.id||''),index));
+  const arrayKeys=new Set(['projects','tasks','recurrenceRules','occurrences','invites','people','prios','terms','formats','statuses']);
+  for(const rawSource of Array.isArray(sourceBoards)?sourceBoards:[]) {
+    if(!wpIsObj(rawSource)) return {ok:false,error:'Доска в файле имеет неверный формат.'};
+    const source=wpNormalizeBoard(wpClone(rawSource)),boardId=String(source.id||'');
+    if(!boardId) return {ok:false,error:'У доски из файла отсутствует идентификатор.'};
+    if(!indexes.has(boardId)) {
+      indexes.set(boardId,result.length);result.push(source);continue;
+    }
+
+    const target=result[indexes.get(boardId)],targetTasks=new Map((target.tasks||[]).map(task=>[String(task&&task.id||''),task]));
+    const sourceTasks=new Map((source.tasks||[]).map(task=>[String(task&&task.id||''),task]));
+    const addedTaskIds=new Set([...sourceTasks.keys()].filter(id=>id&&!targetTasks.has(id)));
+    target.projects=wpMergeImportedArray(target.projects,source.projects);
+    target.tasks=wpMergeImportedArray(target.tasks,source.tasks);
+
+    const importRules=(source.recurrenceRules||[]).filter(rule=>{
+      const taskId=wpTaskRuleTaskId(rule,source.tasks),sourceTask=sourceTasks.get(taskId),localTask=targetTasks.get(taskId);
+      if(addedTaskIds.has(taskId)) return true;
+      const ruleId=String(rule&&rule.id||'');
+      return !!(sourceTask&&localTask&&sourceTask.recurrenceRuleId&&
+        String(sourceTask.recurrenceRuleId)===String(localTask.recurrenceRuleId)&&
+        String(sourceTask.recurrenceRuleId)===ruleId);
+    });
+    target.recurrenceRules=wpMergeImportedArray(target.recurrenceRules,importRules);
+
+    const compatibleOccurrences=(source.occurrences||[]).filter(record=>{
+      const taskId=String(record&&(record.seriesTaskId||record.taskId||record.parentTaskId)||''),sourceTask=sourceTasks.get(taskId),localTask=targetTasks.get(taskId);
+      if(addedTaskIds.has(taskId)) return true;
+      return !!(sourceTask&&localTask&&sourceTask.recurrenceRuleId&&
+        String(sourceTask.recurrenceRuleId)===String(localTask.recurrenceRuleId));
+    });
+    target.occurrences=wpMergeImportedArray(target.occurrences,compatibleOccurrences);
+    target.invites=wpMergeImportedArray(target.invites,source.invites);
+    ['people','prios','terms','formats','statuses'].forEach(key=>{
+      target[key]=wpMergeImportedArray(target[key],source[key],wpImportedValueIdentity);
+    });
+    Object.keys(source).forEach(key=>{
+      if(key==='id'||key==='taskSchemaVersion'||arrayKeys.has(key)||typeof target[key]!=='undefined')return;
+      target[key]=wpClone(source[key]);
+    });
+    target.taskSchemaVersion=WP_SCHEMA;
+    result[indexes.get(boardId)]=wpNormalizeBoard(target);
+  }
+  if(!result.length) return {ok:false,error:'В файле нет досок с задачами.'};
+  const preferredImported=String(importedActiveBoardId||''),preferredLocal=String(localActiveBoardId||'');
+  const activeBoardId=result.some(board=>String(board.id||'')===preferredImported)?preferredImported:
+    result.some(board=>String(board.id||'')===preferredLocal)?preferredLocal:String(result[0].id||'');
+  return {ok:true,boards:result,activeBoardId};
+}
 async function wpApplyImportedTaskData(obj,sourceBoards,mode,selection) {
   if(S.taskMigrationOK===false) {toast(S.taskMigrationError||'Импорт недоступен в режиме защиты данных.',{icon:'ban'});return false;}
-  const scopedFile=obj.exportScope.type==='projects',merge=mode==='projects'||scopedFile;
+  const scopedFile=obj.exportScope.type==='projects',projectMerge=mode==='projects'||scopedFile;
   let newBoards=[],activeId='',newMeta=wpClone(S.boardsMeta||{});
-  if(merge) {
+  if(projectMerge) {
     const chosen=mode==='projects'?selection:wpTaskProjectChoices(sourceBoards).map(item=>({boardId:item.boardId,projectId:item.projectId}));
     const merged=wpMergeImportedProjects(wpTaskTransferBoards(),sourceBoards,chosen);
     if(!merged.ok){toast(merged.error||'Выбранные проекты не удалось объединить.',{icon:'ban'});return false;}
     newBoards=merged.boards;activeId=merged.activeBoardId;
   } else {
-    newBoards=sourceBoards.map(wpClone);activeId=String(obj.activeBoardId||obj.selectedBoardId||obj.boardId||(obj.board&&obj.board.id)||newBoards[0].id||'');
-    if(wpIsObj(obj.boardsMeta))newMeta=wpClone(obj.boardsMeta);
-    if(!newBoards.some(board=>String(board.id||'')===activeId))activeId=String(newBoards[0].id||'');
+    const merged=wpMergeImportedTaskData(wpTaskTransferBoards(),sourceBoards,S.boardId||S.board&&S.board.id,obj.activeBoardId||obj.selectedBoardId||obj.boardId||obj.board&&obj.board.id);
+    if(!merged.ok){toast(merged.error||'Данные из файла не удалось объединить.',{icon:'ban'});return false;}
+    newBoards=merged.boards;activeId=merged.activeBoardId;
+    if(wpIsObj(obj.boardsMeta))Object.keys(obj.boardsMeta).forEach(key=>{if(typeof newMeta[key]==='undefined')newMeta[key]=wpClone(obj.boardsMeta[key]);});
   }
   if(!newBoards.length){toast('В файле нет досок с задачами.',{icon:'ban'});return false;}
   const active=newBoards.find(board=>String(board.id||'')===activeId)||newBoards[0];activeId=String(active.id||'');
-  const description=merge
+  const description=projectMerge
     ? `Будут добавлены или заменены выбранные проекты и их задачи. Остальные проекты и задачи сохранятся. Перед импортом будет создана локальная копия текущих данных.`
-    : `Будут восстановлены ${newBoards.length} доски, проекты, задачи, правила повторения и история экземпляров вместо текущих данных. Перед заменой будет создана локальная копия.`;
-  if(!(await confirmDlg({title:merge?'Импортировать проекты?':'Восстановить все задачи?',text:description,ok:merge?'Импортировать':'Восстановить',danger:!merge,icon:'download'}))) return false;
+    : `Данные из файла будут объединены с локальными. Совпадающие идентификаторы сохранят локальные записи; новую доску из файла приложение выберет автоматически. Перед импортом будет создана локальная копия текущих данных.`;
+  if(!(await confirmDlg({title:projectMerge?'Импортировать проекты?':'Объединить задачи из файла?',text:description,ok:projectMerge?'Импортировать':'Объединить',danger:false,icon:'download'}))) return false;
   const backupKey=wpCreatePreImportBackup();
   if(!backupKey){toast('Не удалось проверить локальную копию текущих данных. Импорт отменён.',{icon:'ban'});return false;}
   const oldBoards=wpClone(S.boards||[]),oldBoard=wpClone(S.board),oldId=S.boardId,oldMeta=wpClone(S.boardsMeta||{});
   S.boards=newBoards;S.board=active;S.boardId=activeId;S.boardsMeta=newMeta;ensureBoard();
   if(!wpPersistBoard()){S.boards=oldBoards;S.board=oldBoard;S.boardId=oldId;S.boardsMeta=oldMeta;toast('Импорт не сохранён. Данные откатились; локальная pre-import копия сохранена.',{icon:'ban'});return false;}
   WP.projectId='';WP.query='';WP.view='week';wpResetAllFilters(false);WP.weekStart=wpWeekStart(wpDateKey(Date.now()));WP.mobileDate=wpDateKey(Date.now());WP.reviewSelected=[];
-  wpRenderTaskPageFull();toast(merge?'Выбранные проекты импортированы; остальные данные сохранены':'Резервная копия задач восстановлена',{icon:'check'});return true;
+  wpRenderTaskPageFull();toast(projectMerge?'Выбранные проекты импортированы; остальные данные сохранены':'Данные задач объединены; локальные записи сохранены',{icon:'check'});return true;
 }
 function wpTaskPayloadFromMigrationBackupFile(value) {
   if(!wpIsObj(value)||value.kind!=='SHELTER_PLANNER_MIGRATION_BACKUP_FILE'||typeof value.migrationBackupText!=='string') return null;
@@ -15693,8 +16105,8 @@ function wpImportPayload(obj) {
   if(wpIsObj(obj)&&obj.kind==='SHELTER_PLANNER_MIGRATION_BACKUP_FILE') obj=wpTaskPayloadFromMigrationBackupFile(obj);
   const boards=wpReadTaskExportBoards(obj);
   if(!boards){toast('Файл не похож на зашифрованную резервную копию задач SHELTER.',{icon:'ban'});return;}
-  const choices=wpTaskProjectChoices(boards),scoped=obj.exportScope.type==='projects',allDescription=scoped?'Все проекты из файла будут добавлены или заменены; остальные данные сохранятся.':'Будут заменены все локальные доски и задачи. Перед этим создаётся локальная копия.';
-  const m=openModal({width:560,dismiss:false,html:`<div class="modal-h"><div class="mi-ic">${ico('download')}</div><h3>Импорт задач</h3><button type="button" class="icon-btn" data-wp-task-import="cancel" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="wp-transfer-scopes" role="radiogroup" aria-label="Выбор данных для импорта"><label class="wp-transfer-choice"><input type="radio" name="wpTaskImportScope" value="all" checked><span><b>Всё из файла</b><small>${esc(allDescription)}</small></span></label><label class="wp-transfer-choice"><input type="radio" name="wpTaskImportScope" value="projects" ${choices.length?'':'disabled'}><span><b>Выбрать проекты</b><small>Заменяются только выбранные проекты; остальные проекты и задачи сохраняются.</small></span></label></div><div class="wp-transfer-projects" id="wpTaskImportProjects" hidden>${wpTaskProjectGroupsHtml(choices,'import')}</div><p class="wp-transfer-note">Пароль уже проверен. До подтверждения импорт ничего не меняет. Для обычной полной копии режим «Всё» заменяет локальные доски; выбор проектов выполняет точечное объединение.</p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-task-import="cancel">Отмена</button><button type="button" class="btn primary" data-wp-task-import="apply">${ico('download')}Продолжить</button></div>`});
+  const choices=wpTaskProjectChoices(boards),scoped=obj.exportScope.type==='projects',allDescription=scoped?'Все проекты из файла будут добавлены или заменены; остальные данные сохранятся.':'Доски и задачи будут объединены с локальными. Совпадающие ID сохранят локальные записи; новая доска из файла будет выбрана автоматически.';
+  const m=openModal({width:560,dismiss:false,html:`<div class="modal-h"><div class="mi-ic">${ico('download')}</div><h3>Импорт задач</h3><button type="button" class="icon-btn" data-wp-task-import="cancel" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="wp-transfer-scopes" role="radiogroup" aria-label="Выбор данных для импорта"><label class="wp-transfer-choice"><input type="radio" name="wpTaskImportScope" value="all" checked><span><b>Всё из файла</b><small>${esc(allDescription)}</small></span></label><label class="wp-transfer-choice"><input type="radio" name="wpTaskImportScope" value="projects" ${choices.length?'':'disabled'}><span><b>Выбрать проекты</b><small>Заменяются только выбранные проекты; остальные проекты и задачи сохраняются.</small></span></label></div><div class="wp-transfer-projects" id="wpTaskImportProjects" hidden>${wpTaskProjectGroupsHtml(choices,'import')}</div><p class="wp-transfer-note">Пароль уже проверен. До подтверждения импорт ничего не меняет. Режим «Всё» объединяет расшифрованные данные с локальными: совпадающие ID не перезаписывают локальные записи, а новую доску приложение выберет автоматически. Выбор проектов точечно заменяет только отмеченные проекты.</p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-task-import="cancel">Отмена</button><button type="button" class="btn primary" data-wp-task-import="apply">${ico('download')}Продолжить</button></div>`});
   const root=m.scrim,projectList=$('#wpTaskImportProjects',root);m.guard=null;
   root.addEventListener('change',event=>{if(event.target&&event.target.name==='wpTaskImportScope'&&projectList)projectList.hidden=event.target.value!=='projects';});
   root.addEventListener('click',async event=>{
@@ -15711,7 +16123,7 @@ function wpImportPayload(obj) {
 function wpPromptTaskImportPassword(envelope,filename) {
   return new Promise(resolve=>{
     let done=false;
-    const m=openModal({width:440,dismiss:false,html:`<div class="modal-h"><div class="mi-ic">${ico('lock')}</div><h3>Код файла</h3><button type="button" class="icon-btn" data-wp-import-password="cancel" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><p class="wp-form-hint">Введите код, установленный при экспорте файла <b>${esc(filename||'резервная копия')}</b>. Содержимое будет прочитано только после успешной проверки кода.</p><label class="field"><span>Код файла</span><input class="input" type="password" id="wpTaskImportPassword" autocomplete="current-password" maxlength="1024" spellcheck="false"></label><p class="wp-transfer-note" id="wpTaskImportPasswordResult" aria-live="polite"></p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-import-password="cancel">Отмена</button><button type="button" class="btn primary" data-wp-import-password="unlock">${ico('unlock')}Проверить код</button></div>`});
+    const m=openModal({width:440,dismiss:false,html:`<div class="modal-h"><div class="mi-ic">${ico('lock')}</div><h3>Код файла</h3><button type="button" class="icon-btn" data-wp-import-password="cancel" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><p class="wp-form-hint">Введите код, установленный при экспорте файла <b>${esc(filename||'резервная копия')}</b>. Содержимое будет прочитано только после успешной проверки кода.</p><label class="field"><span>Код файла</span><input class="input" type="password" id="wpTaskImportPassword" autocomplete="current-password" maxlength="1024" spellcheck="false"></label><p class="wp-transfer-note" id="wpTaskImportPasswordResult" aria-live="polite"></p></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-import-password="cancel">Отмена</button><button type="button" class="btn primary wp-import-password-submit" data-wp-import-password="unlock"><span class="wp-import-password-submit-content">${ico('unlock')}<span>Проверить код</span></span></button></div>`});
     const root=m.scrim,input=$('#wpTaskImportPassword',root),result=$('#wpTaskImportPasswordResult',root);m.guard=null;
     const finish=value=>{if(done)return;done=true;if(input)input.value='';closeModal(m);resolve(value);};
     m.onClose=()=>{if(!done){done=true;if(input)input.value='';resolve(null);}};

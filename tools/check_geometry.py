@@ -227,6 +227,7 @@ def main() -> int:
     process = None
     cdp = None
     last_ui_state: List[Any] = [None]
+    native_open_state: List[Any] = [None]
     native_open_attempts = 0
     native_open_accepted = False
     stderr_stream = open(stderr_file, "w", encoding="utf-8", errors="replace")
@@ -265,9 +266,10 @@ def main() -> int:
           const rect = viewport ? viewport.getBoundingClientRect() : null;
           const hasNavigate = !!window.shelter &&
             typeof window.shelter.navigate === 'function';
-          const hasNativeOpen = typeof window.shelterOpen === 'function';
+          const hasNativeRequest = typeof window.shelterCefRequest === 'function';
+          const hasTabInfo = typeof window.__shelterTab === 'function';
           return {
-            ready: !!viewport && hasNavigate && hasNativeOpen,
+            ready: !!viewport && hasNavigate && hasNativeRequest && hasTabInfo,
             activeTabId: activeTabId,
             hasViewport: !!viewport,
             viewport: rect ? {
@@ -275,9 +277,11 @@ def main() -> int:
               w: Math.round(rect.width), h: Math.round(rect.height)
             } : null,
             hasNavigate: hasNavigate,
-            hasNativeOpen: hasNativeOpen
+            hasNativeRequest: hasNativeRequest,
+            hasTabInfo: hasTabInfo
           };
         })()"""
+
         def ui_ready() -> bool:
             last_ui_state[0] = cdp.evaluate(readiness_expression)
             return (
@@ -302,36 +306,73 @@ def main() -> int:
         )
         out("native-site navigation requested:", json.dumps(navigation, ensure_ascii=False))
 
+        native_open_expression = """(async () => {
+          const id = window.getActiveTabId();
+          const viewport = document.getElementById('viewport');
+          if (!id || !viewport) return {accepted: false, reason: 'missing UI tab or viewport'};
+          const box = viewport.getBoundingClientRect();
+          const rect = {
+            x: Math.round(box.left), y: Math.round(box.top),
+            w: Math.round(box.width), h: Math.round(box.height)
+          };
+          if (rect.w < 2 || rect.h < 2) {
+            return {accepted: false, reason: 'viewport not measurable', id: id, rect: rect};
+          }
+          const info = window.__shelterTab(id) || {space: 'main', ghost: false};
+          const partition = (info.ghost ? 'temp:ghost-' : 'persist:space-') +
+            (info.space || 'main');
+          const response = await window.shelterCefRequest('view.open', {
+            id: id,
+            url: 'https://example.com/',
+            partition: partition,
+            rect: rect,
+            visible: true,
+            focus: true,
+            zoom: 1
+          });
+          const accepted = !!response && typeof response === 'object' &&
+            typeof response.created === 'boolean' &&
+            typeof response.navigated === 'boolean';
+          return {
+            accepted: accepted,
+            id: id,
+            partition: partition,
+            rect: rect,
+            response: response
+          };
+        })()"""
         while time.monotonic() < deadline and not native_open_accepted:
             if process.poll() is not None:
                 raise GeometryError(
                     f"SHELTER exited early with status {process.returncode}"
                 )
             native_open_attempts += 1
+            native_open_state[0] = cdp.evaluate(native_open_expression, timeout=15)
             native_open_accepted = (
-                cdp.evaluate(
-                    "window.shelterOpen('https://example.com/', "
-                    "{reveal: true}) === true"
-                )
-                is True
+                isinstance(native_open_state[0], dict)
+                and native_open_state[0].get("accepted") is True
             )
-            if native_open_accepted:
-                last_ui_state[0] = cdp.evaluate(readiness_expression)
-                break
             if native_open_attempts == 1 or native_open_attempts % 10 == 0:
                 last_ui_state[0] = cdp.evaluate(readiness_expression)
                 out(
-                    "waiting for native viewport:",
+                    "native view request:",
+                    json.dumps(native_open_state[0], ensure_ascii=False),
+                    "UI:",
                     json.dumps(last_ui_state[0], ensure_ascii=False),
                 )
-            time.sleep(min(0.5, max(0.0, deadline - time.monotonic())))
+            if not native_open_accepted:
+                time.sleep(min(0.5, max(0.0, deadline - time.monotonic())))
         if not native_open_accepted:
             raise GeometryError(
-                "UI bridge did not accept native view after "
-                f"{native_open_attempts} attempts; last UI state: "
-                f"{json.dumps(last_ui_state[0], ensure_ascii=False)}"
+                "UI bridge did not confirm view.open after "
+                f"{native_open_attempts} attempts; last request: "
+                f"{json.dumps(native_open_state[0], ensure_ascii=False)}"
             )
-        out(f"native view accepted after {native_open_attempts} attempts")
+        last_ui_state[0] = cdp.evaluate(readiness_expression)
+        out(
+            f"native view accepted after {native_open_attempts} attempts:",
+            json.dumps(native_open_state[0], ensure_ascii=False),
+        )
 
         geometry_wait = min(45, budget)
         geometry_deadline = time.monotonic() + geometry_wait
@@ -381,9 +422,11 @@ def main() -> int:
         return 0
     except Exception as exc:
         diagnostic_state = json.dumps(last_ui_state[0], ensure_ascii=False)
+        native_request_state = json.dumps(native_open_state[0], ensure_ascii=False)
         diagnostic = (
             f"native_open_attempts={native_open_attempts}, "
-            f"accepted={native_open_accepted}, last_ui_state={diagnostic_state}"
+            f"accepted={native_open_accepted}, native_request={native_request_state}, "
+            f"last_ui_state={diagnostic_state}"
         )
         out(f"FAIL: {exc}; {diagnostic}")
         out(f"::error title=Geometry acceptance failed::{exc}; {diagnostic}")

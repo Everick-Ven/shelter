@@ -36,7 +36,7 @@ assert.doesNotMatch(shell, /fs::path\(platform::UserDataDir\(\)\)|fs::path\(cach
 const extensionEngine = read('src/extension_engine.h');
 assert.match(extensionEngine, /PathFromUtf8\(path\)/,
   'extension mode files use UTF-8 file paths');
-assert.match(extensionEngine, /directory_iterator it\(path_utils::PathFromUtf8\(root\), ec\)/,
+assert.match(extensionEngine, /directory_iterator it\(\s*path_utils::PathFromUtf8\(root\), ec\)/,
   'extension directories are enumerated through native Unicode paths');
 assert.match(extensionEngine, /PathToUtf8\(dir\)/,
   'extension paths are returned as UTF-8 for CEF');

@@ -457,6 +457,8 @@ jobs:
           set -euo pipefail
           c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/secret_crypto_test.cc src/secret_crypto.cc -o secret-crypto-test
           ./secret-crypto-test
+      - name: Window mode persistence source regression test
+        run: node tests/window_state_source_test.js
       - name: Compile and run path/archive safety tests
         run: |
           set -euo pipefail

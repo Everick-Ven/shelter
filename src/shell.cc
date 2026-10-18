@@ -145,6 +145,114 @@ constexpr size_t kMaxExtensionPermissionLength = 512;
 constexpr size_t kMaxInstalledExtensions = 256;
 constexpr std::uintmax_t kMaxPendingWipeListBytes = 64u * 1024u;
 constexpr size_t kMaxPendingWipeEntries = 1024;
+constexpr char kMainWindowStateFile[] = "window-state-v1";
+constexpr char kMainWindowStateMagic[] = "SHELTER_WINDOW_STATE_V1";
+
+enum class MainWindowMode { kNormal, kMaximized, kFullscreen };
+
+const char* MainWindowModeName(MainWindowMode mode) {
+  switch (mode) {
+    case MainWindowMode::kNormal:
+      return "normal";
+    case MainWindowMode::kMaximized:
+      return "maximized";
+    case MainWindowMode::kFullscreen:
+      return "fullscreen";
+  }
+  return "maximized";
+}
+
+fs::path MainWindowStatePath() {
+  return fs::u8path(platform::UserDataDir()) / fs::u8path(kMainWindowStateFile);
+}
+
+bool IsOptionalWindowStateFileSafe(const fs::path& path) {
+  std::error_code ec;
+  const fs::file_status status = fs::symlink_status(path, ec);
+  if (ec == std::errc::no_such_file_or_directory) return true;
+  if (ec) return false;
+  if (status.type() == fs::file_type::not_found) return true;
+  if (!security::IsRegularFileWithoutLink(path)) return false;
+  const std::uintmax_t links = fs::hard_link_count(path, ec);
+  return !ec && links == 1;
+}
+
+MainWindowMode ReadMainWindowMode() {
+  const fs::path path = MainWindowStatePath();
+  if (!security::IsRegularFileWithoutLink(path))
+    return MainWindowMode::kMaximized;
+  std::error_code ec;
+  const std::uintmax_t size = fs::file_size(path, ec);
+  if (ec || size > 128) return MainWindowMode::kMaximized;
+
+  std::ifstream input(path, std::ios::binary);
+  std::string magic;
+  std::string value;
+  if (!input || !std::getline(input, magic) || !std::getline(input, value) ||
+      input.peek() != std::char_traits<char>::eof() ||
+      magic != kMainWindowStateMagic) {
+    return MainWindowMode::kMaximized;
+  }
+  if (value == "normal") return MainWindowMode::kNormal;
+  if (value == "fullscreen") return MainWindowMode::kFullscreen;
+  return MainWindowMode::kMaximized;
+}
+
+bool WriteMainWindowMode(MainWindowMode mode) {
+  const fs::path directory = fs::u8path(platform::UserDataDir());
+  if (directory.empty() || !security::EnsureDirectoryWithoutLink(directory))
+    return false;
+
+  const fs::path path = directory / fs::u8path(kMainWindowStateFile);
+  const fs::path temporary = directory / fs::u8path("window-state-v1.tmp");
+  if (!IsOptionalWindowStateFileSafe(path) ||
+      !IsOptionalWindowStateFileSafe(temporary)) {
+    return false;
+  }
+
+  std::ofstream output(temporary, std::ios::binary | std::ios::trunc);
+  if (!output) return false;
+  output << kMainWindowStateMagic << '\n' << MainWindowModeName(mode) << '\n';
+  output.flush();
+  if (!output) {
+    output.close();
+    std::error_code cleanup_error;
+    fs::remove(temporary, cleanup_error);
+    return false;
+  }
+  output.close();
+  if (!output) return false;
+
+#if defined(_WIN32)
+  if (!MoveFileExW(temporary.c_str(), path.c_str(),
+                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+    std::error_code cleanup_error;
+    fs::remove(temporary, cleanup_error);
+    return false;
+  }
+#else
+  std::error_code rename_error;
+  fs::rename(temporary, path, rename_error);
+  if (rename_error) {
+    std::error_code cleanup_error;
+    fs::remove(temporary, cleanup_error);
+    return false;
+  }
+#endif
+  return security::IsRegularFileWithoutLink(path);
+}
+
+void SaveMainWindowMode(CefRefPtr<CefWindow> window) {
+  if (!window || window->IsMinimized()) return;
+  MainWindowMode mode = MainWindowMode::kNormal;
+  if (window->IsFullscreen()) {
+    mode = MainWindowMode::kFullscreen;
+  } else if (window->IsMaximized()) {
+    mode = MainWindowMode::kMaximized;
+  }
+  if (ReadMainWindowMode() != mode) WriteMainWindowMode(mode);
+}
+
 
 bool SameRect(const CefRect& left, const CefRect& right) {
   return left.x == right.x && left.y == right.y &&
@@ -193,6 +301,27 @@ class ShellWindowDelegate : public CefWindowDelegate {
   bool CanResize(CefRefPtr<CefWindow>) override { return true; }
   bool CanMaximize(CefRefPtr<CefWindow>) override { return true; }
   bool CanMinimize(CefRefPtr<CefWindow>) override { return true; }
+
+  cef_show_state_t GetInitialShowState(CefRefPtr<CefWindow>) override {
+    switch (ReadMainWindowMode()) {
+      case MainWindowMode::kNormal:
+        return CEF_SHOW_STATE_NORMAL;
+      case MainWindowMode::kFullscreen:
+        return CEF_SHOW_STATE_FULLSCREEN;
+      case MainWindowMode::kMaximized:
+      default:
+        return CEF_SHOW_STATE_MAXIMIZED;
+    }
+  }
+  void OnWindowBoundsChanged(CefRefPtr<CefWindow> window,
+                             const CefRect&) override {
+    SaveMainWindowMode(window);
+  }
+  void OnWindowFullscreenTransition(CefRefPtr<CefWindow> window,
+                                    bool is_completed) override {
+    if (is_completed) SaveMainWindowMode(window);
+  }
+
 
   CefSize GetPreferredSize(CefRefPtr<CefView>) override {
     int w = 1440, h = 900;
@@ -969,6 +1098,7 @@ bool Shell::CanCloseWindow() {
 void Shell::OnWindowDestroyed() {
   CEF_REQUIRE_UI_THREAD();
   if (window_) {
+    SaveMainWindowMode(window_);
     platform::UnwatchMainWindow(reinterpret_cast<void*>(window_->GetWindowHandle()));
   }
   window_ = nullptr;
@@ -1874,7 +2004,13 @@ void Shell::OnTabFullscreen(CefRefPtr<CefBrowser> browser, bool on) {
 
 void Shell::SetWindowFullscreen(bool on) {
   CEF_REQUIRE_UI_THREAD();
-  if (window_) window_->SetFullscreen(on);
+  if (!window_) return;
+  window_->SetFullscreen(on);
+  if (on) {
+    WriteMainWindowMode(MainWindowMode::kFullscreen);
+  } else if (!window_->IsFullscreen()) {
+    SaveMainWindowMode(window_);
+  }
 }
 
 // ---- расширения -------------------------------------------------------------

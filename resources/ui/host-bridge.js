@@ -28,7 +28,7 @@
     'win.maximize', 'win.close', 'win.fullscreen', 'favicon.ensure', 'ext.list',
     'ext.setMode', 'ext.install', 'ext.remove', 'ext.pick', 'file.open',
     'win.openPlain', 'view.open', 'view.layout', 'view.clip', 'view.hide',
-    'view.show', 'view.sync', 'view.act', 'ctx.act', 'view.snap', 'view.zoom',
+    'view.show', 'tabs.sync', 'view.act', 'ctx.act', 'view.snap', 'view.zoom',
     'find', 'devtools', 'clip.read', 'clip.write', 'theme.scheme', 'shell.show',
     'block.setEnabled', 'fp.setEnabled', 'cookie.setEnabled', 'https.setEnabled',
     'dns.setProvider', 'strict.setEnabled', 'strict.allow', 'ghost.setEnabled',
@@ -133,6 +133,7 @@
     urls: {},           // id -> последний известный url
     loading: {},        // id -> bool
     zoom: 1,
+    zoomPending: false,
     frozen: false,      // вместо нативного вида показан снимок
     busy: false,
     snapFor: '',
@@ -315,7 +316,7 @@
     function recoverStaleHide() {
       st.frozen = false;
       dropSnap();
-      if (!st.visible) return q('view.hide').then(finish);
+      if (!st.visible) { finish(); return; }
       return q('view.show', { rect: vpRect(), focus: !editableFocused() })
         .then(function () { return nextFrames(1); })
         .then(function () { st.clipKey = ''; finish(); });
@@ -402,7 +403,8 @@
         pushPerf(perf.thawMs, performance.now() - tt0);
         if (!st.visible) {
           dropSnap();
-          return q('view.hide').then(finish);
+          finish();
+          return;
         }
         var changed = st.epoch !== epoch || st.tabId !== id;
         var covered = overlayOverViewport();
@@ -556,6 +558,7 @@
     if (freezeRetryTimer) { clearTimeout(freezeRetryTimer); freezeRetryTimer = 0; }
   }
   function scheduleFreezeRetry() {
+    if (!st.visible) { resetFreezeRetry(); return; }
     resetFreezeRetry();
     freezeRetryAt = performance.now() + 750;
     freezeRetryTimer = setTimeout(function () { freezeRetryTimer = 0; scheduleEval(); }, 750);
@@ -622,24 +625,38 @@
       else focus = false;
     }
     st.lastRect = rectKey(rect);
-    q('view.open', {
+    var opened = q('view.open', {
       id: id, url: url, partition: partition, rect: rect,
       visible: !st.frozen, focus: focus && !st.frozen, zoom: st.zoom
     });
+    if (st.zoomPending) {
+      st.zoomPending = false;
+      opened.then(function (result) {
+        if (result !== null && st.visible && st.tabId === id) q('view.zoom', { factor: st.zoom });
+      });
+    }
     st.clipKey = '';
     scheduleEval();
     return true;
   };
   window.shelterShowChrome = function () {
-    if (!st.visible && !st.frozen && !st.busy) { setNativeContentClass(); return; }
+    if (!st.visible) {
+      st.epoch++;
+      st.frozen = false;
+      resetFreezeRetry();
+      setNativeContentClass();
+      stopClipLoop();
+      dropSnap();
+      return;
+    }
     st.epoch++;
+    q('view.hide');
     st.visible = false;
     st.frozen = false;
     resetFreezeRetry();
     setNativeContentClass();
     stopClipLoop();
     dropSnap();
-    q('view.hide');
   };
   window.shelterIsLoading = function () { return !!st.loading[st.tabId] && st.visible; };
   window.shelterStopLoad = function () {
@@ -653,6 +670,8 @@
     f = +f;
     if (!(f > 0)) return;
     st.zoom = f;
+    if (!st.visible) { st.zoomPending = true; return; }
+    st.zoomPending = false;
     q('view.zoom', { factor: f });
   };
   window.shelterGhostSync = function () { scheduleSync(); };
@@ -673,8 +692,8 @@
   function syncTabs() {
     var ids = [];
     try { if (typeof window.getAllTabIds === 'function') ids = window.getAllTabIds() || []; } catch (_) {}
-    // Send empty lists too, so closing the final UI tab destroys stale native views.
-    q('view.sync', { ids: ids });
+    // Пустой список нужен, чтобы закрытие последней вкладки удаляло устаревшие нативные представления.
+    q('tabs.sync', { ids: ids });
   }
   function scheduleSync() { clearTimeout(syncTimer); syncTimer = setTimeout(syncTabs, 350); }
 
@@ -702,7 +721,10 @@
     themeScheme: function (m) { q('theme.scheme', { mode: m }); },
     onZoom: function () {},
     onCtxClose: function (cb) { cbs.ctxclose = cb; },
-    ctxAct: function (o) { return q('ctx.act', o || {}); },
+    ctxAct: function (o) {
+      if (!st.visible || !o || o.id !== st.tabId) return Promise.resolve(null);
+      return q('ctx.act', o);
+    },
     openPlainWindow: function (o) { return q('win.openPlain', { url: (o && o.url) || '' }); },
     showInFolder: function (p) { return q('shell.show', { path: String(p || '') }); },
     fileState: function (p) { return q('shell.filestate', { path: String(p || '') }).then(function (r) { return !!(r && r.exists); }).catch(function () { return null; }); },
@@ -763,12 +785,12 @@
       (document.activeElement || document.body).dispatchEvent(ev);
     },
     ctx: function (p) {
-      if (typeof window.shelterCtxMenu !== 'function') return;
+      if (!st.visible || !p || p.id !== st.tabId || typeof window.shelterCtxMenu !== 'function') return;
       var vp = vpRect() || { x: 0, y: 0 };
       var id = p.id;
       var wv = {
-        reload: function () { q('view.act', { id: id, act: 'reload' }); },
-        print: function () { q('view.act', { id: id, act: 'print' }); }
+        reload: function () { if (st.visible && st.tabId === id) q('view.act', { id: id, act: 'reload' }); },
+        print: function () { if (st.visible && st.tabId === id) q('view.act', { id: id, act: 'print' }); }
       };
       window.shelterCtxMenu({
         params: p.params || {}, wv: wv, gid: id, partition: p.partition,

@@ -191,7 +191,7 @@ const std::set<std::string>& DiagnosticMethodNames() {
       "favicon.ensure", "ext.list", "ext.setMode", "ext.install",
       "ext.remove", "ext.pick", "file.open", "win.openPlain",
       "view.open", "view.layout", "view.clip", "view.hide", "view.show",
-      "view.sync", "view.act", "ctx.act", "view.snap", "view.zoom",
+      "tabs.sync", "view.act", "ctx.act", "view.snap", "view.zoom",
       "find", "devtools", "clip.read", "clip.write", "theme.scheme",
       "shell.show", "block.setEnabled", "fp.setEnabled",
       "cookie.setEnabled", "https.setEnabled", "dns.setProvider",
@@ -502,7 +502,7 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
-  if (m == "view.sync") {
+  if (m == "tabs.sync") {
     std::set<std::string> keep;
     if (a->HasKey("ids") && a->GetType("ids") == VTYPE_LIST) {
       CefRefPtr<CefListValue> l = a->GetList("ids");

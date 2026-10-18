@@ -78,12 +78,13 @@
     };
   }
   var nativeCefQuery = window.cefQuery;
+  var bridgeCefQuery = nativeCefQuery;
 
   /* ---------- cefQuery ---------- */
   function q(method, args) {
     return new Promise(function (resolve) {
-      if (typeof window.cefQuery !== 'function') { resolve(null); return; }
-      window.cefQuery({
+      if (typeof bridgeCefQuery !== 'function') { resolve(null); return; }
+      bridgeCefQuery.call(window, {
         request: JSON.stringify({ m: method, a: args || {} }),
         persistent: false,
         onSuccess: function (r) {
@@ -97,10 +98,10 @@
   }
   function qSnap(id, quality, ms) {
     return new Promise(function (resolve) {
-      if (typeof window.cefQuery !== 'function') { resolve(''); return; }
+      if (typeof bridgeCefQuery !== 'function') { resolve(''); return; }
       var done = false;
       var timer = setTimeout(function () { if (!done) { done = true; resolve(''); } }, ms || 900);
-      window.cefQuery({
+      bridgeCefQuery.call(window, {
         request: JSON.stringify({ m: 'view.snap', a: { id: id, q: quality || 72 } }),
         persistent: false,
         onSuccess: function (r) { if (!done) { done = true; clearTimeout(timer); resolve(r || ''); } },
@@ -246,7 +247,9 @@
   }
   window.__shRecordPerf = recordPerf;
   if (DIAGNOSTICS_ENABLED && typeof nativeCefQuery === 'function') {
-    window.cefQuery = installCefQueryMeasurement(nativeCefQuery);
+    bridgeCefQuery = installCefQueryMeasurement(nativeCefQuery);
+    // Не перезаписываем read-only V8-свойство CEF; прокси живёт в отдельном ключе.
+    window.__shCefQuery = bridgeCefQuery;
   }
 
   function overlayOverViewport() {

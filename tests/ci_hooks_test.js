@@ -15,6 +15,7 @@ const win = read('src/platform_win.cc');
 const mac = read('src/platform_mac.mm');
 const checker = read('tools/check_ci_hooks.py');
 const ui = read('resources/ui/index.html');
+const hostBridge = read('resources/ui/host-bridge.js');
 const geometry = read('tools/check_geometry.py');
 
 const from = (text, start, end) => {
@@ -88,6 +89,12 @@ assert.match(workflow, /-DSHELTER_CI_HOOKS=ON/);
 assert.match(workflow, /check_ci_hooks\.py build off/);
 assert.match(workflow, /check_ci_hooks\.py build-ci on/);
 assert.match(workflow, /check_geometry\.py build-ci/);
+assert.doesNotMatch(hostBridge, /window\.cefQuery\s*=/,
+                    'CI timing must not overwrite the native CEF V8 binding');
+assert.match(hostBridge, /window\.__shCefQuery\s*=\s*bridgeCefQuery/);
+assert.match(hostBridge, /bridgeCefQuery\.call\(window/);
+assert.match(ui, /window\.__shCefQuery/);
+assert.match(ui, /query\.call\(window/);
 const smokeStart = ui.indexOf("if (!/[?&#]smoke=site\\b/.test(location.href)) return;");
 assert.notEqual(smokeStart, -1, 'the geometry smoke URL must activate its native-view check');
 const smokeListenerStart = ui.lastIndexOf("document.addEventListener('DOMContentLoaded', () => {", smokeStart);

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tWSX4K8ifjT3IM23yzfJFllS2QQD7DP1rNsMUp6P6Vk=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-ULXINnYXarXEFJoon5NychtHTMtz4zPB3gqZc7r0M/s=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-ULXINnYXarXEFJoon5NychtHTMtz4zPB3gqZc7r0M/s=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4683,10 +4683,11 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
     if (rawCef && typeof rawCef.send === 'function') {
       try { return rawCef.send(cmd, payload); } catch (_) {}
     }
-    if (typeof window.cefQuery === 'function') {
+    const query = typeof window.__shCefQuery === 'function' ? window.__shCefQuery : window.cefQuery;
+    if (typeof query === 'function') {
       return new Promise(resolve => {
         try {
-          window.cefQuery({
+          query.call(window, {
             request: JSON.stringify(payload),
             onSuccess: res => {
               try { resolve(res ? JSON.parse(res) : { ok: true }); }
@@ -4707,10 +4708,11 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 
   /* Протокол host-bridge {m,a} — для команд, которых нет в легаси-словаре */
   function mq2(m, a) {
-    if (typeof window.cefQuery !== 'function') return Promise.resolve(null);
+    const query = typeof window.__shCefQuery === 'function' ? window.__shCefQuery : window.cefQuery;
+    if (typeof query !== 'function') return Promise.resolve(null);
     return new Promise(resolve => {
       try {
-        window.cefQuery({
+        query.call(window, {
           request: JSON.stringify({ m, a: a || {} }),
           onSuccess: r => { try { resolve(r ? JSON.parse(r) : {}); } catch (_) { resolve(r); } },
           onFailure: () => resolve(null)

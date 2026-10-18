@@ -140,7 +140,7 @@ check('в левой панели прокручивается только об
 check('инструменты закреплены отдельно в нижней части левой панели',
   toolsStart >= 0 && ['widgets','dashboard','downloads','passwords','history','extensions'].every(page => sidebar.indexOf(`data-page="${page}"`) > toolsStart) &&
   css.includes('.sb-inner{position:relative;display:flex;flex:1 1 0%;flex-direction:column;min-height:0;overflow:hidden') &&
-  css.includes('.sb-scroll{flex:1 1 0;min-height:0;overflow-y:auto') &&
+  css.includes('.sb-scroll{flex:0 1 auto;min-height:0;overflow-y:auto') &&
   css.includes('.sb-tools{flex:0 0 auto;margin:auto -12px 0'));
 check('кнопки имеют центрированное содержимое, включая проверку кода импорта',
   /\.btn\{[^}]*text-align:center/.test(css) &&

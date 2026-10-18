@@ -415,7 +415,7 @@ def viewport_measurement(ui: Cdp) -> Dict[str, Any]:
 
 
 def sidebar_scroll_probe(ui: Cdp, width: int, height: int) -> Dict[str, Any]:
-    """Exercise intrinsic growth, overflow, and collapse of the real sidebar."""
+    """Проверяет прокрутку вкладок и закрепление нижних инструментов панели."""
     ui.call(
         "Emulation.setDeviceMetricsOverride",
         {
@@ -429,10 +429,13 @@ def sidebar_scroll_probe(ui: Cdp, width: int, height: int) -> Dict[str, Any]:
     )
     expression = r"""
       (async function() {
+        const sidebar = document.getElementById('sb');
         const scroll = document.getElementById('sbScroll');
         const tabs = document.getElementById('tabList');
-        const ext = document.querySelector('#sbInner .ni[data-page="extensions"]');
-        if (!scroll || !tabs || !ext || tabs.parentElement !== document.getElementById('dockLeft'))
+        const tools = document.getElementById('sbTools');
+        const ext = tools && tools.querySelector('.ni[data-page="extensions"]');
+        const dock = document.getElementById('dockLeft');
+        if (!sidebar || !scroll || !tabs || !tools || !ext || tabs.parentElement !== dock || scroll.contains(tools))
           return null;
         const originalMarkup = tabs.innerHTML;
         const originalScrollTop = scroll.scrollTop;
@@ -441,15 +444,20 @@ def sidebar_scroll_probe(ui: Cdp, width: int, height: int) -> Dict[str, Any]:
         );
         const measure = () => {
           const scrollRect = scroll.getBoundingClientRect();
-          const extRect = ext.getBoundingClientRect();
+          const toolsRect = tools.getBoundingClientRect();
+          const sidebarRect = sidebar.getBoundingClientRect();
+          const sidebarStyle = getComputedStyle(sidebar);
+          const bottomPadding = parseFloat(sidebarStyle.paddingBottom) || 0;
+          const bottomBorder = parseFloat(sidebarStyle.borderBottomWidth) || 0;
           return {
             clientHeight: scroll.clientHeight,
             scrollHeight: scroll.scrollHeight,
             scrollTop: scroll.scrollTop,
             maxScroll: Math.max(0, scroll.scrollHeight - scroll.clientHeight),
             scrollBottom: Math.round(scrollRect.bottom * 100) / 100,
-            extensionsBottom: Math.round(extRect.bottom * 100) / 100,
-            gapAfterExtensionsPx: Math.round((scrollRect.bottom - extRect.bottom) * 100) / 100
+            toolsTop: Math.round(toolsRect.top * 100) / 100,
+            toolsBottom: Math.round(toolsRect.bottom * 100) / 100,
+            toolsBottomInsetPx: Math.round((sidebarRect.bottom - bottomPadding - bottomBorder - toolsRect.bottom) * 100) / 100
           };
         };
         const addProbeTabs = count => {
@@ -2631,9 +2639,22 @@ def main() -> int:
                     ("atBottom", at_bottom),
                     ("collapsed", collapsed),
                 ):
-                    if abs(state["gapAfterExtensionsPx"]) > 1.5:
+                    if abs(state["toolsBottomInsetPx"]) > 1.5:
                         raise AcceptanceError(
-                            "Empty scroll space remains after Extensions "
+                            "Sidebar tools are not pinned to the bottom "
+                            f"({state_name}, {width}px): {measurement}"
+                        )
+                    if (
+                        abs(state["toolsTop"] - empty["toolsTop"]) > 1.5
+                        or abs(state["toolsBottom"] - empty["toolsBottom"]) > 1.5
+                    ):
+                        raise AcceptanceError(
+                            "Sidebar tools moved while the tab list changed or scrolled "
+                            f"({state_name}, {width}px): {measurement}"
+                        )
+                    if state["scrollBottom"] > state["toolsTop"] + 1.5:
+                        raise AcceptanceError(
+                            "Sidebar tab scrollport overlaps the pinned tools "
                             f"({state_name}, {width}px): {measurement}"
                         )
             ui.call("Emulation.clearDeviceMetricsOverride")

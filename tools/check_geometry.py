@@ -226,6 +226,9 @@ def main() -> int:
 
     process = None
     cdp = None
+    last_ui_state: List[Any] = [None]
+    native_open_attempts = 0
+    native_open_accepted = False
     stderr_stream = open(stderr_file, "w", encoding="utf-8", errors="replace")
     deadline = time.monotonic() + budget
     try:
@@ -275,8 +278,6 @@ def main() -> int:
             hasNativeOpen: hasNativeOpen
           };
         })()"""
-        last_ui_state: List[Any] = [None]
-
         def ui_ready() -> bool:
             last_ui_state[0] = cdp.evaluate(readiness_expression)
             return (
@@ -296,16 +297,46 @@ def main() -> int:
             raise GeometryError(f"{exc}; last UI state: {state}") from exc
         out("UI bridge ready:", json.dumps(last_ui_state[0], ensure_ascii=False))
         navigation = cdp.evaluate(
-            "(() => { const target = 'https://example.com/'; "
-            "window.shelter.navigate(target); "
-            "const accepted = window.shelterOpen(target, {reveal: true}); "
-            "return {activeTabId: window.getActiveTabId(), "
-            "nativeOpenAccepted: accepted === true}; })()"
+            "(() => { window.shelter.navigate('https://example.com/'); "
+            "return {activeTabId: window.getActiveTabId()}; })()"
         )
-        out("native-site navigation:", json.dumps(navigation, ensure_ascii=False))
+        out("native-site navigation requested:", json.dumps(navigation, ensure_ascii=False))
 
+        while time.monotonic() < deadline and not native_open_accepted:
+            if process.poll() is not None:
+                raise GeometryError(
+                    f"SHELTER exited early with status {process.returncode}"
+                )
+            native_open_attempts += 1
+            native_open_accepted = (
+                cdp.evaluate(
+                    "window.shelterOpen('https://example.com/', "
+                    "{reveal: true}) === true"
+                )
+                is True
+            )
+            if native_open_accepted:
+                last_ui_state[0] = cdp.evaluate(readiness_expression)
+                break
+            if native_open_attempts == 1 or native_open_attempts % 10 == 0:
+                last_ui_state[0] = cdp.evaluate(readiness_expression)
+                out(
+                    "waiting for native viewport:",
+                    json.dumps(last_ui_state[0], ensure_ascii=False),
+                )
+            time.sleep(min(0.5, max(0.0, deadline - time.monotonic())))
+        if not native_open_accepted:
+            raise GeometryError(
+                "UI bridge did not accept native view after "
+                f"{native_open_attempts} attempts; last UI state: "
+                f"{json.dumps(last_ui_state[0], ensure_ascii=False)}"
+            )
+        out(f"native view accepted after {native_open_attempts} attempts")
+
+        geometry_wait = min(45, budget)
+        geometry_deadline = time.monotonic() + geometry_wait
         line = None
-        while time.monotonic() < deadline:
+        while time.monotonic() < geometry_deadline:
             if process.poll() is not None:
                 raise GeometryError(
                     f"SHELTER exited early with status {process.returncode}"
@@ -316,10 +347,10 @@ def main() -> int:
             if matches:
                 line = matches[-1]
                 break
-            time.sleep(min(0.5, max(0.0, deadline - time.monotonic())))
+            time.sleep(min(0.5, max(0.0, geometry_deadline - time.monotonic())))
         if not line:
             raise GeometryError(
-                f"marker {marker!r} not found in {logfile} within {budget}s"
+                f"marker {marker!r} not found in {logfile} within {geometry_wait}s"
             )
 
         out("geometry:", line)
@@ -349,8 +380,13 @@ def main() -> int:
         )
         return 0
     except Exception as exc:
-        out(f"FAIL: {exc}")
-        out(f"::error title=Geometry acceptance failed::{exc}")
+        diagnostic_state = json.dumps(last_ui_state[0], ensure_ascii=False)
+        diagnostic = (
+            f"native_open_attempts={native_open_attempts}, "
+            f"accepted={native_open_accepted}, last_ui_state={diagnostic_state}"
+        )
+        out(f"FAIL: {exc}; {diagnostic}")
+        out(f"::error title=Geometry acceptance failed::{exc}; {diagnostic}")
         try:
             stderr_stream.flush()
         except OSError:

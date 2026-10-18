@@ -35,10 +35,10 @@ function finish() {
   process.exit(failed ? 1 : 0);
 }
 
-const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/);
-if (!styleMatch) fail('таблица стилей найдена в index.html');
-const css = styleMatch[1];
-check('таблица стилей найдена в index.html', true, css.length + ' символов');
+const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)];
+if (!styleMatches.length) fail('таблица стилей найдена в index.html');
+const css = styleMatches.map(match => match[1]).join('\n');
+check('таблицы стилей найдены в index.html', true, `${styleMatches.length} блоков, ${css.length} символов`);
 
 // Токенизация: комментарии и строки не считаются структурой.
 const structure = [];
@@ -148,10 +148,21 @@ check('кнопки имеют центрированное содержимое
   html.includes('.wp-import-password-submit-content>.i{position:absolute;left:0;top:50%') &&
   html.includes('wp-import-password-submit-content') && html.includes('<span>Проверить код</span>'));
 const plannerStyle = (html.match(/<style id="shelter-week-planner-style">([\s\S]*?)<\/style>/) || [])[1] || '';
-check('экран задач использует левое меню на всю высоту и прокрутку рабочего поля',
-  plannerStyle.includes('.planner-page{display:flex;height:100%;min-height:100%;padding:0;overflow:hidden}') &&
-  plannerStyle.includes('.wp-view{flex:1 1 auto;min-height:0;overflow:auto'));
+const taskLayoutStyle = (html.match(/<style id="shelter-task-layout">([\s\S]*?)<\/style>/) || [])[1] || '';
+check('экран задач использует полноэкранный rail и прокрутку рабочего поля',
+  /\.page\.planner-page\{\s*position:absolute;inset:0;width:100%;height:100%/.test(taskLayoutStyle) &&
+  taskLayoutStyle.includes('.planner-page .wp-layout{') && taskLayoutStyle.includes('grid-template-columns:288px minmax(0,1fr)') &&
+  taskLayoutStyle.includes('.planner-page .wp-rail{') && taskLayoutStyle.includes('width:auto;height:100%') &&
+  taskLayoutStyle.includes('.planner-page .wp-view{') && taskLayoutStyle.includes('overflow:auto;overscroll-behavior:contain'));
+check('новый rail задач содержит мобильный слой открытия и закрытия',
+  taskLayoutStyle.includes('@container shelter (max-width:900px)') &&
+  taskLayoutStyle.includes('.planner-page .wp-layout.is-rail-open .wp-rail') && taskLayoutStyle.includes('.wp-rail-scrim{') &&
+  html.includes('class="wp-mobile-menu" data-act="wpRailOpen"') && html.includes('class="wp-rail-scrim" data-act="wpRailClose"'));
+check('месячная сетка и выбранный день используют двухколоночную компоновку',
+  taskLayoutStyle.includes('.wp-month-layout{') && taskLayoutStyle.includes('grid-template-columns:minmax(0,1fr) 280px') &&
+  html.includes('<div class="wp-month-layout"><div class="wp-month-calendar">'));
 check('месячная сетка задач использует компактные пропорции календаря истории',
-  plannerStyle.includes('.wp-month-day{min-height:84px;aspect-ratio:1.22}'));
+  plannerStyle.includes('.wp-month-day{min-height:84px;aspect-ratio:1.22}') &&
+  taskLayoutStyle.includes('.planner-page .wp-month-day{'));
 
 finish();

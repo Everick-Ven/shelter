@@ -34,7 +34,7 @@ const weekDayCss = html.match(/\.wp-week-grid\.is-all-day \.wp-day\{([^}]*)\}/);
 assert(weekDayCss && /border:0/.test(weekDayCss[1]) && !/border-right:1px/.test(weekDayCss[1]), 'week columns must remain open without permanent day separators');
 assert(html.includes('wpMigrateTaskStores(breg)'), 'legacy task migration must run during load');
 assert(planner.includes('function wpFinalizeTaskMigration()'), 'migration must require an explicit confirmation step');
-assert(planner.includes('debounce(e=>{WP.query=e.target.value;wpRenderView();},150)'), 'task search must be debounced by 150 ms');
+assert(planner.includes('search.addEventListener(\'input\',debounce(e=>{WP.query=e.target.value;wpSyncSearchControls();wpRenderView();},150))'), 'task search must be debounced and keep its clear control in sync');
 assert(planner.includes("if(page && page.querySelector('#wpView') && !page.querySelector('.wp-migration-error')) { wpRenderView(); return; }"), 'task-page updates patch the existing planner view instead of replacing the page');
 assert(planner.includes('wpCaptureTaskEntities(editRef,{includeRules:!') && planner.includes("(v.frequency!=='none'||recurring)") && !planner.includes('const before=wpClone(S.board), newId=isNew?'), 'task-editor saves use a focused rollback snapshot and copy recurrence rules only when needed');
 const taskPersistStart=planner.indexOf('function wpPersistBoard()');
@@ -230,7 +230,7 @@ globalThis.__api = {
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
+  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
@@ -334,6 +334,7 @@ const monthRangeIds = new Set(Array.from(api.wpMonthEntities('2026-10-01'), task
 assert(monthRangeIds.has('span-before-month'), 'month view must include ranges that begin before its visible grid');
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
 const rangeMonthMarkup = api.wpViewHtml();
+assert(rangeMonthMarkup.includes('wp-month-layout') && rangeMonthMarkup.includes('wp-month-calendar') && rangeMonthMarkup.includes('wp-month-selected'), 'the month grid and selected-day panel share the new responsive layout wrapper');
 assert(rangeMonthMarkup.includes('wp-month-span-layer') && rangeMonthMarkup.includes('wp-calendar-span--month'));
 assert(rangeMonthMarkup.includes('wp-calendar-span wp-calendar-span--month p-normal'), 'the month range row is tinted by task priority');
 assert(rangeMonthMarkup.includes('data-act="wpCalendarToggleCompleted"') && rangeMonthMarkup.includes('Скрыть выполненные задачи'), 'month calendar offers the completed-task visibility toggle');
@@ -663,11 +664,16 @@ assert.strictEqual(api.WP.weekStart, '2026-10-12');
 api.WP.mobileDate = '2026-10-15';
 assert(rangeWeekMarkup.includes('data-act="wpQuickDay"'), 'week days retain their own add-task controls');
 api.WP.view = 'week';
-assert(!api.wpHeaderControls().includes('data-act="wpQuickGlobal"'), 'the global add button is hidden in week mode');
+assert(api.wpHeaderControls().includes('data-act="wpQuickGlobal"'), 'the global add button remains available in week mode');
+assert(api.wpHeaderControls().includes('class="wp-mobile-menu"') && api.wpHeaderControls().includes('data-act="wpRailOpen"'), 'the task header exposes the mobile navigation opener');
+api.WP.query='поиск';
+const searchHeader=api.wpHeaderControls();
+assert(/class="wp-search-clear"[^>]*aria-label="Очистить поиск"/.test(searchHeader) && /<kbd hidden>/.test(searchHeader), 'search shows a clear button only while a query is active');
+api.WP.query='';
 api.WP.calendarMode = 'month';
-assert(!api.wpHeaderControls().includes('data-act="wpQuickGlobal"'), 'the global add button is hidden in month mode');
+assert(api.wpHeaderControls().includes('data-act="wpQuickGlobal"'), 'the global add button remains available in month mode');
 api.WP.view = 'inbox';
-assert(api.wpHeaderControls().includes('data-act="wpQuickGlobal"'), 'the global add button remains in non-calendar views');
+assert(api.wpHeaderControls().includes('data-act="wpQuickGlobal"'), 'the global add button remains available in non-calendar views');
 api.WP.view = 'week';
 api.WP.calendarMode = 'week';
 assert.strictEqual(api.wpTaskScheduleEnd(rangeTasks[1]), '2026-10-13', 'the existing deadline is the calendar range end');
@@ -721,6 +727,10 @@ for (const field of ['wpTitle', 'wpProject', 'wpAssignee', 'wpScheduled', 'wpDea
   assert(projectForm.includes(`id="${field}"`), `project add opens the full editor field ${field}`);
 }
 assert(createForm.includes('class="wp-date-field-label">Дата начала</span>') && !createForm.includes('Плановая дата'), 'the task form labels the schedule as its start date');
+assert(!createForm.includes('wp-date-trigger') && createForm.includes('data-wp-date-open="wpScheduled"') && createForm.includes('data-wp-date-open="wpDeadline"'), 'task editor date fields have no calendar icon buttons but remain custom-calendar triggers');
+const standardDateField = api.wpDateFieldHtml('standardDate', 'Дата', '2026-10-13');
+assert(standardDateField.includes('wp-date-trigger') && standardDateField.includes('data-wp-date-open="standardDate"'), 'date controls outside the task editor retain their calendar button');
+assert(planner.includes("input.matches('[data-wp-date-open]')?input:input.closest('.wp-date-control')?.querySelector('[data-wp-date-open]')"), 'icon-free date fields open the custom calendar from the focused input');
 assert(createForm.includes('&quot;value&quot;:&quot;__add&quot;') && createForm.includes('+ Добавить новый проект'), 'new-task project DOM menu always offers project creation');
 const projectsBeforeEmptyForm = state.board.projects;
 state.board.projects = [];
@@ -734,6 +744,7 @@ assert(!createForm.includes('wpDestinationHint') && !createForm.includes('Зад
 const existingTask = { id: 'existing-task', title: 'Уже создана', homeType: 'personal', assignee: 'Я', statusKey: 'waiting', priorityKey: 'normal', scheduledDate: null, tags: [], matrixQuadrant: null };
 const editForm = api.wpEditorBodyHtml(existingTask, 'task', false, { ...formValues, title: existingTask.title, statusKey: 'waiting' }, false, existingTask);
 assert(editForm.includes('id="wpStatus"'), 'editing an existing task must preserve status changes');
+assert(!editForm.includes('wp-date-trigger'), 'editing-task date fields use the same icon-free custom calendar controls');
 const legacyMatrixForm = api.wpEditorBodyHtml({ ...existingTask, homeType: 'matrix' }, 'task', false, { ...formValues, kind: 'matrix' }, false, { ...existingTask, homeType: 'matrix' });
 assert(legacyMatrixForm.includes('Матрица · прежний список'), 'legacy Matrix tasks remain editable without restoring Matrix navigation');
 const applied = { id: 'new-project-task', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null };

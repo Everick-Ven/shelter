@@ -53,10 +53,20 @@ assert(plannerHeader.includes("${ico('tasks')}Задачи"));
 assert(plannerHeader.includes('class="wp-title-marquee-clip"'));
 assert(!plannerHeader.includes('S.board.name'));
 assert(!plannerHeader.includes("ico('layers')"));
+assert(plannerHeader.includes('class="wp-mobile-menu"') && plannerHeader.includes('data-act="wpRailOpen"'));
+assert(plannerHeader.includes('class="wp-search-clear"') && plannerHeader.includes('data-act="wpClearSearch"'));
+assert(plannerHeader.includes('data-act="wpQuickGlobal"'), 'the global add action remains in the calendar header');
 const plannerStyleStart = html.indexOf('<style id="shelter-week-planner-style">');
 const plannerStyleEnd = html.indexOf('</style>', plannerStyleStart);
 assert(plannerStyleStart >= 0 && plannerStyleEnd > plannerStyleStart);
 const plannerCss = html.slice(plannerStyleStart, plannerStyleEnd);
+const taskLayoutStyleStart = html.indexOf('<style id="shelter-task-layout">');
+const taskLayoutStyleEnd = html.indexOf('</style>', taskLayoutStyleStart);
+assert(taskLayoutStyleStart >= 0 && taskLayoutStyleEnd > taskLayoutStyleStart);
+const taskLayoutCss = html.slice(taskLayoutStyleStart, taskLayoutStyleEnd);
+assert.match(taskLayoutCss, /\.page\.planner-page\{\s*position:absolute;inset:0;width:100%;height:100%/);
+assert(taskLayoutCss.includes('grid-template-columns:288px minmax(0,1fr)') && taskLayoutCss.includes('container-name:wp-workspace;container-type:inline-size;'));
+assert(taskLayoutCss.includes('@container shelter (max-width:900px)') && taskLayoutCss.includes('.wp-layout.is-rail-open .wp-rail-scrim'));
 const plannerPageRules = [...plannerCss.matchAll(/\.planner-page\{([^}]*)\}/g)].map(match => match[1]);
 assert(plannerPageRules.length >= 5, 'planner padding must be responsive across the supported breakpoints');
 const plannerPageGutterRules = plannerPageRules.filter(rule => {
@@ -138,6 +148,7 @@ assert.match(plannerMoreMenu, /const items=\[\s*\.\.\.boards\.map\(b=>\(\{label:
 assert(!plannerMoreMenu.includes("label:'Календарь'") && !plannerMoreMenu.includes('Матрица') && !plannerMoreMenu.includes("wpSetView('matrix')"), 'the task more menu begins with the current board, not Calendar');
 const plannerPageRenderer = section('function wpRenderTaskPage() {', 'function wpSetView(');
 assert(plannerPageRenderer.includes('Локально на устройстве') && !plannerPageRenderer.includes('Q · быстро добавить'), 'remove the quick-add caption but keep the local-storage notice');
+assert(plannerPageRenderer.includes('wp-workspace-header') && plannerPageRenderer.includes('class="wp-rail-scrim" data-act="wpRailClose"') && plannerPageRenderer.includes('aria-label="Рабочая область задач"'), 'the task page uses the full workspace shell with a responsive navigation rail');
 const legacyMovePicker = section('function wpMoveHomePicker(ref,opts={}) {', 'function wpMoveToQuadrant(ref,q) {');
 assert(legacyMovePicker.includes("[['legacy-matrix','Матрица · прежний список',true]]") && legacyMovePicker.includes('const moveOptions='), 'a legacy Matrix task remains in its old location as a disabled choice');
 assert(!legacyMovePicker.includes("['matrix','Матрица']"), 'legacy Matrix tasks must not restore Matrix as a move destination');

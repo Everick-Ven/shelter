@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-qCdxFAbIqKp9q6lR/0WjJm5MDd/dyPI/uncgQYaIi3U=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-hGiGL9Ikeg2OauOTR3wfnhABAunerx1gUlrlK3HoQa0=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4411,6 +4411,274 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .wp-main{padding:12px 14px 16px}
 }
 @media(max-width:620px){.wp-month-day{min-height:54px}}
+</style>
+
+<style id="shelter-task-layout">
+/* Задачи: полноэкранная раздельная компоновка, как у Ассистента. */
+.page.planner-page{
+  position:absolute;inset:0;width:100%;height:100%;min-width:0;min-height:0;
+  max-width:none;margin:0;padding:0;overflow:hidden;
+  background:radial-gradient(70% 55% at 100% 0%,rgb(var(--gb)/.075),transparent 75%),
+    color-mix(in srgb,var(--surface) calc(var(--glass-op)*.86%),transparent);
+}
+.planner-page .wp-layout{
+  position:relative;display:grid;grid-template-columns:288px minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr);align-items:stretch;gap:0;
+  width:100%;height:100%;min-width:0;min-height:0;margin:0;
+}
+.planner-page .wp-layout.is-sidebar-collapsed{grid-template-columns:56px minmax(0,1fr);gap:0}
+.planner-page .wp-rail{
+  grid-column:1;grid-row:1;position:relative;top:auto;align-self:stretch;
+  display:flex;flex-direction:column;gap:12px;
+  width:auto;height:100%;min-width:0;min-height:0;padding:12px 12px 10px;
+  border:0;border-right:1px solid var(--line);border-radius:0;
+  background:transparent;box-shadow:none;overflow:hidden;
+}
+.planner-page .wp-rail-brand{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  flex:none;min-height:44px;margin:0 0 8px;padding:0 7px;border:0;
+}
+.planner-page .wp-rail-name{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.planner-page .wp-rail-name>.wp-rail-mark{
+  display:grid;place-items:center;flex:none;width:34px;height:34px;
+  border-radius:calc(11px*var(--rs));color:var(--surface);background:var(--text);
+  box-shadow:var(--hi),var(--sh-sm);
+}
+.wp-rail-mark>.i{width:18px;height:18px}
+.planner-page .wp-rail-name>span:not(.wp-rail-mark){display:block;min-width:0;flex:1;overflow:hidden}
+.planner-page .wp-rail-name b{font:600 14px/1.2 var(--font-d);letter-spacing:-.01em}
+.planner-page .wp-rail-name small{margin-top:3px;font-size:11px;letter-spacing:0}
+.planner-page .wp-rail-toggle{
+  display:grid;place-items:center;flex:none;width:28px;height:28px;
+  padding:0;border:0;border-radius:calc(8px*var(--rs));
+  background:transparent;color:var(--text-3);
+}
+.planner-page .wp-rail-toggle:hover{background:var(--hover);color:var(--text)}
+.planner-page .wp-nav{
+  display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;
+  gap:4px;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;
+  scrollbar-color:var(--line-2) transparent;
+}
+.planner-page .wp-nav-item{
+  display:flex;flex:0 0 auto;align-items:center;justify-content:flex-start;
+  gap:10px;width:100%;min-width:0;min-height:40px;padding:0 11px;
+  font-size:12.5px;text-align:left;
+}
+.planner-page .wp-nav-item>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.planner-page .wp-rail-footer{
+  display:flex;flex:none;min-height:38px;margin-top:auto;padding:8px 4px 0;
+  border-top:1px solid var(--line);font-size:10px;
+}
+.planner-page .wp-rail-footer span{white-space:nowrap}
+.planner-page .wp-rail.is-collapsed{padding:12px 8px 10px;gap:12px;align-items:stretch}
+.planner-page .wp-rail.is-collapsed .wp-rail-brand{justify-content:center;padding:0;gap:0}
+.planner-page .wp-rail.is-collapsed .wp-rail-name{display:none}
+.planner-page .wp-rail.is-collapsed .wp-nav-item{justify-content:center;gap:0;padding:0}
+.planner-page .wp-rail.is-collapsed .wp-nav-item>span,
+.planner-page .wp-rail.is-collapsed .wp-nav-item>i{display:none}
+.planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:center;padding:8px 0 0}
+.planner-page .wp-rail.is-collapsed .wp-rail-footer span{justify-content:center;font-size:0;gap:0}
+
+/* Наверху — заголовок, поиск и действия; листается только правое содержимое. */
+.planner-page .wp-main{
+  grid-column:2;grid-row:1;display:flex;flex-direction:column;
+  width:100%;height:100%;min-width:0;min-height:0;padding:0;overflow:hidden;
+  container-name:wp-workspace;container-type:inline-size;
+}
+.wp-workspace-header{position:relative;z-index:10;flex:none;min-width:0}
+.planner-page .wp-topbar{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;
+  gap:16px;min-height:76px;margin:0;padding:12px 24px;
+  border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--surface) 74%,transparent);
+}
+.planner-page .wp-brandline{min-width:0;flex:1 1 0}
+.planner-page .wp-brandline h1{margin:3px 0 0;font:700 24px/1.2 var(--font-d);letter-spacing:-.03em}
+.planner-page .wp-eyebrow{font-size:10px}
+.planner-page .wp-top-actions{display:flex;flex:0 1 auto;align-items:center;gap:8px;width:auto;min-width:0}
+.planner-page .wp-search{flex:0 1 260px;width:clamp(150px,24cqw,260px);min-width:0;height:36px}
+.planner-page .wp-search input{flex:1;width:100%;min-width:0}
+.planner-page .wp-top-actions>.btn.primary{flex:none;height:36px;font-size:12px}
+.planner-page .wp-more{flex:none;width:36px;height:36px;min-width:36px;padding:0}
+.planner-page .wp-currentbar{flex:none;padding:12px 24px 0}
+.planner-page .wp-currentbar:empty{display:none}
+.planner-page .wp-week-controls{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:10px;margin:0;padding:0 0 12px;border:0;border-bottom:1px solid var(--line);
+  border-radius:0;background:none;box-shadow:none;
+}
+.planner-page .wp-week-controls>.wp-calendar-controls-left{flex:1 1 auto;align-items:center;gap:10px}
+.planner-page .wp-calendar-label{min-width:0;gap:7px}
+.planner-page .wp-calendar-label>b{font-size:14px}
+.planner-page .wp-date-actions{flex:none}
+.planner-page .wp-migration-error{margin:10px 24px 0}
+.planner-page .wp-view{
+  position:relative;flex:1 1 0%;min-width:0;min-height:0;margin:0;
+  padding:16px 24px 32px;overflow:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;
+}
+/* Фильтрация и сортировка остаются сверху при прокрутке списка/доски. */
+.planner-page :is(.wp-all-toolbar,.wp-board-toolbar){
+  position:sticky;top:0;z-index:8;gap:8px;
+  margin:0 0 16px;padding:0 0 12px;
+  border:0;border-bottom:1px solid var(--line);border-radius:0;
+  background:var(--surface);box-shadow:0 -16px 0 var(--surface);
+}
+/* Каждый фильтр — отдельный элемент строки. Переносим контролы целиком,
+   не сжимаем группу с текстовой кнопкой до произвольных 150 px. */
+.planner-page .wp-filter-layout{
+  --wp-filter-control-h:max(32px,calc(13px * var(--uif,1) * var(--uif-i,1) + 14px));
+  display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px 8px;
+  min-width:0;max-width:100%;
+}
+.planner-page .wp-filter-layout>.wp-filter-main{
+  display:flex;align-items:flex-end;align-self:flex-end;
+  flex:0 1 auto;gap:0;width:max-content;max-width:100%;min-width:0;
+}
+.planner-page .wp-filter-layout>.wp-filter-select{
+  flex:1 1 160px;align-self:flex-end;gap:4px;
+  width:auto;min-width:min(100%,160px);max-width:100%;
+}
+.planner-page .wp-filter-select>span{max-width:100%;overflow-wrap:break-word}
+.planner-page .wp-filter-layout>.wp-filter-select>.select{
+  width:100%;max-width:100%;min-width:0;height:var(--wp-filter-control-h);
+  font:500 10px/1.3 var(--font);text-overflow:ellipsis;
+}
+.planner-page .wp-filter-layout>.wp-filter-main>.wp-filter-menu{
+  flex:none;width:max-content;max-width:100%;min-width:0;
+}
+.planner-page .wp-filter-layout .wp-filter-menu-trigger{
+  align-items:center;justify-content:flex-start;gap:7px;
+  width:100%;max-width:100%;min-width:0;min-height:var(--wp-filter-control-h);
+  padding:6px 10px;font:500 10px/1.3 var(--font);
+}
+.planner-page .wp-filter-layout .wp-filter-menu-trigger>span{flex:none}
+.planner-page .wp-filter-layout .wp-filter-menu-trigger>b{
+  flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.planner-page .wp-filter-layout .wp-filter-menu-trigger>.i{flex:none}
+.planner-page .wp-filter-layout>:is(.wp-calendar-completed-toggle,.wp-my-filter,.wp-clear-filters){
+  display:inline-flex;align-items:center;justify-content:center;align-self:flex-end;
+  flex:0 0 auto;gap:6px;width:max-content;max-width:100%;min-width:0;
+  height:auto;min-height:var(--wp-filter-control-h);margin:0;padding:6px 10px;
+  font:550 10px/1.3 var(--font);white-space:normal;text-align:center;
+}
+.planner-page .wp-filter-layout>:is(.wp-calendar-completed-toggle,.wp-my-filter,.wp-clear-filters)>.i{flex:none}
+.planner-page .wp-filter-layout>:is(.wp-calendar-completed-toggle,.wp-my-filter,.wp-clear-filters)>span{
+  min-width:0;white-space:normal;overflow-wrap:break-word;
+}
+.wp-mobile-menu{display:none}
+.wp-rail-scrim{display:none}
+
+/* Месяц — компактная сетка и панель выбранного дня, как в «Истории». */
+.wp-month-layout{
+  display:grid;grid-template-columns:minmax(0,1fr) 280px;
+  align-items:start;gap:18px;min-width:0;
+}
+.planner-page .wp-month-calendar{min-width:0}
+.planner-page .wp-month-dows,.planner-page .wp-month-days{gap:8px}
+.planner-page .wp-month-grid{gap:8px}
+.planner-page .wp-month-dows{margin-bottom:8px}
+.planner-page .wp-month-dows>div{font-size:11px;font-weight:500}
+.planner-page .wp-month-day{
+  width:100%;max-width:100%;min-width:0;min-height:84px;aspect-ratio:auto;gap:3px;padding:6px;
+  border-radius:calc(15px*var(--rs));
+}
+.planner-page .wp-month-day-head{min-height:24px;gap:3px}
+.planner-page .wp-month-date{width:24px;height:24px;font-size:12px}
+.planner-page .wp-month-add{width:24px;height:24px}
+.planner-page .wp-month-count{min-width:16px;height:16px;padding:0 3px;font-size:8px}
+.planner-page .wp-month-events{gap:2px}
+.planner-page .wp-month-event{min-height:18px;padding:2px 4px;font-size:9px;line-height:1.2}
+.planner-page .wp-month-event>small{display:none}
+.planner-page .wp-month-more{min-height:14px;padding:0 3px;font-size:8px}
+.planner-page .wp-month-span-layer{top:34px;left:7px;right:7px;column-gap:8px}
+.planner-page .wp-calendar-span--month{gap:4px;padding:1px 5px;font-size:8px}
+.planner-page .wp-calendar-span--month>small{font-size:7px}
+.wp-month-layout>.wp-month-selected{
+  position:sticky;top:0;min-width:0;max-height:min(680px,calc(100dvh - 250px));
+  margin:0;padding:16px;overflow:auto;scrollbar-width:thin;
+}
+.wp-month-layout>.wp-month-selected>header{flex-wrap:wrap}
+.wp-month-layout>.wp-month-selected>header>div{flex-wrap:wrap;gap:4px 8px}
+.wp-month-layout>.wp-month-selected .wp-task-list>.wp-task{
+  grid-template-columns:24px minmax(0,1fr) 28px;padding:8px 6px;gap:5px;
+}
+.wp-month-layout>.wp-month-selected .wp-task-title{font-size:11px}
+.wp-month-layout>.wp-month-selected .wp-task-meta{font-size:9px;gap:4px 6px}
+.wp-month-layout>.wp-month-selected .wp-empty{min-height:190px;padding:16px 5px}
+
+@container wp-workspace (max-width:980px){
+  .wp-month-layout{grid-template-columns:minmax(0,1fr)}
+  .wp-month-layout>.wp-month-selected{position:static;max-height:none;margin-top:0}
+}
+@container wp-workspace (max-width:760px){
+  .planner-page .wp-topbar{flex-wrap:wrap;gap:10px;padding:12px 16px}
+  .planner-page .wp-brandline{flex:1 1 0}
+  .planner-page .wp-brandline h1{font-size:22px}
+  .planner-page .wp-top-actions{flex:1 1 100%;width:100%}
+  .planner-page .wp-search{flex:1;width:auto}
+  .planner-page .wp-search kbd{display:none}
+  .planner-page .wp-currentbar{padding:10px 16px 0}
+  .planner-page .wp-view{padding:14px 16px 24px}
+  .planner-page .wp-migration-error{margin-left:16px;margin-right:16px}
+  .planner-page .wp-calendar-label>span{display:none}
+}
+@container wp-workspace (max-width:620px){
+  .planner-page .wp-month-dows,.planner-page .wp-month-days,.planner-page .wp-month-grid{gap:5px}
+  .planner-page .wp-month-day{min-height:54px;aspect-ratio:auto;padding:4px;gap:1px;border-radius:calc(11px*var(--rs))}
+  .planner-page .wp-month-date{font-size:11px}
+  .planner-page .wp-month-day-head{min-height:24px;gap:2px}
+  .planner-page .wp-month-count{min-width:14px;height:14px;font-size:8px}
+  .planner-page .wp-month-add,.planner-page .wp-month-events,.planner-page .wp-month-more{display:none}
+  .planner-page .wp-month-span-layer{top:30px;left:5px;right:5px;column-gap:5px}
+  .planner-page .wp-calendar-span--month{font-size:7px;padding:1px 3px;gap:2px}
+  .planner-page .wp-calendar-span--month>small{display:none}
+  .planner-page .wp-week-grid.is-all-day{display:none}
+  .planner-page .wp-week-mobile{display:block}
+  .planner-page .wp-mobile-weekstrip{display:grid}
+  .planner-page .wp-top-actions>.btn.primary{padding:0 10px;font-size:11px}
+  .planner-page .wp-week-controls>.wp-calendar-controls-left{flex-basis:100%}
+  .planner-page .wp-date-actions{margin-left:auto}
+}
+/* На узком поле навигация открывается поверх, как у Ассистента на iPad. */
+@container shelter (max-width:900px){
+  .planner-page .wp-layout,.planner-page .wp-layout.is-sidebar-collapsed{grid-template-columns:minmax(0,1fr)}
+  .planner-page .wp-main{grid-column:1;grid-row:1}
+  .planner-page .wp-rail,.planner-page .wp-rail.is-collapsed{
+    position:absolute;left:0;top:0;bottom:0;z-index:40;
+    width:min(288px,calc(100% - 40px));height:100%;padding:12px 12px 10px;
+    border-right:1px solid var(--line);background:var(--surface);
+    box-shadow:14px 0 44px -26px rgba(0,0,0,.6);
+    transform:translateX(-101%);visibility:hidden;
+    transition:transform .26s var(--ease),visibility .26s;
+  }
+  .planner-page .wp-layout.is-rail-open .wp-rail{transform:none;visibility:visible}
+  .planner-page .wp-rail.is-collapsed .wp-rail-brand{justify-content:space-between;gap:10px;padding:0 7px}
+  .planner-page .wp-rail.is-collapsed .wp-rail-name{display:flex}
+  .planner-page .wp-rail.is-collapsed .wp-rail-name>span{display:block}
+  .planner-page .wp-rail.is-collapsed .wp-rail-name>.wp-rail-mark{display:grid;flex:none}
+  .planner-page .wp-rail.is-collapsed .wp-nav-item{justify-content:flex-start;gap:10px;padding:0 11px}
+  .planner-page .wp-rail.is-collapsed .wp-nav-item>span{display:block}
+  .planner-page .wp-rail.is-collapsed .wp-nav-item>i{display:grid}
+  .planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:stretch;padding:8px 4px 0}
+  .planner-page .wp-rail.is-collapsed .wp-rail-footer span{justify-content:flex-start;gap:7px;font-size:10px}
+  .wp-mobile-menu{
+    display:grid;place-items:center;flex:none;width:34px;height:34px;padding:0;
+    border:1px solid var(--line);border-radius:calc(9px*var(--rs));
+    background:var(--card-2);color:var(--text-2);
+  }
+  .wp-mobile-menu>.i{width:17px;height:17px}
+  .wp-rail-scrim{
+    display:block;position:absolute;inset:0;z-index:35;background:var(--scrim);
+    opacity:0;pointer-events:none;transition:opacity .24s;
+  }
+  .wp-layout.is-rail-open .wp-rail-scrim{opacity:1;pointer-events:auto}
+}
+@media(prefers-reduced-motion:reduce){
+  .planner-page .wp-rail,.wp-rail-scrim{transition:none}
+}
+.planner-page .wp-date-control.is-iconless{gap:0}
 </style>
 </head>
 <body>
@@ -13324,7 +13592,7 @@ function init() {
 const WP_SCHEMA = 7;
 const WP = {
   view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', calendarShowCompleted: true, boardShowCompleted: true,
-  sidebarCollapsed: false, allFilter: 'active', allAssigneeFilter: 'all', allMineOnly: false, allProjectFilter: 'all', allSort: 'urgency', allTagFilter: 'all', quick: null, reviewSelected: [],
+  sidebarCollapsed: false, railOpen: false, allFilter: 'active', allAssigneeFilter: 'all', allMineOnly: false, allProjectFilter: 'all', allSort: 'urgency', allTagFilter: 'all', quick: null, reviewSelected: [],
   boardHomeFilter: 'all', boardAssigneeFilter: 'all', boardMineOnly: false, boardFocus: 'all',
   _calendarModeRestored: false, _completedVisibilityRestored: false, _sidebarRestored: false, _touchX: null, _undoToken: 0
 };
@@ -13442,9 +13710,10 @@ function wpDateLabel(key) {
   const d=wpDateObj(key); return `${WP_WEEKDAYS[(d.getDay()+6)%7]}, ${p.d} ${WP_MONTHS[p.m-1]}`;
 }
 const WP_DATE_PICKER = { active: null };
-function wpDateFieldHtml(id,label,value) {
-  const key=wpDateKey(value)||'';
-  return `<div class="field wp-date-field-wrap"><span class="wp-date-field-label">${esc(label)}</span><span class="wp-date-control"><input class="input wp-date-value" id="${esc(id)}" type="text" value="${esc(key)}" readonly inputmode="none" autocomplete="off" aria-label="${esc(label)}" data-wp-date-value><button type="button" class="wp-date-trigger" id="${esc(id)}Trigger" data-wp-date-open="${esc(id)}" aria-label="Выбрать дату: ${esc(label)}" aria-haspopup="dialog" aria-expanded="false">${ico('calendar')}</button></span></div>`;
+function wpDateFieldHtml(id,label,value,{showTrigger=true}={}) {
+  const key=wpDateKey(value)||'', openOnInput=showTrigger?'':`data-wp-date-open="${esc(id)}" aria-haspopup="dialog" aria-expanded="false"`;
+  const trigger=showTrigger?`<button type="button" class="wp-date-trigger" id="${esc(id)}Trigger" data-wp-date-open="${esc(id)}" aria-label="Выбрать дату: ${esc(label)}" aria-haspopup="dialog" aria-expanded="false">${ico('calendar')}</button>`:'';
+  return `<div class="field wp-date-field-wrap"><span class="wp-date-field-label">${esc(label)}</span><span class="wp-date-control ${showTrigger?'':'is-iconless'}"><input class="input wp-date-value" id="${esc(id)}" type="text" value="${esc(key)}" readonly inputmode="none" autocomplete="off" aria-label="${esc(label)}" ${openOnInput} data-wp-date-value>${trigger}</span></div>`;
 }
 function wpDateCalendarLocale() {
   const locale=(document.documentElement.lang||navigator.language||'ru-RU').trim()||'ru-RU';
@@ -13574,7 +13843,7 @@ document.addEventListener('keydown',e=>{
   }
   const input=e.target.closest&&e.target.closest('[data-wp-date-value]');
   if(input&&['Enter',' ','ArrowDown'].includes(e.key)) {
-    const trigger=input.closest('.wp-date-control')?.querySelector('[data-wp-date-open]');
+    const trigger=input.matches('[data-wp-date-open]')?input:input.closest('.wp-date-control')?.querySelector('[data-wp-date-open]');
     if(trigger) { e.preventDefault(); openWpDateCalendar(trigger,input); }
   }
 },true);
@@ -14510,12 +14779,27 @@ function wpContextAddTitle() {
   if(WP.view==='projects' && WP.projectId) { const p=(S.board.projects||[]).find(x=>x && x.id===WP.projectId); return `Добавить задачу в проект ${p?p.name:''}`.trim(); }
   return 'Создать задачу';
 }
+function wpSyncSearchControls() {
+  const search=$('#wpSearch'), wrapper=search&&search.closest('.wp-search');
+  if(!wrapper) return;
+  const hasQuery=String(WP.query||'').length>0, clear=wrapper.querySelector('.wp-search-clear'), shortcut=wrapper.querySelector('kbd');
+  if(clear) clear.hidden=!hasQuery;
+  if(shortcut) shortcut.hidden=hasQuery;
+}
+function wpClearSearch() {
+  WP.query='';
+  const search=$('#wpSearch'); if(search) search.value='';
+  wpRenderView();
+  const next=$('#wpSearch'); if(next) next.focus({preventScroll:true});
+  wpSyncSearchControls();
+}
 function wpHeaderControls() {
-  const addButton=WP.view==='week'?'':`<button type="button" class="btn primary" data-act="wpQuickGlobal" title="${esc(wpContextAddTitle())}" aria-label="${esc(wpContextAddTitle())}">${ico('plus')}<span>${esc(wpContextAddLabel())}</span></button>`;
+  const addButton=`<button type="button" class="btn primary" data-act="wpQuickGlobal" title="${esc(wpContextAddTitle())}" aria-label="${esc(wpContextAddTitle())}">${ico('plus')}<span>${esc(wpContextAddLabel())}</span></button>`;
   return `<div class="wp-topbar">
+    <button type="button" class="wp-mobile-menu" data-act="wpRailOpen" aria-controls="wpNav" aria-expanded="${WP.railOpen}" aria-label="Открыть навигацию задач">${ico('sidebar')}</button>
     <div class="wp-brandline"><span class="wp-eyebrow">${ico('tasks')}Задачи</span><h1 class="wp-title-marquee-clip"><span class="wp-title-marquee-text">${esc(wpViewTitle())}</span></h1></div>
     <div class="wp-top-actions">
-      <label class="wp-search">${ico('search')}<input class="input" id="wpSearch" value="${esc(WP.query)}" placeholder="Найти задачу" autocomplete="off" aria-label="Поиск задач"><kbd>${esc(kb('⌘⇧K'))}</kbd></label>
+      <div class="wp-search">${ico('search')}<input class="input" id="wpSearch" value="${esc(WP.query)}" placeholder="Найти задачу" autocomplete="off" maxlength="512" aria-label="Поиск задач"><button type="button" class="wp-search-clear" data-act="wpClearSearch" aria-label="Очистить поиск" ${WP.query?'':'hidden'}>${ico('x')}</button><kbd ${WP.query?'hidden':''}>${esc(kb('⌘⇧K'))}</kbd></div>
       ${addButton}
       <button type="button" class="btn wp-more" data-act="taskMore" aria-label="Дополнительные действия">${ico('dots')}</button>
     </div>
@@ -14666,7 +14950,7 @@ function wpMonthView() {
   const days=wpMonthKeys(WP.monthStart), entities=wpMonthEntities(WP.monthStart), monthEnd=wpAddDays(wpShiftMonth(WP.monthStart,1),-1);
   const inMonth=entities.filter(t=>wpTaskOverlapsRange(t,WP.monthStart,monthEnd));
   const weeks=Array.from({length:Math.ceil(days.length/7)},(_,i)=>days.slice(i*7,i*7+7));
-  return `${wpMonthSummary(inMonth)}${wpQuickGlobalArea()}<div class="wp-month-calendar"><div class="wp-month-dows" role="row">${WP_WEEKDAYS.map(d=>`<div role="columnheader">${d}</div>`).join('')}</div><div class="wp-month-grid" role="grid" aria-label="${esc(wpFmtMonth(WP.monthStart))}">${weeks.map(week=>wpMonthWeek(week,entities)).join('')}</div></div>${wpSelectedDayPanel(WP.mobileDate,entities,'month')}`;
+  return `${wpMonthSummary(inMonth)}${wpQuickGlobalArea()}<div class="wp-month-layout"><div class="wp-month-calendar"><div class="wp-month-dows" role="row">${WP_WEEKDAYS.map(d=>`<div role="columnheader">${d}</div>`).join('')}</div><div class="wp-month-grid" role="grid" aria-label="${esc(wpFmtMonth(WP.monthStart))}">${weeks.map(week=>wpMonthWeek(week,entities)).join('')}</div></div>${wpSelectedDayPanel(WP.mobileDate,entities,'month')}</div>`;
 }
 function wpListEmpty(label) {
   return wpEmpty('tasks',label,'Попробуйте изменить фильтры или используйте кнопку создания задачи в заголовке.');
@@ -14768,12 +15052,26 @@ function wpRenderTaskPage() {
   if(!WP._viewRestored) { if(S.ui.plannerView && ['week','board','inbox','all','projects'].includes(S.ui.plannerView)) WP.view=S.ui.plannerView; WP._viewRestored=true; }
   ensureBoard();
   const error=S.taskMigrationPending ? `<div class="wp-migration-error" role="status">${ico('info')}<span>${esc(S.taskMigrationError||'Проверьте сводку миграции перед продолжением.')}</span><button type="button" class="btn sm ghost" data-act="wpMigrationPreview">Сводка миграции</button></div>` : S.taskMigrationOK===false ? `<div class="wp-migration-error" role="alert">${ico('ban')}<span>${esc(S.taskMigrationError||'Миграция остановлена. Данные защищены и доступны только для чтения.')}</span></div>` : '';
-  return `<div class="page planner-page"><div class="wp-layout ${WP.sidebarCollapsed?'is-sidebar-collapsed':''}"><aside class="wp-rail ${WP.sidebarCollapsed?'is-collapsed':''}"><div class="wp-rail-brand"><div class="wp-rail-name">${ico('tasks')}<span><b>План задач</b><small>SHELTER</small></span></div>${wpSidebarToggleHtml()}</div><nav class="wp-nav" id="wpNav" aria-label="Представления задач">${wpNavHtml()}</nav><div class="wp-rail-footer"><span>${ico('lock')}Локально на устройстве</span></div></aside><main class="wp-main">${wpHeaderControls()}${error}<div class="wp-currentbar">${wpDateControls()}</div><div class="wp-view" id="wpView">${wpViewHtml()}</div></main></div></div>`;
+  return `<div class="page planner-page"><div class="wp-layout ${WP.sidebarCollapsed?'is-sidebar-collapsed':''} ${WP.railOpen?'is-rail-open':''}">
+    <aside class="wp-rail ${WP.sidebarCollapsed?'is-collapsed':''}" aria-label="Навигация задач">
+      <div class="wp-rail-brand"><div class="wp-rail-name"><span class="wp-rail-mark">${ico('tasks')}</span><span><b>Задачи</b><small>Локальный планировщик</small></span></div>${wpSidebarToggleHtml()}</div>
+      <nav class="wp-nav" id="wpNav" aria-label="Представления задач">${wpNavHtml()}</nav>
+      <div class="wp-rail-footer"><span>${ico('lock')}Локально на устройстве</span></div>
+    </aside>
+    <div class="wp-rail-scrim" data-act="wpRailClose" aria-hidden="true"></div>
+    <section class="wp-main" aria-label="Рабочая область задач">
+      <div class="wp-workspace-header">${wpHeaderControls()}${error}<div class="wp-currentbar">${wpDateControls()}</div></div>
+      <div class="wp-view" id="wpView">${wpViewHtml()}</div>
+    </section>
+  </div></div>`;
 }
 function wpSetView(view) {
   if(!['week','board','inbox','all','projects'].includes(view)) return;
-  WP.view=view; if(view!=='projects') WP.projectId='';
-  S.ui.plannerView=view; persist(); wpRenderTaskPageFull();
+  const closeRail=WP.railOpen;
+  WP.railOpen=false; WP.view=view; if(view!=='projects') WP.projectId='';
+  S.ui.plannerView=view; persist(); wpRenderTaskPageFull(); wpSyncSidebarState();
+  const root=$('#wpView'); if(root) root.scrollTop=0;
+  if(closeRail) { const opener=$('#page .wp-mobile-menu'); if(opener) opener.focus({preventScroll:true}); }
 }
 function wpRenderTaskPageFull() {
   const page=$('#page');
@@ -14798,6 +15096,7 @@ function wpRenderView() {
     wpScheduleTaskTitleMarquee(root);
   }
   const search=page&&page.querySelector('#wpSearch'); if(search&&search.value!==WP.query) search.value=WP.query;
+  wpSyncSearchControls();
   const head=page&&page.querySelector('.wp-topbar');
   if(head) {
     const h=head.querySelector('h1'), text=h&&h.querySelector('.wp-title-marquee-text');
@@ -14813,6 +15112,7 @@ function wpRenderView() {
   }
   const dateBar=page&&page.querySelector('.wp-currentbar'); if(dateBar) { dateBar.innerHTML=wpDateControls(); initSegs(dateBar); }
   const nav=page&&page.querySelector('.wp-nav'); if(nav) nav.innerHTML=wpNavHtml();
+  wpSyncSidebarState();
   if(pageScroll&&page) { page.scrollTop=pageScroll.top; page.scrollLeft=pageScroll.left; }
   if(viewScroll&&root) { root.scrollTop=viewScroll.top; root.scrollLeft=viewScroll.left; const lanes=root.querySelector('.wp-board-lanes'); if(lanes) lanes.scrollLeft=viewScroll.board; }
   if(focusState&&page) {
@@ -14830,9 +15130,18 @@ function wpSaveViewPrefs() { S.ui.plannerView=WP.view; persist(); }
 function wpAfterTaskPage() {
   if(S.taskMigrationPending && !S.taskMigrationPreviewShown) { S.taskMigrationPreviewShown=true; setTimeout(()=>wpOpenTaskMigrationPreview(),0); }
   if(S.ui.plannerView && ['week','board','inbox','all','projects'].includes(S.ui.plannerView) && !WP._viewRestored) { WP.view=S.ui.plannerView; WP._viewRestored=true; wpRenderView(); }
-  const search=$('#wpSearch'); if(search) search.addEventListener('input',debounce(e=>{WP.query=e.target.value;wpRenderView();},150));
+  const search=$('#wpSearch');
+  if(search&&search.dataset.wpSearchBound!=='1') {
+    search.dataset.wpSearchBound='1';
+    search.addEventListener('input',debounce(e=>{WP.query=e.target.value;wpSyncSearchControls();wpRenderView();},150));
+  }
+  wpSyncSearchControls();
   const page=$('#page'), currentBar=page&&page.querySelector('.wp-currentbar');
   if(currentBar) initSegs(currentBar);
+  wpSyncSidebarState();
+  if(WP._layoutResizeObserver) WP._layoutResizeObserver.disconnect();
+  const layout=page&&page.querySelector('.wp-layout');
+  if(layout&&window.ResizeObserver) { WP._layoutResizeObserver=new ResizeObserver(()=>wpSyncSidebarState()); WP._layoutResizeObserver.observe(layout); }
   if(page && page.dataset.wpDateBound!=='1') { page.addEventListener('change',e=>{const picker=e.target.closest('[data-wp-calendar-picker]');if(picker&&picker.value)wpJumpCalendar(picker.value,picker.dataset.wpCalendarPicker);}); page.dataset.wpDateBound='1'; }
   const root=$('#wpView'); if(!root) return;
   wpScheduleTaskTitleMarquee(page||root);
@@ -15478,7 +15787,7 @@ function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
       <div class="wp-repeat-options" id="wpRepeatOptions" ${values.frequency==='none'?'hidden':''}>
         <label class="field"><span id="wpIntervalLabel">Интервал</span><input class="input" id="wpInterval" type="number" min="1" max="365" value="${esc(values.frequency==='interval'?values.intervalDays:values.interval)}"></label>
         ${wpDomSelectField('Ритм','wpMode',values.mode,modeOptions)}
-        ${wpDateFieldHtml('wpEndDate','До даты (необязательно)',values.endDate||'')}
+        ${wpDateFieldHtml('wpEndDate','До даты (необязательно)',values.endDate||'',{showTrigger:false})}
       </div>
       <div id="wpWeekdays" class="wp-weekdays" ${values.frequency==='weekly'?'':'hidden'}>${WP_WEEKDAYS.map((d,i)=>`<label><input type="checkbox" value="${i+1}" ${days.includes(i+1)?'checked':''}><span>${d}</span></label>`).join('')}</div>
       <p class="wp-form-hint" id="wpRepeatHint">Календарная серия остаётся на исходных днях. При завершении просроченного экземпляра следующая дата не сдвигается.</p>
@@ -15492,8 +15801,8 @@ function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
       ${wpDomSelectField(isNew?'Добавить в':'Список','wpKind',values.kind,kindOptions,{disabled:!isNew})}
       ${wpDomSelectField('Проект','wpProject',values.projectId,projectOptions,{fieldId:'wpProjectWrap',hidden:values.kind!=='project'})}
       ${wpDomSelectField('Исполнитель','wpAssignee',values.assignee,assigneeOptions)}
-      ${wpDateFieldHtml('wpScheduled','Дата начала',values.scheduledDate||'')}
-      ${wpDateFieldHtml('wpDeadline','Крайний срок',values.deadlineAt||'')}
+      ${wpDateFieldHtml('wpScheduled','Дата начала',values.scheduledDate||'',{showTrigger:false})}
+      ${wpDateFieldHtml('wpDeadline','Крайний срок',values.deadlineAt||'',{showTrigger:false})}
       ${statusField}
       ${wpDomSelectField('Приоритет','wpPriority',values.priorityKey,priorityOptions)}
       ${wpDomSelectField('Метка Матрицы','wpQuadrant',values.quadrant,quadrantOptions)}
@@ -15503,7 +15812,7 @@ function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
       <label class="field full"><span>Теги · через запятую</span><input class="input" id="wpTags" value="${esc(values.tags)}" placeholder="работа, поездка"></label>
       <label class="field"><span>Оценка длительности, мин</span><input class="input" id="wpDuration" type="number" min="1" max="100000" value="${esc(values.durationEstimateMinutes)}" placeholder="Не задана"></label>
       <label class="field"><span>Причина ожидания</span><input class="input" id="wpWaitingReason" value="${esc(values.waitingReason)}" placeholder="Например: ответ от коллеги"></label>
-      ${wpDateFieldHtml('wpReviewAt','Проверить снова',values.reviewAt||'')}
+      ${wpDateFieldHtml('wpReviewAt','Проверить снова',values.reviewAt||'',{showTrigger:false})}
     </div></details>
     ${repeat}
   </div>${commentHtml}`;
@@ -16232,18 +16541,40 @@ function wpSetCalendarMode(mode) {
   WP.mobileDate=date; WP.weekStart=wpWeekStart(date); WP.monthStart=wpMonthStart(date);
   wpSaveCalendarPrefs(); wpRenderView();
 }
+function wpSyncSidebarState() {
+  const layout=$('#page .wp-layout'); if(!layout) return;
+  const rail=layout.querySelector('.wp-rail'), button=layout.querySelector('.wp-rail-toggle'), mobile=layout.clientWidth<=900;
+  if(!mobile) WP.railOpen=false;
+  layout.classList.toggle('is-sidebar-collapsed',WP.sidebarCollapsed);
+  layout.classList.toggle('is-rail-open',WP.railOpen);
+  if(rail) {
+    rail.classList.toggle('is-collapsed',WP.sidebarCollapsed);
+    rail.inert=mobile&&!WP.railOpen;
+    rail.setAttribute('aria-hidden',String(mobile&&!WP.railOpen));
+  }
+  if(button) {
+    const expanded=mobile?WP.railOpen:!WP.sidebarCollapsed;
+    const label=mobile?'Закрыть навигацию задач':expanded?'Свернуть навигацию':'Развернуть навигацию';
+    const icon=mobile?'x':WP.sidebarCollapsed?'chev-r':'chev-l';
+    button.setAttribute('aria-expanded',String(expanded)); button.setAttribute('aria-label',label); button.title=label;
+    if(button.dataset.wpRailIcon!==icon) { button.dataset.wpRailIcon=icon; button.innerHTML=ico(icon); }
+  }
+  const opener=layout.querySelector('.wp-mobile-menu');
+  if(opener) opener.setAttribute('aria-expanded',String(mobile&&WP.railOpen));
+}
+function wpSetRailOpen(open) {
+  WP.railOpen=!!open; wpSyncSidebarState();
+  const layout=$('#page .wp-layout'); if(!layout||layout.clientWidth>900) return;
+  const target=WP.railOpen?layout.querySelector('.wp-nav-item.active')||layout.querySelector('.wp-rail-toggle'):layout.querySelector('.wp-mobile-menu');
+  if(target) target.focus({preventScroll:true});
+}
 function wpToggleSidebar() {
+  const layout=$('#page .wp-layout');
+  if(layout&&layout.clientWidth<=900) { wpSetRailOpen(false); return; }
   WP.sidebarCollapsed=!WP.sidebarCollapsed;
   if(!wpIsObj(S.ui)) S.ui={};
   S.ui.plannerSidebarCollapsed=WP.sidebarCollapsed; persist();
-  const layout=$('#page .wp-layout'), rail=layout&&layout.querySelector('.wp-rail'), button=layout&&layout.querySelector('.wp-rail-toggle');
-  if(layout) layout.classList.toggle('is-sidebar-collapsed',WP.sidebarCollapsed);
-  if(rail) rail.classList.toggle('is-collapsed',WP.sidebarCollapsed);
-  if(button) {
-    const expanded=!WP.sidebarCollapsed, label=expanded?'Свернуть навигацию':'Развернуть навигацию';
-    button.setAttribute('aria-expanded',String(expanded)); button.setAttribute('aria-label',label); button.title=label;
-    button.innerHTML=ico(WP.sidebarCollapsed?'chev-r':'chev-l');
-  }
+  wpSyncSidebarState();
   if(layout) wpScheduleTaskTitleMarquee(layout);
 }
 function wpCalendarMove(delta) {
@@ -16298,6 +16629,8 @@ document.addEventListener('keydown',e=>{
   const ae=document.activeElement,typing=ae&&(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)||ae.isContentEditable),mod=e.metaKey||e.ctrlKey;
   if(e.key==='Escape' && ae && ae.matches && ae.matches('[data-wp-quick-input]')) { e.preventDefault();e.stopImmediatePropagation();WP.quick=null;wpRenderView();return; }
   if(!wpIsTaskPage() || OV.stack.length) return;
+  if(e.key==='Escape'&&ae&&ae.id==='wpSearch'&&WP.query) { e.preventDefault();e.stopImmediatePropagation();wpClearSearch();return; }
+  if(e.key==='Escape'&&WP.railOpen) { e.preventDefault();e.stopImmediatePropagation();wpSetRailOpen(false);return; }
   if(!typing && !mod && !e.altKey && e.key.toLowerCase()==='q') { e.preventDefault();e.stopImmediatePropagation();wpOpenContextAdd();return; }
   if(!typing && mod && e.shiftKey && e.code==='KeyK') { e.preventDefault();e.stopImmediatePropagation();const q=$('#wpSearch');if(q){q.focus();q.select();} }
 },true);
@@ -16327,6 +16660,9 @@ Object.assign(ACT,{
   wpMobileDay:el=>wpSetMobileDay(el.dataset.date),
   wpCalendarSelectDate:el=>wpSelectCalendarDate(el.dataset.date),
   wpToggleSidebar:()=>wpToggleSidebar(),
+  wpRailOpen:()=>wpSetRailOpen(true),
+  wpRailClose:()=>wpSetRailOpen(false),
+  wpClearSearch:()=>wpClearSearch(),
   wpAllFilter:el=>wpAllFilter(el.dataset.filter),
   wpAllReset:()=>wpResetAllFilters(),
   wpBoardFocus:el=>wpSetBoardFocus(el.dataset.filter),

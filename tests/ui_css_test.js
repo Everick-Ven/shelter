@@ -161,6 +161,8 @@ check('новый rail задач содержит мобильный слой �
 check('месячная сетка и выбранный день используют двухколоночную компоновку',
   taskLayoutStyle.includes('.wp-month-layout{') && taskLayoutStyle.includes('grid-template-columns:minmax(0,1fr) 280px') &&
   html.includes('<div class="wp-month-layout"><div class="wp-month-calendar">'));
+check('доска растягивается до правого края без изменения отступов других представлений',
+  taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0}'));
 check('месячная сетка задач использует компактные пропорции календаря истории',
   plannerStyle.includes('.wp-month-day{min-height:84px;aspect-ratio:1.22}') &&
   taskLayoutStyle.includes('.planner-page .wp-month-day{'));

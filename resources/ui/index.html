@@ -4679,6 +4679,8 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .planner-page .wp-rail,.wp-rail-scrim{transition:none}
 }
 .planner-page .wp-date-control.is-iconless{gap:0}
+/* Доска использует всю доступную ширину; остальные представления сохраняют общий правый отступ. */
+.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0}
 </style>
 </head>
 <body>

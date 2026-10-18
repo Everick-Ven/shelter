@@ -21,6 +21,63 @@
   var USE_CLIP = USE_HOLES || USE_WINDOWS_MASK;
   var VERSION = '__APP_VERSION__';
   var root = document.documentElement;
+  var DIAGNOSTICS_ENABLED = '__SHELTER_CI_HOOKS__' === 'true';
+  var PERF_METHODS = Object.create(null);
+  [
+    'premium.status', 'premium.checkout', 'user-data.delete', 'win.minimize',
+    'win.maximize', 'win.close', 'win.fullscreen', 'favicon.ensure', 'ext.list',
+    'ext.setMode', 'ext.install', 'ext.remove', 'ext.pick', 'file.open',
+    'win.openPlain', 'view.open', 'view.layout', 'view.clip', 'view.hide',
+    'view.show', 'view.sync', 'view.act', 'ctx.act', 'view.snap', 'view.zoom',
+    'find', 'devtools', 'clip.read', 'clip.write', 'theme.scheme', 'shell.show',
+    'block.setEnabled', 'fp.setEnabled', 'cookie.setEnabled', 'https.setEnabled',
+    'dns.setProvider', 'strict.setEnabled', 'strict.allow', 'ghost.setEnabled',
+    'shell.filestate', 'dl.decision', 'dl.control', 'privacy.clear',
+    'dbg.protections', 'dbg.hit', 'dbg.clip', 'window.minimize',
+    'window.maximize', 'window.close', 'window.openPlain', 'theme.scheme',
+    'privacy.clear', 'auth.open', 'devtools.ctl', 'ai.test', 'ai.chat',
+    'clipboard.read', 'clipboard.write', 'tab.captureThumbs', 'tab.hideContent',
+    'tab.navigate', 'tab.reload', 'tab.stop', 'tab.zoom', 'ui.ready',
+    'viewport.sync', 'diag.performance', 'ui.longtask', 'freeze.snapshot',
+    'freeze.decode', 'freeze.hide', 'freeze.total', 'thaw.show', 'thaw.total',
+    'other'
+  ].forEach(function (name) { PERF_METHODS[name] = true; });
+  function safePerfMethod(name) {
+    return typeof name === 'string' && PERF_METHODS[name] ? name : 'other';
+  }
+  function perfMethodFromOptions(options) {
+    var request = {};
+    try {
+      if (options && typeof options.request === 'string') request = JSON.parse(options.request) || {};
+    } catch (_) {}
+    var name = typeof request.m === 'string' ? request.m : '';
+    if (!name && typeof request.cmd === 'string') name = request.cmd.replace(/:/g, '.');
+    return safePerfMethod(name);
+  }
+  function installCefQueryMeasurement(original) {
+    if (!DIAGNOSTICS_ENABLED || typeof original !== 'function') return original;
+    return function (options) {
+      if (!options || typeof options !== 'object') return original.apply(this, arguments);
+      var method = perfMethodFromOptions(options), started = performance.now(), settled = false;
+      var wrapped = Object.assign({}, options);
+      function finish() {
+        if (settled) return;
+        settled = true;
+        recordPerf(method, Math.max(0, performance.now() - started));
+      }
+      if (typeof options.onSuccess === 'function') {
+        var onSuccess = options.onSuccess;
+        wrapped.onSuccess = function () { finish(); return onSuccess.apply(this, arguments); };
+      }
+      if (typeof options.onFailure === 'function') {
+        var onFailure = options.onFailure;
+        wrapped.onFailure = function () { finish(); return onFailure.apply(this, arguments); };
+      }
+      try { return original.call(this, wrapped); }
+      catch (error) { finish(); throw error; }
+    };
+  }
+  var nativeCefQuery = window.cefQuery;
 
   /* ---------- cefQuery ---------- */
   function q(method, args) {
@@ -143,17 +200,53 @@
 
   /* ---------- замеры ---------- */
   var perf = window.__shPerf = {
+    enabled: DIAGNOSTICS_ENABLED,
     freezes: 0, thaws: 0, snapMs: [], snapKB: [], freezeMs: [], thawMs: [],
     holes: 0, clips: 0, clipFrames: 0, clipActive: false,
     layoutChecks: 0, layoutRequests: 0, overlayChecks: 0, observerWakeups: 0,
-    longTasks: 0, longMax: 0
+    longTasks: 0, longMax: 0, pending: Object.create(null)
   };
   function pushPerf(arr, v) { arr.push(Math.round(v)); if (arr.length > 20) arr.shift(); }
-  try {
-    new PerformanceObserver(function (l) {
-      l.getEntries().forEach(function (e) { perf.longTasks++; if (e.duration > perf.longMax) perf.longMax = Math.round(e.duration); });
-    }).observe({ entryTypes: ['longtask'] });
-  } catch (_) {}
+  var perfFlushTimer = 0, perfReportAt = 0;
+  function recordPerf(method, duration) {
+    if (!DIAGNOSTICS_ENABLED) return;
+    var name = safePerfMethod(method), ms = Number(duration);
+    if (!isFinite(ms) || ms < 0) return;
+    ms = Math.min(ms, 1000000);
+    var bucket = perf.pending[name] || (perf.pending[name] = { count: 0, totalMs: 0, maxMs: 0 });
+    bucket.count++;
+    bucket.totalMs = Math.min(1000000000, bucket.totalMs + ms);
+    bucket.maxMs = Math.max(bucket.maxMs, ms);
+    if (!perfFlushTimer) perfFlushTimer = setTimeout(flushPerf, 6000);
+  }
+  function flushPerf() {
+    perfFlushTimer = 0;
+    if (!DIAGNOSTICS_ENABLED || typeof nativeCefQuery !== 'function') return;
+    var now = Date.now(), wait = 6000 - (now - perfReportAt);
+    if (wait > 0) { perfFlushTimer = setTimeout(flushPerf, wait); return; }
+    var names = Object.keys(perf.pending).slice(0, 64), samples = [];
+    names.forEach(function (name) {
+      var bucket = perf.pending[name];
+      if (!bucket || !bucket.count) return;
+      samples.push({ method: name, count: bucket.count, totalMs: bucket.totalMs, maxMs: bucket.maxMs });
+      delete perf.pending[name];
+    });
+    if (!samples.length) return;
+    perfReportAt = now;
+    try {
+      nativeCefQuery.call(window, {
+        request: JSON.stringify({ m: 'diag.performance', a: { samples: samples } }),
+        persistent: false,
+        onSuccess: function () {},
+        onFailure: function () {}
+      });
+    } catch (_) {}
+    if (Object.keys(perf.pending).length && !perfFlushTimer) perfFlushTimer = setTimeout(flushPerf, 6000);
+  }
+  window.__shRecordPerf = recordPerf;
+  if (DIAGNOSTICS_ENABLED && typeof nativeCefQuery === 'function') {
+    window.cefQuery = installCefQueryMeasurement(nativeCefQuery);
+  }
 
   function overlayOverViewport() {
     perf.overlayChecks++;
@@ -208,11 +301,14 @@
   function freeze() {
     if (st.busy || st.frozen || !st.visible || !st.tabId) return;
     st.busy = true;
-    var id = st.tabId, epoch = st.epoch, t0 = performance.now(), hideSent = false, captureFailed = false;
+    var id = st.tabId, epoch = st.epoch, t0 = performance.now(), hideSent = false, captureFailed = false, finished = false;
     function stillCurrent() {
       return st.visible && st.tabId === id && st.epoch === epoch && overlayOverViewport();
     }
     function finish() {
+      if (finished) return;
+      finished = true;
+      recordPerf('freeze.total', performance.now() - t0);
       st.busy = false;
       evaluate();
     }
@@ -225,14 +321,18 @@
         .then(function () { st.clipKey = ''; finish(); });
     }
 
+    var snapStarted = performance.now();
     qSnap(id, 58, 900).then(function (url) {
-      pushPerf(perf.snapMs, performance.now() - t0);
+      var snapElapsed = performance.now() - snapStarted;
+      recordPerf('freeze.snapshot', snapElapsed);
+      pushPerf(perf.snapMs, snapElapsed);
       pushPerf(perf.snapKB, (url || '').length / 1024);
       if (!stillCurrent()) { dropSnap(); return false; }
       if (!url) { captureFailed = true; dropSnap(); return false; }
       st.snapUrl = url; st.snapFor = id;
-      var img = showSnap(url);
+      var img = showSnap(url), decodeStarted = performance.now();
       return waitForSnapshot(img, 500).then(function (ready) {
+        recordPerf('freeze.decode', performance.now() - decodeStarted);
         if (!ready) { captureFailed = true; dropSnap(); return false; }
         if (!stillCurrent()) { dropSnap(); return false; }
         img.style.visibility = '';
@@ -248,7 +348,11 @@
       }
       st.frozen = true;
       hideSent = true;
-      return q('view.hide').then(function (result) { return result !== null; });
+      var hideStarted = performance.now();
+      return q('view.hide').then(function (result) {
+        recordPerf('freeze.hide', performance.now() - hideStarted);
+        return result !== null;
+      });
     }).then(function (hidden) {
       if (!hideSent) return;
       if (!hidden) {
@@ -274,13 +378,23 @@
   function thaw() {
     if (st.busy || !st.frozen || !st.visible) return;
     st.busy = true;
-    var id = st.tabId, epoch = st.epoch, tt0 = performance.now();
+    var id = st.tabId, epoch = st.epoch, tt0 = performance.now(), finished = false;
     function finish() {
+      if (finished) return;
+      finished = true;
+      recordPerf('thaw.total', performance.now() - tt0);
       st.busy = false;
       st.clipKey = '';
       evaluate();
     }
-    q('view.show', { rect: vpRect(), focus: !editableFocused() })
+    function showNativeView() {
+      var showStarted = performance.now();
+      return q('view.show', { rect: vpRect(), focus: !editableFocused() }).then(function (result) {
+        recordPerf('thaw.show', performance.now() - showStarted);
+        return result;
+      });
+    }
+    showNativeView()
       .then(function () { return nextFrames(2); })
       .then(function () {
         st.frozen = false;
@@ -296,7 +410,7 @@
         if (changed) {
           // view.open may have been queued while the old snapshot was still
           // frozen. Re-apply the current viewport after it, not the stale one.
-          return q('view.show', { rect: vpRect(), focus: !editableFocused() })
+          return showNativeView()
             .then(function () { return nextFrames(1); })
             .then(finish);
         }

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-jPU10qoL7W+AP4Z5ojx96KCtG8PceNT5QfsMUKbOaUY=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-PJMpuS2VeqlJuVGFC/YwIJgflHmVGS9xXzYYHhUvQyA=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-P1FS90FVP+70jjC/V3CB4CI/d4z/nDX/SJ6iG89vY5o=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-PJMpuS2VeqlJuVGFC/YwIJgflHmVGS9xXzYYHhUvQyA=' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4664,6 +4664,19 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   const hasCefRouter = typeof window.cefQuery === 'function';
   const rawCef = window.shelterCef || window.cef || null;
   const isCefEnv = !!(hasCefRouter || rawCef || (window.shelterNative && window.shelterNative.engine === 'cef') || /CEF|ShelterCEF/i.test(navigator.userAgent || ''));
+  const hostPerf = window.__shPerf;
+  if (hostPerf && hostPerf.enabled && typeof PerformanceObserver === 'function') {
+    try {
+      new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => {
+          if (!entry || !Number.isFinite(entry.duration) || entry.duration < 100) return;
+          hostPerf.longTasks++;
+          hostPerf.longMax = Math.max(hostPerf.longMax, Math.round(entry.duration));
+          if (typeof window.__shRecordPerf === 'function') window.__shRecordPerf('ui.longtask', entry.duration);
+        });
+      }).observe({ entryTypes: ['longtask'] });
+    } catch (_) {}
+  }
 
   function cefSend(cmd, args, syncFallback) {
     const payload = Object.assign({ ns: 'shelter', cmd: String(cmd) }, args && typeof args === 'object' ? args : { value: args });

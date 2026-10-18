@@ -4,6 +4,12 @@
 #include <cmath>
 #include <filesystem>
 #include <sstream>
+#if defined(SHELTER_CI_HOOKS)
+#include <chrono>
+#include <cstdint>
+#include <iomanip>
+#include <utility>
+#endif
 
 #include "include/cef_cookie.h"
 #include "include/cef_parser.h"
@@ -163,6 +169,73 @@ class CookieClearVisitor : public CefCookieVisitor {
   IMPLEMENT_REFCOUNTING(CookieClearVisitor);
 };
 
+#if defined(SHELTER_CI_HOOKS)
+using BridgePerfClock = std::chrono::steady_clock;
+
+struct BridgePerfBucket {
+  std::uint64_t count = 0;
+  double total_ms = 0;
+  double max_ms = 0;
+  BridgePerfClock::time_point last_report{};
+};
+
+std::map<std::string, BridgePerfBucket>& BridgePerfBuckets() {
+  static std::map<std::string, BridgePerfBucket> buckets;
+  return buckets;
+}
+
+const std::set<std::string>& DiagnosticMethodNames() {
+  static const std::set<std::string> names = {
+      "premium.status", "premium.checkout", "user-data.delete",
+      "win.minimize", "win.maximize", "win.close", "win.fullscreen",
+      "favicon.ensure", "ext.list", "ext.setMode", "ext.install",
+      "ext.remove", "ext.pick", "file.open", "win.openPlain",
+      "view.open", "view.layout", "view.clip", "view.hide", "view.show",
+      "view.sync", "view.act", "ctx.act", "view.snap", "view.zoom",
+      "find", "devtools", "clip.read", "clip.write", "theme.scheme",
+      "shell.show", "block.setEnabled", "fp.setEnabled",
+      "cookie.setEnabled", "https.setEnabled", "dns.setProvider",
+      "strict.setEnabled", "strict.allow", "ghost.setEnabled",
+      "shell.filestate", "dl.decision", "dl.control", "privacy.clear",
+      "dbg.protections", "dbg.hit", "dbg.clip", "window.minimize",
+      "window.maximize", "window.close", "window.openPlain",
+      "privacy.clear", "auth.open", "devtools.ctl", "ai.test", "ai.chat",
+      "clipboard.read", "clipboard.write", "tab.captureThumbs",
+      "tab.hideContent", "tab.navigate", "tab.reload", "tab.stop",
+      "tab.zoom", "ui.ready", "viewport.sync", "diag.performance",
+      "ui.longtask", "freeze.snapshot", "freeze.decode", "freeze.hide",
+      "freeze.total", "thaw.show", "thaw.total", "other"};
+  return names;
+}
+
+std::string DiagnosticMethod(const std::string& name) {
+  return DiagnosticMethodNames().count(name) ? name : "other";
+}
+
+double BoundedPerfValue(double value, double maximum) {
+  return std::isfinite(value) ? std::clamp(value, 0.0, maximum) : 0.0;
+}
+
+std::string PerfMilliseconds(double value) {
+  std::ostringstream out;
+  out << std::fixed << std::setprecision(1) << BoundedPerfValue(value, 1000000.0);
+  return out.str();
+}
+
+template <typename Callback>
+class ScopeExit {
+ public:
+  explicit ScopeExit(Callback callback) : callback_(std::move(callback)) {}
+  ~ScopeExit() { callback_(); }
+
+  ScopeExit(const ScopeExit&) = delete;
+  ScopeExit& operator=(const ScopeExit&) = delete;
+
+ private:
+  Callback callback_;
+};
+#endif  // SHELTER_CI_HOOKS
+
 }  // namespace
 
 // ============================================================================
@@ -171,6 +244,37 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                          CefRefPtr<CefDictionaryValue> a,
                          CefRefPtr<Callback> cb) {
   CEF_REQUIRE_UI_THREAD();
+#if defined(SHELTER_CI_HOOKS)
+  const auto bridge_started = BridgePerfClock::now();
+  auto log_bridge_perf = [this, &m, bridge_started]() {
+    const auto finished = BridgePerfClock::now();
+    const double elapsed_ms = BoundedPerfValue(
+        std::chrono::duration<double, std::milli>(finished - bridge_started).count(),
+        1000000.0);
+    const std::string method = DiagnosticMethod(m);
+    BridgePerfBucket& bucket = BridgePerfBuckets()[method];
+    ++bucket.count;
+    bucket.total_ms = std::min(1000000000.0, bucket.total_ms + elapsed_ms);
+    bucket.max_ms = std::max(bucket.max_ms, elapsed_ms);
+    const bool first = bucket.last_report == BridgePerfClock::time_point{};
+    const bool interval_elapsed = first ||
+        finished - bucket.last_report >= std::chrono::seconds(10);
+    const bool slow_interval_elapsed = elapsed_ms >= 100.0 &&
+        (first || finished - bucket.last_report >= std::chrono::seconds(1));
+    if (!interval_elapsed && !slow_interval_elapsed) return;
+
+    std::ostringstream line;
+    line << "perf bridge method=" << method << " count=" << bucket.count
+         << " total_ms=" << PerfMilliseconds(bucket.total_ms)
+         << " max_ms=" << PerfMilliseconds(bucket.max_ms);
+    Log(line.str());
+    bucket.count = 0;
+    bucket.total_ms = 0;
+    bucket.max_ms = 0;
+    bucket.last_report = finished;
+  };
+  ScopeExit<decltype(log_bridge_perf)> bridge_perf_scope(std::move(log_bridge_perf));
+#endif
   // Centralize the renderer-to-host trust boundary so new bridge methods
   // cannot accidentally omit the UI-browser authorization check.
   if (!IsUiBrowser(browser)) {
@@ -573,6 +677,44 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
 #if defined(SHELTER_CI_HOOKS)
+  if (m == "diag.performance") {
+    static BridgePerfClock::time_point last_ui_report{};
+    const auto now = BridgePerfClock::now();
+    if (last_ui_report != BridgePerfClock::time_point{} &&
+        now - last_ui_report < std::chrono::seconds(5)) {
+      cb->Success("{}");
+      return true;
+    }
+    if (!a || !a->HasKey("samples") || a->GetType("samples") != VTYPE_LIST) {
+      cb->Success("{}");
+      return true;
+    }
+    CefRefPtr<CefListValue> samples = a->GetList("samples");
+    std::ostringstream line;
+    line << "perf ui";
+    bool has_sample = false;
+    for (size_t i = 0; samples && i < samples->GetSize() && i < 64; ++i) {
+      if (samples->GetType(i) != VTYPE_DICTIONARY) continue;
+      CefRefPtr<CefDictionaryValue> sample = samples->GetDictionary(i);
+      const std::string method = Str(sample, "method");
+      if (!DiagnosticMethodNames().count(method)) continue;
+      const double count_value = BoundedPerfValue(Num(sample, "count"), 1000000.0);
+      const std::uint64_t count = static_cast<std::uint64_t>(count_value);
+      if (!count) continue;
+      const double total_ms = BoundedPerfValue(Num(sample, "totalMs"), 1000000000.0);
+      const double max_ms = BoundedPerfValue(Num(sample, "maxMs"), 1000000.0);
+      line << " method=" << method << " count=" << count
+           << " total_ms=" << PerfMilliseconds(total_ms)
+           << " max_ms=" << PerfMilliseconds(max_ms);
+      has_sample = true;
+    }
+    if (has_sample) {
+      last_ui_report = now;
+      Log(line.str());
+    }
+    cb->Success("{}");
+    return true;
+  }
   if (m == "dbg.protections") {  // диагностика (CI): состояние защит в браузерном процессе
     // Приёмка обязана уметь отличить «тумблер не дошёл до нативной части» от
     // «дошёл, но рендерер применил старое значение»: без этого сбой в цепочке

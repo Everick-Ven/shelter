@@ -7,7 +7,7 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Supported build conf
 project(shelter)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-set(SHELTER_VERSION "1.0.294")
+set(SHELTER_VERSION "1.0.295")
 if(NOT SHELTER_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
   message(FATAL_ERROR "SHELTER_VERSION must be numeric major.minor.patch")
 endif()

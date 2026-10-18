@@ -222,6 +222,12 @@ class UiSchemeHandlerFactory : public CefSchemeHandlerFactory {
     } else if (rel == "host-bridge.js") {
       ReplaceAll(&data, "__PLATFORM__", kPlatform);
       ReplaceAll(&data, "__APP_VERSION__", kAppVersion);
+      // Производительные замеры и их журналирование включаются только в CI-сборке.
+#if defined(SHELTER_CI_HOOKS)
+      ReplaceAll(&data, "__SHELTER_CI_HOOKS__", "true");
+#else
+      ReplaceAll(&data, "__SHELTER_CI_HOOKS__", "false");
+#endif
 #if defined(NDEBUG)
       ReplaceAll(&data, "__DEV_BUILD__", "false");
 #else

@@ -32,6 +32,11 @@ const taskPersistEnd=planner.indexOf('\nfunction wpUndoSnapshot',taskPersistStar
 const taskPersistSource=planner.slice(taskPersistStart,taskPersistEnd);
 assert(taskPersistSource.includes("store.set('shelter:board',raw)") && taskPersistSource.includes("store.get('shelter:boards')!==regRaw") && !taskPersistSource.includes('JSON.parse') && !taskPersistSource.includes('saveNow()'), 'task updates verify exact board writes without parsing a second copy or rewriting unrelated application data');
 assert(!taskPersistSource.includes('scheduleAchievementReconcile'), 'task-board persistence must not trigger achievement reconciliation');
+const statusUpdateStart=planner.indexOf('function wpSetStatusRef(ref,key) {');
+const statusUpdateEnd=planner.indexOf('\nfunction wpApplySchedule',statusUpdateStart);
+const statusUpdateSource=planner.slice(statusUpdateStart,statusUpdateEnd);
+assert(statusUpdateStart>=0&&statusUpdateEnd>statusUpdateStart&&statusUpdateSource.includes('wpCommit(`Статус изменён'), 'status changes must flow through the planner commit path');
+assert(!/refresh\s*:\s*false/.test(statusUpdateSource), 'status changes keep a full view refresh because status affects filters, columns, and derived counts');
 const saveNowStart = html.indexOf('function saveNow() {');
 const saveNowEnd = html.indexOf("\ndocument.addEventListener('visibilitychange'", saveNowStart);
 assert(saveNowStart >= 0 && saveNowEnd > saveNowStart && html.slice(saveNowStart, saveNowEnd).includes('scheduleAchievementReconcile()'), 'profile changes continue to reconcile achievements through the general save path');
@@ -215,9 +220,9 @@ globalThis.__api = {
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
-  wpBoardEntities, wpBoardToolbar, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
+  wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
-  wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload,
+  wpSetStatusRef, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects,
   wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
 };`, context, { timeout: 5000 });
@@ -588,6 +593,36 @@ assert.strictEqual(api.store.get('shelter:boards'),storedBoardsBeforeFailedDate,
 state.board=persistenceState.board; state.boards=persistenceState.boards; state.boardsMeta=persistenceState.boardsMeta; state.boardId=persistenceState.boardId; state.taskMigrationPendingKeys=persistenceState.pendingKeys;
 if(priorStoredBoard==null) api.store.del('shelter:board'); else api.store.set('shelter:board',priorStoredBoard);
 if(priorStoredBoards==null) api.store.del('shelter:boards'); else api.store.set('shelter:boards',priorStoredBoards);
+
+const statusStateBefore={board:state.board,boards:state.boards,boardsMeta:state.boardsMeta,boardId:state.boardId,taskMigrationOK:state.taskMigrationOK};
+const statusBoardRaw=api.store.get('shelter:board'),statusBoardsRaw=api.store.get('shelter:boards');
+const allFilterBefore=api.WP.allFilter,boardCompletedBefore=api.WP.boardShowCompleted,undoTokenBefore=api.WP._undoToken;
+state.board={id:'status-rerender-board',name:'Status refresh',code:'STATUS',taskSchemaVersion:api.schema,ownerEmail:'',projects:[],people:[],invites:[],occurrences:[],recurrenceRules:[],tasks:[{id:'status-rerender-task',title:'Статус меняет группу и фильтр',homeType:'personal',homeId:'',projectId:'',statusKey:'open',status:'В работе',priorityKey:'normal',prio:'Не срочные',prevPrio:'Не срочные',scheduledDate:'2026-10-20',deadlineAt:null,createdAt:'2026-10-01T00:00:00.000Z',updatedAt:'2026-10-01T00:00:00.000Z',completedAt:null,tags:[],recurrenceRuleId:null,order:1}]};
+state.boards=[state.board];state.boardsMeta={};state.boardId=state.board.id;state.taskMigrationOK=true;
+api.WP.allFilter='active';api.WP.boardShowCompleted=true;
+assert.strictEqual(api.wpAllEntities().length,1,'an open task appears in the active list before the status update');
+const lanesBefore=api.wpBoardEntities();
+assert.strictEqual(lanesBefore.filter(task=>task.statusKey==='open').length,1);
+assert.strictEqual(lanesBefore.filter(task=>task.statusKey==='done').length,0);
+assert(api.wpBoardSummary(lanesBefore).includes('<span>В работе</span><b>1</b>'));
+assert(api.wpBoardSummary(lanesBefore).includes('<span>Готово</span><b>0</b>'));
+let statusViewRenders=0;const originalStatusRenderer=context.wpRenderView;
+context.wpRenderView=()=>{statusViewRenders++;};
+api.wpSetStatusRef({id:'status-rerender-task',entityType:'task'},'done');
+context.wpRenderView=originalStatusRenderer;
+assert.strictEqual(statusViewRenders,1,'a status edit rerenders the active planner view');
+assert.strictEqual(api.wpAllEntities().length,0,'a completed task leaves the active filter immediately');
+api.WP.allFilter='done';
+assert.strictEqual(api.wpAllEntities().length,1,'the completed task appears in the done filter immediately');
+const lanesAfter=api.wpBoardEntities();
+assert.strictEqual(lanesAfter.filter(task=>task.statusKey==='open').length,0);
+assert.strictEqual(lanesAfter.filter(task=>task.statusKey==='done').length,1);
+assert(api.wpBoardSummary(lanesAfter).includes('<span>В работе</span><b>0</b>'));
+assert(api.wpBoardSummary(lanesAfter).includes('<span>Готово</span><b>1</b>'));
+state.board=statusStateBefore.board;state.boards=statusStateBefore.boards;state.boardsMeta=statusStateBefore.boardsMeta;state.boardId=statusStateBefore.boardId;state.taskMigrationOK=statusStateBefore.taskMigrationOK;
+api.WP.allFilter=allFilterBefore;api.WP.boardShowCompleted=boardCompletedBefore;api.WP._undoToken=undoTokenBefore;
+if(statusBoardRaw==null) api.store.del('shelter:board'); else api.store.set('shelter:board',statusBoardRaw);
+if(statusBoardsRaw==null) api.store.del('shelter:boards'); else api.store.set('shelter:boards',statusBoardsRaw);
 
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
 const monthView = api.wpViewHtml();

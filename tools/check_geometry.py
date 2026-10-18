@@ -254,29 +254,53 @@ def main() -> int:
         cdp = Cdp(target["webSocketDebuggerUrl"])
         cdp.call("Runtime.enable")
         cdp.call("Page.enable")
-        ready_expression = """(() => {
+        out("CDP connected to the SHELTER UI")
+        readiness_expression = """(() => {
           const viewport = document.getElementById('viewport');
-          if (!viewport || typeof window.getActiveTabId !== 'function' ||
-              !window.getActiveTabId() || !window.shelter ||
-              typeof window.shelter.navigate !== 'function') return false;
-          const rect = viewport.getBoundingClientRect();
-          return rect.width > 2 && rect.height > 2;
+          const activeTabId = typeof window.getActiveTabId === 'function'
+            ? window.getActiveTabId() : null;
+          const rect = viewport ? viewport.getBoundingClientRect() : null;
+          const hasNavigate = !!window.shelter &&
+            typeof window.shelter.navigate === 'function';
+          const hasNativeOpen = typeof window.shelterOpen === 'function';
+          return {
+            ready: !!viewport && hasNavigate && hasNativeOpen,
+            activeTabId: activeTabId,
+            hasViewport: !!viewport,
+            viewport: rect ? {
+              x: Math.round(rect.x), y: Math.round(rect.y),
+              w: Math.round(rect.width), h: Math.round(rect.height)
+            } : null,
+            hasNavigate: hasNavigate,
+            hasNativeOpen: hasNativeOpen
+          };
         })()"""
-        wait_until(
-            lambda: cdp.evaluate(ready_expression) is True,
-            "an initialized UI and visible viewport",
-            process,
-            deadline,
-        )
-        viewport = cdp.evaluate(
-            "(() => { const r = document.getElementById('viewport').getBoundingClientRect(); "
-            "return {x: Math.round(r.x), y: Math.round(r.y), "
-            "w: Math.round(r.width), h: Math.round(r.height)}; })()"
-        )
-        out("UI viewport:", json.dumps(viewport, ensure_ascii=False))
+        last_ui_state: List[Any] = [None]
+
+        def ui_ready() -> bool:
+            last_ui_state[0] = cdp.evaluate(readiness_expression)
+            return (
+                isinstance(last_ui_state[0], dict)
+                and last_ui_state[0].get("ready") is True
+            )
+
+        try:
+            wait_until(
+                ui_ready,
+                "the initialized UI bridge and active tab",
+                process,
+                deadline,
+            )
+        except GeometryError as exc:
+            state = json.dumps(last_ui_state[0], ensure_ascii=False)
+            raise GeometryError(f"{exc}; last UI state: {state}") from exc
+        out("UI bridge ready:", json.dumps(last_ui_state[0], ensure_ascii=False))
         navigation = cdp.evaluate(
-            "(() => { window.shelter.navigate('https://example.com/'); "
-            "return {activeTabId: window.getActiveTabId(), started: true}; })()"
+            "(() => { const target = 'https://example.com/'; "
+            "window.shelter.navigate(target); "
+            "const accepted = window.shelterOpen(target, {reveal: true}); "
+            "return {activeTabId: window.getActiveTabId(), "
+            "nativeOpenAccepted: accepted === true}; })()"
         )
         out("native-site navigation:", json.dumps(navigation, ensure_ascii=False))
 
@@ -326,6 +350,7 @@ def main() -> int:
         return 0
     except Exception as exc:
         out(f"FAIL: {exc}")
+        out(f"::error title=Geometry acceptance failed::{exc}")
         try:
             stderr_stream.flush()
         except OSError:

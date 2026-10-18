@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-m8Jd6MuNJFbAhF7etKnr4uN4E2jA5EtMej0Z9rXVa/8=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-07x8wJKuFKOHgnXsuzHit53RJlGKLsX/m9gs5k0/zEQ=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -3783,6 +3783,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-currentbar{min-height:0}.wp-week-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:7px 0 10px;padding:9px 11px;border:1px solid var(--line);border-radius:calc(13px*var(--rs));background:linear-gradient(120deg,color-mix(in srgb,var(--card-2) 84%,transparent),var(--card));box-shadow:var(--hi)}
 .wp-week-controls>div:first-child{display:flex;align-items:baseline;gap:8px;min-width:0}.wp-week-controls>div:first-child b{font-size:13px;font-weight:600;white-space:nowrap}.wp-week-controls>div:first-child span{color:var(--text-3);font-size:10.5px;white-space:nowrap}
 .wp-date-actions{display:flex;align-items:center;gap:5px}.wp-icon-btn{display:inline-grid;place-items:center;width:31px;height:31px;flex:none;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card-2);color:var(--text-2);cursor:pointer;transition:background .15s,border-color .15s,color .15s}.wp-icon-btn:hover{background:var(--card-3);color:var(--text);border-color:var(--line-3)}.wp-icon-btn .i{width:15px;height:15px}.wp-date-jump{width:32px;height:31px;display:grid;place-items:center;position:relative;overflow:hidden;border:1px solid var(--line);border-radius:calc(9px*var(--rs));background:var(--card-2);color:var(--text-2);cursor:pointer}.wp-date-jump:before{content:'';position:absolute;width:14px;height:14px;background:currentColor;opacity:.7;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M16 3v4M8 3v4M3 11h18'/%3E%3C/svg%3E") center/contain no-repeat}
+.wp-date-jump input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;color:transparent}
 /* Пользовательские списки и календарь не вызывают системные меню выбора. */
 .wp-dom-select-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;text-align:left;white-space:nowrap;overflow:hidden}
 .wp-dom-select-trigger.select{padding-right:9px;background-image:none}
@@ -6315,16 +6316,6 @@ function openSelectMenu(sel) {
     if(taskControl)wpTrackMenuAnchor();
   }
 }
-document.addEventListener('pointerdown', e => {
-  const sel = e.target.closest && e.target.closest('select.select');
-  if (!sel || sel.disabled) return;
-  e.preventDefault();
-  openSelectMenu(sel);
-}, true);
-document.addEventListener('mousedown', e => {
-  const sel = e.target.closest && e.target.closest('select.select');
-  if (sel && !sel.disabled) e.preventDefault();
-}, true);
 
 function wpNormalizeDomSelectOptions(options) {
   return (Array.isArray(options) ? options : []).map(option => {
@@ -13927,6 +13918,45 @@ document.addEventListener('click',e=>{
     e.preventDefault(); openWpDateCalendar(jump,null,{value,title:'Перейти к дате',allowClear:false,onSelect:date=>wpJumpCalendar(date,mode)});
   }
 });
+/* Нативные date/month-инпуты задач (в т.ч. скрытый инпут кнопки-перехода).
+   Вёрстка 1:1 с референсом, но системный пикалендарь в CEF-окне без рамки
+   рисуется битым, поэтому sys-picker блокируем и открываем встроенный
+   календарь, а в инпут пишем готовое значение через штатный коммит. */
+function wpNativeDateInput(target) {
+  if(!target||!target.closest) return null;
+  const wrap=target.closest('.wp-date-jump');
+  const input=wrap&&wrap.querySelector('input[type="date"],input[type="month"]')
+    ||target.closest('.planner-page input[type="date"],.planner-page input[type="month"],.scrim input[type="date"],.scrim input[type="month"]');
+  return input&&!input.disabled?input:null;
+}
+function wpOpenNativeDateCalendar(input) {
+  if(!input||!input.isConnected) return;
+  if(WP_DATE_PICKER.active&&WP_DATE_PICKER.active.anchor===input) { closeWpDateCalendar(true); return; }
+  input.focus({preventScroll:true});
+  const picker=input.dataset.wpCalendarPicker;
+  if(picker) {
+    const mode=picker==='month'?'month':'week';
+    openWpDateCalendar(input,null,{value:mode==='month'?WP.monthStart:WP.weekStart,title:'Перейти к дате',allowClear:false,
+      onSelect:date=>wpJumpCalendar(mode==='month'?String(date).slice(0,7):date,mode)});
+  } else {
+    openWpDateCalendar(input,input,{title:input.getAttribute('aria-label')||'Выбрать дату'});
+  }
+}
+document.addEventListener('pointerdown',e=>{
+  if(wpNativeDateInput(e.target)) e.preventDefault();
+},true);
+document.addEventListener('click',e=>{
+  const input=wpNativeDateInput(e.target);
+  if(!input) return;
+  e.preventDefault();
+  wpOpenNativeDateCalendar(input);
+});
+document.addEventListener('keydown',e=>{
+  const target=e.target;
+  const input=target&&target.matches&&target.matches('input[type="date"],input[type="month"]')?target:null;
+  if(!input||input.disabled||!input.closest('.planner-page,.scrim')) return;
+  if(e.key==='Enter'||e.key===' '||(e.altKey&&(e.key==='ArrowDown'||e.key==='ArrowUp'))) { e.preventDefault(); wpOpenNativeDateCalendar(input); }
+},true);
 function wpDeadlineOverdue(t, today=wpDateKey(Date.now())) {
   if(!t || wpTaskStatus(t)==='done' || wpTaskStatus(t)==='cancelled' || !t.deadlineAt) return false;
   const key=wpDeadlineKey(t.deadlineAt); return !!key && key < today;

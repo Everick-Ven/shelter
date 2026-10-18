@@ -20,6 +20,8 @@ const domSelectSource = html.slice(domSelectStart, domSelectEnd);
 assert.strictEqual((planner.match(/function wpAllView\(/g) || []).length, 1, 'the task-list renderer has one definition and preserves the indexed filter/count path');
 assert(planner.includes('<select') && /type=["']date["']/.test(planner), 'planner task screens match the reference Tasks layout (native filter and date controls 1:1)');
 assert(html.includes('function openSelectMenu(sel) {') && html.includes('wpRestoreSelectFocus'), 'native task selects open through the custom menu overlay');
+assert.strictEqual((html.match(/closest\('select\.select'\)/g) || []).length, 2, 'exactly one pointerdown/mousedown pair intercepts native selects (a duplicate would toggle the menu shut)');
+assert(planner.includes('function wpOpenNativeDateCalendar(input)') && planner.includes("String(date).slice(0,7)"), 'native task date inputs route through the built-in calendar instead of the broken CEF system picker');
 const legacyTaskStart = html.indexOf('function tasksBody() {');
 const legacyTaskEnd = html.indexOf('\nfunction taskMenu(anchor)', legacyTaskStart);
 assert(legacyTaskStart >= 0 && legacyTaskEnd > legacyTaskStart, 'the legacy task view and editor source must be present');
@@ -31,6 +33,7 @@ const plannerStyle = html.match(/<style id="shelter-week-planner-style">([\s\S]*
 assert(plannerStyle && plannerStyle[1].includes('.wp-filter-layout{display:grid;'), 'the list and board filters share a responsive grid');
 assert(plannerStyle[1].includes('.wp-all-filter-row .wp-filter-sort') && plannerStyle[1].includes('grid-row:5'), 'the task-list sort control stays readable at narrow widths');
 assert(plannerStyle[1].includes('@container shelter (max-width:620px)'), 'the shared filter grid adapts to the app viewport');
+assert(plannerStyle[1].includes('.wp-date-jump input{position:absolute'), 'the calendar-jump input stays invisible under its icon button');
 const weekDayCss = html.match(/\.wp-week-grid\.is-all-day \.wp-day\{([^}]*)\}/);
 assert(weekDayCss && /border:0/.test(weekDayCss[1]) && !/border-right:1px/.test(weekDayCss[1]), 'week columns must remain open without permanent day separators');
 assert(html.includes('wpMigrateTaskStores(breg)'), 'legacy task migration must run during load');

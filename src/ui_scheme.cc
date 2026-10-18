@@ -13,6 +13,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "include/wrapper/cef_stream_resource_handler.h"
 #include "src/common.h"
+#include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/secret_crypto.h"
 #include "src/shell.h"
@@ -22,7 +23,7 @@ namespace shelter {
 namespace {
 
 bool ReadFile(const std::string& path, std::string* out) {
-  std::ifstream f(path, std::ios::binary);
+  std::ifstream f(path_utils::PathFromUtf8(path), std::ios::binary);
   if (!f) return false;
   std::ostringstream ss;
   ss << f.rdbuf();

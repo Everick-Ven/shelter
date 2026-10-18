@@ -27,6 +27,8 @@
 #include <string>
 #include <vector>
 
+#include "src/path_utils.h"
+
 namespace shelter {
 
 // Больше 32 расширений в командную строку не отдаём: значение switch'а
@@ -37,7 +39,7 @@ inline constexpr size_t kMaxEngineExtensions = 32;
 namespace ext_engine_detail {
 
 inline std::string ReadTextFile(const std::string& path) {
-  std::ifstream f(path, std::ios::binary);
+  std::ifstream f(path_utils::PathFromUtf8(path), std::ios::binary);
   if (!f) return std::string();
   std::ostringstream ss;
   ss << f.rdbuf();
@@ -45,7 +47,8 @@ inline std::string ReadTextFile(const std::string& path) {
 }
 
 inline bool WriteTextFile(const std::string& path, const std::string& text) {
-  std::ofstream f(path, std::ios::binary | std::ios::trunc);
+  std::ofstream f(path_utils::PathFromUtf8(path),
+                  std::ios::binary | std::ios::trunc);
   if (!f) return false;
   f.write(text.data(), static_cast<std::streamsize>(text.size()));
   return static_cast<bool>(f);
@@ -206,13 +209,14 @@ inline std::vector<std::string> ExtEngineCollectDirs(
   for (const auto& root : roots) {
     if (out.size() >= max_count) break;
     std::error_code ec;
-    std::filesystem::directory_iterator it(root, ec);
+    std::filesystem::directory_iterator it(
+        path_utils::PathFromUtf8(root), ec);
     if (ec) continue;
     const std::filesystem::directory_iterator end;
     for (; it != end && out.size() < max_count; it.increment(ec)) {
       if (ec) break;
       const std::filesystem::path dir = it->path();
-      const std::string id = dir.filename().string();
+      const std::string id = path_utils::PathToUtf8(dir.filename());
       if (id.empty() || id.rfind("_tmp", 0) == 0) continue;
       bool safe = true;
       for (char c : id) {
@@ -227,7 +231,7 @@ inline std::vector<std::string> ExtEngineCollectDirs(
       if (!safe) continue;
       std::error_code dec;
       if (!std::filesystem::is_directory(dir, dec) || dec) continue;
-      const std::string path = dir.string();
+      const std::string path = path_utils::PathToUtf8(dir);
       if (!ExtEnginePathSafe(path) || !ExtDirIsEngineLoadable(path)) continue;
       bool dup = false;
       for (const auto& seen : out) {

@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/security_paths.h"
 
@@ -219,9 +220,10 @@ bool RemoveOwnedUserDataDirectory() {
       NSApplicationSupportDirectory, NSUserDomainMask, YES);
   if (!dirs.count) return false;
   NSString* expected_string = [dirs[0] stringByAppendingPathComponent:@"SHELTER"];
-  const fs::path expected = fs::u8path(std::string([expected_string UTF8String]));
-  const fs::path target = fs::u8path(UserDataDir());
-  if (target.filename().string() != "SHELTER" ||
+  const fs::path expected = path_utils::PathFromUtf8(
+      std::string([expected_string UTF8String]));
+  const fs::path target = path_utils::PathFromUtf8(UserDataDir());
+  if (path_utils::PathToUtf8(target.filename()) != "SHELTER" ||
       target.lexically_normal() != expected.lexically_normal()) {
     return false;
   }

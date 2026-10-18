@@ -2,6 +2,7 @@
 #define NOMINMAX
 #endif
 
+#include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/security_paths.h"
 
@@ -383,9 +384,9 @@ bool DeleteUserData() {
   namespace fs = std::filesystem;
   const std::string local_app_data = KnownFolder(FOLDERID_LocalAppData);
   if (local_app_data.empty()) return false;
-  const fs::path expected = fs::u8path(local_app_data) / "SHELTER";
-  const fs::path target = fs::u8path(UserDataDir());
-  if (target.filename().string() != "SHELTER" ||
+  const fs::path expected = path_utils::PathFromUtf8(local_app_data) / "SHELTER";
+  const fs::path target = path_utils::PathFromUtf8(UserDataDir());
+  if (path_utils::PathToUtf8(target.filename()) != "SHELTER" ||
       target.lexically_normal() != expected.lexically_normal()) {
     return false;
   }

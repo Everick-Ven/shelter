@@ -13,6 +13,7 @@
 #include "src/common.h"
 #include "src/favicon_hosts.h"
 #include "src/netguard.h"
+#include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/shell.h"
 
@@ -483,14 +484,12 @@ bool UiClient::OnBeforeDownload(
   std::string default_path = filename;
   const std::string downloads = platform::DownloadsDir();
   if (!downloads.empty()) {
-    const std::filesystem::path directory = std::filesystem::u8path(downloads);
+    const std::filesystem::path directory = path_utils::PathFromUtf8(downloads);
     std::error_code error;
     std::filesystem::create_directories(directory, error);
     if (!error) {
-      const auto utf8_path =
-          (directory / std::filesystem::u8path(filename)).u8string();
-      default_path.assign(reinterpret_cast<const char*>(utf8_path.data()),
-                          utf8_path.size());
+      default_path = path_utils::PathToUtf8(
+          directory / path_utils::PathFromUtf8(filename));
     }
   }
 

@@ -16,6 +16,7 @@
 #include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 #include "src/common.h"
+#include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/shell.h"
 
@@ -81,7 +82,7 @@ std::string Registrable(const std::string& host_in) {
 
 void LoadList(const std::string& path, std::set<std::string>* domains,
               std::vector<std::string>* patterns) {
-  std::ifstream f(path, std::ios::binary);
+  std::ifstream f(path_utils::PathFromUtf8(path), std::ios::binary);
   if (!f) return;
   std::string line;
   while (std::getline(f, line)) {
@@ -109,7 +110,8 @@ void LoadRules() {
   LoadList(dir + "/tracker-domains.txt", &domains, nullptr);
   LoadList(dir + "/url-patterns.txt", nullptr, &patterns);
   {
-    std::ifstream f(dir + "/cosmetic.css", std::ios::binary);
+    std::ifstream f(path_utils::PathFromUtf8(dir + "/cosmetic.css"),
+                    std::ios::binary);
     if (f) {
       cosmetic.assign((std::istreambuf_iterator<char>(f)),
                       std::istreambuf_iterator<char>());

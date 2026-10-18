@@ -20,6 +20,7 @@
 #include "src/clients.h"
 #include "src/color_scheme.h"
 #include "src/common.h"
+#include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/security_paths.h"
 #include "src/shell.h"
@@ -288,14 +289,14 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     for (unsigned char c : raw_path) {
       if (c < 0x20 || c == 0x7f || c == '"' || c == '\'') return false;
     }
-    const std::filesystem::path candidate = std::filesystem::u8path(raw_path);
+    const std::filesystem::path candidate = path_utils::PathFromUtf8(raw_path);
     if (!candidate.is_absolute()) return false;
     for (const std::filesystem::path& component : candidate) {
       if (component == "." || component == "..") return false;
     }
     const std::filesystem::path normalized = candidate.lexically_normal();
     const std::filesystem::path downloads =
-        std::filesystem::u8path(platform::DownloadsDir()).lexically_normal();
+        path_utils::PathFromUtf8(platform::DownloadsDir()).lexically_normal();
     const bool in_downloads = downloads.is_absolute() &&
                               security::IsPathWithin(downloads, normalized);
     const bool accepted = accepted_download_paths_.count(raw_path) != 0;

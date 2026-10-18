@@ -7,7 +7,7 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Supported build conf
 project(shelter)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-set(SHELTER_VERSION "1.0.300")
+set(SHELTER_VERSION "1.0.301")
 if(NOT SHELTER_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
   message(FATAL_ERROR "SHELTER_VERSION must be numeric major.minor.patch")
 endif()
@@ -73,7 +73,7 @@ set(SHELTER_COMMON_SRCS
   src/netguard.cc src/netguard.h
   src/shell.cc src/shell_bridge.cc src/shell.h
   src/browser_app.cc src/browser_app.h
-  src/platform.h src/security_paths.h
+  src/platform.h src/path_utils.h src/security_paths.h
 )
 set(SHELTER_SRCS_WINDOWS src/main_win.cc src/platform_win.cc
                          src/crx3_verify_win.cc
@@ -232,6 +232,8 @@ endif()
 if(OS_WINDOWS OR OS_MAC)
   add_executable(ShelterDownloadRevealPathTest
     tests/download_reveal_path_test.cc)
+  add_executable(ShelterUtf8PathTest
+    tests/utf8_path_test.cc src/path_utils.h)
 endif()
 
 if(TARGET ShelterCrx3VerifyTest)
@@ -241,9 +243,14 @@ if(TARGET ShelterCrx3VerifyTest)
   target_include_directories(ShelterDownloadRevealPathTest PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}")
   target_compile_features(ShelterDownloadRevealPathTest PRIVATE cxx_std_17)
+  target_include_directories(ShelterUtf8PathTest PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_compile_features(ShelterUtf8PathTest PRIVATE cxx_std_17)
   enable_testing()
   add_test(NAME crx3-platform-signature-verification
     COMMAND ShelterCrx3VerifyTest "${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
   add_test(NAME shelter-download-reveal-path
     COMMAND ShelterDownloadRevealPathTest)
+  add_test(NAME shelter-utf8-filesystem-path
+    COMMAND ShelterUtf8PathTest)
 endif()

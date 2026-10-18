@@ -7,6 +7,7 @@
 #include "include/cef_command_line.h"
 #include "include/wrapper/cef_helpers.h"
 #include "src/extension_engine.h"
+#include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/protection_flags.h"
 #include "src/security_paths.h"
@@ -88,7 +89,7 @@ void BrowserApp::OnContextInitialized() {
 
 void FillSettings(CefSettings& settings) {
   const std::string root = platform::UserDataDir();
-  const std::filesystem::path root_path = std::filesystem::u8path(root);
+  const std::filesystem::path root_path = path_utils::PathFromUtf8(root);
   const bool root_ok = security::EnsureDirectoryWithoutLink(root_path);
   if (root_ok) CefString(&settings.root_cache_path) = root;
   // В предупреждениях CEF встречаются адреса и имена файлов, поэтому журнал

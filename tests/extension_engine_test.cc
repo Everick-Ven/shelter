@@ -8,7 +8,9 @@
 // путей (запятая в значении — разделитель), лимит и разбор файла режима
 // «движок/оболочка», от которого зависит и аргумент, и ручное внедрение.
 // Тест не требует CEF — компилируется обычным c++ (см. шаг в build.yml).
+#include <chrono>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -158,6 +160,56 @@ void TestCollectDirs() {
         "два каталога соединяются запятой в аргументе");
 }
 
+void TestCyrillicDirectory() {
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  const fs::path temp = fs::temp_directory_path(ec);
+  Check(!ec && !temp.empty(), "временный каталог доступен для Unicode-теста");
+  if (ec || temp.empty()) return;
+
+  const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
+  const std::string folder_name = std::string("shelter-") +
+      "\xD0\xBF\xD1\x80\xD0\xBE\xD0\xB2\xD0\xB5\xD1\x80\xD0\xBA\xD0\xB0-" +
+      std::to_string(nonce);
+  const fs::path root_path =
+      temp / shelter::path_utils::PathFromUtf8(folder_name);
+  const std::string root = shelter::path_utils::PathToUtf8(root_path);
+  fs::create_directories(root_path, ec);
+  Check(!ec, "каталог данных с кириллицей создаётся");
+  if (ec) return;
+
+  Check(shelter::ExtEngineEnabled(root),
+        "режим расширений читается из каталога с кириллицей");
+  Check(shelter::ExtEngineSetEnabled(root, false),
+        "режим расширений записывается в каталог с кириллицей");
+  Check(!shelter::ExtEngineEnabled(root),
+        "записанный режим читается из каталога с кириллицей");
+
+  const fs::path extensions = root_path / "Default" / "Extensions";
+  const fs::path extension = extensions / "abcdefghijklmnopabcdefghijklmnop";
+  fs::create_directories(extension, ec);
+  Check(!ec, "каталог расширения создаётся под Unicode-путём");
+  if (!ec) {
+    std::ofstream manifest(extension / "manifest.json", std::ios::binary);
+    manifest << "{\"manifest_version\":3}";
+    Check(static_cast<bool>(manifest),
+          "манифест расширения записывается под Unicode-путём");
+    manifest.close();
+    Check(!manifest.fail(), "манифест расширения закрывается без ошибки записи");
+    const auto collected = shelter::ExtEngineCollectDirs(
+        {shelter::path_utils::PathToUtf8(extensions)}, 4);
+    Check(collected.size() == 1 &&
+              shelter::ExtDirName(collected[0]) == "abcdefghijklmnopabcdefghijklmnop",
+          "расширение сканируется и возвращается как UTF-8-путь");
+    Check(!collected.empty() && shelter::ExtDirIsEngineLoadable(collected[0]),
+          "манифест читается из каталога с кириллицей");
+  }
+
+  ec.clear();
+  fs::remove_all(root_path, ec);
+  Check(!ec, "Unicode-тест удаляет временный каталог");
+}
+
 void TestPassedIds() {
   Check(shelter::ExtDirName("/a/b/c") == "c", "имя каталога из posix-пути");
   Check(shelter::ExtDirName("C:\\data\\ext\\id1") == "id1", "имя каталога из win-пути");
@@ -264,6 +316,7 @@ int main() {
   TestPassedIds();
   TestManifestVersion();
   TestCollectDirs();
+  TestCyrillicDirectory();
   TestWiring();
   if (Failures) {
     std::cerr << Failures << " check(s) failed" << std::endl;

@@ -66,10 +66,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "CRX3 fixtures are stale or non-deterministic" }
           cmake --build build --target ShelterCrx3VerifyTest --parallel 2 2>&1 | Tee-Object -FilePath crx3-test-build.log
           if ($LASTEXITCODE -ne 0) { throw "CRX3 platform verifier test build failed" }
-          cmake --build build --target ShelterDownloadRevealPathTest --parallel 2 2>&1 | Tee-Object -FilePath reveal-test-build.log
-          if ($LASTEXITCODE -ne 0) { throw "Windows download-reveal path test build failed" }
-          ctest --test-dir build -C Release -R "crx3-platform-signature-verification|shelter-download-reveal-path" --output-on-failure 2>&1 | Tee-Object -FilePath platform-tests.log
-          if ($LASTEXITCODE -ne 0) { throw "Windows CRX3 or download-reveal path tests failed" }
+          cmake --build build --target ShelterDownloadRevealPathTest ShelterUtf8PathTest --parallel 2 2>&1 | Tee-Object -FilePath reveal-test-build.log
+          if ($LASTEXITCODE -ne 0) { throw "Windows filesystem path test build failed" }
+          ctest --test-dir build -C Release -R "crx3-platform-signature-verification|shelter-download-reveal-path|shelter-utf8-filesystem-path" --output-on-failure 2>&1 | Tee-Object -FilePath platform-tests.log
+          if ($LASTEXITCODE -ne 0) { throw "Windows CRX3 or filesystem path tests failed" }
 
       - name: Verify sandbox bootstrap files
         shell: pwsh
@@ -117,7 +117,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "ISCC завершился с кодом $LASTEXITCODE" }
           Get-ChildItem dist | Out-String | Tee-Object -FilePath package.log -Append
 
-      - name: Install, packaged runtime acceptance, uninstall
+      - name: Install and test from a Cyrillic path, then uninstall
         timeout-minutes: 10
         shell: pwsh
         run: |
@@ -125,9 +125,9 @@ jobs:
           python -m pip install --disable-pip-version-check websocket-client
           if ($LASTEXITCODE -ne 0) { throw "websocket-client install failed" }
           $setup = "$PWD\dist\SHELTER-Setup-x64.exe"
-          $p = Start-Process -FilePath $setup -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/LOG=$PWD\install.log" -Wait -PassThru
+          $dir = Join-Path $env:LOCALAPPDATA "Programs\Проверка-SHELTER"
+          $p = Start-Process -FilePath $setup -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$dir","/LOG=$PWD\install.log" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Installer exited with status $($p.ExitCode)" }
-          $dir = Join-Path $env:LOCALAPPDATA "Programs\SHELTER"
           $exe = Join-Path $dir "Shelter.exe"
           if (-not (Test-Path $exe)) { throw "Installed SHELTER executable not found: $exe" }
           python tools/check_ci_hooks.py "$dir" off --binary-only
@@ -252,8 +252,8 @@ jobs:
           python -m pip install --disable-pip-version-check 'cryptography>=43' 2>&1 | tee fixture-setup.log
           python tools/gen_crx3_fixtures.py --check 2>&1 | tee crx3-fixtures.log
           cmake --build build --target ShelterCrx3VerifyTest --parallel 2 2>&1 | tee crx3-test-build.log
-          cmake --build build --target ShelterDownloadRevealPathTest --parallel 2 2>&1 | tee reveal-test-build.log
-          ctest --test-dir build -C Release -R "crx3-platform-signature-verification|shelter-download-reveal-path" --output-on-failure 2>&1 | tee platform-tests.log
+          cmake --build build --target ShelterDownloadRevealPathTest ShelterUtf8PathTest --parallel 2 2>&1 | tee reveal-test-build.log
+          ctest --test-dir build -C Release -R "crx3-platform-signature-verification|shelter-download-reveal-path|shelter-utf8-filesystem-path" --output-on-failure 2>&1 | tee platform-tests.log
 
       - name: Verify macOS sandbox library
         run: |
@@ -297,7 +297,7 @@ jobs:
           tools/make_dmg.sh build/Release/SHELTER.app "dist/$dmg_name" "$version" 2>&1 | tee package.log
           (cd dist && shasum -a 256 "$dmg_name" > SHA256SUMS.txt)
 
-      - name: Install and test packaged DMG (strict)
+      - name: Install and test packaged DMG from a Cyrillic path (strict)
         timeout-minutes: 8
         run: |
           set -euo pipefail
@@ -318,13 +318,15 @@ jobs:
           dmg_name="SHELTER-macos-x64-${version}.dmg"
           hdiutil attach "dist/$dmg_name" -nobrowse -mountpoint "$mount_point"
           test -d "$mount_point/SHELTER.app"
-          rm -rf /Applications/SHELTER.app
-          cp -R "$mount_point/SHELTER.app" /Applications/SHELTER.app
+          app_dir="$HOME/Applications/Проверка-SHELTER.app"
+          mkdir -p "$HOME/Applications"
+          rm -rf "$app_dir"
+          cp -R "$mount_point/SHELTER.app" "$app_dir"
           hdiutil detach "$mount_point" -quiet
           rmdir "$mount_point"
           mount_point=""
-          ls -la /Applications/SHELTER.app/Contents/Resources
-          python tools/check_ci_hooks.py /Applications/SHELTER.app off --binary-only
+          ls -la "$app_dir/Contents/Resources"
+          python tools/check_ci_hooks.py "$app_dir" off --binary-only
           pkill -x Shelter 2>/dev/null || true
           rm -rf "$HOME/Library/Application Support/SHELTER"
           # Изолированная связка CI не должна переиспользовать ключ сборки до упаковки.
@@ -332,7 +334,7 @@ jobs:
           if security find-generic-password -a master-key -s SHELTER "$ci_keychain" >/dev/null 2>&1; then
             security delete-generic-password -a master-key -s SHELTER "$ci_keychain"
           fi
-          python tools/acceptance_smoke.py /Applications/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" --allow-missing-ci-hooks 2>&1 | tee smoke-run.log
+          python tools/acceptance_smoke.py "$app_dir/Contents/MacOS/Shelter" --expected-version "$version" --allow-missing-ci-hooks 2>&1 | tee smoke-run.log
 
       - name: Inspect macOS master-key mirror
         if: always()
@@ -442,6 +444,8 @@ jobs:
         run: node tests/bridge_authorization_test.js
       - name: Single-source version propagation regression test
         run: node tests/app_version_source_test.js
+      - name: Cyrillic filesystem path regression test
+        run: node tests/unicode_paths_test.js
       - name: UI versioning and HTTP cache regression test
         run: node tests/ui_build_cache_test.js
       - name: Platform clip-mask source regression test
@@ -478,6 +482,11 @@ jobs:
           set -euo pipefail
           c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/extension_engine_test.cc -o extension-engine-test
           ./extension-engine-test
+      - name: Compile and run UTF-8 filesystem path tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/utf8_path_test.cc -o utf8-path-test
+          ./utf8-path-test
       - name: Compile and run color scheme tests
         run: |
           set -euo pipefail

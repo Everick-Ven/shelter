@@ -13,6 +13,7 @@
 #include <system_error>
 #include <thread>
 
+#include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/security_paths.h"
 #include "src/secret_key_file.h"
@@ -146,7 +147,7 @@ bool ReadFileKey(const std::filesystem::path& path, std::string* key_hex,
 
 bool EnsureUserDataDir(std::filesystem::path* dir, std::string* error) {
   if (!dir) return false;
-  *dir = std::filesystem::u8path(UserDataDir());
+  *dir = path_utils::PathFromUtf8(UserDataDir());
   if (dir->empty() || !security::EnsureDirectoryWithoutLink(*dir)) {
     if (error) *error = "user data directory is unavailable or linked";
     return false;

@@ -42,6 +42,7 @@
 #include "src/extension_match.h"
 #include "src/netguard.h"
 #include "src/key_map.h"
+#include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/security_paths.h"
 #include "src/ui_scheme.h"
@@ -70,23 +71,14 @@ class ShellContextHandler : public CefRequestContextHandler {
   IMPLEMENT_REFCOUNTING(ShellContextHandler);
 };
 
-// fs::path::u8string() yields std::u8string (char8_t) in C++20, which does
-// not convert to std::string implicitly. Centralise the conversion.
-std::string PathToUtf8(const fs::path& path) {
-  const auto value = path.u8string();
-#if defined(__cpp_char8_t)
-  return std::string(reinterpret_cast<const char*>(value.data()), value.size());
-#else
-  return value;
-#endif
-}
+using path_utils::PathToUtf8;
 
 // Преобразует выбранный ОС абсолютный путь в file:// URL без интерпретации
 // пробелов, %, #, ? и байтов UTF-8 как управляющих частей адреса.
 std::string LocalFileUrl(const std::string& raw_path) {
   if (raw_path.empty()) return {};
   std::error_code ec;
-  fs::path path = fs::u8path(raw_path);
+  fs::path path = path_utils::PathFromUtf8(raw_path);
   if (!path.is_absolute()) path = fs::absolute(path, ec);
   if (ec || !path.is_absolute()) return {};
   if (!fs::is_regular_file(path, ec) || ec) return {};
@@ -160,7 +152,9 @@ bool SameRect(const CefRect& left, const CefRect& right) {
 }
 
 CefRefPtr<CefImage> LoadWindowIcon() {
-  std::ifstream f(platform::UiResourceDir() + "/icon-256.png", std::ios::binary);
+  std::ifstream f(
+      path_utils::PathFromUtf8(platform::UiResourceDir() + "/icon-256.png"),
+      std::ios::binary);
   if (!f) return nullptr;
   std::ostringstream ss;
   ss << f.rdbuf();
@@ -371,7 +365,7 @@ bool ReadFileStr(const fs::path& path, size_t max_bytes, std::string* out) {
 
 void LoadExtFromDir(const fs::path& dir) {
   if (!security::IsDirectoryWithoutLink(dir)) return;
-  const std::string extension_id = dir.filename().string();
+  const std::string extension_id = PathToUtf8(dir.filename());
   if (!security::IsSafeProfileId(extension_id)) return;
 
   std::string manifest;
@@ -449,7 +443,8 @@ void LoadExtFromDir(const fs::path& dir) {
           if (files->GetType(k) != VTYPE_STRING) continue;
           std::string rel = files->GetString(k).ToString();
           if (!security::NormalizeSafeZipEntryName(&rel)) continue;
-          const fs::path source = (dir / fs::u8path(rel)).lexically_normal();
+          const fs::path source =
+              (dir / path_utils::PathFromUtf8(rel)).lexically_normal();
           if (!security::IsPathWithin(dir, source)) continue;
           std::string content;
           if (!ReadFileStr(source, kMaxExtensionFileBytes, &content)) continue;
@@ -486,7 +481,7 @@ fs::path ExtRootDir() {
   if (!ctx) return fs::path();
   const std::string cache = ctx->GetCachePath().ToString();
   if (cache.empty()) return fs::path();
-  return fs::path(cache) / "Extensions";
+  return path_utils::PathFromUtf8(cache) / "Extensions";
 }
 
 // Каталоги, где могут лежать расширения: кэш глобального контекста (как
@@ -498,7 +493,7 @@ std::vector<fs::path> ExtScanRoots() {
   const fs::path primary = ExtRootDir();
   if (!primary.empty()) roots.push_back(primary);
   for (const auto& cand : ExtRootCandidates(platform::UserDataDir())) {
-    const fs::path p = fs::u8path(cand);
+    const fs::path p = path_utils::PathFromUtf8(cand);
     if (std::find(roots.begin(), roots.end(), p) == roots.end())
       roots.push_back(p);
   }
@@ -517,7 +512,7 @@ void ExtEnsureScanned() {
     if (ec) continue;
     while (it != end) {
       const fs::path dir = it->path();
-      const std::string id = dir.filename().string();
+      const std::string id = PathToUtf8(dir.filename());
       if (id.rfind("_tmp", 0) != 0 && security::IsSafeProfileId(id) &&
           security::IsDirectoryWithoutLink(dir) && !g_exts.count(id)) {
         if (scanned >= kMaxInstalledExtensions) break;
@@ -695,7 +690,8 @@ bool UnzipBytesTo(const std::string& bytes, const fs::path& dir) {
     std::string name = zr->GetFileName().ToString();
     if (!security::NormalizeSafeZipEntryName(&name)) return false;
 
-    const fs::path fp = (root / fs::u8path(name)).lexically_normal();
+    const fs::path fp =
+        (root / path_utils::PathFromUtf8(name)).lexically_normal();
     if (!security::IsPathWithin(root, fp)) return false;
     if (name.back() == '/') {
       ec.clear();
@@ -1086,7 +1082,7 @@ CefRefPtr<CefRequestContext> Shell::ContextFor(const std::string& partition) {
   CefRequestContextSettings rs;
   if (partition.rfind("persist:", 0) == 0) {
     const std::string id = SanitizeForPath(partition.substr(8));
-    const fs::path user_data = fs::u8path(platform::UserDataDir());
+    const fs::path user_data = path_utils::PathFromUtf8(platform::UserDataDir());
     // Chrome accepts a disk profile only when its path is a direct child of
     // the user-data directory (root_cache_path), so keep profiles flat.
     const fs::path profile = user_data / id;
@@ -1202,7 +1198,7 @@ void Shell::QueueWipe(const std::string& partition) {
     return;
   }
 
-  const fs::path user_data = fs::u8path(platform::UserDataDir());
+  const fs::path user_data = path_utils::PathFromUtf8(platform::UserDataDir());
   if (!security::EnsureDirectoryWithoutLink(user_data)) {
     return;
   }
@@ -1256,7 +1252,7 @@ void Shell::QueueWipe(const std::string& partition) {
 // Затирание — best effort; на APFS/SSD физическую гарантию дают FileVault/TRIM,
 // а не повторная запись поверх файла.
 void Shell::ApplyPendingWipes() {
-  const fs::path user_data = fs::u8path(platform::UserDataDir());
+  const fs::path user_data = path_utils::PathFromUtf8(platform::UserDataDir());
   const fs::path list = user_data / "pending-wipe.txt";
   if (!security::IsDirectoryWithoutLink(user_data)) return;
 
@@ -1498,7 +1494,7 @@ void Shell::ApplyClip(Tab* tab) {
 }
 
 void Shell::Log(const std::string& line) {
-  const fs::path dir = fs::path(platform::UserDataDir());
+  const fs::path dir = path_utils::PathFromUtf8(platform::UserDataDir());
   const fs::path p = dir / "shelter.log";
   // Ретенция: журнал не растёт бесконечно и не копит историю сессий. Один
   // предыдущий файл — для разбора последнего сбоя, дальше старые следы уходят.
@@ -1517,7 +1513,7 @@ void Shell::Log(const std::string& line) {
 #if !defined(OS_WIN)
   // В записях нет адресов и путей (см. ExtLabel), но журнал всё равно личный:
   // держим 0600 — не шире владельца.
-  ::chmod(p.string().c_str(), 0600);
+  ::chmod(p.c_str(), 0600);
 #endif
 }
 
@@ -1708,7 +1704,7 @@ std::string HostOf(const std::string& url) {
 // В shelter.log попадают только обезличенные метки: расширение файла помогает
 // разбирать сбои, но не выдаёт ни путь, ни полное имя. Всё остальное — мусор.
 std::string ExtLabel(const std::string& name) {
-  std::string ext = PathToUtf8(fs::u8path(name).extension());
+  std::string ext = PathToUtf8(path_utils::PathFromUtf8(name).extension());
   if (ext.size() > 8) ext.resize(8);
   for (char& c : ext) {
     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -1718,9 +1714,10 @@ std::string ExtLabel(const std::string& name) {
 }
 
 std::string UniquePath(const std::string& dir, const std::string& name) {
-  const fs::path directory = fs::u8path(dir);
-  fs::path leaf = fs::u8path(name).filename();
-  if (leaf.empty() || leaf == "." || leaf == "..") leaf = fs::u8path("download");
+  const fs::path directory = path_utils::PathFromUtf8(dir);
+  fs::path leaf = path_utils::PathFromUtf8(name).filename();
+  if (leaf.empty() || leaf == "." || leaf == "..")
+    leaf = path_utils::PathFromUtf8("download");
   const fs::path base = directory / leaf;
   std::error_code ec;
   if (!fs::exists(base, ec) && !ec) return PathToUtf8(base);
@@ -1729,7 +1726,8 @@ std::string UniquePath(const std::string& dir, const std::string& name) {
   const std::string ext = PathToUtf8(base.extension());
   for (int i = 1; i < 1000; ++i) {
     const fs::path candidate =
-        directory / fs::u8path(stem + " (" + std::to_string(i) + ")" + ext);
+        directory / path_utils::PathFromUtf8(
+            stem + " (" + std::to_string(i) + ")" + ext);
     ec.clear();
     if (!fs::exists(candidate, ec) && !ec) return PathToUtf8(candidate);
   }
@@ -1811,7 +1809,7 @@ bool Shell::DownloadDecision(const std::string& id, const std::string& action,
 
   std::error_code ec;
   const std::string directory = platform::DownloadsDir();
-  fs::create_directories(fs::u8path(directory), ec);
+  fs::create_directories(path_utils::PathFromUtf8(directory), ec);
   if (ec && !show_dialog) {
     Log("download decision id=" + id + " action=save mkdir_error=" +
         ec.message());
@@ -1919,7 +1917,7 @@ void Shell::ExtRemove(const std::string& id) {
   auto it = g_exts.find(id);
   if (it == g_exts.end() || !security::IsSafeProfileId(id)) return;
   const fs::path root = ExtRootDir();
-  const fs::path target = root / fs::u8path(id);
+  const fs::path target = root / path_utils::PathFromUtf8(id);
   if (root.empty() || !security::IsPathWithin(root, target) ||
       !security::RemoveTreeWithoutFollowingLinks(root, target)) {
     ExtToast("Не удалось безопасно удалить расширение", true);
@@ -2071,7 +2069,7 @@ void Shell::ExtInstall(const std::string& src) {
   }
   if (!path.empty()) {
     std::string bytes;
-    if (!ReadExtensionFileBounded(fs::u8path(path), &bytes)) {
+    if (!ReadExtensionFileBounded(path_utils::PathFromUtf8(path), &bytes)) {
       ExtToast("Файл расширения недоступен или превышает лимит 64 МиБ", true);
       return;
     }
@@ -2660,7 +2658,8 @@ void Shell::OnTabDownloadUpdated(
       // Загрузка полностью завершена: «не подтверждённый» временный файл
       // становится итоговым (как в современных браузерах).
       std::error_code rec;
-      fs::rename(fs::u8path(temp->second.first), fs::u8path(temp->second.second), rec);
+      fs::rename(path_utils::PathFromUtf8(temp->second.first),
+                 path_utils::PathFromUtf8(temp->second.second), rec);
       const bool dl_priv = private_downloads_.count(id) > 0;
       if (!rec) {
         path = temp->second.second;
@@ -2672,7 +2671,7 @@ void Shell::OnTabDownloadUpdated(
     } else if (state == "cancelled" || state == "interrupted") {
       // Прерванная или отменённая загрузка не оставляет «не подтверждённый» файл.
       std::error_code rec;
-      fs::remove(fs::u8path(temp->second.first), rec);
+      fs::remove(path_utils::PathFromUtf8(temp->second.first), rec);
     }
   }
   if ((state == "progressing" || state == "paused" || state == "completed") &&
@@ -2687,7 +2686,7 @@ void Shell::OnTabDownloadUpdated(
   }
   std::string name = item->GetSuggestedFileName().ToString();
   if (name.empty() && !path.empty())
-    name = PathToUtf8(fs::u8path(path).filename());
+    name = PathToUtf8(path_utils::PathFromUtf8(path).filename());
   if (name.empty()) name = accepted->second.empty() ? "download" : accepted->second;
 
   const bool dl_priv = private_downloads_.count(id) > 0;

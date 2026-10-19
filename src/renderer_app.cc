@@ -38,11 +38,13 @@ bool g_fp_enabled = false;
 // появляться перед пользователем вообще, ещё до ответа UI настройками.
 bool g_auto_consent = true;
 
-// document_start content-scripts MV2-расширений shell-режима (id фрейма ->
-// JSON [{js,css}]): браузер присылает их сообщением shelter.extscripts на
-// старте загрузки, выполняются в OnContextCreated — раньше любого скрипта
-// страницы (см. Shell::PushExtScripts).
-std::map<int64_t, std::string> g_pending_ext_scripts;
+// document_start content-scripts MV2-расширений shell-режима (строковый id
+// фрейма -> JSON [{js,css}]): браузер присылает их сообщением
+// shelter.extscripts на старте загрузки, выполняются в OnContextCreated —
+// раньше любого скрипта страницы (см. Shell::PushExtScripts).
+// Идентификаторы фреймов в CEF строковые (CefFrame::GetIdentifier -> CefString),
+// в отличие от числовых идентификаторов браузеров.
+std::map<std::string, std::string> g_pending_ext_scripts;
 
 // window.cefQuery выдаём ТОЛЬКО chrome-UI. Обычные сайты доступа к мосту не получают.
 bool IsUiFrame(CefRefPtr<CefFrame> frame) {
@@ -492,7 +494,7 @@ void AppBase::OnBeforeCommandLineProcessing(
 void RunPendingExtScripts(CefRefPtr<CefFrame> frame,
                            CefRefPtr<CefV8Context> context) {
   if (!frame || !context) return;
-  auto it = g_pending_ext_scripts.find(frame->GetIdentifier());
+  auto it = g_pending_ext_scripts.find(frame->GetIdentifier().ToString());
   if (it == g_pending_ext_scripts.end()) return;
   const std::string json = it->second;
   g_pending_ext_scripts.erase(it);
@@ -560,7 +562,7 @@ void AppBase::OnContextReleased(CefRefPtr<CefBrowser> browser,
   }
   // Контекст умер раньше выполнения (навигация прервана): запись не должна
   // пережить фрейм и сработать на чужой контекст при переиспользовании id.
-  if (frame) g_pending_ext_scripts.erase(frame->GetIdentifier());
+  if (frame) g_pending_ext_scripts.erase(frame->GetIdentifier().ToString());
 }
 
 bool AppBase::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
@@ -580,9 +582,10 @@ bool AppBase::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
     CefRefPtr<CefListValue> args = message->GetArgumentList();
     if (frame && args && args->GetSize() >= 1 &&
         args->GetType(0) == VTYPE_STRING) {
+      const std::string frame_id = frame->GetIdentifier().ToString();
+      if (frame_id.empty()) return true;  // фрейма ещё нет — класть некуда
       if (g_pending_ext_scripts.size() > 256) g_pending_ext_scripts.clear();
-      g_pending_ext_scripts[frame->GetIdentifier()] =
-          args->GetString(0).ToString();
+      g_pending_ext_scripts[frame_id] = args->GetString(0).ToString();
     }
     return true;
   }

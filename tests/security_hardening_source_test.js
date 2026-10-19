@@ -44,6 +44,8 @@ has(bridge, 'partition_origins_.erase(p)', 'M2 журнал стирается �
 
 // M3: MV2 document_start больше не теряется — очередь в рендерер.
 has(renderer, 'g_pending_ext_scripts', 'M3 очередь скриптов');
+has(renderer, 'std::map<std::string, std::string> g_pending_ext_scripts',
+    'M3 очередь ключевана строковым id фрейма (CEF 154: GetIdentifier -> CefString)');
 has(renderer, 'shelter.extscripts', 'M3 канал доставки');
 has(shellCc, 'PushExtScripts', 'M3 отправка из браузера');
 

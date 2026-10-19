@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-DvDtuKEMkMBaKRTU+sc1QnE7dbvG/jso8iBfcQ0Ssfg=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-eQjWa23LgOrh7SiDX7IRBJEqOhRlXiHzi7kjD8aBGhg=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -12630,7 +12630,7 @@ function settingsHtml() {
         ${row('Язык интерфейса', 'Проверка орфографии: русский, английский', segHtml('lang', [['ru', 'Русский'], ['en', 'English']], P.lang, 'sm'))}
       </div></section>
       <section class="set-sec" id="set-data"><h4>Данные</h4><div class="set-card">
-        ${row('Экспорт данных', 'Пространства, закладки, история и настройки в JSON. Задачи экспортируются отдельно с паролем.', btn('export', ico('upload') + 'Экспорт'))}
+        ${row('Резервная копия', 'Пространства, закладки, история и настройки в зашифрованном файле .shelter. Задачи копируются отдельно.', `<div style="display:flex;gap:8px;flex-wrap:wrap">${btn('export', ico('upload') + 'Выгрузить…')}${btn('import', ico('download') + 'Загрузить…')}</div>`)}
         ${row('Демо-данные', 'Помечены отдельно и не смешиваются с вашими', btn('demo-reset', 'Обновить') + btn('demo-clear', 'Удалить', 'ghost'))}
         ${row('Удалить пользовательские данные', 'Локальный профиль, SHELTER ID, история, пароли, cookies и настройки. Файлы в общей папке «Загрузки» останутся.', btn('delete-user-data', 'Удалить и закрыть…', 'danger'))}
         ${row('Сбросить SHELTER', 'Вернуть настройки и данные к исходным', btn('reset', 'Сбросить…', 'danger'))}
@@ -12678,7 +12678,8 @@ AFTER.settings = () => {
     else if (a === 'fire') fire();
     else if (a === 'certs') openPage('certs');
     else if (a === 'exts') openPage('extensions');
-    else if (a === 'export') downloadFile('shelter-backup-' + dayKey(Date.now()) + '.json', JSON.stringify({ app: 'SHELTER', version: VERSION, spaces: S.spaces, bookmarks: S.bookmarks, visits: S.visits, prefs: S.prefs }, null, 2));
+    else if (a === 'export') shelterExportBackup();
+    else if (a === 'import') shelterImportBackup();
     else if (a === 'demo-reset') { clearDemo(); seedDemo(); saveNow(); renderAll(); toast('Демо-данные обновлены', { icon: 'ref' }); }
     else if (a === 'demo-clear') { clearDemo(); saveNow(); renderAll(); toast('Демо-данные удалены', { icon: 'trash' }); }
     else if (a === 'reset') { if (await confirmDlg({ title: 'Сбросить SHELTER?', text: 'Все пространства, вкладки, история и настройки вернутся к исходным.', ok: 'Сбросить', danger: true, icon: 'undo' })) { ['theme', 'ghost', 'searchEngine', 'spaces', 'currentSpace', 'activeTabId', 'bookmarks', 'visits', 'board', 'boards', 'ext', 'lux', 'ai', 'planner:sort'].forEach(k => store.del('shelter:' + k)); location.reload(); } }
@@ -12776,6 +12777,61 @@ function applyFontScale() {
   [['i', fsi], ['d', fsd], ['m', fsm]].forEach(([k, v]) => {
     const r = $(`.fscale-r[data-fscale="${k}"]`); if (r && +r.value !== v) r.value = v;
     const l = $(`#fs-${k}-val`); if (l && l.textContent !== v + ' %') l.textContent = v + ' %';
+  });
+}
+function shelterExportBackup() {
+  const m = openModal({ width: 520, dismiss: false, html: `<div class="modal-h"><div class="mi-ic">${ico('upload')}</div><h3>Зашифрованная копия браузера</h3><button type="button" class="icon-btn" data-shelter-backup-export="cancel" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><p class="wp-form-hint">Пространства, закладки, история и настройки будут зашифрованы кодом и сохранены в файл .shelter. Задачи в копию не входят — они выгружаются отдельно. Код не хранится в SHELTER: забытый код восстановить нельзя.</p><div class="wp-transfer-passwords"><label class="field"><span>Код файла · от 8 до 1024 символов</span><input class="input" type="password" id="shelterBackupPassword" autocomplete="new-password" maxlength="1024" spellcheck="false"></label><label class="field"><span>Повторите код</span><input class="input" type="password" id="shelterBackupPasswordAgain" autocomplete="new-password" maxlength="1024" spellcheck="false"></label></div></div><div class="modal-f"><button type="button" class="btn ghost" data-shelter-backup-export="cancel">Отмена</button><button type="button" class="btn primary" data-shelter-backup-export="save">${ico('lock')}Зашифровать и скачать</button></div>` });
+  const root = m.scrim, password = $('#shelterBackupPassword', root), again = $('#shelterBackupPasswordAgain', root); m.guard = null;
+  m.onClose = () => { if (password) password.value = ''; if (again) again.value = ''; };
+  root.addEventListener('click', async event => {
+    const button = event.target.closest('[data-shelter-backup-export]'); if (!button) return;
+    if (button.dataset.shelterBackupExport === 'cancel') { closeModal(m); return; }
+    if (button.dataset.shelterBackupExport !== 'save') return;
+    const code = String(password && password.value || ''), confirmation = String(again && again.value || '');
+    if ([...code.normalize('NFC')].length < WP_TASK_EXPORT_MIN_PASSWORD_CHARS) { if (password) password.focus(); toast('Код файла должен содержать не менее 8 символов.', { icon: 'info' }); return; }
+    if (code.normalize('NFC') !== confirmation.normalize('NFC')) { if (again) again.focus(); toast('Коды не совпадают.', { icon: 'info' }); return; }
+    button.disabled = true;
+    try {
+      const backupPayload = { kind: 'SHELTER_BROWSER_BACKUP', app: 'SHELTER', version: VERSION, spaces: S.spaces, bookmarks: S.bookmarks, visits: S.visits, prefs: S.prefs };
+      const envelope = await wpEncryptTaskPayload(backupPayload, code);
+      if (!OV.stack.includes(m)) return;
+      if (!downloadFile('shelter-backup-' + dayKey(Date.now()) + '.shelter', JSON.stringify(envelope), 'application/octet-stream')) { button.disabled = false; return; }
+      if (password) password.value = ''; if (again) again.value = ''; closeModal(m);
+      toast('Зашифрованная копия сохранена.', { icon: 'check' });
+    } catch (_) { if (!OV.stack.includes(m)) return; button.disabled = false; if (password) password.value = ''; if (again) again.value = ''; toast('Не удалось зашифровать копию. Файл не создан.', { icon: 'ban' }); }
+  });
+}
+function shelterIsLegacyBrowserBackup(value) {
+  return wpIsObj(value) && value.app === 'SHELTER' && !value.format && Array.isArray(value.spaces) && Array.isArray(value.bookmarks) && Array.isArray(value.visits) && wpIsObj(value.prefs);
+}
+function shelterImportBackup() {
+  const input = document.createElement('input'); input.type = 'file'; input.accept = '.shelter,application/json';
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0]; if (!file) return;
+    if (Number(file.size) > WP_TASK_EXPORT_MAX_FILE_BYTES) { toast('Файл слишком большой для импорта.', { icon: 'ban' }); return; }
+    let parsed;
+    try { parsed = JSON.parse(await file.text()); }
+    catch (_) { toast('Не удалось прочитать файл. Данные не менялись.', { icon: 'ban' }); return; }
+    const name = file.name || 'резервная копия';
+    if (wpIsTaskExportEnvelope(parsed)) {
+      const payload = await wpPromptTaskImportPassword(parsed, name); if (payload == null) return;
+      if (!wpIsObj(payload) || payload.kind !== 'SHELTER_BROWSER_BACKUP' || payload.app !== 'SHELTER') { toast('Этот файл — не резервная копия браузера SHELTER.', { icon: 'ban' }); return; }
+      shelterApplyBrowserBackup(payload, name, false);
+      return;
+    }
+    if (shelterIsLegacyBrowserBackup(parsed)) { shelterApplyBrowserBackup(Object.assign({ kind: 'SHELTER_BROWSER_BACKUP' }, parsed), name, true); return; }
+    toast('Файл не похож на резервную копию SHELTER. Данные не менялись.', { icon: 'ban' });
+  });
+  input.click();
+}
+function shelterApplyBrowserBackup(payload, name, isLegacy) {
+  const spaces = payload.spaces, bookmarks = payload.bookmarks, visits = payload.visits, prefs = payload.prefs;
+  if (!Array.isArray(spaces) || !Array.isArray(bookmarks) || !Array.isArray(visits) || !wpIsObj(prefs)) { toast('Копия повреждена: нет пространств, закладок, истории или настроек.', { icon: 'ban' }); return; }
+  confirmDlg({ title: 'Восстановить данные из копии?', text: `Пространства (${spaces.length}), закладки (${bookmarks.length}), записи истории (${visits.length}) и настройки будут заменены данными из файла «${name}».${isLegacy ? ' Это копия старого открытого формата: после восстановления выгрузите новую зашифрованную копию.' : ''} Текущие данные будут потеряны.`, ok: 'Восстановить', danger: true, icon: 'download' }).then(ok => {
+    if (!ok) return;
+    S.spaces = spaces; S.bookmarks = bookmarks; S.visits = visits; S.prefs = prefs;
+    try { saveNow(); } catch (_) { toast('Не удалось сохранить восстановленные данные.', { icon: 'ban' }); return; }
+    location.reload();
   });
 }
 function installFontScale() {
@@ -14013,6 +14069,10 @@ function wpFmtRange(start) {
 }
 function wpFmtRuDate(key) { const p=wpDateParts(key); return p ? `${pad2(p.d)}.${pad2(p.m)}.${p.y}` : ''; }
 function wpDeadlineKey(value) { return wpDateKey(value); }
+function wpDeadlineBeforeStart(scheduledDate,deadlineAt) {
+  const start=wpDateKey(scheduledDate), end=wpDeadlineKey(deadlineAt);
+  return !!start && !!end && end<start;
+}
 function wpDateLabel(key) {
   const p=wpDateParts(key); if(!p) return 'Без даты';
   const d=wpDateObj(key); return `${WP_WEEKDAYS[(d.getDay()+6)%7]}, ${p.d} ${WP_MONTHS[p.m-1]}`;
@@ -16065,13 +16125,17 @@ function wpOpenDatePicker(refs,kind='schedule',title='Выбрать дату') 
       if(kind==='schedule' && !value && !clearDate) { toast('Выберите дату или явно нажмите «Снять дату начала».',{icon:'info'}); return; }
       let saved=false;
       if(kind==='deadline') {
+        if(value && list.map(wpFindEntity).some(ent=>ent && wpDeadlineBeforeStart(ent.scheduledDate,value))) { toast('Крайний срок не может быть раньше даты начала.',{icon:'info'}); return; }
         saved=wpCommit(value?`Дедлайн установлен · ${wpFmtDate(value,true)}`:'Дедлайн снят',()=>list.forEach(ref=>wpSetDeadline(ref,value)),{captureState:()=>wpCaptureTaskEntities(list),restoreState:wpRestoreTaskEntities});
       } else if(list.length===1 && list[0] && list[0].decision) { saved=wpResolveRef(list[0],clearDate?'clear':'date',value); }
       else if(list.length>1 && list.every(ref=>ref.decision)) {
         const choice=clearDate?'clear':'date';
         saved=wpCommit(clearDate?'Даты начала сняты · место не изменено':`${list.length} задач перенесено`,()=>list.forEach(ref=>wpApplyReviewChoice(ref,choice,value,WP.weekStart)),{refresh:false,captureState:()=>wpCaptureTaskEntities(list,{includeRules:true}),restoreState:wpRestoreTaskEntities});
         if(saved) { WP.reviewSelected=[]; wpRenderView(); }
-      } else if(list.length) saved=wpCommit(clearDate?'Даты начала сняты · место не изменено':`Дата начала перенесена на ${wpFmtDate(value,true)}`,()=>list.forEach(ref=>wpApplySchedule(ref,clearDate?null:value)),{captureState:()=>wpCaptureTaskEntities(list),restoreState:wpRestoreTaskEntities});
+      } else if(list.length) {
+        if(value && !clearDate && list.map(wpFindEntity).some(ent=>ent && wpDeadlineBeforeStart(value,ent.deadlineAt))) { toast('Дата начала не может быть позже крайнего срока.',{icon:'info'}); return; }
+        saved=wpCommit(clearDate?'Даты начала сняты · место не изменено':`Дата начала перенесена на ${wpFmtDate(value,true)}`,()=>list.forEach(ref=>wpApplySchedule(ref,clearDate?null:value)),{captureState:()=>wpCaptureTaskEntities(list),restoreState:wpRestoreTaskEntities});
+      }
       if(saved) closeModal(m);
     }
   });
@@ -16571,6 +16635,7 @@ function wpOpenEditor(ref=null,opts={}) {
     if(v.kind==='project' && !v.projectId) { toast('Выберите проект для задачи.',{icon:'info'}); $('#wpProject',root).focus(); return; }
     if(scope!=='instance' && v.frequency!=='none' && !v.scheduledDate) { toast('Для серии задайте дату начала первого экземпляра. Дедлайн её не заменяет.',{icon:'info'}); $('#wpScheduled',root).focus(); return; }
     if(scope!=='instance' && v.frequency==='weekly' && !v.weekdays.length) { toast('Выберите хотя бы один день недели.',{icon:'info'}); return; }
+    if(wpDeadlineBeforeStart(v.scheduledDate,v.deadlineAt)) { toast('Крайний срок не может быть раньше даты начала.',{icon:'info'}); const deadlineInput=$('#wpDeadline',root); if(deadlineInput) deadlineInput.focus(); return; }
     const newId=isNew?uid('task'):sourceTask.id;
     const editRef=isNew?{id:newId,entityType:'task'}:scope==='instance'&&ent&&ent.entityType==='occurrence'?{id:ent.id,entityType:'occurrence',seriesTaskId:ent.seriesTaskId,originalDate:ent.originalDate}:{id:sourceTask.id,entityType:'task'};
     const saveLabel=isNew?'Задача добавлена':scope==='instance'?'Экземпляр сохранён':'Задача / серия сохранена';

@@ -143,7 +143,18 @@ assert(planner.includes('const payload=await wpDecryptTaskPayload(envelope,passw
 assert(planner.includes('function wpMergeImportedTaskData(') && planner.includes('wpMergeImportedTaskData(wpTaskTransferBoards(),sourceBoards'), 'a fully decrypted export is merged with local boards before it is persisted');
 assert(planner.includes('Совпадающие идентификаторы сохранят локальные записи') && planner.includes('новую доску из файла приложение выберет автоматически'), 'the import confirmation explains non-destructive merge and automatic selection of a new imported board');
 const settingsExportLine = html.split(/\r?\n/).find(line => line.includes("else if (a === 'export')"));
-assert(settingsExportLine && !settingsExportLine.includes('board: S.board'), 'the unencrypted general settings export does not include task boards');
+assert(settingsExportLine && settingsExportLine.includes('shelterExportBackup()'), 'the general settings export opens the encrypted backup dialog');
+const backupPayloadLine = html.split(/\r?\n/).find(line => line.includes("kind: 'SHELTER_BROWSER_BACKUP'"));
+assert(backupPayloadLine && backupPayloadLine.includes('spaces: S.spaces') && backupPayloadLine.includes('prefs: S.prefs') && !backupPayloadLine.includes('S.board'), 'the browser backup payload carries spaces, bookmarks, visits and prefs without task boards');
+assert(html.includes('await wpEncryptTaskPayload(backupPayload, code)'), 'the browser backup is encrypted with the file code before download');
+assert(html.includes("'.shelter'"), 'the encrypted browser backup uses the .shelter extension');
+assert(!html.includes("'shelter-backup-' + dayKey(Date.now()) + '.json'"), 'the browser backup is never exported as plaintext JSON');
+assert(html.includes("else if (a === 'import') shelterImportBackup();"), 'settings offer an encrypted backup restore');
+assert(html.includes("payload.kind !== 'SHELTER_BROWSER_BACKUP'"), 'backup restore rejects decrypted files without the browser-backup marker');
+assert(html.includes('shelterIsLegacyBrowserBackup(parsed)'), 'old plaintext backups stay readable through the legacy fallback');
+assert(html.includes('function wpDeadlineBeforeStart(scheduledDate,deadlineAt)'), 'the deadline invariant helper is installed');
+assert(html.includes('Крайний срок не может быть раньше даты начала.'), 'setting a deadline before the start date is rejected');
+assert(html.includes('Дата начала не может быть позже крайнего срока.'), 'moving the start date past the deadline is rejected');
 assert(!html.includes("downloadFile('shelter-tasks.json'"), 'the legacy task export path does not generate plaintext JSON');
 assert(!html.includes("downloadFile('shelter-planner-migration-backup.json',raw)"), 'the technical migration snapshot is password-protected too');
 const downloadFileSource = html.slice(html.indexOf('function downloadFile('), html.indexOf('\n/* =========================================================\n   ДАШБОРД', html.indexOf('function downloadFile(')));
@@ -233,7 +244,7 @@ const context = { __state: state, __data: data, __denyBackup: false, __failNextS
 vm.runInNewContext(harness + '\n' + domSelectSource + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, saveNowCount:()=>__saveNowCount, ensureBoardCount:()=>__ensureBoardCount, actions: ACT, render: RENDER, after: AFTER,
-  wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
+  wpDateKey, wpDeadlineBeforeStart, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
@@ -253,6 +264,12 @@ assert.strictEqual(api.wpWeekStart('2026-10-13'), '2026-10-12');
 assert.strictEqual(api.wpAddDays('2026-12-31', 1), '2027-01-01');
 assert.strictEqual(api.wpMonthStart('2026-10-13'), '2026-10-01');
 assert.strictEqual(api.wpFmtMonth('2026-10-13'), 'Октябрь 2026');
+assert.strictEqual(api.wpDeadlineBeforeStart('2026-10-10', '2026-10-09'), true);
+assert.strictEqual(api.wpDeadlineBeforeStart('2026-10-10', '2026-10-10'), false);
+assert.strictEqual(api.wpDeadlineBeforeStart('2026-10-10', '2026-10-11'), false);
+assert.strictEqual(api.wpDeadlineBeforeStart(null, '2026-10-09'), false);
+assert.strictEqual(api.wpDeadlineBeforeStart('2026-10-10', ''), false);
+assert.strictEqual(api.wpDeadlineBeforeStart('10.10.2026', '09.10.2026'), true);
 const octoberGrid = Array.from(api.wpMonthKeys('2026-10-01'));
 assert.strictEqual(octoberGrid.length, 35);
 assert.strictEqual(octoberGrid[0], '2026-09-28');

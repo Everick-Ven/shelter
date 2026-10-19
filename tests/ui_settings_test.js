@@ -131,6 +131,17 @@ check('display меняется только при отличии', /if \(el\.s
 const fontFn = cut('function applyFontScale()', '\nfunction installFontScale');
 check('масштаб шрифта не пишет те же значения', /const setVar = \(k, v\) => \{ if \(root\.getPropertyValue\(k\) !== v\) root\.setProperty\(k, v\); \}/.test(fontFn));
 check('масштаб шрифта не переписывает подписи без изменений', /if \(l && l\.textContent !== v \+ ' %'\) l\.textContent/.test(fontFn));
+check('все ползунки настроек имеют кнопки − и + по краям',
+  (settingsMarkup.match(/data-act="rngM"/g) || []).length === 6 &&
+  (settingsMarkup.match(/data-act="rngP"/g) || []).length === 6);
+check('кнопки ползунков двигают соседний range через общий степпер',
+  /function shelterStepRange\(el, dir\)/.test(html) && /\.closest\('\.uiscale'\)/.test(html) &&
+  /dispatchEvent\(new Event\('input', \{ bubbles: true \}\)\)/.test(html) &&
+  /dispatchEvent\(new Event\('change', \{ bubbles: true \}\)\)/.test(html));
+check('кнопки свечения гаснут вместе с ползунком',
+  (settingsMarkup.match(/\$\{glowOff \? 'disabled' : ''\}>[−+]<\/button>/g) || []).length === 4);
+check('масштаб шрифта понимает !important у кегля',
+  html.includes("const sized = v.match(/^([\\d.]+px|clamp\\([^)]+\\))(\\s*!important)?$/);"));
 const sync = cut('function syncSwitches()', 'const PREF_TOAST');
 check('синхронизация тумблеров не пишет совпадающие состояния',
   /if \(b\.classList\.contains\('on'\) !== on\)/.test(sync) && /if \(b\.getAttribute\('aria-checked'\) !== sa\)/.test(sync));

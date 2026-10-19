@@ -35,7 +35,8 @@ assert(plannerStyle[1].includes('.wp-all-filter-row .wp-filter-sort') && planner
 assert(plannerStyle[1].includes('@container shelter (max-width:620px)'), 'the shared filter grid adapts to the app viewport');
 assert(plannerStyle[1].includes('.wp-date-jump input{position:absolute'), 'the calendar-jump input stays invisible under its icon button');
 const weekDayCss = html.match(/\.wp-week-grid\.is-all-day \.wp-day\{([^}]*)\}/);
-assert(weekDayCss && /border:0/.test(weekDayCss[1]) && !/border-right:1px/.test(weekDayCss[1]), 'week columns must remain open without permanent day separators');
+assert(weekDayCss && /border:0/.test(weekDayCss[1]) && /border-radius:calc\(16px\*var\(--rs\)\)/.test(weekDayCss[1]) && /overflow:hidden/.test(weekDayCss[1]), 'week day columns keep a rounded clipped contour without a full frame');
+assert(html.includes('.wp-week-grid.is-all-day .wp-week-days>.wp-day+.wp-day{border-left:1px solid var(--line)}'), 'week days are separated by vertical divider lines');
 assert(html.includes('wpMigrateTaskStores(breg)'), 'legacy task migration must run during load');
 assert(planner.includes('function wpFinalizeTaskMigration()'), 'migration must require an explicit confirmation step');
 assert(planner.includes('WP._searchTimer=setTimeout') && planner.includes("search.addEventListener('input',schedule)") && planner.includes("search.addEventListener('compositionend',schedule)"), 'task search must be debounced and keep its clear control in sync');

@@ -242,6 +242,21 @@ check('когда места нет вовсе, переменная не выс
 const vertical = runLayout({ mount: 'dockLeft', width: 900, padL: 8, padR: 8, gap: 4, siblings: [], tabs: 5 });
 check('вертикальная панель снимает переменную полосы', vertical.hasVar === false, JSON.stringify(vertical));
 
+// 11. Бар закладок: при перетаскивании виден вертикальный маркер места вставки.
+const dropBefore = rule('#heroLinks .qlink.drop-before::before');
+const dropAfter = rule('#heroLinks .qlink.drop-after::after');
+check('маркер вставки слева задан вертикальной полоской',
+  /left:-4px/.test(dropBefore) && /width:3px/.test(dropBefore) && /top:6px/.test(dropBefore) && /bottom:6px/.test(dropBefore), dropBefore.slice(0, 90));
+check('маркер вставки справа задан вертикальной полоской',
+  /right:-4px/.test(dropAfter) && /width:3px/.test(dropAfter), dropAfter.slice(0, 90));
+check('маркер использует акцентный цвет и не перехватывает указатель',
+  /background:rgb\(var\(--accent\)\)/.test(dropBefore) && /pointer-events:none/.test(dropBefore));
+const heroDrag = cut('(function bindHeroBmDrag() {', '/* ---------- Контекстное меню браузера');
+check('подсветка вставки повторяет формулу drop (левее/правее середины)',
+  /target\.classList\.add\(e\.clientX > r\.left \+ r\.width \/ 2 \? 'drop-after' : 'drop-before'\)/.test(heroDrag));
+check('маркер снимается вместе с концом перетаскивания',
+  /querySelectorAll\('\.qlink\.dragging,\.qlink\.drop-before,\.qlink\.drop-after'\)/.test(heroDrag));
+
 const failed = results.filter(x => !x).length;
 console.log(failed ? 'UI_TABS_TEST_FAIL ' + failed : 'UI_TABS_TEST_PASS ' + results.length + '/' + results.length);
 process.exit(failed ? 1 : 0);

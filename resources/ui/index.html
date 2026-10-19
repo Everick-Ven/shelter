@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-j6mRhZLEqNNPl81dgKZlcUBtwAiUw/xaT5x3vrq8D0Y=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-QlxECi3aww4dPSg5xTIvBryofTvm0ZEB2kK8pE4OEkI=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -35,7 +35,7 @@
   --ease:cubic-bezier(.22,1,.36,1);
   --ease-s:cubic-bezier(.34,1.45,.64,1);
   --ease-io:cubic-bezier(.65,0,.35,1);
-  --sb-w:272px; --sb-wc:76px;
+  --sb-w:272px; --sb-wc:60px;
 }
 
 
@@ -290,6 +290,25 @@ html.theme-anim body{
 .app.collapsed .sb{width:var(--sb-wc)}
 .hc{transition:opacity .22s var(--ease)}
 .app.collapsed .hc{opacity:0;pointer-events:none}
+@media (min-width:721px){
+.app.collapsed .sb-pin{padding-top:2px}
+.app.collapsed .sb-pin .sb-label{height:14px;margin-top:5px}
+.app.collapsed .sb-top{justify-content:center;padding:0}
+.app.collapsed .brand{justify-content:center;padding:0}
+.app.collapsed .brand>.hc{display:none}
+.app.collapsed .logo{width:32px;height:32px}
+.app.collapsed .sb-search{justify-content:center;padding:0}
+.app.collapsed .sb-search>.hc{display:none}
+.app.collapsed .ni{justify-content:center;padding:0}
+.app.collapsed .ni>.hc{display:none}
+.app.collapsed .nav-ind{left:50%;right:auto;width:36px;transform:translate3d(-50%,var(--y,0px),0)}
+.app.collapsed .space-row{justify-content:center;padding:0}
+.app.collapsed .space-row>.icon-btn{display:none}
+.app.collapsed .space-btn{flex:none;justify-content:center;padding:0}
+.app.collapsed .space-btn>.hc{display:none}
+.app.collapsed #tabList .tab{justify-content:center;padding:0}
+.app.collapsed #tabList .tab>.hc{display:none}
+}
 .tab .tg{display:inline-flex;flex:none;align-items:center;color:#9F8CFF}
 .tab .tg .i{width:13px;height:13px}
 .sb-top{display:flex;align-items:center;height:20px;padding:0 6px;margin-bottom:16px;flex:none;-webkit-app-region:drag}
@@ -522,8 +541,10 @@ body.no-badges .badge{display:none!important}
 .tab-mount>.tab-plus:hover{background:var(--hover);color:var(--text)}
 .tabs-scroll{position:absolute;left:2px;right:2px;bottom:0;height:2px;border-radius:99px;background:var(--line);pointer-events:none}
 .tabs-scroll i{position:absolute;top:0;height:100%;min-width:28px;border-radius:99px;background:linear-gradient(90deg,rgb(var(--accent)),rgb(var(--gb)));box-shadow:0 1px 3px rgb(var(--accent)/.55);transition:left .15s var(--ease)}
-#heroLinks .qlink[data-bm]{cursor:grab}
+#heroLinks .qlink[data-bm]{cursor:grab;position:relative}
 #heroLinks .qlink.dragging{opacity:.5;transform:scale(.97);cursor:grabbing}
+#heroLinks .qlink.drop-before::before{content:"";position:absolute;top:6px;bottom:6px;left:-4px;width:3px;border-radius:99px;background:rgb(var(--accent));z-index:4;pointer-events:none}
+#heroLinks .qlink.drop-after::after{content:"";position:absolute;top:6px;bottom:6px;right:-4px;width:3px;border-radius:99px;background:rgb(var(--accent));z-index:4;pointer-events:none}
 .tab-rail{width:246px;flex:none;display:flex;flex-direction:column;padding:14px 10px 12px;border-left:1px solid var(--line);overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;transition:width .46s var(--ease)}
 .tab-rail .space-row{margin-top:4px}
 #tabRight .tab.new{display:flex}
@@ -541,7 +562,8 @@ body.no-badges .badge{display:none!important}
 /* ---------- Правая рейка: свернуть в полоску иконок (1.0.82) ---------- */
 .rail-top{display:flex;justify-content:flex-end;align-items:center;flex:none;padding:0 2px 4px}
 .rail-top .icon-btn{width:28px;height:28px}
-.tab-rail.is-collapsed{width:var(--sb-wc)}
+/* Правая полоса вкладок не сужается вместе с левым меню. */
+.tab-rail.is-collapsed{width:76px}
 .tab-rail.is-collapsed .rail-top{justify-content:center;padding-bottom:6px}
 .tab-rail.is-collapsed .rail-toggle .i{transform:scaleX(-1)}
 #tabRight.is-collapsed .hc{opacity:0;pointer-events:none}
@@ -9520,12 +9542,22 @@ function bmHeroMenu(anchor) {
     try { if (e.dataTransfer) { e.dataTransfer.setData('text/plain', dragId); e.dataTransfer.effectAllowed = 'move'; } } catch (_) {}
     q.classList.add('dragging');
   });
-  box.addEventListener('dragover', e => { if (!dragId) return; e.preventDefault(); try { if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; } catch (_) {} });
+  box.addEventListener('dragover', e => {
+    if (!dragId) return;
+    e.preventDefault();
+    try { if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+    const target = e.target.closest('.qlink[data-bm]');
+    box.querySelectorAll('.qlink.drop-before,.qlink.drop-after').forEach(x => x.classList.remove('drop-before','drop-after'));
+    if (target && target.dataset.bm !== dragId) {
+      const r = target.getBoundingClientRect();
+      target.classList.add(e.clientX > r.left + r.width / 2 ? 'drop-after' : 'drop-before');
+    }
+  });
   box.addEventListener('drop', e => {
     if (!dragId) return;
     e.preventDefault();
     const target = e.target.closest('.qlink[data-bm]');
-    box.querySelectorAll('.qlink.dragging').forEach(x => x.classList.remove('dragging'));
+    box.querySelectorAll('.qlink.dragging,.qlink.drop-before,.qlink.drop-after').forEach(x => x.classList.remove('dragging','drop-before','drop-after'));
     if (target && target.dataset.bm !== dragId) {
       const r = target.getBoundingClientRect();
       const after = r.width > 0 ? (e.clientX > r.left + r.width / 2) : true;
@@ -9543,7 +9575,7 @@ function bmHeroMenu(anchor) {
   });
   box.addEventListener('dragend', () => {
     dragId = null;
-    box.querySelectorAll('.qlink.dragging').forEach(x => x.classList.remove('dragging'));
+    box.querySelectorAll('.qlink.dragging,.qlink.drop-before,.qlink.drop-after').forEach(x => x.classList.remove('dragging','drop-before','drop-after'));
   });
 })();
 
@@ -10355,7 +10387,7 @@ function boardCard() {
 }
 function taskDicts() {
   ensureBoard();
-  const D = [['projects', 'Проекты'], ['people', 'Исполнители'], ['prios', 'Приоритеты'], ['terms', 'Сроки'], ['formats', 'Форматы'], ['statuses', 'Статусы']];
+  const D = [['projects', 'Проекты'], ['people', 'Исполнители'], ['prios', 'Приоритеты'], ['statuses', 'Статусы']];
   const locked = { prios: ['Выполнено'], statuses: ['Готово'] };
   let cur = 'projects';
   const label = v => typeof v === 'string' ? v : ((v && v.name) || '');
@@ -12482,7 +12514,7 @@ AFTER.deepthink = m => {
    НАСТРОЙКИ
    ========================================================= */
 const SET_SECTIONS = [['general', 'Общие', 'gear'], ['look', 'Внешний вид', 'palette'], ['fonts', 'Шрифты', 'book'], ['pers', 'Персонализация', 'user'], ['tabs', 'Вкладки', 'layers'], ['search', 'Поиск', 'search'], ['privacy', 'Приватность', 'shield'], ['ruca', 'Сертификаты РФ', 'award'], ['ext', 'Расширения', 'puzzle'], ['net', 'Сеть', 'wifi'], ['lang', 'Язык', 'lang'], ['data', 'Данные', 'db'], ['keys', 'Горячие клавиши', 'keyboard'], ['about', 'О SHELTER', 'info']];
-const SHORTCUTS = [['Новая вкладка', '⌘T'], ['Закрыть вкладку', '⌘W'], ['Следующая вкладка', '⌘Tab'], ['Вернуть закрытую', '⌘⇧T'], ['Команды и поиск', '⌘K'], ['Адресная строка', '⌘L'], ['Найти на странице', '⌘F'], ['Режим «Призрак»', '⌘⇧P'], ['История', '⌘Y'], ['В закладки', '⌘D'], ['Боковая панель', '⌘\\'], ['Пространства 1–4', '⌘1 … ⌘4'], ['Масштаб', '⌘+  ⌘−  ⌘0'], ['Инструменты разработчика', '⌥⌘I'], ['Открыть файл', '⌘O'], ['Настройки', '⌘,'], ['Закрыть меню, окно или остановить загрузку', 'Esc']];
+const SHORTCUTS = [['Новая вкладка', '⌘T'], ['Закрыть вкладку', '⌘W'], ['Следующая вкладка', '⌘Tab'], ['Вернуть закрытую', '⌘⇧T'], ['Поиск по браузеру', '⌘K'], ['Адресная строка', '⌘L'], ['Найти на странице', '⌘F'], ['Режим «Призрак»', '⌘⇧P'], ['История', '⌘Y'], ['В закладки', '⌘D'], ['Боковая панель', '⌘\\'], ['Пространства 1–4', '⌘1 … ⌘4'], ['Масштаб', '⌘+  ⌘−  ⌘0'], ['Инструменты разработчика', '⌥⌘I'], ['Открыть файл', '⌘O'], ['Настройки', '⌘,'], ['Закрыть меню, окно или остановить загрузку', 'Esc']];
 const kbdGrid = () => `<div class="kbd-grid">${SHORTCUTS.map(s => `<div><span>${s[0]}</span><span class="kbd">${esc(kb(s[1]))}</span></div>`).join('')}</div>`;
 function showShortcuts() { const m = openModal({ width: 640, html: `<div class="modal-h"><div class="mi-ic">${ico('keyboard')}</div><h3>Горячие клавиши</h3><button class="icon-btn" data-x="1" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b">${kbdGrid()}<p class="muted" style="font-size:12px;margin-top:14px">${IS_MAC ? 'На Windows и Linux вместо ⌘ используйте Ctrl.' : 'На macOS вместо Ctrl используйте ⌘.'}</p></div>` }); m.scrim.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(m); }); }
 async function requestUserDataDeletion() {
@@ -13042,39 +13074,14 @@ SEG.lang = v => { S.prefs.lang = v; persist(); if (v === 'en') toast('English UI
 SEG.device = v => setDevice(v);
 
 /* =========================================================
-   КОМАНДНАЯ ПАЛИТРА ⌘K
+   ПОИСК ПО БРАУЗЕРУ ⌘K
    ========================================================= */
-const COMMANDS = () => [
-  { icon: 'plus', label: 'Новая вкладка', kbd: '⌘T', run: () => addTab() },
-  { icon: 'undo', label: 'Вернуть закрытую вкладку', kbd: '⌘⇧T', run: undoClose },
-  { icon: 'ghost', label: S.ghost ? 'Выключить «Призрак»' : 'Включить «Призрак»', kbd: '⌘⇧P', kw: 'инкогнито приват ghost', run: () => toggleGhost() },
-  { icon: 'flame', label: 'Удалить сессии', kw: 'очистить сжечь fire', run: fire },
-  { icon: 'grid', label: 'Дашборд', kw: 'статистика', run: () => openPage('dashboard') },
-  { icon: 'chat', label: 'Ассистент', kw: 'ai ии чат deepthink помощник', run: () => openPage('deepthink') },
-  { icon: 'history', label: 'История', kbd: '⌘Y', run: () => openPage('history') },
-  { icon: 'bookmark', label: 'Закладки', run: () => openPage('bookmarks') },
-  { icon: 'timer', label: 'Виджеты', kw: 'виджеты помодоро вк телемост', run: () => openPage('widgets') },
-  { icon: 'tasks', label: 'Задачи', kw: 'todo дела', run: () => openPage('tasks') },
-  { icon: 'download', label: 'Загрузки', run: () => openPage('downloads') },
-  { icon: 'key', label: 'Пароли', run: () => openPage('passwords') },
-  { icon: 'puzzle', label: 'Расширения', kw: 'магазин', run: () => openPage('extensions') },
-  { icon: 'award', label: 'Сертификаты РФ', kw: 'минцифры гост', run: () => openPage('certs') },
-  { icon: 'sidebar', label: 'Свернуть или развернуть панель', kbd: '⌘\\', run: toggleSidebar },
-  { icon: 'search', label: 'Найти на странице', kbd: '⌘F', run: openFind },
-  { icon: 'code', label: 'Инструменты разработчика', kbd: '⌥⌘I', kw: 'devtools консоль', run: () => toggleDevtools(true) },
-  { icon: 'layers', label: 'Новое пространство', run: () => editSpace(null) },
-  { icon: 'keyboard', label: 'Горячие клавиши', kbd: '?', run: showShortcuts },
-  { icon: 'gear', label: 'Настройки', kbd: '⌘,', run: () => openSettings() }
-];
 function paletteItems(q) {
   const ql = q.toLowerCase(), out = [], match = (...s) => !ql || s.some(x => String(x || '').toLowerCase().includes(ql));
   if (q) {
     out.push({ g: 'Перейти', icon: isUrl(q) ? 'globe' : 'search', label: isUrl(q) ? 'Открыть ' + q : 'Искать «' + q + '»', hint: isUrl(q) ? '' : ENGINES[S.engine].name, run: () => navigate(q) });
     if (!isUrl(q)) out.push({ g: 'Перейти', icon: 'bulb', label: 'Спросить AI-ассистента', hint: q, run: () => navigate('shelter.dev/deepthink?q=' + encodeURIComponent(q)) });
   }
-  let n = 0;
-  (q ? Object.keys(S.spaces) : [S.currentSpace]).forEach(k => S.spaces[k].tabs.forEach(t => { if (n < 7 && match(t.title, t.url)) { n++; out.push({ g: 'Вкладки', lead: favHtml(t, 'md'), label: t.title, hint: S.spaces[k].name, run: () => { if (k !== S.currentSpace) { S.currentSpace = k; renderSpaceRow(); } activateTab(t.id); } }); } }));
-  COMMANDS().filter(c => match(c.label, c.kw)).slice(0, q ? 8 : 12).forEach(c => out.push(Object.assign({ g: 'Команды' }, c)));
   if (q) {
     S.bookmarks.filter(b => match(b.title, b.url)).slice(0, 4).forEach(b => out.push({ g: 'Закладки', lead: favFor(b.url, 'md'), label: b.title, hint: hostOf(b.url), run: () => navigate(b.url) }));
     const seen = new Set(); for (let i = S.visits.length - 1; i >= 0 && seen.size < 5; i--) { const v = S.visits[i]; if (seen.has(v.url) || !match(v.title, v.url)) continue; seen.add(v.url); out.push({ g: 'История', lead: favFor(v.url, 'md'), label: v.title || v.url, hint: relDay(v.at) + ', ' + hm(v.at), run: () => navigate(v.url) }); }
@@ -13083,13 +13090,13 @@ function paletteItems(q) {
 }
 function openPalette() {
   if ($('.palette')) return;
-  const m = openModal({ raw: true, top: true, html: `<div class="palette" role="dialog" aria-modal="true" aria-label="Команды"><div class="pal-in">${ico('search')}<input id="palIn" placeholder="Вкладки, закладки, история и команды" autocomplete="off" spellcheck="false"><span class="kbd">esc</span></div><div class="pal-list" id="palList"></div><div class="pal-foot"><span><span class="kbd">↑↓</span>выбор</span><span><span class="kbd">↵</span>открыть</span><span><span class="kbd">esc</span>закрыть</span></div></div>` });
+  const m = openModal({ raw: true, top: true, html: `<div class="palette" role="dialog" aria-modal="true" aria-label="Поиск"><div class="pal-in">${ico('search')}<input id="palIn" placeholder="Искать по браузеру" autocomplete="off" spellcheck="false"><span class="kbd">esc</span></div><div class="pal-list" id="palList"></div><div class="pal-foot"><span><span class="kbd">↑↓</span>выбор</span><span><span class="kbd">↵</span>открыть</span><span><span class="kbd">esc</span>закрыть</span></div></div>` });
   const root = m.scrim, inp = $('#palIn', root), list = $('#palList', root); let items = [], hl = 0;
   const paint = () => { $$('.sg', list).forEach((el, i) => el.classList.toggle('hl', i === hl)); const el = list.querySelector('.sg.hl'); if (el) el.scrollIntoView({ block: 'nearest' }); };
   const render = () => {
-    items = paletteItems(inp.value.trim()); hl = 0; let g = '', i = 0, html = '';
+    const pq = inp.value.trim(); items = paletteItems(pq); hl = 0; let g = '', i = 0, html = '';
     items.forEach(it => { if (it.g !== g) { g = it.g; html += `<div class="pal-g">${esc(g)}</div>`; } html += `<div class="sg ${i === hl ? 'hl' : ''}" data-pi="${i}">${it.lead || `<span class="ic">${ico(it.icon)}</span>`}<span class="t">${esc(kb(it.label))}</span>${it.hint ? `<span class="u">${esc(kb(it.hint))}</span>` : ''}${it.kbd ? `<span class="kbd">${esc(kb(it.kbd))}</span>` : ''}</div>`; i++; });
-    list.innerHTML = html || emptyState('search', 'Ничего не найдено', 'Попробуйте другой запрос');
+    list.innerHTML = html || (pq ? emptyState('search', 'Ничего не найдено', 'Попробуйте другой запрос') : '');
   };
   const run = it => { if (!it) return; closeModal(m); setTimeout(() => it.run(), 30); };
   inp.addEventListener('input', render);

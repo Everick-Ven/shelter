@@ -1187,6 +1187,7 @@ assert.strictEqual(typeof api.actions.wpView, 'function');
   assert(html.includes('function personDlg('), 'editing an assignee uses a single name+id dialog');
   assert(html.includes('data-pp-name') && html.includes('data-pp-id'), 'the assignee dialog has both fields');
   assert(html.includes("personDlg({ title: 'Исполнитель'"), 'the board settings edit flow opens the assignee dialog');
+assert(html.includes("const D = [['projects', 'Проекты'], ['people', 'Исполнители'], ['prios', 'Приоритеты'], ['statuses', 'Статусы']];"), 'board settings offer no unused terms/formats dictionaries');
   assert(html.includes('Исполнитель с таким именем уже есть'), 'duplicate assignee names trigger a warning');
   assert(html.includes('Этот ID уже привязан к исполнителю'), 'duplicate invite ids trigger a warning');
   assert(html.includes('wpBoardAddPerson(board,nm,cid)'), 'export contacts join the board assignee list');

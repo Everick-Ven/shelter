@@ -234,12 +234,12 @@ vm.runInNewContext(harness + '\n' + domSelectSource + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, saveNowCount:()=>__saveNowCount, ensureBoardCount:()=>__ensureBoardCount, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
-  wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
+  wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm, wpApplyOccurrenceForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
+  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
-  wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
+  wpNormalizeBoard, wpNormalizeCustomFields, wpBoardCustomFields, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpSetStatusRef, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects, wpMergeImportedTaskData, wpApplyImportedTaskData,
   wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
@@ -1287,5 +1287,73 @@ assert.strictEqual(typeof api.actions.wpView, 'function');
   api.wpDownloadMigrationBackup();
   assert(context.__lastModalHtml.includes('текущий снимок данных задач'), 'the migration-copy action offers a real current-data snapshot when no historical migration copy exists');
   assert.strictEqual(typeof api.actions.taskExport, 'function');
+  // Custom task fields: user-defined variables with their own value lists.
+  state.account = { name: 'Alex', email: 'alex@example.test' };
+  state.board = {
+    id: 'custom-fields-board', name: 'Доска', code: 'SHTR-TEST', ownerEmail: 'alex@example.test',
+    projects: [], people: ['Alex'], prios: [], terms: [], formats: [], statuses: [],
+    customFields: [{ id: 'cf-customer', name: 'Заказчик', values: ['Иванов', 'Петров'] }],
+    tasks: [], invites: [], recurrenceRules: [], occurrences: []
+  };
+  state.boards = [state.board]; state.boardId = state.board.id;
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpNormalizeCustomFields({}))), [], 'boards without custom fields normalize to an empty list');
+  const messyFields = api.wpNormalizeCustomFields({ customFields: [{ name: 'Заказчик', values: ['Иванов', '', 42, 'Иванов'] }, { id: 'dup', name: 'A', values: [] }, { id: 'dup', name: 'B', values: [] }, null, 'x'] });
+  assert.strictEqual(messyFields.length, 2, 'field definitions drop non-objects and duplicate ids');
+  assert(messyFields[0].id.startsWith('cf-'), 'fields without an id receive one');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(messyFields[0].values)), ['Иванов'], 'field values keep only unique non-empty strings');
+  assert.strictEqual(api.wpBoardCustomFields().length, 1, 'the editor and cards read fields from the active board');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpBoardCustomFields({}))), [], 'boards without field definitions expose no custom fields');
+  const normalizedFieldBoard = api.wpNormalizeBoard({ id: 'field-board', name: 'Поля', customFields: [{ name: 'Заказчик', values: ['Иванов'] }], tasks: [{ id: 'field-task', title: 'T', fields: { 'cf-x': 'Иванов', junk: '' } }] });
+  assert.strictEqual(normalizedFieldBoard.customFields.length, 1, 'normalized boards keep the field definitions');
+  assert(normalizedFieldBoard.customFields[0].id, 'normalized field definitions carry an id');
+  const normalizedFieldTask = normalizedFieldBoard.tasks.find(task => task.id === 'field-task');
+  assert.strictEqual(normalizedFieldTask.fields['cf-x'], 'Иванов', 'task field values survive normalization instead of moving to legacy storage');
+  assert(!('junk' in normalizedFieldTask.fields), 'empty field values are dropped on load');
+  assert(!('fields' in (normalizedFieldTask.legacy || {})), 'field values are a known task key, not legacy residue');
+  const fieldBaseValues = api.wpEditorBaseValues({ title: 'T', homeType: 'personal', assignee: '', statusKey: 'open', priorityKey: 'normal', fields: { 'cf-customer': 'Петров' } }, 'series', null);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(fieldBaseValues.customFields)), { 'cf-customer': 'Петров' }, 'the editor carries stored field values');
+  const fieldForm = api.wpEditorBodyHtml(null, 'series', true, { ...formValues, customFields: { 'cf-customer': 'Петров' } }, false, null);
+  assert(fieldForm.includes('data-wp-cf="cf-customer"') && fieldForm.includes('<span>Заказчик</span>'), 'the task editor renders a select per custom field');
+  assert(fieldForm.includes('<option value="Петров" selected>'), 'the editor preselects the stored field value');
+  assert(fieldForm.includes('<option value="">Не выбрано</option>'), 'field selects offer an explicit empty choice');
+  const fieldTask = { id: 'apply-field-task', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [] };
+  api.wpApplyTaskForm(fieldTask, { ...formValues, title: 'С полем', kind: 'personal', projectId: '', customFields: { 'cf-customer': 'Иванов' } }, { newTask: true });
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(fieldTask.fields)), { 'cf-customer': 'Иванов' }, 'saving the editor stores custom field values');
+  api.wpApplyTaskForm(fieldTask, { ...formValues, title: 'С полем', kind: 'personal', projectId: '', customFields: { 'cf-customer': '' } }, {});
+  assert(!('fields' in fieldTask), 'clearing the last field value removes the storage key');
+  const legacyFormTask = { id: 'legacy-form-task', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [] };
+  api.wpApplyTaskForm(legacyFormTask, { ...formValues, title: 'Старая форма', kind: 'personal', projectId: '' }, { newTask: true });
+  assert(!('fields' in legacyFormTask), 'forms without custom fields leave stored values untouched');
+  const seriesTask = { id: 'series-field-task', title: 'Серия', homeType: 'personal', assignee: '', statusKey: 'open', priorityKey: 'normal', tags: [], fields: { 'cf-customer': 'Иванов' } };
+  state.board.tasks.push(seriesTask);
+  api.wpApplyOccurrenceForm(seriesTask, { originalDate: '2026-10-13' }, { ...formValues, title: 'Серия', kind: 'personal', projectId: '', customFields: { 'cf-customer': 'Петров' } });
+  const fieldRec = state.board.occurrences.find(record => record.seriesTaskId === 'series-field-task');
+  assert.strictEqual(fieldRec && fieldRec.overrides.fields && fieldRec.overrides.fields['cf-customer'], 'Петров', 'instance edits override field values without touching the series');
+  assert.strictEqual(seriesTask.fields['cf-customer'], 'Иванов');
+  const fieldEff = api.wpEffectiveOccurrence(seriesTask, '2026-10-13', fieldRec);
+  assert.strictEqual(fieldEff.fields['cf-customer'], 'Петров', 'instances merge field overrides over series values');
+  api.wpApplyOccurrenceForm(seriesTask, { originalDate: '2026-10-13' }, { ...formValues, title: 'Серия', kind: 'personal', projectId: '', customFields: { 'cf-customer': 'Иванов' } });
+  assert(!('fields' in fieldRec.overrides), 'reverting an instance value drops the field override');
+  const fieldCard = api.wpTaskCard({ id: 'card-field-task', title: 'Карточка', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'normal', tags: [], fields: { 'cf-customer': 'Иванов' } }, { compact: true });
+  assert(fieldCard.includes('class="wp-cf"') && fieldCard.includes('Заказчик: Иванов'), 'task cards show custom field values in the meta line');
+  const plainCard = api.wpTaskCard({ id: 'card-plain-task', title: 'Обычная', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'normal', tags: [] }, { compact: true });
+  assert(!plainCard.includes('wp-cf'), 'cards without field values render no custom spans');
+  const monthSummary = api.wpMonthSummary([{ statusKey: 'open' }, { statusKey: 'waiting' }, { statusKey: 'done' }, { statusKey: 'cancelled' }]);
+  assert(monthSummary.includes('<b>2</b> активных'), 'the month summary counts active tasks');
+  assert(monthSummary.indexOf('активных') < monthSummary.indexOf('задач'), 'active tasks lead the month summary');
+  const mergeBoards = api.wpMergeImportedTaskData(
+    [{ id: 'merge-board', name: 'Локальная', customFields: [{ id: 'cf-local', name: 'Заказчик', values: ['Иванов'] }], tasks: [], projects: [] }],
+    [{ id: 'merge-board', name: 'Локальная', customFields: [{ id: 'cf-local', name: 'Заказчик', values: ['Иванов'] }, { id: 'cf-new', name: 'Договор', values: ['Д-1'] }], tasks: [], projects: [] }],
+    'merge-board', 'merge-board'
+  );
+  assert.strictEqual(mergeBoards.ok, true);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(mergeBoards.boards.find(board => board.id === 'merge-board').customFields.map(field => field.id))).sort(), ['cf-local', 'cf-new'], 'import unions custom field definitions without duplicating ids');
+  const projectMerge = api.wpMergeImportedProjects(
+    [{ id: 'pm-board', name: 'B', projects: [], tasks: [], customFields: [] }],
+    [{ id: 'pm-board', name: 'B', projects: [{ id: 'pm-prj', name: 'P', members: [] }], tasks: [{ id: 'pm-task', title: 'T', homeType: 'project', projectId: 'pm-prj', assignee: 'Alex', fields: { 'cf-new': 'X' } }], people: ['Alex'], customFields: [{ id: 'cf-new', name: 'Заказчик', values: ['X'] }] }],
+    [{ boardId: 'pm-board', projectId: 'pm-prj' }]
+  );
+  assert.strictEqual(projectMerge.ok, true);
+  assert(projectMerge.boards.find(board => board.id === 'pm-board').customFields.some(field => field.id === 'cf-new'), 'project import carries the referenced custom field definitions');
   console.log('UI task planner, guarded migration, and password-protected import/export tests passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

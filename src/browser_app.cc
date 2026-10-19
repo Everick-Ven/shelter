@@ -10,6 +10,7 @@
 #include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/protection_flags.h"
+#include "src/sandbox_config.h"
 #include "src/security_paths.h"
 #include "src/shell.h"
 
@@ -104,10 +105,13 @@ void FillSettings(CefSettings& settings) {
 #endif
   CefString(&settings.locale) = "ru";
   CefString(&settings.accept_language_list) = "ru-RU,ru,en-US,en";
-#if !defined(CEF_USE_SANDBOX)
-  // CEF requires this when the sandbox/bootstrap support is not built.
-  settings.no_sandbox = true;
-#endif
+  // CEF requires no_sandbox=true only when neither sandbox flavor is compiled
+  // in. Checking CEF_USE_SANDBOX alone silently disabled the sandbox on
+  // Windows, where the M138+ distribution defines CEF_USE_BOOTSTRAP only
+  // (see src/sandbox_config.h and tools/check_sandbox_config.py).
+  if (!SandboxCompiledIn()) {
+    settings.no_sandbox = true;
+  }
 }
 
 }  // namespace shelter

@@ -143,6 +143,7 @@
     epoch: 0                 // invalidates in-flight freeze/thaw across tab/view changes
   };
   var cbs = { dlprompt: null, ctxclose: null };
+  var lastPopupToast = 0;
 
   function setNativeContentClass() {
     var body = document.body;
@@ -742,6 +743,9 @@
     onDownloadPrompt: function (cb) { cbs.dlprompt = cb; },
     downloadDecision: function (o) { return q('dl.decision', o || {}); },
     downloadControl: function (o) { return q('dl.control', o || {}); },
+    permAllow: function (o) { return q('perm.allow', o || {}); },
+    certDecision: function (o) { return q('cert.decision', o || {}); },
+    checkUpdates: function (o) { return q('app.checkUpdates', o || {}); },
     secretEnc: function (t) { return secretCall('encrypt', t); },
     secretDec: function (t) { return secretCall('decrypt', t); },
     setFullscreen: function (on) { return q('win.fullscreen', { on: !!on }); },
@@ -778,7 +782,28 @@
       if (p.id === st.tabId && typeof window.onNativeLoading === 'function') window.onNativeLoading(!!p.loading);
     },
     newtab: function (p) {
-      if (p.url && typeof window.newTab === 'function') window.newTab(p.url);
+      if (!p || !p.url || typeof window.newTab !== 'function') return;
+      if (p.gesture === false) {
+        // Всплывающее окно без жеста пользователя (window.open из скрипта):
+        // вкладку не открываем, иначе любая страница устраивает tab-bomb.
+        // Тост троттлирован; кнопка даёт разово открыть заблокированный адрес.
+        var now = Date.now();
+        if (now - lastPopupToast > 8000) {
+          lastPopupToast = now;
+          if (typeof window.toast === 'function') {
+            (function (url, host) {
+              var text = host ? ('Сайт ' + host + ' пытался открыть всплывающее окно — заблокировано')
+                              : 'Всплывающее окно заблокировано';
+              window.toast(text, {
+                icon: 'shield-check', ms: 7000,
+                action: { label: 'Открыть всё равно', run: function () { window.newTab(url); } }
+              });
+            })(p.url, p.host || '');
+          }
+        }
+        return;
+      }
+      window.newTab(p.url);
     },
     key: function (p) {
       var ev = new KeyboardEvent('keydown', {

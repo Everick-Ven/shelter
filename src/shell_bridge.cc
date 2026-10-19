@@ -205,7 +205,8 @@ const std::set<std::string>& DiagnosticMethodNames() {
       "tab.hideContent", "tab.navigate", "tab.reload", "tab.stop",
       "tab.zoom", "ui.ready", "viewport.sync", "diag.performance",
       "ui.longtask", "freeze.snapshot", "freeze.decode", "freeze.hide",
-      "freeze.total", "thaw.show", "thaw.total", "other"};
+      "freeze.total", "thaw.show", "thaw.total", "perm.allow",
+      "cert.decision", "app.checkUpdates", "other"};
   return names;
 }
 
@@ -645,6 +646,32 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
+  if (m == "perm.allow") {
+    // Пользователь выдал сайту запрошенные разрешения из тоста «Разрешить».
+    // Действует до перезапуска; страница должна запросить снова (перезагрузка).
+    Shell::Get().AllowSitePermissions(
+        Str(a, "origin"),
+        static_cast<uint32_t>(Num(a, "mask", 0)),
+        Flag(a, "media", false));
+    cb->Success("{\"ok\":true}");
+    return true;
+  }
+  if (m == "cert.decision") {
+    // Решение пользователя по ошибке сертификата: once (продолжить один раз),
+    // remember (запомнить отпечаток) или back (отказ). Всё неизвестное натив
+    // трактует как отказ.
+    Shell::Get().CertDecision(Str(a, "id"), Str(a, "action"));
+    cb->Success("{\"ok\":true}");
+    return true;
+  }
+  if (m == "app.checkUpdates") {
+    // Проверка обновлений: натив сверяет kAppVersion с tag_name официального
+    // releases/latest и отвечает событием "update-status". manual отличает
+    // ручную проверку (кнопка «О SHELTER») от автоматической.
+    Shell::Get().CheckForUpdates(Flag(a, "manual", false));
+    cb->Success("{\"ok\":true}");
+    return true;
+  }
   if (m == "ghost.setEnabled") {
     // Режим «Призрак»: новые вкладки уходят в in-memory профили на стороне
     // моста; нативная часть при выключении сразу освобождает пустые
@@ -864,32 +891,56 @@ void Shell::ClearPrivacy(CefRefPtr<CefListValue> parts,
         CefRefPtr<CefCookieManager> cm = it->second->GetCookieManager(nullptr);
         if (cm) cm->VisitAllCookies(new CookieClearVisitor(full ? 0 : begin));
       }
+      // Живой браузер раздела для DevTools-команд (кэш и хранилища — общие
+      // на профиль, достаточно одного; вкладки может и не быть — например,
+      // раздел вычищают после закрытия всех его вкладок).
+      CefRefPtr<CefBrowser> any;
       for (auto& kv : tabs_) {
-        Tab& t = kv.second;
-        if (t.partition != p || !t.browser) continue;
-        if (wants("CACHE")) {
-          t.browser->GetHost()->ExecuteDevToolsMethod(0, "Network.clearBrowserCache", nullptr);
+        if (kv.second.partition == p && kv.second.browser) {
+          any = kv.second.browser;
+          break;
         }
-        if (wants("LOCAL_STORAGE") || wants("INDEXED_DB") || wants("SERVICE_WORKERS")) {
+      }
+      if (wants("CACHE") && any) {
+        any->GetHost()->ExecuteDevToolsMethod(0, "Network.clearBrowserCache", nullptr);
+      }
+      const bool clear_storage = wants("LOCAL_STORAGE") || wants("INDEXED_DB") ||
+                                 wants("SERVICE_WORKERS");
+      if (clear_storage && any) {
+        std::string types;
+        auto add = [&](const char* s) { types += (types.empty() ? "" : ",") + std::string(s); };
+        if (wants("LOCAL_STORAGE")) add("local_storage");
+        if (wants("INDEXED_DB")) add("indexeddb");
+        if (wants("SERVICE_WORKERS")) { add("service_workers"); add("cache_storage"); }
+        // Origins: весь журнал раздела за сессию, а не только открытые
+        // вкладки, — иначе хранилища закрытых сайтов переживали бы частичную
+        // очистку. Адреса открытых вкладок добавляем тоже — журнал мог
+        // переполниться и вытеснить старые записи.
+        std::set<std::string> origins;
+        auto known = partition_origins_.find(p);
+        if (known != partition_origins_.end()) origins = known->second;
+        for (auto& kv : tabs_) {
+          Tab& t = kv.second;
+          if (t.partition != p || !t.browser) continue;
           CefURLParts up;
           if (CefParseURL(t.current_url, up)) {
             const std::string origin = CefString(&up.origin).ToString();
-            if (!origin.empty()) {
-              std::string types;
-              auto add = [&](const char* s) { types += (types.empty() ? "" : ",") + std::string(s); };
-              if (wants("LOCAL_STORAGE")) add("local_storage");
-              if (wants("INDEXED_DB")) add("indexeddb");
-              if (wants("SERVICE_WORKERS")) { add("service_workers"); add("cache_storage"); }
-              CefRefPtr<CefDictionaryValue> dp = CefDictionaryValue::Create();
-              dp->SetString("origin", origin);
-              dp->SetString("storageTypes", types);
-              t.browser->GetHost()->ExecuteDevToolsMethod(0, "Storage.clearDataForOrigin", dp);
-            }
+            if (!origin.empty() && origin != "null") origins.insert(origin);
           }
         }
+        for (const auto& origin : origins) {
+          CefRefPtr<CefDictionaryValue> dp = CefDictionaryValue::Create();
+          dp->SetString("origin", origin);
+          dp->SetString("storageTypes", types);
+          any->GetHost()->ExecuteDevToolsMethod(0, "Storage.clearDataForOrigin", dp);
+        }
+        partition_origins_.erase(p);  // журнал отчищен — начнётся заново
       }
     }
-    if (full) QueueWipe(p);  // каталог профиля удалится при следующем запуске
+    if (full) {
+      QueueWipe(p);  // каталог профиля удалится при следующем запуске
+      partition_origins_.erase(p);
+    }
   }
   cb->Success("{\"ok\":true}");
 }

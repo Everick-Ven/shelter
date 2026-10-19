@@ -24,11 +24,13 @@
 #include <vector>
 
 #include "include/cef_browser.h"
+#include "include/cef_callback.h"
 #include "include/cef_client.h"
 #include "include/cef_devtools_message_observer.h"
 #include "include/cef_download_handler.h"
 #include "include/cef_registration.h"
 #include "include/cef_request_context.h"
+#include "include/cef_ssl_info.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_browser_view_delegate.h"
 #include "include/views/cef_overlay_controller.h"
@@ -165,11 +167,16 @@ class Shell {
   void OnTabAddress(CefRefPtr<CefBrowser> browser, const std::string& url);
   void OnTabTitle(CefRefPtr<CefBrowser> browser, const std::string& title);
   void OnTabLoading(CefRefPtr<CefBrowser> browser, bool loading);
-  void OnTabNewWindow(CefRefPtr<CefBrowser> browser, const std::string& url);
+  void OnTabNewWindow(CefRefPtr<CefBrowser> browser, const std::string& url,
+                      bool user_gesture);
   void OnTabFullscreen(CefRefPtr<CefBrowser> browser, bool on);
   void SetWindowFullscreen(bool on);
   void OnTabLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame);
   void OnTabLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame);
+  // Запоминает origin загрузки в журнале раздела: «Удалить данные» обязана
+  // чистить хранилища всех сайтов сессии, а не только открытых вкладок.
+  void RecordPartitionOrigin(CefRefPtr<CefBrowser> browser,
+                             CefRefPtr<CefFrame> frame);
 
   // Анти-отпечаток: настройка из UI.
   void SetFpEnabled(bool on);
@@ -189,6 +196,10 @@ class Shell {
   // странице.
   void PushProtections(CefRefPtr<CefFrame> frame);
   void PushProtectionsToTabs();
+  // Отправляет рендереру document_start content-scripts MV2-расширений,
+  // подходящие под URL фрейма: рендерер выполнит их в OnContextCreated —
+  // раньше любого скрипта страницы (см. shelter.extscripts).
+  void PushExtScripts(CefRefPtr<CefFrame> frame);
 
   // Биты защит для командной строки новых дочерних процессов (см.
   // BrowserApp::OnBeforeChildProcessLaunch): 1 — анти-отпечаток, 2 — cookies.
@@ -218,10 +229,39 @@ class Shell {
   void SetGhostMode(bool on);
 
   // ---- приватность: разрешения и иконки сайтов ----
-  // Сайт попросил разрешение (камера/микрофон/геолокация/…). Оболочка всегда
-  // отказывает; UI получает событие, чтобы показать это пользователю.
+  // Сайт попросил разрешение (камера/микрофон/геолокация/…). По умолчанию
+  // оболочка отказывает; UI получает событие и может показать тост с кнопкой
+  // «Разрешить» — выдача запоминается до перезапуска через AllowSitePermissions.
   void NotePermissionRequest(const std::string& origin, uint32_t mask,
                              bool media);
+  void AllowSitePermissions(const std::string& origin, uint32_t mask,
+                            bool media);
+  bool SitePermissionsAllowed(const std::string& origin, uint32_t mask,
+                              bool media) const;
+
+  // ---- исключения сертификатов (интранет с самоподписанными) ----
+  // Доверие — только по пину (sha256 DER сертификата): совпавший пин из файла
+  // cert_pins молча продолжает загрузку, иначе решение спрашивается у
+  // пользователя диалогом («продолжить один раз» / «запомнить» / «назад»).
+  // Любая ошибка и неверный отпечаток — отказ, слепого trust нет.
+  struct PendingCertDecision {
+    CefRefPtr<CefCallback> callback;
+    std::string host;
+    std::string fingerprint;  // hex, пусто если отпечаток не снят
+  };
+  bool OnCertError(CefRefPtr<CefBrowser> browser,
+                   int cert_error,
+                   const std::string& request_url,
+                   CefRefPtr<CefSSLInfo> ssl_info,
+                   CefRefPtr<CefCallback> callback);
+  void CertDecision(const std::string& id, const std::string& action);
+  // Проверка обновлений: GET releases/latest официального репозитория,
+  // сравнение tag_name с kAppVersion, итог — событием "update-status".
+  void CheckForUpdates(bool manual);
+  void OnUpdateCheckDone(bool manual, const std::string& state,
+                         const std::string& version, const std::string& url);
+  void LoadCertPins();
+  void SaveCertPins();
   // Иконка сайта: берём у самого сайта, кэшируем в UI. Призрачные вкладки
   // пропускаются, повторные запросы к тому же хосту — тоже.
   bool FaviconNeeded(const std::string& tab_id, const std::string& host);
@@ -334,6 +374,9 @@ class Shell {
   std::map<std::string, bool> context_ready_;
   // partition -> id вкладок, ждущих инициализации контекста.
   std::map<std::string, std::vector<std::string>> context_waiters_;
+  // partition -> origins, загружавшиеся в разделе за сессию (для полноты
+  // «Удалить данные»: хранилища закрытых вкладок тоже чистятся).
+  std::map<std::string, std::set<std::string>> partition_origins_;
   std::map<std::string, PendingDownload> pending_downloads_;
   // Один пакет ждёт явного решения пользователя; распакованный каталог в
   // ожидании не хранится, архив ограничен и остаётся только в памяти.
@@ -355,6 +398,18 @@ class Shell {
   std::vector<std::string> accepted_download_path_order_;
   // Одноразовые file:// URL, выданные только после выбора файла в системном диалоге.
   std::set<std::string> selected_local_file_urls_;
+  // Разрешения, выданные пользователем сайтам до перезапуска (origin -> маска
+  // битов; media и prompt живут раздельно — у них разные пространства битов).
+  std::map<std::string, uint32_t> allowed_media_;
+  std::map<std::string, uint32_t> allowed_prompt_;
+  // Ожидающие решения пользователя ошибки сертификатов (id -> решение).
+  std::map<std::string, PendingCertDecision> pending_cert_decisions_;
+  int next_cert_id_ = 1;
+  // Запомненные пины: host (нижний регистр) -> sha256 hex DER. Персистентны
+  // (файл cert_pins в профиле, отпечатки — публичная информация).
+  std::map<std::string, std::string> cert_pins_;
+  bool cert_pins_loaded_ = false;
+  bool update_check_running_ = false;
   std::map<std::string, ActiveDownload> active_downloads_;
   // Включён ли «Анти-отпечаток» (шум Canvas/WebGL/Audio в рендерере).
   bool fp_enabled_ = false;

@@ -11,6 +11,10 @@ namespace secret_crypto {
 bool Encrypt(const std::string& plaintext, std::string* ciphertext);
 bool Decrypt(const std::string& ciphertext, std::string* plaintext);
 
+// SHA-256 в hex для нешифровальных нужд (отпечатки сертификатов для пининга).
+// Пустая строка на входе даёт корректный дайджест пустой строки.
+std::string Sha256Hex(const std::string& input);
+
 // Deterministic core used by the standalone compatibility tests. Production
 // callers use Encrypt(), which always obtains a fresh OS-CSPRNG nonce.
 bool EncryptWithKey(const std::string& key_hex, const std::string& plaintext,

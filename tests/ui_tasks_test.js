@@ -10,7 +10,7 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'resources', 'ui', 'inde
 const marker = '/* =========================================================\n   SHELTER · Планировщик задач (v7 · дедлайн завершает диапазон)';
 const start = html.indexOf(marker);
 assert(start >= 0, 'the v7 planner module must be installed in the active UI');
-const end = html.indexOf('\ninit();\n})();', start);
+const end = html.indexOf('\ninit();\n', start);
 assert(end > start, 'the planner module must load before the application initializes');
 const planner = html.slice(start, end);
 const domSelectStart = html.indexOf('function wpNormalizeDomSelectOptions(options) {');

@@ -1,5 +1,6 @@
 #include "src/renderer_app.h"
 
+#include <map>
 #include <string>
 
 #include "include/cef_command_line.h"
@@ -37,6 +38,12 @@ bool g_fp_enabled = false;
 // появляться перед пользователем вообще, ещё до ответа UI настройками.
 bool g_auto_consent = true;
 
+// document_start content-scripts MV2-расширений shell-режима (id фрейма ->
+// JSON [{js,css}]): браузер присылает их сообщением shelter.extscripts на
+// старте загрузки, выполняются в OnContextCreated — раньше любого скрипта
+// страницы (см. Shell::PushExtScripts).
+std::map<int64_t, std::string> g_pending_ext_scripts;
+
 // window.cefQuery выдаём ТОЛЬКО chrome-UI. Обычные сайты доступа к мосту не получают.
 bool IsUiFrame(CefRefPtr<CefFrame> frame) {
   if (!frame || !frame->IsMain()) return false;
@@ -56,6 +63,9 @@ const char kFpScript[] =
     "seed>>>=0;return seed/0xFFFFFFFF;}"
     "var marked={};function mark(t){if(marked[t])return;marked[t]=1;"
     "try{console.log('__SHELTER_FP__:'+t);}catch(_){}}"
+    "function mask(f,o){try{var s=Function.prototype.toString.call(o);"
+    "Object.defineProperty(f,'toString',{value:function(){return s;},"
+    "enumerable:false,configurable:true});}catch(_){}}"
     // Canvas 2D: разрежённый шум в getImageData + toDataURL/toBlob через
     // зашумлённую копию (подход хамелеона): данные те же визуально, хэш другой.
     "var GI=CanvasRenderingContext2D.prototype.getImageData;"
@@ -63,6 +73,7 @@ const char kFpScript[] =
     "var d=GI.apply(this,arguments);var a=d.data;"
     "for(var i=0;i<a.length;i+=97){var n=(rnd()*2)|0;if(n)a[i]^=n;}"
     "mark('canvas');return d;};"
+    "mask(CanvasRenderingContext2D.prototype.getImageData,GI);"
     "function noised(c){try{var t=document.createElement('canvas');"
     "t.width=c.width;t.height=c.height;var x=t.getContext('2d');"
     "x.drawImage(c,0,0);var id=x.getImageData(0,0,t.width,t.height);"
@@ -70,14 +81,16 @@ const char kFpScript[] =
     "var TD=HTMLCanvasElement.prototype.toDataURL;"
     "HTMLCanvasElement.prototype.toDataURL=function(){"
     "mark('canvas');return TD.apply(noised(this),arguments);};"
+    "mask(HTMLCanvasElement.prototype.toDataURL,TD);"
     "var TB=HTMLCanvasElement.prototype.toBlob;"
     "HTMLCanvasElement.prototype.toBlob=function(cb,ty,q){"
     "mark('canvas');return TB.call(noised(this),cb,ty,q);};"
+    "mask(HTMLCanvasElement.prototype.toBlob,TB);"
     // WebGL: стандартизованные vendor/renderer (как у всех «железок» Tor).
-    "function glGet(orig){return function(p){"
+    "function glGet(orig){var f=function(p){"
     "if(p===37445){mark('webgl');return 'Intel Inc.';}"
     "if(p===37446){mark('webgl');return 'Intel Iris OpenGL Engine';}"
-    "return orig.apply(this,arguments);};}"
+    "return orig.apply(this,arguments);};mask(f,orig);return f;}"
     "if(window.WebGLRenderingContext)"
     "WebGLRenderingContext.prototype.getParameter="
     "glGet(WebGLRenderingContext.prototype.getParameter);"
@@ -91,6 +104,7 @@ const char kFpScript[] =
     "var d=CD.call(this,ch);"
     "for(var i=0;i<d.length;i+=512)d[i]+=(rnd()-0.5)*1e-5;"
     "mark('audio');return d;};"
+    "mask(AudioBuffer.prototype.getChannelData,CD);"
     // Стандартизация части navigator-сигналов.
     "try{Object.defineProperty(navigator,'hardwareConcurrency',"
     "{get:function(){return 4;}});}catch(_){}"
@@ -475,6 +489,42 @@ void AppBase::OnBeforeCommandLineProcessing(
   ParseProtectionSwitch(value, &g_fp_enabled, &g_auto_consent);
 }
 
+void RunPendingExtScripts(CefRefPtr<CefFrame> frame,
+                           CefRefPtr<CefV8Context> context) {
+  if (!frame || !context) return;
+  auto it = g_pending_ext_scripts.find(frame->GetIdentifier());
+  if (it == g_pending_ext_scripts.end()) return;
+  const std::string json = it->second;
+  g_pending_ext_scripts.erase(it);
+  CefRefPtr<CefValue> value = CefParseJSON(json, JSON_PARSER_RFC);
+  if (!value || value->GetType() != VTYPE_LIST) return;
+  CefRefPtr<CefListValue> scripts = value->GetList();
+  CefRefPtr<CefV8Value> retval;
+  CefRefPtr<CefV8Exception> exc;
+  for (size_t i = 0; i < scripts->GetSize(); ++i) {
+    if (scripts->GetType(i) != VTYPE_DICTIONARY) continue;
+    CefRefPtr<CefDictionaryValue> entry = scripts->GetDictionary(i);
+    if (entry->GetType("css") == VTYPE_STRING) {
+      const std::string css = entry->GetString("css").ToString();
+      if (!css.empty()) {
+        const std::string style_js =
+            "(function(){var s=document.createElement('style');s.textContent=" +
+            JsString(css) +
+            ";(document.head||document.documentElement).appendChild(s);})();";
+        context->Eval(CefString(style_js), CefString("shelter://ext-css"), 0,
+                      retval, exc);
+      }
+    }
+    if (entry->GetType("js") == VTYPE_STRING) {
+      const std::string js = entry->GetString("js").ToString();
+      if (!js.empty()) {
+        context->Eval(CefString(js), CefString("shelter://ext-js"), 0, retval,
+                      exc);
+      }
+    }
+  }
+}
+
 void AppBase::OnContextCreated(CefRefPtr<CefBrowser> browser,
                                CefRefPtr<CefFrame> frame,
                                CefRefPtr<CefV8Context> context) {
@@ -498,6 +548,7 @@ void AppBase::OnContextCreated(CefRefPtr<CefBrowser> browser,
       context->Eval(CefString(kCookieScript),
                     CefString("shelter://cookie-consent"), 0, retval, exc);
     }
+    RunPendingExtScripts(frame, context);
   }
 }
 
@@ -507,6 +558,9 @@ void AppBase::OnContextReleased(CefRefPtr<CefBrowser> browser,
   if (router_ && IsUiFrame(frame)) {
     router_->OnContextReleased(browser, frame, context);
   }
+  // Контекст умер раньше выполнения (навигация прервана): запись не должна
+  // пережить фрейм и сработать на чужой контекст при переиспользовании id.
+  if (frame) g_pending_ext_scripts.erase(frame->GetIdentifier());
 }
 
 bool AppBase::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
@@ -519,6 +573,16 @@ bool AppBase::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
     if (args && args->GetSize() >= 2) {
       g_fp_enabled = args->GetBool(0);
       g_auto_consent = args->GetBool(1);
+    }
+    return true;
+  }
+  if (name == "shelter.extscripts" && source_process == PID_BROWSER) {
+    CefRefPtr<CefListValue> args = message->GetArgumentList();
+    if (frame && args && args->GetSize() >= 1 &&
+        args->GetType(0) == VTYPE_STRING) {
+      if (g_pending_ext_scripts.size() > 256) g_pending_ext_scripts.clear();
+      g_pending_ext_scripts[frame->GetIdentifier()] =
+          args->GetString(0).ToString();
     }
     return true;
   }

@@ -117,4 +117,16 @@ const popupView = from(shell, 'bool ShellBrowserViewDelegate::OnPopupBrowserView
 assert.match(popupView, /new PopupWindowDelegate\(popup_browser_view, is_devtools\)/);
 assert.match(popupView, /return true/);
 
+// H3: жест открытия пробрасывается в событие newtab — нежестовые window.open
+// UI блокирует как попапы (иначе tab-bomb), плюс лимит вкладок на пространство.
+assert.match(clients, /OnTabNewWindow\(browser, url, user_gesture\)/);
+assert.match(clients, /OnTabNewWindow\(browser, target, true\)/);
+assert.match(shell, /",\\"gesture\\":/);
+const hostBridge = read('resources/ui/host-bridge.js');
+assert.match(hostBridge, /p\.gesture === false/);
+assert.match(hostBridge, /lastPopupToast/);
+const uiHtml = read('resources/ui/index.html');
+assert.match(uiHtml, /MAX_TABS_PER_SPACE = 100/);
+assert.match(uiHtml, /sp\.tabs\.length >= MAX_TABS_PER_SPACE/);
+
 console.log('Popup security source checks passed');

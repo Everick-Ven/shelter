@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-79tyZDyN7CF87UkJ402ktq91wliSnOg2x0HXCQe2Xmc=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-LfnoiTNt3qk2OlCNgc3t4AUHFM/Mf1LmgB1AdTZ03XE=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -5400,8 +5400,41 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
           if (now - permToasts[key] > 8000) {
             permToasts[key] = now;
             if (typeof window.toast === 'function') {
-              window.toast(`Сайт ${ph || ''} запросил ${d.media ? 'камеру или микрофон' : 'системные разрешения'} — SHELTER отказал`, { icon: 'shield-check', ms: 7000 });
+              const origin = String(d.origin || ''), mask = +d.mask || 0, media = !!d.media;
+              const N = window.shelterNative;
+              const canAllow = origin && mask > 0 && N && typeof N.permAllow === 'function';
+              window.toast(`Сайт ${ph || ''} запросил ${d.media ? 'камеру или микрофон' : 'системные разрешения'} — SHELTER отказал`, {
+                icon: 'shield-check', ms: 7000,
+                action: canAllow ? {
+                  label: 'Разрешить', run: () => {
+                    try { Promise.resolve(N.permAllow({ origin, mask, media })).catch(() => {}); } catch (_) {}
+                    window.toast(`Разрешения выданы сайту ${ph} до перезапуска — обновите страницу`, { icon: 'shield-check', ms: 5000 });
+                  }
+                } : undefined
+              });
             }
+          }
+          break;
+        }
+        case 'cert-error':
+          // Ошибка сертификата: осознанное решение пользователя диалогом.
+          if (typeof certAsk === 'function') certAsk(d);
+          break;
+        case 'update-status': {
+          // Проверка обновлений: натив сверил версию с официальными релизами.
+          if (typeof restoreUpdateButton === 'function') restoreUpdateButton();
+          const uState = String((d && d.state) || '');
+          const uManual = !!(d && d.manual);
+          if (uState === 'available') {
+            const uVer = String((d && d.version) || '');
+            const uUrl = String((d && d.url) || '');
+            toast('Доступна новая версия SHELTER' + (uVer ? ' — ' + uVer : ''), {
+              icon: 'ref', ms: 12000,
+              action: uUrl ? { label: 'Открыть страницу релиза', run: () => { try { if (window.shelter && typeof window.shelter.navigate === 'function') window.shelter.navigate(uUrl); } catch (_) {} } } : undefined
+            });
+          } else if (uManual) {
+            if (uState === 'uptodate') toast('У вас последняя версия — ' + VERSION, { icon: 'check' });
+            else toast('Не удалось проверить обновления', { icon: 'x' });
           }
           break;
         }
@@ -7293,8 +7326,16 @@ function toggleBm() {
 /* =========================================================
    Вкладки и пространства
    ========================================================= */
+const MAX_TABS_PER_SPACE = 100;
 function addTab(url = 'shelter.dev/start', { activate = true, space = S.currentSpace } = {}) {
-  const tab = newTabObj(url), sp = S.spaces[space];
+  const sp = S.spaces[space];
+  // Второй пояс против tab-bomb (первый — блокировка нежестовых newtab в
+  // мосте): даже легитимный шторм открытий упирается в лимит, а не в память.
+  if (sp && sp.tabs.length >= MAX_TABS_PER_SPACE) {
+    if (typeof window.toast === 'function') window.toast('Достигнут лимит вкладок (100 на пространство)', { icon: 'ban' });
+    return null;
+  }
+  const tab = newTabObj(url);
   sp.tabs.push(tab); justAdded = tab.id;
   const m = urlMeta(url);
   if (m.kind === 'search') recordProfileSearchEngine(m.engine);
@@ -10594,6 +10635,55 @@ function noteHide() { clearTimeout(noteT); const f = $('#noteFloat'); if (f) f.h
 /* подтверждение скачивания (вернулось в 1.0.110) — очередь окон, стандартный флоу браузера */
 const dlAskQ = [];
 let dlAskBusy = false;
+const certAskQ = [];
+let certAskBusy = false;
+function certErrorText(code) {
+  switch (code) {
+    case -200: return 'имя в сертификате не совпадает с адресом сайта';
+    case -201: return 'срок действия сертификата истёк или ещё не начался';
+    case -202: return 'издатель сертификата неизвестен браузеру';
+    case -203: return 'сертификат содержит ошибки';
+    case -206: return 'сертификат отозван издателем';
+    case -207: return 'сертификат недействителен';
+    case -208: return 'слабая подпись сертификата';
+    case -210: return 'слишком слабый ключ сертификата';
+    case -211: return 'нарушены ограничения имени сертификата';
+    default: return 'ошибка проверки (код ' + code + ')';
+  }
+}
+function certAskNext() {
+  if (certAskBusy || !certAskQ.length) return;
+  const native = window.shelterNative;
+  if (!native || typeof native.certDecision !== 'function') { certAskQ.length = 0; return; }
+  certAskBusy = true;
+  const info = certAskQ.shift();
+  let answered = false;
+  const decide = (action) => {
+    if (answered) return;
+    answered = true;
+    try { native.certDecision({ id: info.id, action }); } catch (_) {}
+  };
+  const host = String(info.host || '');
+  const fp = String(info.fingerprint || '');
+  const fpPretty = fp ? (fp.match(/../g) || []).join(':') : '';
+  const errText = certErrorText(+info.error);
+  const m = openModal({
+    cls: 'cert-ask', width: 480,
+    onClose: () => { if (!answered) decide('back'); certAskBusy = false; setTimeout(certAskNext, 60); },
+    html: `<div class="modal-h"><div class="mi-ic">${ico('warn')}</div><h3>Проблема с сертификатом</h3></div>
+      <div class="modal-b"><p><b>${esc(host)}</b></p><p class="dl-ask-d">Соединение не может быть проверено: ${esc(errText)}. Продолжение может отдать ваши данные чужому серверу.</p>${fpPretty ? `<p class="dl-ask-d">Отпечаток SHA-256: <code style="word-break:break-all">${esc(fpPretty)}</code></p>` : ''}</div>
+      <div class="modal-f"><button class="btn ghost" data-cert="back">Назад</button>${fp ? '<button class="btn" data-cert="remember">Запомнить сертификат</button>' : ''}<button class="btn danger" data-cert="once">Продолжить один раз</button></div>`
+  });
+  m.scrim.addEventListener('click', e => {
+    const b = e.target.closest('[data-cert]'); if (!b) return;
+    const a = b.dataset.cert;
+    if (a !== 'back' && a !== 'once' && a !== 'remember') return;
+    if (a === 'remember' && !fp) return;
+    decide(a);
+    closeModal(m);
+  });
+}
+function certAsk(info) { if (!info || !info.id) return; certAskQ.push(info); certAskNext(); }
 function dlAskNext() {
   if (dlAskBusy || !dlAskQ.length) return;
   const native = window.shelterNative;
@@ -10625,12 +10715,20 @@ function dlAskNext() {
   const instruction = S.prefs.askDownload
     ? 'После нажатия «Скачать» выберите имя и папку в системном окне.'
     : 'Файл будет сохранён в папку «Загрузки».';
+  const danger = info.danger === 'multi' ? 'multi' : (info.danger === 'exec' ? 'exec' : '');
+  const warnHtml = danger === 'multi'
+    ? `<p class="dl-ask-warn" style="color:rgb(var(--danger));margin:8px 0 0">${ico('warn')} Файл маскируется под документ: настоящее расширение — .${esc(ext)}. Не открывайте его, если не уверены в источнике.</p>`
+    : danger === 'exec'
+      ? `<p class="dl-ask-warn" style="color:rgb(var(--danger));margin:8px 0 0">${ico('warn')} Исполняемый файл: запуск может изменить систему. Скачивайте, только если доверяете источнику.</p>`
+      : '';
+  const saveCls = danger ? 'btn danger' : 'btn primary';
+  const saveLabel = danger ? 'Скачать всё равно' : 'Скачать';
   const m = openModal({
     cls: 'dl-ask', width: 460,
     onClose: () => { if (!answered) decide('cancel'); dlAskBusy = false; setTimeout(dlAskNext, 60); },
     html: `<div class="modal-h"><div class="mi-ic">${ico('download')}</div><h3>Скачать файл?</h3></div>
-      <div class="modal-b"><div class="dl-ask-f"><span class="file-ic" style="background:#7D8794">${esc(ext)}</span><div class="tx"><b>${esc(fname)}</b><small>${esc(host)}${size ? ' · ' + esc(size) : ''}</small></div></div><p class="dl-ask-d">${esc(instruction)}</p></div>
-      <div class="modal-f"><button class="btn ghost" data-dlp="cancel">Отмена</button><button class="btn primary" data-dlp="save">Скачать</button></div>`
+      <div class="modal-b"><div class="dl-ask-f"><span class="file-ic" style="background:#7D8794">${esc(ext)}</span><div class="tx"><b>${esc(fname)}</b><small>${esc(host)}${size ? ' · ' + esc(size) : ''}</small></div></div><p class="dl-ask-d">${esc(instruction)}</p>${warnHtml}</div>
+      <div class="modal-f"><button class="btn ghost" data-dlp="cancel">Отмена</button><button class="${saveCls}" data-dlp="save">${saveLabel}</button></div>`
   });
   m.scrim.addEventListener('click', e => {
     const b = e.target.closest('[data-dlp]'); if (!b) return;
@@ -12512,7 +12610,16 @@ AFTER.settings = () => {
     else if (a === 'delete-user-data') { await requestUserDataDeletion(); }
     else if (a === 'pers-save') persSave();
     else if (a === 'pers-del') persDel();
-    else if (a === 'update') { b.disabled = true; b.innerHTML = '<span class="think"><i></i><i></i><i></i></span>'; setTimeout(() => { b.disabled = false; b.textContent = 'Проверить обновления'; toast('У вас последняя версия — ' + VERSION, { icon: 'check' }); }, 1300); }
+    else if (a === 'update') {
+      b.disabled = true; b.innerHTML = '<span class="think"><i></i><i></i><i></i></span>';
+      updateCheckButton = b;
+      const uRes = (typeof requestUpdateCheck === 'function') ? requestUpdateCheck(true) : 'unavailable';
+      if (uRes !== 'ok') {
+        if (typeof restoreUpdateButton === 'function') restoreUpdateButton();
+        if (uRes === 'busy') toast('Проверка обновлений уже идёт', { icon: 'ref' });
+        else toast('Проверка обновлений доступна в приложении SHELTER', { icon: 'info' });
+      }
+    }
   });
   const dnsEl = $('#setDns', root);
   if (dnsEl) dnsEl.addEventListener('change', e => { S.prefs.dns = e.target.value; persist(); applyNetPref(); renderHeroFoot(); toast(S.prefs.https !== false && S.prefs.dns !== 'sys' ? 'DoH: ' + dnsLabel() : 'DNS: системный (без шифрования)', { icon: 'server' }); });
@@ -17151,6 +17258,42 @@ Object.assign(ACT,{
 });
 
 init();
+
+/* Проверка обновлений (M6): натив сверяет версию с официальными релизами
+   GitHub и отвечает событием "update-status". Ручная — кнопкой в «О SHELTER»;
+   автоматическая — через минуту после старта и раз в сутки, только если
+   включён тумблер «Проверять обновления» в настройках. */
+let updateCheckButton = null;
+let updateCheckBusy = false;
+let updateCheckTimer = 0;
+function requestUpdateCheck(manual) {
+  const N = window.shelterNative;
+  if (!N || typeof N.checkUpdates !== 'function') return 'unavailable';
+  if (updateCheckBusy) return 'busy';
+  updateCheckBusy = true;
+  try { Promise.resolve(N.checkUpdates({ manual: !!manual })).catch(() => {}); } catch (_) {}
+  clearTimeout(updateCheckTimer);
+  updateCheckTimer = setTimeout(() => { updateCheckBusy = false; }, 45000);
+  return 'ok';
+}
+function restoreUpdateButton() {
+  updateCheckBusy = false;
+  clearTimeout(updateCheckTimer);
+  if (updateCheckButton && updateCheckButton.isConnected) {
+    updateCheckButton.disabled = false;
+    updateCheckButton.textContent = 'Проверить обновления';
+  }
+  updateCheckButton = null;
+}
+(function scheduleUpdateChecks() {
+  try {
+    if (!S || S.prefs.checkUpdates === false) return;
+    const N = window.shelterNative;
+    if (!N || typeof N.checkUpdates !== 'function') return;
+    setTimeout(() => { if (S.prefs.checkUpdates !== false) requestUpdateCheck(false); }, 60000);
+    setInterval(() => { if (S.prefs.checkUpdates !== false) requestUpdateCheck(false); }, 24 * 3600 * 1000);
+  } catch (_) {}
+})();
 })();
 </script>
 <script>

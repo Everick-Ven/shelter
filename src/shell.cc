@@ -28,19 +28,24 @@
 #include "include/cef_response.h"
 #include "include/cef_stream.h"
 #include "include/cef_urlrequest.h"
+#include "include/cef_x509_certificate.h"
 #include "include/cef_zip_reader.h"
 #include "include/views/cef_box_layout.h"
 #include "include/views/cef_display.h"
 #include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
+#include "src/app_version_compare.h"
 #include "src/clients.h"
 #include "src/blocker.h"
 #include "src/crx3.h"
 #include "src/color_scheme.h"
 #include "src/common.h"
+#include "src/download_name.h"
 #include "src/extension_engine.h"
 #include "src/extension_match.h"
+#include "src/net_utils.h"
 #include "src/netguard.h"
+#include "src/secret_crypto.h"
 #include "src/key_map.h"
 #include "src/path_utils.h"
 #include "src/platform.h"
@@ -707,6 +712,41 @@ std::string BuildExtListJson() {
   return os.str();
 }
 
+void Shell::PushExtScripts(CefRefPtr<CefFrame> frame) {
+  if (!frame) return;
+  ExtEnsureScanned();
+  if (g_exts.empty()) return;
+  const std::string url = frame->GetURL().ToString();
+  if (url.empty() || url == "about:blank") return;
+  const bool is_main_frame = frame->IsMain();
+  CefRefPtr<CefListValue> scripts = CefListValue::Create();
+  size_t bytes = 0;
+  static constexpr size_t kMaxExtPushBytes = 512u * 1024u;
+  for (const auto& kv : g_exts) {
+    // Расширение уже отдано движку — его скрипты внедряет Chromium.
+    if (kv.second.engine && kv.second.passed) continue;
+    for (const auto& cs : kv.second.scripts) {
+      if (!cs.at_start) continue;
+      if (!cs.rules.AppliesToFrame(is_main_frame)) continue;
+      if (!cs.rules.AppliesTo(url)) continue;
+      if (cs.js.empty() && cs.css.empty()) continue;
+      if (bytes + cs.js.size() + cs.css.size() > kMaxExtPushBytes) continue;
+      bytes += cs.js.size() + cs.css.size();
+      CefRefPtr<CefDictionaryValue> entry = CefDictionaryValue::Create();
+      entry->SetString("js", cs.js);
+      entry->SetString("css", cs.css);
+      scripts->SetDictionary(scripts->GetSize(), entry);
+    }
+  }
+  if (scripts->GetSize() == 0) return;
+  CefRefPtr<CefValue> value = CefValue::Create();
+  value->SetList(scripts);
+  CefRefPtr<CefProcessMessage> m =
+      CefProcessMessage::Create("shelter.extscripts");
+  m->GetArgumentList()->SetString(0, ToJson(value));
+  frame->SendProcessMessage(PID_RENDERER, m);
+}
+
 void InjectExtScripts(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
                       bool start_phase) {
   if (!browser || !frame) return;
@@ -801,6 +841,91 @@ class CrxDownload : public CefURLRequestClient {
   bool too_large_ = false;
   IMPLEMENT_REFCOUNTING(CrxDownload);
   DISALLOW_COPY_AND_ASSIGN(CrxDownload);
+};
+
+// Проверка обновлений: GET официального releases/latest (только чтение
+// публичного API, без установки — новую версию пользователь ставит сам со
+// страницы релиза). tag_name сверяется с kAppVersion численно, итог уходит
+// событием "update-status". Лимит тела и запрет даунгрейда — как у загрузок.
+constexpr char kUpdateCheckUrl[] =
+    "https://api.github.com/repos/Everick-Ven/shelter/releases/latest";
+constexpr size_t kMaxUpdateCheckBytes = 65536;
+
+class UpdateCheck : public CefURLRequestClient {
+ public:
+  explicit UpdateCheck(bool manual) : manual_(manual) {}
+
+  void Start() {
+    CefRefPtr<CefRequest> req = CefRequest::Create();
+    req->SetURL(kUpdateCheckUrl);
+    req->SetMethod("GET");
+    CefURLRequest::Create(req, this, CefRequestContext::GetGlobalContext());
+  }
+
+  void OnRequestComplete(CefRefPtr<CefURLRequest> request) override {
+    std::string state = "error";
+    std::string version;
+    std::string url;
+    if (!too_large_ && request &&
+        request->GetRequestStatus() == UR_SUCCESS && !buf_.empty()) {
+      CefURLParts parts;
+      std::string scheme;
+      CefRefPtr<CefResponse> response = request->GetResponse();
+      if (response && CefParseURL(response->GetURL(), parts))
+        scheme = CefString(&parts.scheme).ToString();
+      for (char& c : scheme) {
+        if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+      }
+      if (scheme == "https") {
+        CefRefPtr<CefValue> value = CefParseJSON(buf_, JSON_PARSER_RFC);
+        if (value && value->GetType() == VTYPE_DICTIONARY) {
+          CefRefPtr<CefDictionaryValue> dict = value->GetDictionary();
+          if (dict && dict->GetType("tag_name") == VTYPE_STRING &&
+              dict->GetType("html_url") == VTYPE_STRING) {
+            version = dict->GetString("tag_name").ToString();
+            url = dict->GetString("html_url").ToString();
+            bool ok = false;
+            const int cmp = CompareAppVersions(version, kAppVersion, &ok);
+            if (ok && !version.empty() && !url.empty())
+              state = cmp > 0 ? "available" : "uptodate";
+          }
+        }
+      }
+    }
+    Shell::Get().OnUpdateCheckDone(manual_, state, version, url);
+  }
+
+  void OnUploadProgress(CefRefPtr<CefURLRequest> /*request*/,
+                        int64_t /*current*/,
+                        int64_t /*total*/) override {}
+  void OnDownloadProgress(CefRefPtr<CefURLRequest> /*request*/,
+                          int64_t /*current*/,
+                          int64_t /*total*/) override {}
+  void OnDownloadData(CefRefPtr<CefURLRequest> request, const void* data,
+                      size_t data_length) override {
+    if (too_large_) return;
+    if (data_length == 0 ||
+        buf_.size() + data_length > kMaxUpdateCheckBytes) {
+      too_large_ = true;
+      buf_.clear();
+      if (request) request->Cancel();
+      return;
+    }
+    buf_.append(static_cast<const char*>(data), data_length);
+  }
+  bool GetAuthCredentials(bool /*isProxy*/, const CefString& /*host*/,
+                          int /*port*/, const CefString& /*realm*/,
+                          const CefString& /*scheme*/,
+                          CefRefPtr<CefAuthCallback> /*callback*/) override {
+    return false;  // публичный API — без учётных данных
+  }
+
+ private:
+  bool manual_ = false;
+  std::string buf_;
+  bool too_large_ = false;
+  IMPLEMENT_REFCOUNTING(UpdateCheck);
+  DISALLOW_COPY_AND_ASSIGN(UpdateCheck);
 };
 
 bool UnzipBytesTo(const std::string& bytes, const fs::path& dir) {
@@ -1276,9 +1401,13 @@ void Shell::OnContextReady(const std::string& partition) {
         dark_scheme_ ? CEF_COLOR_VARIANT_DARK : CEF_COLOR_VARIANT_LIGHT, 0);
   }
   // Профиль инициализирован — применяем шифрованный DNS, если он включён
-  // (каждое пространство получает свою копию настроек профиля).
+  // (каждое пространство получает свою копию настроек профиля), и приватные
+  // префы (запрет сторонних cookie, выключение рекламных API песочницы).
   auto ctx = contexts_.find(partition);
-  if (ctx != contexts_.end()) netguard::ApplyDohPrefs(ctx->second);
+  if (ctx != contexts_.end()) {
+    netguard::ApplyDohPrefs(ctx->second);
+    netguard::ApplyPrivacyPrefs(ctx->second);
+  }
   auto waiters = context_waiters_.find(partition);
   if (waiters == context_waiters_.end()) return;
   std::vector<std::string> ids = std::move(waiters->second);
@@ -1720,10 +1849,21 @@ void Shell::OnTabLoading(CefRefPtr<CefBrowser> browser, bool loading) {
                          (loading ? "true" : "false") + "}");
 }
 
-void Shell::OnTabNewWindow(CefRefPtr<CefBrowser> browser, const std::string& url) {
+namespace {
+// Forward: HostOf определён ниже в секции загрузок.
+std::string HostOf(const std::string& url);
+}  // namespace
+
+void Shell::OnTabNewWindow(CefRefPtr<CefBrowser> browser, const std::string& url,
+                           bool user_gesture) {
   Tab* t = FindTabByBrowser(browser->GetIdentifier());
+  // Жест пользователя едет в UI: открытия без жеста (window.open из скрипта)
+  // UI блокирует как попапы, иначе любая страница устраивала бы tab-bomb.
   UiEvent("newtab", "{\"url\":" + JsString(url) + ",\"from\":" +
-                        JsString(t ? t->id : "") + "}");
+                        JsString(t ? t->id : "") + ",\"host\":" +
+                        JsString(t ? HostOf(t->current_url) : "") +
+                        ",\"gesture\":" + (user_gesture ? "true" : "false") +
+                        "}");
 }
 
 void Shell::OnTabFindResult(CefRefPtr<CefBrowser> browser, int count, int idx,
@@ -1850,9 +1990,56 @@ std::string ExtLabel(const std::string& name) {
   return ext.empty() ? std::string("-") : ext;
 }
 
+// Уровень опасности файла из сети для диалога подтверждения: "exec" —
+// исполняемый/установщик/скрипт, "multi" — двойное расширение, маскирующееся
+// под документ («счёт.pdf.exe»), "" — обычный файл.
+std::string DownloadDanger(const std::string& name) {
+  size_t cut = name.find_last_of("/\\");
+  const std::string leaf =
+      cut == std::string::npos ? name : name.substr(cut + 1);
+  std::vector<std::string> parts;
+  size_t start = 0;
+  for (size_t i = 0; i <= leaf.size(); ++i) {
+    if (i == leaf.size() || leaf[i] == '.') {
+      if (i > start) {
+        std::string piece = leaf.substr(start, i - start);
+        for (char& c : piece) {
+          c = static_cast<char>(
+              std::tolower(static_cast<unsigned char>(c)));
+        }
+        parts.push_back(piece);
+      }
+      start = i + 1;
+    }
+  }
+  if (parts.size() < 2) return std::string();
+  static const char* const kExec[] = {
+      "exe", "msi", "scr", "com", "bat", "cmd", "ps1", "vbs", "vbe", "js",
+      "jse", "wsf", "wsh", "msc", "jar", "dmg", "pkg", "mpkg", "deb", "rpm",
+      "run", "bin", "app", "pif", "lnk", "cpl", "hta"};
+  const std::string& ext = parts.back();
+  const bool exec = std::find(std::begin(kExec), std::end(kExec), ext) !=
+                    std::end(kExec);
+  if (!exec) return std::string();
+  if (parts.size() >= 3) {
+    static const char* const kDoc[] = {
+        "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf",
+        "csv", "jpg", "jpeg", "png", "gif", "bmp", "webp", "mp3", "mp4",
+        "avi", "mkv", "zip", "rar", "7z"};
+    const std::string& prev = parts[parts.size() - 2];
+    if (std::find(std::begin(kDoc), std::end(kDoc), prev) != std::end(kDoc)) {
+      return "multi";
+    }
+  }
+  return "exec";
+}
+
 std::string UniquePath(const std::string& dir, const std::string& name) {
   const fs::path directory = path_utils::PathFromUtf8(dir);
-  fs::path leaf = path_utils::PathFromUtf8(name).filename();
+  // Имя предложено сайтом: сначала своя очистка (устройства Windows, ADS,
+  // точки/пробелы, длина), затем .filename() как второй пояс.
+  const std::string safe = SanitizeDownloadLeaf(name);
+  fs::path leaf = path_utils::PathFromUtf8(safe).filename();
   if (leaf.empty() || leaf == "." || leaf == "..")
     leaf = path_utils::PathFromUtf8("download");
   const fs::path base = directory / leaf;
@@ -1925,6 +2112,7 @@ void Shell::OnTabDownloadBefore(CefRefPtr<CefBrowser> browser,
      << ",\"size\":" << size
      << ",\"url\":" << JsString(url)
      << ",\"host\":" << JsString(HostOf(url))
+     << ",\"danger\":" << JsString(DownloadDanger(name))
      << ",\"mimeType\":" << JsString(item->GetMimeType().ToString()) << "}";
   UiEvent("dlprompt", os.str());
 }
@@ -2702,6 +2890,174 @@ void Shell::NotePermissionRequest(const std::string& origin, uint32_t mask,
   UiEvent("perm", os.str());
 }
 
+void Shell::AllowSitePermissions(const std::string& origin, uint32_t mask,
+                                 bool media) {
+  CEF_REQUIRE_UI_THREAD();
+  if (origin.empty() || mask == 0) return;
+  static constexpr size_t kMaxAllowedSites = 512;
+  std::map<std::string, uint32_t>& table =
+      media ? allowed_media_ : allowed_prompt_;
+  if (table.size() >= kMaxAllowedSites) table.erase(table.begin());
+  table[origin] |= mask;  // выдача накапливается по сайту
+}
+
+bool Shell::SitePermissionsAllowed(const std::string& origin, uint32_t mask,
+                                   bool media) const {
+  if (origin.empty() || mask == 0) return false;
+  const std::map<std::string, uint32_t>& table =
+      media ? allowed_media_ : allowed_prompt_;
+  auto it = table.find(origin);
+  return it != table.end() && (it->second & mask) == mask;
+}
+
+namespace {
+
+// sha256 DER сертификата в hex; пусто при любой ошибке (fail-closed: без
+// отпечатка нельзя ни сверить пин, ни запомнить новый).
+std::string CertFingerprint(CefRefPtr<CefSSLInfo> ssl_info) {
+  if (!ssl_info) return std::string();
+  CefRefPtr<CefX509Certificate> cert = ssl_info->GetX509Certificate();
+  if (!cert) return std::string();
+  CefRefPtr<CefBinaryValue> der = cert->GetDEREncoded();
+  if (!der || der->GetSize() == 0) return std::string();
+  const size_t size = der->GetSize();
+  if (size > 64u * 1024u) return std::string();  // DER не бывает таким
+  std::string bytes(size, '\0');
+  if (der->GetData(bytes.data(), size, 0) != size) return std::string();
+  return secret_crypto::Sha256Hex(bytes);
+}
+
+bool IsValidCertPinHost(const std::string& host) {
+  if (host.empty() || host.size() > 253) return false;
+  for (char c : host) {
+    const unsigned char b = static_cast<unsigned char>(c);
+    if (b < 0x21 || b == 0x7f || c == '#' || c == '/') return false;
+  }
+  return true;
+}
+
+bool IsValidCertPinFp(const std::string& fp) {
+  if (fp.size() != 64) return false;
+  for (char c : fp) {
+    const bool hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+    if (!hex) return false;
+  }
+  return true;
+}
+
+}  // namespace
+
+void Shell::LoadCertPins() {
+  CEF_REQUIRE_UI_THREAD();
+  if (cert_pins_loaded_) return;
+  cert_pins_loaded_ = true;
+  std::ifstream f(
+      path_utils::PathFromUtf8(platform::UserDataDir() + "/cert_pins"),
+      std::ios::binary);
+  if (!f) return;
+  std::string line;
+  while (std::getline(f, line) && cert_pins_.size() < 512) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+    const size_t sp = line.find(' ');
+    if (sp == std::string::npos) continue;
+    const std::string host = line.substr(0, sp);
+    const std::string fp = line.substr(sp + 1);
+    if (!IsValidCertPinHost(host) || !IsValidCertPinFp(fp)) continue;
+    cert_pins_[LowerHost(host)] = fp;
+  }
+}
+
+void Shell::SaveCertPins() {
+  CEF_REQUIRE_UI_THREAD();
+  std::ostringstream out;
+  for (const auto& kv : cert_pins_) {
+    if (!IsValidCertPinHost(kv.first) || !IsValidCertPinFp(kv.second)) continue;
+    out << kv.first << ' ' << kv.second << '\n';
+  }
+  // Прямая перезапись: оборванный при падении файл валидация загрузки
+  // отбросит построчно — худшее, что случится, это повторный вопрос.
+  std::ofstream f(
+      path_utils::PathFromUtf8(platform::UserDataDir() + "/cert_pins"),
+      std::ios::binary | std::ios::trunc);
+  if (f) f << out.str();
+}
+
+bool Shell::OnCertError(CefRefPtr<CefBrowser> /*browser*/, int cert_error,
+                        const std::string& request_url,
+                        CefRefPtr<CefSSLInfo> ssl_info,
+                        CefRefPtr<CefCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  LoadCertPins();
+  const std::string host = HostOf(request_url);
+  const std::string fp = CertFingerprint(ssl_info);
+  if (!host.empty() && !fp.empty()) {
+    auto pin = cert_pins_.find(LowerHost(host));
+    if (pin != cert_pins_.end() && pin->second == fp) {
+      if (callback) callback->Continue();
+      return true;
+    }
+  }
+  if (!callback) return true;  // продолжать нечего — запрос и так встанет
+  static constexpr size_t kMaxPendingCert = 8;
+  if (pending_cert_decisions_.size() >= kMaxPendingCert) {
+    auto oldest = pending_cert_decisions_.begin();
+    if (oldest->second.callback) oldest->second.callback->Cancel();
+    pending_cert_decisions_.erase(oldest);
+  }
+  const std::string id = "cert" + std::to_string(next_cert_id_++);
+  PendingCertDecision pending;
+  pending.callback = callback;
+  pending.host = host;
+  pending.fingerprint = fp;
+  pending_cert_decisions_[id] = pending;
+  std::ostringstream os;
+  os << "{\"id\":" << JsString(id) << ",\"host\":" << JsString(host)
+     << ",\"url\":" << JsString(request_url) << ",\"error\":" << cert_error
+     << ",\"fingerprint\":" << JsString(fp) << "}";
+  UiEvent("cert-error", os.str());
+  return true;
+}
+
+void Shell::CertDecision(const std::string& id, const std::string& action) {
+  CEF_REQUIRE_UI_THREAD();
+  auto it = pending_cert_decisions_.find(id);
+  if (it == pending_cert_decisions_.end()) return;
+  PendingCertDecision pending = it->second;
+  pending_cert_decisions_.erase(it);
+  if (!pending.callback) return;
+  if (action == "once" || action == "remember") {
+    if (action == "remember" && IsValidCertPinHost(pending.host) &&
+        IsValidCertPinFp(pending.fingerprint)) {
+      LoadCertPins();
+      cert_pins_[LowerHost(pending.host)] = pending.fingerprint;
+      SaveCertPins();
+    }
+    pending.callback->Continue();
+  } else {
+    pending.callback->Cancel();  // "back" и всё неизвестное — отказ
+  }
+}
+
+void Shell::CheckForUpdates(bool manual) {
+  CEF_REQUIRE_UI_THREAD();
+  if (update_check_running_) return;
+  update_check_running_ = true;
+  CefRefPtr<UpdateCheck> check = new UpdateCheck(manual);
+  check->Start();
+}
+
+void Shell::OnUpdateCheckDone(bool manual, const std::string& state,
+                              const std::string& version,
+                              const std::string& url) {
+  CEF_REQUIRE_UI_THREAD();
+  update_check_running_ = false;
+  std::ostringstream os;
+  os << "{\"state\":" << JsString(state) << ",\"version\":"
+     << JsString(version) << ",\"url\":" << JsString(url) << ",\"manual\":"
+     << (manual ? "1" : "0") << "}";
+  UiEvent("update-status", os.str());
+}
+
 bool Shell::FaviconNeeded(const std::string& tab_id, const std::string& host) {
   CEF_REQUIRE_UI_THREAD();
   if (host.empty() || favicon_hosts_.size() >= 400) return false;
@@ -2730,10 +3086,31 @@ void Shell::OnFaviconReady(const std::string& tab_id, const std::string& host,
   UiEvent("fav", os.str());
 }
 
+void Shell::RecordPartitionOrigin(CefRefPtr<CefBrowser> browser,
+                                  CefRefPtr<CefFrame> frame) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!browser || !frame) return;
+  Tab* t = FindTabByBrowser(browser->GetIdentifier());
+  if (!t) return;
+  CefURLParts parts;
+  if (!CefParseURL(frame->GetURL(), parts)) return;
+  const std::string origin = CefString(&parts.origin).ToString();
+  if (origin.empty() || origin == "null") return;
+  static constexpr size_t kMaxPartitionOrigins = 512;
+  std::set<std::string>& seen = partition_origins_[t->partition];
+  if (seen.size() >= kMaxPartitionOrigins) seen.erase(seen.begin());
+  seen.insert(origin);
+}
+
 void Shell::OnTabLoadStart(CefRefPtr<CefBrowser> browser,
                            CefRefPtr<CefFrame> frame) {
   CEF_REQUIRE_UI_THREAD();
-  InjectExtScripts(browser, frame, true);
+  RecordPartitionOrigin(browser, frame);
+  // document_start скрипты едут в рендерер сообщением и выполняются там в
+  // OnContextCreated: прямой ExecuteJavaScript из браузерного процесса
+  // контекст ещё не застаёт и молча дропается. End-фазу (контекст уже есть)
+  // по-прежнему внедряем напрямую в OnTabLoadEnd.
+  PushExtScripts(frame);
   if (blocker::Enabled()) InjectBlockerCss(frame);
 }
 

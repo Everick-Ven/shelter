@@ -446,6 +446,8 @@ jobs:
         run: node tests/bridge_authorization_test.js
       - name: Single-source version propagation regression test
         run: node tests/app_version_source_test.js
+      - name: Security hardening source anchors regression test
+        run: node tests/security_hardening_source_test.js
       - name: Cyrillic filesystem path regression test
         run: node tests/unicode_paths_test.js
       - name: UI versioning and HTTP cache regression test
@@ -486,6 +488,35 @@ jobs:
           set -euo pipefail
           c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/extension_engine_test.cc -o extension-engine-test
           ./extension-engine-test
+      - name: Compile and run public suffix tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/public_suffix_test.cc -o public-suffix-test
+          ./public-suffix-test
+      - name: Compile and run download name tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/download_name_test.cc -o download-name-test
+          ./download-name-test
+      - name: Compile and run net utils tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/net_utils_test.cc -o net-utils-test
+          ./net-utils-test
+      - name: Compile and run app version compare tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/app_version_compare_test.cc -o app-version-compare-test
+          ./app-version-compare-test
+      - name: Compile and run sandbox config tests
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -DCEF_USE_SANDBOX -I. tests/sandbox_config_test.cc -o sandbox-config-test-mac
+          ./sandbox-config-test-mac expect-on
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -DCEF_USE_BOOTSTRAP -I. tests/sandbox_config_test.cc -o sandbox-config-test-win
+          ./sandbox-config-test-win expect-on
+          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/sandbox_config_test.cc -o sandbox-config-test-off
+          ./sandbox-config-test-off expect-off
       - name: Compile and run UTF-8 filesystem path tests
         run: |
           set -euo pipefail

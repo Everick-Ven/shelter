@@ -646,7 +646,8 @@ bool TabClient::OnBeforePopup(CefRefPtr<CefBrowser> browser,
     client = new PopupClient();
     return false;
   }
-  Shell::Get().OnTabNewWindow(browser, url);
+  // Жест пробрасываем в событие: UI блокирует нежестовые открытия как попапы.
+  Shell::Get().OnTabNewWindow(browser, url, user_gesture);
   return true;
 }
 
@@ -656,7 +657,9 @@ bool TabClient::OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
   CEF_REQUIRE_UI_THREAD();
   const std::string target = url.ToString();
   if (IsShelterSchemeUrl(target)) return true;
-  Shell::Get().OnTabNewWindow(browser, target);
+  // Открытие из вкладки (клик, средняя кнопка, меню) — всегда по воле
+  // пользователя, помечаем жестом, чтобы UI не принял его за попап.
+  Shell::Get().OnTabNewWindow(browser, target, true);
   return true;
 }
 
@@ -694,6 +697,16 @@ void TabClient::OnLoadError(CefRefPtr<CefBrowser> browser,
     return;
   }
   frame->LoadURL(ErrorPageDataUrl(failed, errorText.ToString()));
+}
+
+bool TabClient::OnCertificateError(CefRefPtr<CefBrowser> browser,
+                                   cef_errorcode_t cert_error,
+                                   const CefString& request_url,
+                                   CefRefPtr<CefSSLInfo> ssl_info,
+                                   CefRefPtr<CefCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  return Shell::Get().OnCertError(browser, cert_error,
+                                  request_url.ToString(), ssl_info, callback);
 }
 
 void TabClient::OnAddressChange(CefRefPtr<CefBrowser> browser,
@@ -749,6 +762,11 @@ bool TabClient::OnRequestMediaAccessPermission(
   // Биты cef_media_access_permission_types_t: 0 — звук, 1 — видео.
   Shell::Get().NotePermissionRequest(origin.ToString(), requested_permissions,
                                      true);
+  if (Shell::Get().SitePermissionsAllowed(origin.ToString(),
+                                          requested_permissions, true)) {
+    if (callback) callback->Continue(requested_permissions);
+    return true;
+  }
   if (callback) callback->Cancel();  // явный отказ, без диалогов ОС
   return true;
 }
@@ -760,6 +778,11 @@ bool TabClient::OnShowPermissionPrompt(
   CEF_REQUIRE_UI_THREAD();
   Shell::Get().NotePermissionRequest(origin.ToString(), requested_permissions,
                                      false);
+  if (Shell::Get().SitePermissionsAllowed(origin.ToString(),
+                                          requested_permissions, false)) {
+    if (callback) callback->Continue(CEF_PERMISSION_RESULT_ACCEPT);
+    return true;
+  }
   if (callback) callback->Continue(CEF_PERMISSION_RESULT_DENY);
   return true;
 }

@@ -28,5 +28,6 @@ assert(delegate.includes('CEF_SHOW_STATE_NORMAL') && delegate.includes('CEF_SHOW
 assert(delegate.includes('OnWindowBoundsChanged') && delegate.includes('SaveMainWindowMode(window)'), 'изменения размера и развёртывания сохраняются');
 assert(delegate.includes('OnWindowFullscreenTransition') && delegate.includes('if (is_completed)'), 'полноэкранный режим сохраняется после перехода');
 assert(source.includes('SaveMainWindowMode(window_);'), 'последний режим сохраняется также при закрытии главного окна');
+assert(delegate.includes('WithStandardWindowButtons') && delegate.includes('#if defined(OS_MAC)'), 'нативные кнопки окна остаются только на macOS, на Windows их рисует вёрстка');
 
 console.log('Проверка исходника восстановления режима окна прошла');

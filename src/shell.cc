@@ -292,8 +292,15 @@ class ShellWindowDelegate : public CefWindowDelegate {
 
   // Окно без системной рамки: заголовок, кнопки и перетаскивание — в вёрстке.
   bool IsFrameless(CefRefPtr<CefWindow>) override { return true; }
-  // macOS: оставляем нативные «светофоры» поверх вёрстки.
-  bool WithStandardWindowButtons(CefRefPtr<CefWindow>) override { return true; }
+  bool WithStandardWindowButtons(CefRefPtr<CefWindow>) override {
+#if defined(OS_MAC)
+    // macOS: оставляем нативные «светофоры» поверх вёрстки.
+    return true;
+#else
+    // Windows/Linux: кнопки рисует вёрстка (#winCtl), нативные дублируют их.
+    return false;
+#endif
+  }
   bool GetTitlebarHeight(CefRefPtr<CefWindow>, float* height) override {
     *height = 48.f;  // центр кнопок по вертикали = 24 px (как .sb-top в вёрстке)
     return true;

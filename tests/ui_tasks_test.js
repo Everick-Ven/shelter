@@ -236,11 +236,11 @@ globalThis.__api = {
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml,
+  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpTaskPriorityClass, wpTaskPriorityStyle, wpApplyEntityHome,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
-  wpSetStatusRef, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload,
+  wpSetStatusRef, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects, wpMergeImportedTaskData, wpApplyImportedTaskData,
   wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
 };`, context, { timeout: 5000 });
@@ -257,6 +257,14 @@ const octoberGrid = Array.from(api.wpMonthKeys('2026-10-01'));
 assert.strictEqual(octoberGrid.length, 35);
 assert.strictEqual(octoberGrid[0], '2026-09-28');
 assert.strictEqual(octoberGrid.at(-1), '2026-11-01');
+const augustGrid = Array.from(api.wpMonthKeys('2026-08-01'));
+assert.strictEqual(augustGrid.length, 35, 'a 42-cell month is cropped to a strict 7x5 grid');
+assert.strictEqual(augustGrid[0], '2026-08-03');
+assert.strictEqual(augustGrid.at(-1), '2026-09-06');
+const februaryGrid = Array.from(api.wpMonthKeys('2021-02-01'));
+assert.strictEqual(februaryGrid.length, 35, 'a short month is padded to a strict 7x5 grid');
+assert.strictEqual(februaryGrid[0], '2021-02-01');
+assert.strictEqual(februaryGrid.at(-1), '2021-03-07');
 
 // Calendar views include only the signed-in person's tasks, while accepting the Russian self-assignee aliases.
 state.account = { name: 'Alex', email: 'alex@example.test' };
@@ -299,6 +307,10 @@ assert.strictEqual(assigneeChoices.filter(name => name === 'Alex').length, 1, 's
 for (const alias of ['Вы', 'Я', 'вы', 'я', 'YOU', 'me', 'alex@example.test']) assert(!assigneeChoices.includes(alias), `assignee choices must not expose the self alias ${alias}`);
 const selfAliasCard = api.wpTaskCard(state.board.tasks.find(task => task.id === 'self-ya'), { compact: true });
 assert(selfAliasCard.includes('Исполнитель: Alex') && selfAliasCard.includes('<span>Alex</span>'), "compact cards display the signed-in user's name instead of Вы/Я");
+const legacyAliasBoard = api.wpNormalizeBoard({ id: 'alias-board', name: 'Доска', people: ['Вы', 'Анна'], tasks: [{ id: 'alias-task', title: 'Старый исполнитель', assignee: 'Вы' }, { id: 'other-task', title: 'Чужой исполнитель', assignee: 'Анна' }] });
+assert.strictEqual(legacyAliasBoard.tasks.find(task => task.id === 'alias-task').assignee, 'Alex', 'stored Вы aliases migrate to the account name on load');
+assert.strictEqual(legacyAliasBoard.tasks.find(task => task.id === 'other-task').assignee, 'Анна');
+assert(legacyAliasBoard.people.includes('Alex') && !legacyAliasBoard.people.includes('Вы'), 'board people migrate stored self aliases to the account name');
 // Both calendar modes span every visible project on the active board, even if a project detail was open previously.
 api.WP.projectId = 'project-1';
 const weekIds = new Set(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id));
@@ -355,20 +367,29 @@ assert.strictEqual(countId(monthWeekMarkup, 'week-span'), 1, 'a multi-day task i
 assert.strictEqual(countId(monthWeekMarkup, 'month-span-a'), 1, 'overlapping ranges each have one row in the month week');
 assert.strictEqual(countId(monthWeekMarkup, 'month-span-b'), 1, 'the end date is included in the horizontal range');
 assert.strictEqual(countId(monthWeekMarkup, 'single-day-task', 'data-id'), 1, 'a single-day task remains a normal event in its date cell');
-assert(monthWeekMarkup.includes('wp-calendar-span wp-calendar-span--month p-critical'), 'month span tint follows critical priority even when its Matrix quadrant differs');
+assert(monthWeekMarkup.includes('wp-calendar-span wp-calendar-span--month p-critical'), 'month span tint follows critical priority regardless of stored legacy quadrant fields');
 assert(monthWeekMarkup.includes('wp-calendar-span wp-calendar-span--month p-none'), 'no-priority ranges use a neutral tint');
-assert(monthWeekMarkup.includes('Приоритет: Критичный') && monthWeekMarkup.includes('Приоритет: Без приоритета'), 'range labels expose the priority independently of Matrix classification');
+assert(monthWeekMarkup.includes('Приоритет: Критичный') && monthWeekMarkup.includes('Приоритет: Без приоритета'), 'range labels expose the priority');
 const weekLayout = api.wpCalendarSpanLayout(weekDays, rangeTasks);
 assert.strictEqual(weekLayout.laneCount, 2, 'overlapping all-day ranges occupy separate horizontal lanes');
 assert.strictEqual(weekLayout.segments.length, 3, 'only tasks with a date range become horizontal spans');
 assert(weekLayout.segments.find(segment => segment.task.id === 'week-span').continuesBefore, 'week range rows clip cleanly at the week boundary');
+const crowdedSpans = [0, 1, 2].map(i => ({ id: `crowd-${i}`, title: `Перекрытие ${i}`, homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-13', deadlineAt: '2026-10-15', statusKey: 'open', priorityKey: 'normal', order: 30 + i, tags: [] }));
+const crowdedLayout = api.wpCalendarSpanLayout(weekDays, crowdedSpans, 2);
+assert.strictEqual(crowdedLayout.laneCount, 2, 'month weeks cap horizontal lanes so tiles keep a fixed height');
+assert.strictEqual(crowdedLayout.segments.filter(segment => segment.lane < 0).length, 1, 'ranges beyond the lane cap are marked as overflow');
+const crowdedMarkup = api.wpMonthWeek(weekDays, crowdedSpans);
+assert.strictEqual(countId(crowdedMarkup, 'crowd-0'), 1);
+assert.strictEqual(countId(crowdedMarkup, 'crowd-1'), 1);
+assert.strictEqual(countId(crowdedMarkup, 'crowd-2'), 0, 'the third overlapping range is not rendered as a row');
+assert(crowdedMarkup.includes('+ 1 ещё'), 'overflow ranges are counted in the day overflow instead of vanishing');
 const rangeWeekCards = api.wpWeekCalendar(weekDays, rangeTasks);
 assert(rangeWeekCards.includes('wp-calendar-span-layer wp-week-span-layer'), 'week mode restores its horizontal multi-day layer');
 assert.strictEqual(countId(rangeWeekCards, 'week-span'), 1, 'the week view renders each spanning task once, not as a card in each covered day');
 assert.strictEqual(countId(rangeWeekCards, 'month-span-a'), 1);
 assert.strictEqual(countId(rangeWeekCards, 'month-span-b'), 1);
 assert.strictEqual(countId(rangeWeekCards, 'single-day-task', 'data-task-id'), 1, 'single-day tasks remain cards in their own week cell');
-assert(rangeWeekCards.includes('wp-calendar-span wp-calendar-span--week p-high'), 'week span color follows urgency rather than its Matrix quadrant');
+assert(rangeWeekCards.includes('wp-calendar-span wp-calendar-span--week p-high'), 'week span color follows urgency');
 assert(rangeWeekCards.includes('wp-day-span-spacer'), 'week days reserve room for the horizontal range lanes');
 const desktopDay = api.wpDayColumn('2026-10-15', rangeTasks);
 assert(desktopDay.includes('data-act="wpCalendarSelectDate" data-date="2026-10-15"'), 'clicking the whole week day selects it, not just its date label');
@@ -718,7 +739,8 @@ const projectTarget = api.wpContextAddTarget('projects', 'project-1');
 assert.strictEqual(projectTarget.mode, 'editor', 'the “В проект” action opens the full task editor');
 assert.strictEqual(projectTarget.projectId, 'project-1', 'the current project is passed into the task editor');
 assert.strictEqual(projectTarget.homeType, 'project');
-assert.strictEqual(api.wpContextAddTarget('projects', '__personal__').mode, 'quick', 'personal quick-add remains unchanged');
+assert.strictEqual(api.wpContextAddTarget('projects', '__personal__').mode, 'editor', 'personal creation uses the full task editor');
+assert.strictEqual(api.wpContextAddTarget('week', null, '2026-10-13').mode, 'editor', 'week creation uses the full task editor');
 const createdProject = api.wpCreateTask('Задача проекта', '2026-10-14', 'project-1', 1, 'Alex', false, 'project');
 assert(createdProject && createdProject.id);
 assert.strictEqual(createdProject.homeType, 'project');
@@ -759,20 +781,30 @@ const emptyProjectForm = api.wpEditorBodyHtml(null, 'series', true, { ...formVal
 assert(emptyProjectForm.includes('id="wpProject"') && emptyProjectForm.includes('+ Добавить новый проект'), 'the add-project action remains available when the board has no projects');
 state.board.projects = projectsBeforeEmptyForm;
 assert(createForm.includes('id="wpStatus"') && !createForm.includes('option value="matrix"'), 'new tasks expose status selection without legacy Matrix options (reference behavior)');
-assert(createForm.includes('id="wpQuadrant"') && createForm.includes('Метка Матрицы'));
+assert(!createForm.includes('id="wpQuadrant"') && !createForm.includes('Метка Матрицы') && !createForm.includes('Матрица'), 'the task editor no longer exposes Matrix classification');
 assert(!createForm.includes('wpScheduledEnd') && !createForm.includes('Дата окончания · для календаря') && createForm.includes('id="wpDeadline"'), 'the existing deadline is the only end-date field in the form');
 assert(!createForm.includes('wpDestinationHint') && !createForm.includes('Задача будет добавлена'));
 const existingTask = { id: 'existing-task', title: 'Уже создана', homeType: 'personal', assignee: 'Я', statusKey: 'waiting', priorityKey: 'normal', scheduledDate: null, tags: [], matrixQuadrant: null };
 const editForm = api.wpEditorBodyHtml(existingTask, 'task', false, { ...formValues, title: existingTask.title, statusKey: 'waiting' }, false, existingTask);
 assert(editForm.includes('id="wpStatus"'), 'editing an existing task must preserve status changes');
 assert(editForm.includes('id="wpScheduled" type="date"') && editForm.includes('id="wpDeadline" type="date"'), 'editing-task date fields use the same reference native controls');
+assert.strictEqual(api.wpTaskHomeType({ homeType: 'matrix' }), 'personal', 'stored Matrix homes read as personal tasks');
 const legacyMatrixForm = api.wpEditorBodyHtml({ ...existingTask, homeType: 'matrix' }, 'task', false, { ...formValues, kind: 'matrix' }, false, { ...existingTask, homeType: 'matrix' });
-assert(legacyMatrixForm.includes('Матрица · прежний список'), 'legacy Matrix tasks remain editable without restoring Matrix navigation');
+assert(!legacyMatrixForm.includes('прежний список') && !legacyMatrixForm.includes('value="matrix"') && legacyMatrixForm.includes('>Личные<'), 'legacy Matrix tasks open as personal tasks without Matrix options');
 const applied = { id: 'new-project-task', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null };
 api.wpApplyTaskForm(applied, { ...formValues, title: 'Метка в проекте', kind: 'project', projectId: 'project-1', quadrant: 0, statusKey: 'open' }, { newTask: true });
 assert.strictEqual(applied.homeType, 'project');
 assert.strictEqual(applied.assignee, 'Alex', 'saving an alias from an older form stores the account name');
-assert.strictEqual(applied.matrixQuadrant, 0);
+assert.strictEqual(applied.matrixQuadrant, null, 'stale quadrant input from older forms is ignored');
+const moveTask = { id: 'move-personal-project', title: 'Перенос', homeType: 'personal', homeId: '', projectId: '', project: '', assignee: 'Alex', statusKey: 'open', priorityKey: 'normal', tags: [] };
+state.board.tasks.push(moveTask);
+assert.strictEqual(api.wpApplyEntityHome({ id: 'move-personal-project', entityType: 'task' }, 'project', 'project-1'), true, 'personal tasks move into projects');
+assert.strictEqual(api.wpTaskHomeType(moveTask), 'project');
+assert.strictEqual(moveTask.projectId, 'project-1');
+assert.strictEqual(api.wpApplyEntityHome({ id: 'move-personal-project', entityType: 'task' }, 'personal'), true, 'project tasks move back to personal tasks');
+assert.strictEqual(api.wpTaskHomeType(moveTask), 'personal');
+assert.strictEqual(moveTask.projectId, '');
+state.board.tasks = state.board.tasks.filter(task => task.id !== 'move-personal-project');
 assert.strictEqual(applied.statusKey, 'open');
 assert.strictEqual(applied.deadlineAt, '2026-10-15');
 assert(!Object.prototype.hasOwnProperty.call(applied, 'scheduledEndDate'), 'saving a task no longer writes a separate calendar end date');
@@ -806,7 +838,19 @@ const taskMarkup = api.wpTaskCard({ id: 'display-task', title: longTitle, homeTy
 assert(taskMarkup.includes('class="wp-task-title wp-title-marquee-clip"'));
 assert(taskMarkup.includes(`<span class="wp-title-marquee-text">${longTitle}</span>`));
 assert(taskMarkup.includes('До: 19.10.2026'));
-assert(taskMarkup.includes('class="wp-task qnone p-normal'), 'task cards expose the priority class used for urgency coloring');
+assert(taskMarkup.includes('class="wp-task p-normal'), 'task cards expose the priority class used for urgency coloring');
+assert.strictEqual(api.wpValidPriorityColor('#7c5cff'), '#7c5cff');
+assert.strictEqual(api.wpValidPriorityColor('red'), '', 'only hex colors are accepted as custom priority colors');
+assert.strictEqual(api.wpTaskPriorityClass({ priorityKey: 'high', priorityColor: '#12ab34' }), 'custom');
+assert.strictEqual(api.wpTaskPriorityClass({ priorityKey: 'high', priorityColor: '' }), 'high');
+const customCard = api.wpTaskCard({ id: 'custom-color', title: 'Свой цвет', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'normal', priorityColor: '#12ab34', tags: [] }, { compact: true });
+assert(customCard.includes('wp-task p-custom') && customCard.includes('--wp-prio:#12ab34'), 'task cards render the custom priority color');
+const customPill = api.wpMonthEvent({ id: 'custom-pill', title: 'Пилюля', homeType: 'personal', scheduledDate: '2026-10-15', statusKey: 'open', priorityKey: 'normal', priorityColor: '#12ab34' });
+assert(customPill.includes('p-custom') && customPill.includes('--wp-prio:#12ab34'), 'month pills render the custom priority color');
+assert(createForm.includes('id="wpPriorityColor"') && createForm.includes('id="wpPriorityColorOn"'), 'the task editor exposes a custom priority color');
+const colored = { id: 'color-save', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [] };
+api.wpApplyTaskForm(colored, { ...formValues, title: 'Цвет сохраняется', kind: 'personal', projectId: '', priorityColor: '#12ab34', statusKey: 'open' }, { newTask: true });
+assert.strictEqual(colored.priorityColor, '#12ab34', 'saving the editor persists the custom priority color');
 const startDateMarkup = api.wpTaskCard({ id: 'start-date-task', title: 'Дата старта', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true });
 assert(startDateMarkup.includes('Начало ·') && !startDateMarkup.includes('План ·'), 'task cards use the renamed start-date label');
 const compactDateMarkup = api.wpTaskCard({ id: 'week-date-task', title: 'Короткая карточка', homeType: 'personal', assignee: 'Alex', deadlineAt: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true, inDay: true });
@@ -905,15 +949,15 @@ assert.strictEqual(projectTask.priorityKey, 'critical');
 assert.strictEqual(projectTask.comments[0].body, 'Сохранённый комментарий', 'comments survive legacy task migration');
 assert(!Object.prototype.hasOwnProperty.call(projectTask.legacy, 'comments'), 'comments are preserved as task data rather than duplicated as legacy metadata');
 assert.strictEqual(api.wpTaskHomeType(inboxTask), 'inbox');
-assert.strictEqual(api.wpTaskHomeType(personalTask), 'personal', 'a quadrant alone must not move a personal task into Matrix');
+assert.strictEqual(api.wpTaskHomeType(personalTask), 'personal', 'legacy quadrant fields never change the task home');
 assert.strictEqual(personalTask.legacy.customField, 'keep me', 'unknown legacy fields must survive migration');
 assert.strictEqual(personalTask.deadlineAt, '2026-10-12', 'a legacy calendar end migrates into the existing deadline field');
 assert(!Object.prototype.hasOwnProperty.call(personalTask, 'scheduledEndDate'), 'the migrated task no longer stores a separate calendar end date');
 assert(!Object.prototype.hasOwnProperty.call(personalTask.legacy, 'scheduledEndDate'), 'the legacy end date is normalized, not retained as opaque metadata');
 assert.strictEqual(tasks.find(t => t.id === 'deadline-wins').deadlineAt, '2026-10-14', 'an already-set deadline takes precedence over the legacy calendar end');
 assert(!Object.prototype.hasOwnProperty.call(tasks.find(t => t.id === 'deadline-wins'), 'scheduledEndDate'));
-assert.strictEqual(api.wpTaskHomeType(tasks.find(t => t.id === 'matrix-task')), 'matrix');
-assert.strictEqual(api.wpTaskHomeType(tasks.find(t => t.id === 'loose-matrix-task')), 'matrix');
+assert.strictEqual(api.wpTaskHomeType(tasks.find(t => t.id === 'matrix-task')), 'personal', 'imported Eisenhower tasks land in personal tasks');
+assert.strictEqual(api.wpTaskHomeType(tasks.find(t => t.id === 'loose-matrix-task')), 'personal');
 assert.strictEqual(state.board.taskSchemaVersion, 7);
 
 assert.strictEqual(api.wpFinalizeTaskMigration(), true);
@@ -1032,6 +1076,29 @@ assert.strictEqual(typeof api.actions.wpView, 'function');
   assert.deepStrictEqual(JSON.parse(JSON.stringify(selectedPayload.boards[0].invites.map(invite => invite.id))), ['invite-a']);
   assert(!JSON.stringify(selectedPayload).includes('BETA TASK') && !JSON.stringify(selectedPayload).includes('Лишний участник'));
   assert.strictEqual(state.boards[0].projects.length, 2, 'building a project export does not mutate local data');
+  const selfId = api.wpSelfTaskId();
+  assert(/^SH-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(selfId), 'the local invite id has a readable SH-XXXX-XXXX shape');
+  assert.strictEqual(api.wpSelfTaskId(), selfId, 'the local invite id stays stable across calls');
+  assert.strictEqual(api.wpSaveTaskContact('sh-aaaa-bbbb', 'Иван'), true);
+  assert.strictEqual(api.wpSaveTaskContact('', 'Без ID'), false, 'contacts require both an id and a nick');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpTaskContacts())), [{ id: 'SH-AAAA-BBBB', nick: 'Иван' }], 'contacts are stored with a normalized id');
+  assert(api.wpTaskContactOptionsHtml('SH-AAAA-BBBB').includes('Иван · SH-AAAA-BBBB'));
+  const executorPayload = api.wpExportPayload('all', [], { target: 'executor', targetId: 'sh-aaaa-bbbb', targetNick: 'Иван' });
+  assert.strictEqual(executorPayload.transfer.target, 'executor');
+  assert.strictEqual(executorPayload.transfer.targetId, 'SH-AAAA-BBBB');
+  assert.strictEqual(executorPayload.transfer.targetNick, 'Иван');
+  assert.strictEqual(executorPayload.transfer.fromId, selfId, 'exports carry the sender invite id');
+  assert(executorPayload.boards.every(board => board.tasks.every(task => task.transferToId === 'SH-AAAA-BBBB')), 'executor exports stamp their task copies');
+  assert(!JSON.stringify(state.boards).includes('transferToId'), 'stamping never touches local tasks');
+  const selfPayload = api.wpExportPayload('all');
+  assert.strictEqual(selfPayload.transfer.target, 'self');
+  const stampedBoards = [{ id: 'b1', tasks: [{ id: 't1', title: 'Для меня', assignee: 'Кто-то' , transferToId: 'SH-AAAA-BBBB' }] }];
+  assert.strictEqual(api.wpApplyTransferRemap(stampedBoards, executorPayload.transfer), 1);
+  assert.strictEqual(stampedBoards[0].tasks[0].assignee, 'Alex', 'importing an executor file makes the importer the assignee');
+  assert(!('transferToId' in stampedBoards[0].tasks[0]), 'transfer stamps are stripped on import');
+  const legacyStamped = [{ id: 'b2', tasks: [{ id: 't2', title: 'Старый штамп', assignee: 'Анна', transferToId: 'SH-AAAA-BBBB' }] }];
+  assert.strictEqual(api.wpApplyTransferRemap(legacyStamped, selfPayload.transfer), 0, 'self imports keep assignees');
+  assert.strictEqual(legacyStamped[0].tasks[0].assignee, 'Анна');
 
   const envelope = await api.wpEncryptTaskPayload(selectedPayload, 'Correct horse battery');
   const fileText = JSON.stringify(envelope);

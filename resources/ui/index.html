@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-v44qYO5QSctSEJKrFuYAZmeCFeC7Ptx7HzVEPXK0PtQ=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-hsL8v4uVY4+bx3LZud9ijOdcUWCufRJuW5rNtoSwjbA=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -12782,7 +12782,8 @@ function shelterIsLegacyBrowserBackup(value) {
   return wpIsObj(value) && value.app === 'SHELTER' && !value.format && Array.isArray(value.spaces) && Array.isArray(value.bookmarks) && Array.isArray(value.visits) && wpIsObj(value.prefs);
 }
 function shelterImportBackup() {
-  const input = document.createElement('input'); input.type = 'file'; input.accept = '.shelter,application/json';
+  /* Без accept-фильтра: у .shelter нет системного UTI, и панель выбора macOS оставляет такие файлы невыбираемыми даже при явном '.shelter' в фильтре. Формат проверяется содержимым ниже. */
+  const input = document.createElement('input'); input.type = 'file';
   input.addEventListener('change', async () => {
     const file = input.files && input.files[0]; if (!file) return;
     if (Number(file.size) > WP_TASK_EXPORT_MAX_FILE_BYTES) { toast('Файл слишком большой для импорта.', { icon: 'ban' }); return; }

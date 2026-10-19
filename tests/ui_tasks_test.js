@@ -154,6 +154,8 @@ assert(html.includes("'.shelter'"), 'the encrypted browser backup uses the .shel
 assert(!html.includes("'shelter-backup-' + dayKey(Date.now()) + '.json'"), 'the browser backup is never exported as plaintext JSON');
 assert(html.includes("else if (a === 'import') shelterImportBackup();"), 'settings offer an encrypted backup restore');
 assert(html.includes("payload.kind !== 'SHELTER_BROWSER_BACKUP'"), 'backup restore rejects decrypted files without the browser-backup marker');
+const backupImportFn = html.slice(html.indexOf('function shelterImportBackup()'), html.indexOf('function shelterApplyBrowserBackup('));
+assert(backupImportFn.includes("input.type = 'file'") && !backupImportFn.includes('input.accept'), 'the backup picker stays unfiltered so .shelter files remain selectable');
 assert(html.includes('shelterIsLegacyBrowserBackup(parsed)'), 'old plaintext backups stay readable through the legacy fallback');
 assert(html.includes('function wpDeadlineBeforeStart(scheduledDate,deadlineAt)'), 'the deadline invariant helper is installed');
 assert(html.includes('Крайний срок не может быть раньше даты начала.'), 'setting a deadline before the start date is rejected');

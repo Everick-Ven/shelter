@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-LfnoiTNt3qk2OlCNgc3t4AUHFM/Mf1LmgB1AdTZ03XE=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-GS+9F4aH4DtdNbytiZhEM2UxJ3rwMeDG9kwMLA9hQwY=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -5864,7 +5864,12 @@ function ensureBoard() {
     if (!Array.isArray(p.members)) p.members = [];
     return p;
   });
-  b.people = b.people.map(x => typeof x === 'string' ? x : (x && x.name) || '—');
+  b.people = b.people.map(x => {
+    if (typeof x === 'string') return x;
+    const name = wpPersonName(x).trim();
+    if (!name) return '—';
+    return wpMakePerson(name, wpPersonContactId(x));
+  });
   if (accountEmail() && !b.ownerEmail) b.ownerEmail = accountEmail();
   b.tasks.forEach(task => {
     if (!task.kind) task.kind = task.project ? 'project' : 'personal';
@@ -10131,7 +10136,7 @@ RENDER.tasks = () => {
       ${segHtml('taskView', [['open', 'Нужно выполнить'], ['done', 'Выполнены'], ['eisen', 'Эффективность']], S.ui.taskView)}
       <label class="search-in">${ico('search')}<input class="input" id="tkQ" placeholder="Поиск задач" value="${esc(F.q)}" autocomplete="off"></label>
       ${v === 'eisen' ? '' : `${wpDomSelectControl('tkProject',F.project||'', [['','Все проекты'],...vis.map(project=>[project.id,project.name])],{className:'select tk-filter-select',inputAttrs:'aria-label="Проект"',buttonAttrs:'aria-label="Проект"'})}
-      ${wpDomSelectControl('tkPerson',F.person||'', [['','Все исполнители'],...b.people.map(person=>[person,person])],{className:'select tk-filter-select',inputAttrs:'aria-label="Исполнитель"',buttonAttrs:'aria-label="Исполнитель"'})}`}
+      ${wpDomSelectControl('tkPerson',F.person||'', [['','Все исполнители'],...b.people.map(person=>{const n=wpPersonName(person);return [n,n];})],{className:'select tk-filter-select',inputAttrs:'aria-label="Исполнитель"',buttonAttrs:'aria-label="Исполнитель"'})}`}
     </div>
     <div id="tkBody">${tasksBody()}</div>
   </div>`;
@@ -10182,7 +10187,7 @@ function taskModal(id, opts) {
   const t = src ? Object.assign({}, src) : { title: '', project: '', projectId: '', created: ruDate(Date.now()), prio: simple ? 'Срочно' : 'Не срочные', term: b.terms.find(x => /Медиум/.test(x)) || b.terms[0], days: simple ? 1 : 7, deadline: ruDate(Date.now() + (simple ? 1 : 7) * DAY), format: b.formats[0] || '', assignee: 'Вы', comment: '', status: 'В работе', kind, qm: simple ? 0 : undefined };
   const toIso = s => { const d = parseRu(s); return d ? d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) : ''; };
   const selectedProject = (vis.find(project => project.id === t.projectId || project.name === t.project) || {}).id || '';
-  const opt = (arr, addKey) => [...arr.map(value => [value,value]),...(addKey?[['__add','＋ Добавить…']]:[])];
+  const opt = (arr, addKey) => [...arr.map(value => { const n = wpPersonName(value); return [n, n]; }),...(addKey?[['__add','＋ Добавить…']]:[])];
   const projOpts = () => [...vis.map(project=>[project.id,project.name]),['__add','＋ Новый проект…']];
   const QLAB = [['Сделать сейчас', 'Срочно и важно', 'var(--danger)'], ['Запланировать', 'Важно, не срочно', 'var(--accent)'], ['Делегировать', 'Срочно, не важно', 'var(--warn)'], ['Отложить', 'Не срочно и не важно', 'var(--text-3)']];
   const simpleHtml = `
@@ -10274,7 +10279,7 @@ function taskModal(id, opts) {
     if(sel.value!=='__add') { prev=sel.value; return; }
     wpSetDomSelectValue(sel,prev);
     const v=await promptDlg({title:'Добавить значение',placeholder:'Название',ok:'Добавить'}); if(!v) return;
-    const arr=b[sel.dataset.dict]; if(!arr.includes(v)) arr.push(v); persist();
+    const arr=b[sel.dataset.dict]; const hasV=sel.dataset.dict==='people'?wpBoardPersonIndex(b,v)>=0:arr.includes(v); if(!hasV) arr.push(v); persist();
     const button=wpDomSelectButton(sel), options=button?wpNormalizeDomSelectOptions(JSON.parse(button.dataset.wpDomSelectOptions||'[]')):[];
     const addAt=options.findIndex(option=>option.value==='__add'); options.splice(addAt<0?options.length:addAt,0,{value:v,label:v});
     wpSetDomSelectOptions(sel,options,v); prev=v;
@@ -10340,8 +10345,10 @@ function taskDicts() {
   let cur = 'projects';
   const label = v => typeof v === 'string' ? v : ((v && v.name) || '');
   const body = () => boardCard() + `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${D.map(d => `<button class="btn sm ${d[0] === cur ? 'primary' : 'ghost'}" data-dk="${d[0]}">${d[1]}</button>`).join('')}</div>
-    ${cur==='prios'?prioBody():`<div class="set-card">${(S.board[cur] || []).map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b></div>${(locked[cur] || []).includes(v) ? '<span class="chip">системное</span>' : `${cur === 'projects' ? `<button class="icon-btn" data-inv="${i}" aria-label="Пригласить">${ico('users')}</button>` : ''}<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'}</div>
-    <div style="display:flex;gap:8px;margin-top:12px"><input class="input" id="dAdd" placeholder="Новое значение"><button class="btn" data-da="1">${ico('plus')}Добавить</button></div>`}`;
+    ${cur==='prios'?prioBody():`<div class="set-card">${(S.board[cur] || []).map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b>${cur === 'people' && wpPersonContactId(v) ? `<span>ID ${esc(wpPersonContactId(v))}</span>` : ''}</div>${(locked[cur] || []).includes(v) ? '<span class="chip">системное</span>' : `${cur === 'projects' ? `<button class="icon-btn" data-inv="${i}" aria-label="Пригласить">${ico('users')}</button>` : ''}<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${cur === 'people'
+      ? `<input class="input" id="dAdd" placeholder="Имя исполнителя" style="flex:1;min-width:130px"><input class="input" id="dAddId" placeholder="ID для приглашений" style="flex:1;min-width:130px" autocomplete="off" spellcheck="false"><button class="btn" data-da="1">${ico('plus')}Добавить</button>`
+      : `<input class="input" id="dAdd" placeholder="Новое значение"><button class="btn" data-da="1">${ico('plus')}Добавить</button>`}</div>`}`;
   const prioBody=()=>{ const colors=wpBoardPriorityColors(S.board), defaults=wpDefaultPriorityColors();
     return `<div class="set-card">${['none','normal','high','critical'].map(k=>{ const label=WP_PRIORITY_RU[k]||k; return `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label)}</b></div><span class="wp-color-row is-dot"><input type="color" data-prio-color="${k}" value="${esc(colors[k]||defaults[k])}" aria-label="Цвет приоритета «${esc(label)}»"></span></div>`; }).join('')}</div>
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap"><button class="btn ghost sm" data-prio-reset="1">Сбросить к цветам темы</button><span class="muted" style="font-size:12px">Цвета действуют на всю доску</span></div>`; };
@@ -10369,6 +10376,11 @@ function taskDicts() {
     if (el.dataset.da) {
       const v = $('#dAdd', root).value.trim(); if (!v) return;
       if (cur === 'projects') addProject(v);
+      else if (cur === 'people') {
+        const idEl = $('#dAddId', root);
+        const cid = idEl ? idEl.value.trim().toUpperCase() : '';
+        if (wpBoardAddPerson(S.board, v, cid) && cid) wpSaveTaskContact(cid, v);
+      }
       else if (!arr.includes(v)) arr.push(v);
       persist(); re(); return;
     }
@@ -10384,6 +10396,19 @@ function taskDicts() {
     }
     if (el.dataset.dr) {
       const i = +el.dataset.dr, old = label(arr[i]);
+      if (cur === 'people') {
+        const v = await promptDlg({ title: 'Исполнитель', label: 'Имя', value: old, ok: 'Далее' });
+        if (v == null || !v) return;
+        const cidOld = wpPersonContactId(arr[i]);
+        const cid = await promptDlg({ title: 'Исполнитель', label: 'ID для приглашений (можно пустым)', value: cidOld, placeholder: 'SH-XXXX-XXXX', ok: 'Сохранить' });
+        if (cid == null) return;
+        const cidNew = cid.trim().toUpperCase();
+        if (v === old && cidNew === cidOld) return;
+        arr[i] = wpMakePerson(v, cidNew);
+        if (v !== old) S.board.tasks.forEach(x => { if (x.assignee === old) x.assignee = v; });
+        if (cidNew) wpSaveTaskContact(cidNew, v);
+        persist(); re(); return;
+      }
       const v = await promptDlg({ title: 'Переименовать', value: old, ok: 'Сохранить' }); if (!v || v === old) return;
       if (cur === 'projects') {
         arr[i].name = v;
@@ -10459,7 +10484,7 @@ function projectInvite(projectId) {
         if (!p.members.some(m => String(m.email).toLowerCase() === email)) p.members.push({ email, name, role: 'member', scope: 'all', status: 'pending' });
       });
     }
-    if (name && !S.board.people.includes(name)) S.board.people.push(name);
+    if (name) wpBoardAddPerson(S.board, name, '');
     persist();
     const bname = S.board.name || 'Моя доска', bcode = S.board.code || '—';
     const what = pid === '*' ? ('всю доску «' + bname + '» (идентификатор ' + bcode + ')') : ('в доску «' + bname + '» (идентификатор ' + bcode + ') к проекту «' + ((pr && pr.name) || '') + '»');
@@ -14341,7 +14366,7 @@ function wpNormalizeBoard(board) {
   b.tasks=b.tasks.map((t,i)=>wpMapLegacyTask(t,i,b)).filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i);
   const selfAssignee=wpCurrentAssignee();
   b.tasks.forEach(t=>{ if(wpIsObj(t) && t.assignee!=null && typeof t.assignee!=='object') t.assignee=wpCanonicalAssignee(t.assignee); });
-  if(Array.isArray(b.people)) b.people=b.people.map(p=>p==='Вы'||p==='Я'?selfAssignee:p);
+  if(Array.isArray(b.people)) b.people=b.people.map(p=>(wpPersonName(p)==='Вы'||wpPersonName(p)==='Я')?selfAssignee:p);
   const taskMap=new Map(b.tasks.map(t=>[t.id,t]));
   const rulesById=new Map();
   b.recurrenceRules=b.recurrenceRules.filter(wpIsObj).map(r=>{
@@ -14693,6 +14718,46 @@ function wpCommentThreadHtml(task) {
   const rows=comments.map(comment=>`<article class="wp-comment-item"><header><b>${esc(comment.author||'Участник')}</b><time datetime="${esc(comment.createdAt||'')}">${esc(wpCommentTimestamp(comment.createdAt))}</time></header><p>${esc(comment.body)}</p></article>`).join('');
   return `<section class="wp-comment-thread" id="wpCommentThread" aria-label="Комментарии к задаче проекта"><header class="wp-comment-head"><b>Комментарии</b><span>${comments.length}</span></header><div class="wp-comment-list" aria-live="polite">${rows||'<p class="wp-comment-empty">Пока нет комментариев.</p>'}</div><label class="wp-comment-compose"><span>Новый комментарий</span><textarea class="input" id="wpCommentInput" rows="3" maxlength="${WP_COMMENT_MAX_LENGTH}" placeholder="Напишите комментарий для участников проекта"></textarea></label><div class="wp-comment-footer"><small>Комментарий будет сохранён в общей задаче проекта.</small><button type="button" class="btn sm primary" data-wp-comment-action="add">${ico('plus')}Добавить</button></div></section>`;
 }
+/* Исполнители доски: строка с именем либо {name, contactId}, где contactId — ID
+   для приглашений (SH-XXXX-XXXX) из общего списка контактов. Задачи хранят
+   только имя, поэтому все чтения имён идут через wpPersonName. */
+function wpPersonName(person) {
+  if (person && typeof person === 'object') return String(person.name || person.nick || '');
+  return String(person == null ? '' : person);
+}
+function wpPersonContactId(person) {
+  if (person && typeof person === 'object' && person.contactId) return String(person.contactId).trim().toUpperCase();
+  return '';
+}
+function wpMakePerson(name, contactId) {
+  name = String(name || '').trim();
+  contactId = String(contactId || '').trim().toUpperCase();
+  if (!name) return '';
+  return contactId ? { name, contactId } : name;
+}
+function wpBoardPersonIndex(board, name) {
+  const key = String(name || '').trim().toLowerCase();
+  if (!key || !board || !Array.isArray(board.people)) return -1;
+  return board.people.findIndex(p => wpPersonName(p).trim().toLowerCase() === key);
+}
+/* Добавляет исполнителя в доску; тёзке без ID привязывает переданный ID.
+   Возвращает true, если список изменился. */
+function wpBoardAddPerson(board, name, contactId) {
+  if (!board || !Array.isArray(board.people)) return false;
+  name = String(name || '').trim();
+  contactId = String(contactId || '').trim().toUpperCase();
+  if (!name) return false;
+  const ix = wpBoardPersonIndex(board, name);
+  if (ix < 0) {
+    board.people.push(wpMakePerson(name, contactId));
+    return true;
+  }
+  if (contactId && wpPersonContactId(board.people[ix]) !== contactId) {
+    board.people[ix] = { name: wpPersonName(board.people[ix]), contactId };
+    return true;
+  }
+  return false;
+}
 function wpNormalizeAssignee(value) {
   const raw=value && typeof value==='object' ? (value.name||value.email||value.id||'') : value;
   const text=String(raw||'').trim(); if(!text) return '';
@@ -14720,7 +14785,7 @@ function wpRenameSelfAssignee(oldName,newName) {
       const label=wpTextKey(task.assignee);
       if(label===from||label==='вы'||label==='я') { task.assignee=WP_SELF_ASSIGNEE; remapped++; }
     });
-    if(Array.isArray(board.people)) board.people=board.people.map(person=>wpTextKey(person)===from?to:person);
+    if(Array.isArray(board.people)) board.people=board.people.map(person=>wpTextKey(wpPersonName(person))===from?(person&&typeof person==='object'?wpMakePerson(to,wpPersonContactId(person)):to):person);
   });
   return remapped;
 }
@@ -16652,7 +16717,9 @@ function wpOpenTaskExportDialog() {
       const nick=await promptDlg({title:'Пригласить по ID',label:'Ник партнёра в вашем браузере',placeholder:'Например: Иван',ok:'Сохранить'});
       if(nick==null||!String(nick).trim())return;
       if(!wpSaveTaskContact(id,nick)){toast('Не удалось сохранить исполнителя.',{icon:'ban'});return;}
-      const contact=$('#wpTaskExportContact',root);if(contact)contact.innerHTML=wpTaskContactOptionsHtml(String(id).trim().toUpperCase());
+      const cid=String(id).trim().toUpperCase(), nm=String(nick).trim();
+      if(wpBoardAddPerson(wpEnsureBoardShape(),nm,cid)){try{persist();}catch(_){}}
+      const contact=$('#wpTaskExportContact',root);if(contact)contact.innerHTML=wpTaskContactOptionsHtml(cid);
       toast('Исполнитель добавлен.',{icon:'check'});return;
     }
     if(button.dataset.wpTaskExport!=='save')return;
@@ -16790,8 +16857,9 @@ function wpMergeImportedProjects(existingBoards,sourceBoards,selection) {
     target.occurrences=keptOccurrences.concat(wpClone(subset.occurrences));
     const invites=(Array.isArray(target.invites)?target.invites:[]).filter(invite=>!selectedIds.has(String(invite&&invite.projectId||'')));
     target.invites=invites.concat(wpClone(subset.invites||[]));
-    const people=[...(Array.isArray(target.people)?target.people:[]),...(Array.isArray(subset.people)?subset.people:[])],seenPeople=new Set();
-    target.people=people.filter(person=>{const value=person&&typeof person==='object'?(person.name||person.email||person.id||''):person,key=String(value||'').trim().toLocaleLowerCase();if(!key||seenPeople.has(key))return false;seenPeople.add(key);return true;});
+    const people=[...(Array.isArray(target.people)?target.people:[]),...(Array.isArray(subset.people)?subset.people:[])],seenPeople=new Map();
+    people.forEach(person=>{const value=person&&typeof person==='object'?(person.name||person.email||person.id||''):person,key=String(value||'').trim().toLocaleLowerCase();if(!key)return;const prev=seenPeople.get(key);if(!prev||(!wpPersonContactId(prev)&&wpPersonContactId(person)))seenPeople.set(key,person);});
+    target.people=[...seenPeople.values()];
     target.taskSchemaVersion=WP_SCHEMA;result[index]=target;
   }
   return {ok:true,boards:result,activeBoardId:result.some(board=>String(board.id||'')===String(S.boardId||''))?String(S.boardId):groups.keys().next().value};

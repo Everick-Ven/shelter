@@ -1,5 +1,6 @@
 #include "src/renderer_app.h"
 
+#include <cstdio>
 #include <map>
 #include <string>
 
@@ -39,12 +40,19 @@ bool g_fp_enabled = false;
 bool g_auto_consent = true;
 
 // document_start content-scripts MV2-расширений shell-режима (строковый id
-// фрейма -> JSON [{js,css}]): браузер присылает их сообщением
-// shelter.extscripts на старте загрузки, выполняются в OnContextCreated —
-// раньше любого скрипта страницы (см. PushExtScriptsToFrame в src/shell.cc).
+// фрейма -> запись): браузер присылает их сообщением shelter.extscripts на
+// старте загрузки (см. PushExtScriptsToFrame в src/shell.cc). Запись хранит и
+// URL, под который подобраны скрипты: сообщение обычно приходит ПОСЛЕ
+// OnContextCreated (браузер узнаёт о старте загрузки позже, чем рендерер
+// создаёт контекст), поэтому перед выполнением URL сверяется — иначе скрипты
+// сработали бы на следующей странице того же фрейма.
 // Идентификаторы фреймов в CEF строковые (CefFrame::GetIdentifier -> CefString),
 // в отличие от числовых идентификаторов браузеров.
-std::map<std::string, std::string> g_pending_ext_scripts;
+struct PendingExtScripts {
+  std::string json;  // [{js,css}]
+  std::string url;   // URL, под который подобраны скрипты
+};
+std::map<std::string, PendingExtScripts> g_pending_ext_scripts;
 
 // window.cefQuery выдаём ТОЛЬКО chrome-UI. Обычные сайты доступа к мосту не получают.
 bool IsUiFrame(CefRefPtr<CefFrame> frame) {
@@ -491,18 +499,23 @@ void AppBase::OnBeforeCommandLineProcessing(
   ParseProtectionSwitch(value, &g_fp_enabled, &g_auto_consent);
 }
 
-void RunPendingExtScripts(CefRefPtr<CefFrame> frame,
-                           CefRefPtr<CefV8Context> context) {
-  if (!frame || !context) return;
-  auto it = g_pending_ext_scripts.find(frame->GetIdentifier().ToString());
-  if (it == g_pending_ext_scripts.end()) return;
-  const std::string json = it->second;
-  g_pending_ext_scripts.erase(it);
+bool IsWebFrameUrl(const std::string& url) {
+  return url.rfind("http://", 0) == 0 || url.rfind("https://", 0) == 0;
+}
+
+// Выполняет [{js,css}] в готовом контексте. via — "message" (сообщение пришло
+// к уже созданному контексту) или "context-created" (запись дождалась
+// контекст). Лог SHELTER_EXTSCRIPTS показывает, какой путь сработал на
+// реальной сборке (порядок событий браузера и рендерера не гарантирован).
+void ExecExtScriptsJson(CefRefPtr<CefV8Context> context, const std::string& json,
+                        const char* via) {
+  if (!context) return;
   CefRefPtr<CefValue> value = CefParseJSON(json, JSON_PARSER_RFC);
   if (!value || value->GetType() != VTYPE_LIST) return;
   CefRefPtr<CefListValue> scripts = value->GetList();
   CefRefPtr<CefV8Value> retval;
   CefRefPtr<CefV8Exception> exc;
+  int ran = 0;
   for (size_t i = 0; i < scripts->GetSize(); ++i) {
     if (scripts->GetType(i) != VTYPE_DICTIONARY) continue;
     CefRefPtr<CefDictionaryValue> entry = scripts->GetDictionary(i);
@@ -515,6 +528,7 @@ void RunPendingExtScripts(CefRefPtr<CefFrame> frame,
             ";(document.head||document.documentElement).appendChild(s);})();";
         context->Eval(CefString(style_js), CefString("shelter://ext-css"), 0,
                       retval, exc);
+        ++ran;
       }
     }
     if (entry->GetType("js") == VTYPE_STRING) {
@@ -522,9 +536,29 @@ void RunPendingExtScripts(CefRefPtr<CefFrame> frame,
       if (!js.empty()) {
         context->Eval(CefString(js), CefString("shelter://ext-js"), 0, retval,
                       exc);
+        ++ran;
       }
     }
   }
+  std::fprintf(stderr, "SHELTER_EXTSCRIPTS exec via=%s count=%d\n", via, ran);
+}
+
+void RunPendingExtScripts(CefRefPtr<CefFrame> frame,
+                           CefRefPtr<CefV8Context> context) {
+  if (!frame || !context) return;
+  auto it =
+      g_pending_ext_scripts.find(frame->GetIdentifier().ToString());
+  if (it == g_pending_ext_scripts.end()) return;
+  PendingExtScripts pending = it->second;
+  // Запись одноразовая: съедаем всегда, выполняем только для той страницы,
+  // под которую подобраны скрипты. Иначе они сработали бы на следующей
+  // странице того же фрейма (сообщение от прошлой навигации).
+  g_pending_ext_scripts.erase(it);
+  if (frame->GetURL().ToString() != pending.url) {
+    std::fprintf(stderr, "SHELTER_EXTSCRIPTS drop stale\n");
+    return;
+  }
+  ExecExtScriptsJson(context, pending.json, "context-created");
 }
 
 void AppBase::OnContextCreated(CefRefPtr<CefBrowser> browser,
@@ -580,12 +614,29 @@ bool AppBase::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
   }
   if (name == "shelter.extscripts" && source_process == PID_BROWSER) {
     CefRefPtr<CefListValue> args = message->GetArgumentList();
-    if (frame && args && args->GetSize() >= 1 &&
-        args->GetType(0) == VTYPE_STRING) {
+    if (frame && args && args->GetSize() >= 2 &&
+        args->GetType(0) == VTYPE_STRING &&
+        args->GetType(1) == VTYPE_STRING) {
       const std::string frame_id = frame->GetIdentifier().ToString();
       if (frame_id.empty()) return true;  // фрейма ещё нет — класть некуда
-      if (g_pending_ext_scripts.size() > 256) g_pending_ext_scripts.clear();
-      g_pending_ext_scripts[frame_id] = args->GetString(0).ToString();
+      const std::string json = args->GetString(0).ToString();
+      const std::string url = args->GetString(1).ToString();
+      // Порядок не гарантирован: OnLoadStart в браузере обычно следует ПОСЛЕ
+      // создания контекста в рендерере, и сообщение приходит к готовому
+      // контексту. Если это тот же документ — выполняем сразу, иначе
+      // откладываем до OnContextCreated (там URL сверяется повторно).
+      CefRefPtr<CefV8Context> ctx = frame->GetV8Context();
+      if (ctx && ctx->IsValid() && IsWebFrameUrl(url) &&
+          frame->GetURL().ToString() == url) {
+        ExecExtScriptsJson(ctx, json, "message");
+      } else {
+        if (g_pending_ext_scripts.size() > 256) g_pending_ext_scripts.clear();
+        PendingExtScripts pending;
+        pending.json = json;
+        pending.url = url;
+        g_pending_ext_scripts[frame_id] = pending;
+        std::fprintf(stderr, "SHELTER_EXTSCRIPTS stored pending\n");
+      }
     }
     return true;
   }

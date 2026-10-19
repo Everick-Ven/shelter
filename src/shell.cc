@@ -744,6 +744,9 @@ void PushExtScriptsToFrame(CefRefPtr<CefFrame> frame) {
   CefRefPtr<CefProcessMessage> m =
       CefProcessMessage::Create("shelter.extscripts");
   m->GetArgumentList()->SetString(0, ToJson(value));
+  // URL, под который подобраны скрипты: рендерер сверит его перед выполнением
+  // и отбросит запись, если фрейм уже ушёл на другую страницу.
+  m->GetArgumentList()->SetString(1, url);
   frame->SendProcessMessage(PID_RENDERER, m);
 }
 
@@ -3106,10 +3109,12 @@ void Shell::OnTabLoadStart(CefRefPtr<CefBrowser> browser,
                            CefRefPtr<CefFrame> frame) {
   CEF_REQUIRE_UI_THREAD();
   RecordPartitionOrigin(browser, frame);
-  // document_start скрипты едут в рендерер сообщением и выполняются там в
-  // OnContextCreated: прямой ExecuteJavaScript из браузерного процесса
-  // контекст ещё не застаёт и молча дропается. End-фазу (контекст уже есть)
-  // по-прежнему внедряем напрямую в OnTabLoadEnd.
+  // document_start скрипты едут в рендерер сообщением: там они выполняются
+  // сразу, если контекст уже готов, или в OnContextCreated (с повторной
+  // сверкой URL — протухшая запись от прошлой навигации отбрасывается).
+  // Прямой ExecuteJavaScript из браузерного процесса контекст ещё не застаёт
+  // и молча дропается. End-фазу (контекст уже есть) по-прежнему внедряем
+  // напрямую в OnTabLoadEnd.
   PushExtScriptsToFrame(frame);
   if (blocker::Enabled()) InjectBlockerCss(frame);
 }

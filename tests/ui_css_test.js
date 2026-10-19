@@ -162,7 +162,9 @@ check('месячная сетка и выбранный день использ
   taskLayoutStyle.includes('.wp-month-layout{') && taskLayoutStyle.includes('grid-template-columns:minmax(0,1fr) 280px') &&
   html.includes('<div class="wp-month-layout"><div class="wp-month-calendar">'));
 check('доска растягивается до правого края без изменения отступов других представлений',
-  taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0}'));
+  taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0;overflow-x:clip}'));
+check('рабочее поле задач резервирует место под полосу прокрутки, чтобы контент не ездил',
+  taskLayoutStyle.includes('.planner-page .wp-view{') && taskLayoutStyle.includes('scrollbar-gutter:stable'));
 check('доска задач вмещается в ширину экрана без горизонтальной прокрутки',
   plannerStyle.includes('.wp-board-lanes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:9px;overflow-x:hidden') &&
   !plannerStyle.includes('repeat(4,minmax(220px,1fr))') && !/\.wp-board-lanes\{[^}]*overflow-x:auto/.test(plannerStyle) &&

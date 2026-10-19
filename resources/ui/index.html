@@ -4515,7 +4515,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .planner-page .wp-migration-error{margin:10px 24px 0}
 .planner-page .wp-view{
   position:relative;flex:1 1 0%;min-width:0;min-height:0;margin:0;
-  padding:16px 24px 32px;overflow:auto;overscroll-behavior:contain;
+  padding:16px 24px 32px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;
   scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;
 }
 /* Фильтрация и сортировка остаются сверху при прокрутке списка/доски. */
@@ -4681,7 +4681,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 }
 .planner-page .wp-date-control.is-iconless{gap:0}
 /* Доска использует всю доступную ширину; остальные представления сохраняют общий правый отступ. */
-.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0}
+.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0;overflow-x:clip}
 </style>
 <style id="shelter-task-logic">
 /* Задачи: самостоятельные направления сортировки и общие доступные popup-меню. */

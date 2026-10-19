@@ -131,6 +131,10 @@ assert(taskTitleRule.includes('white-space:nowrap') && taskTitleRule.includes('t
 assert(plannerCss.includes('@keyframes wpTaskTitleMarquee'));
 assert(plannerCss.includes('.wp-title-marquee-clip.is-title-overflowing:hover'));
 assert(plannerCss.includes('.wp-task-meta .wp-deadline{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums;'));
+assert(plannerCss.includes('.wp-task-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 7px;margin-top:5px;color:var(--text-2);font-size:9px;'), 'task meta text stays readable on tinted cards');
+assert(plannerCss.includes('.wp-task-note{margin-top:5px;color:var(--text-2);font-size:9.5px;'), 'task notes use body-grade contrast');
+assert(plannerCss.includes('.wp-tag{color:var(--text-2);white-space:nowrap}') && plannerCss.includes('.wp-chip.cancelled{background:var(--card-3);color:var(--text-2)}'), 'tags and status chips avoid dim placeholder tones');
+assert(!plannerCss.match(/\.wp-task-meta\{[^}]*font-size:8(\.7)?px/), 'task meta never shrinks below the readable size');
 assert(!plannerCss.includes('.wp-destination-hint{') && !plannerCss.includes('.wp-quick-context{'));
 assert(plannerCss.includes('.wp-layout{display:grid;grid-template-columns:170px minmax(0,1fr);gap:22px;align-items:start;width:100%;max-width:none;margin:0}'));
 assert(plannerCss.includes('.wp-week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;min-width:0;overflow:visible;'));

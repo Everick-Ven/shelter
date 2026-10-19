@@ -161,7 +161,10 @@ assert(html.includes('function wpDeadlineBeforeStart(scheduledDate,deadlineAt)')
 assert(html.includes('Крайний срок не может быть раньше даты начала.'), 'setting a deadline before the start date is rejected');
 assert(html.includes('Дата начала не может быть позже крайнего срока.'), 'moving the start date past the deadline is rejected');
 assert(!html.includes("downloadFile('shelter-tasks.json'"), 'the legacy task export path does not generate plaintext JSON');
-assert(!html.includes("downloadFile('shelter-planner-migration-backup.json',raw)"), 'the technical migration snapshot is password-protected too');
+assert(html.includes("'shelter-tasks-backup-'+wpDateKey(Date.now())+'.shelter'"), 'task exports share the .shelter extension with browser backups');
+assert(!html.includes("downloadFile('shelter-planner-migration-backup.shelter',raw)"), 'the technical migration snapshot is password-protected too');
+const taskImportFn = html.slice(html.indexOf('function wpImportFile()'), html.indexOf('function wpReviewSelect('));
+assert(taskImportFn.includes("input.type='file'") && !taskImportFn.includes('input.accept'), 'the task picker stays unfiltered so .shelter files remain selectable');
 const downloadFileSource = html.slice(html.indexOf('function downloadFile('), html.indexOf('\n/* =========================================================\n   ДАШБОРД', html.indexOf('function downloadFile(')));
 assert(downloadFileSource.includes('link.click()') && !downloadFileSource.includes('Сохранено:'), 'UI exports trigger a real download without claiming success before the file is saved');
 const clientsHeader = fs.readFileSync(path.join(__dirname, '..', 'src', 'clients.h'), 'utf8');

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-hsL8v4uVY4+bx3LZud9ijOdcUWCufRJuW5rNtoSwjbA=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-j6mRhZLEqNNPl81dgKZlcUBtwAiUw/xaT5x3vrq8D0Y=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -16888,7 +16888,7 @@ function wpOpenTaskExportDialog() {
     try {
       const payload=wpExportPayload(scope&&scope.value==='projects'?'projects':'all',selected,transfer),envelope=await wpEncryptTaskPayload(payload,code);
       if(!OV.stack.includes(m))return;
-      if(!downloadFile('shelter-tasks-backup-'+wpDateKey(Date.now())+'.json',JSON.stringify(envelope,null,2))){button.disabled=false;return;}
+      if(!downloadFile('shelter-tasks-backup-'+wpDateKey(Date.now())+'.shelter',JSON.stringify(envelope,null,2),'application/octet-stream')){button.disabled=false;return;}
       if(password)password.value='';if(again)again.value='';closeModal(m);
     } catch(_) {if(!OV.stack.includes(m))return;button.disabled=false;if(password)password.value='';if(again)again.value='';toast('Не удалось зашифровать экспорт. Файл не создан.',{icon:'ban'});}
   });
@@ -16896,7 +16896,7 @@ function wpOpenTaskExportDialog() {
 function wpExportTasks() { wpOpenTaskExportDialog(); }
 function wpOpenMigrationBackupExport(raw,currentSnapshot=false) {
   const description=currentSnapshot?'Исходной копии миграции ещё нет: будет сохранён текущий снимок данных задач.':'Техническая копия содержит исходные данные всех досок.';
-  const filename=currentSnapshot?'shelter-tasks-technical-backup.json':'shelter-planner-migration-backup.json';
+  const filename=currentSnapshot?'shelter-tasks-technical-backup.shelter':'shelter-planner-migration-backup.shelter';
   const m=openModal({width:520,dismiss:false,html:`<div class="modal-h"><div class="mi-ic">${ico('archive')}</div><h3>Зашифровать копию миграции</h3><button type="button" class="icon-btn" data-wp-migration-export="cancel" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><p class="wp-form-hint">${esc(description)} После шифрования откроется системное окно выбора места сохранения. Для экспорта отдельных проектов используйте «Экспорт задач и серий». Установите код длиной от 8 до 1024 символов; код не хранится в SHELTER.</p><div class="wp-transfer-passwords"><label class="field"><span>Код файла</span><input class="input" type="password" id="wpMigrationExportPassword" autocomplete="new-password" maxlength="1024" spellcheck="false"></label><label class="field"><span>Повторите код</span><input class="input" type="password" id="wpMigrationExportPasswordAgain" autocomplete="new-password" maxlength="1024" spellcheck="false"></label></div></div><div class="modal-f"><button type="button" class="btn ghost" data-wp-migration-export="cancel">Отмена</button><button type="button" class="btn primary" data-wp-migration-export="save">${ico('lock')}Зашифровать и скачать</button></div>`});
   const root=m.scrim,password=$('#wpMigrationExportPassword',root),again=$('#wpMigrationExportPasswordAgain',root);m.guard=null;
   m.onClose=()=>{if(password)password.value='';if(again)again.value='';};
@@ -17179,13 +17179,14 @@ function wpIsTaskExportEnvelope(value) {
   return wpIsObj(value)&&value.format===WP_TASK_EXPORT_FORMAT&&value.version===WP_TASK_EXPORT_VERSION&&value.cipher==='AES-256-GCM'&&value.kdf==='PBKDF2-SHA-256'&&value.iterations===WP_TASK_EXPORT_ITERATIONS&&typeof value.salt==='string'&&typeof value.iv==='string'&&typeof value.ciphertext==='string';
 }
 function wpImportFile() {
-  const input=document.createElement('input');input.type='file';input.accept='.json,application/json';
+  /* Без accept-фильтра, как у бэкапа браузера: у .shelter нет системного UTI, и панель macOS иначе оставляет файлы невыбираемыми. */
+  const input=document.createElement('input');input.type='file';
   input.addEventListener('change',async()=>{
     const file=input.files&&input.files[0];if(!file)return;
     if(Number(file.size)>WP_TASK_EXPORT_MAX_FILE_BYTES){toast('Файл слишком большой для импорта.',{icon:'ban'});return;}
     let envelope;
     try { envelope=JSON.parse(await file.text()); }
-    catch(_) {toast('Не удалось прочитать JSON. Данные не менялись.',{icon:'ban'});return;}
+    catch(_) {toast('Не удалось прочитать файл. Данные не менялись.',{icon:'ban'});return;}
     if(!wpIsTaskExportEnvelope(envelope)){toast('Файл не зашифрован кодом SHELTER. Импорт открытого JSON отключён.',{icon:'ban'});return;}
     const payload=await wpPromptTaskImportPassword(envelope,file.name||'резервная копия');if(payload==null)return;
     wpImportPayload(payload);

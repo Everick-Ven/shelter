@@ -163,6 +163,13 @@ check('месячная сетка и выбранный день использ
   html.includes('<div class="wp-month-layout"><div class="wp-month-calendar">'));
 check('доска растягивается до правого края без изменения отступов других представлений',
   taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0}'));
+check('доска задач вмещается в ширину экрана без горизонтальной прокрутки',
+  plannerStyle.includes('.wp-board-lanes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:9px;overflow-x:hidden') &&
+  !plannerStyle.includes('repeat(4,minmax(220px,1fr))') && !/\.wp-board-lanes\{[^}]*overflow-x:auto/.test(plannerStyle) &&
+  (plannerStyle.match(/\.wp-board-lanes\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:7px\}/g) || []).length === 2 &&
+  !/\.wp-board-lanes\{[^}]*scroll-snap/.test(plannerStyle) &&
+  plannerStyle.includes('.wp-board-task-status .select{width:auto;min-width:min(115px,100%)') &&
+  plannerStyle.includes('.wp-board-column>header b{font-size:11px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'));
 check('месячная сетка задач использует компактные пропорции календаря истории',
   plannerStyle.includes('.wp-month-day{min-height:84px;aspect-ratio:1.22}') &&
   taskLayoutStyle.includes('.planner-page .wp-month-day{'));

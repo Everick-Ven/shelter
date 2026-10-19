@@ -4680,8 +4680,8 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .planner-page .wp-rail,.wp-rail-scrim{transition:none}
 }
 .planner-page .wp-date-control.is-iconless{gap:0}
-/* Доска использует всю доступную ширину; остальные представления сохраняют общий правый отступ. */
-.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0;overflow-x:clip}
+/* Доска делит общие боковые отступы с остальными представлениями (как в референсе); запрещена только горизонтальная прокрутка. */
+.planner-page .wp-view:has(>.wp-board-lanes){overflow-x:clip}
 /* Плашки сводки закреплены вместе с тулбаром: столбцы длинные, подписи должны быть видны. */
 .planner-page .wp-board-pin{position:sticky;top:0;z-index:9;margin:0;padding:0 0 10px;background:var(--surface);box-shadow:0 calc(-1 * var(--wp-view-pad-top,16px)) 0 var(--surface)}
 .planner-page .wp-board-pin:has(>.wp-board-toolbar.is-scrollable){position:static;box-shadow:none}

@@ -161,8 +161,9 @@ check('новый rail задач содержит мобильный слой �
 check('месячная сетка и выбранный день используют двухколоночную компоновку',
   taskLayoutStyle.includes('.wp-month-layout{') && taskLayoutStyle.includes('grid-template-columns:minmax(0,1fr) 280px') &&
   html.includes('<div class="wp-month-layout"><div class="wp-month-calendar">'));
-check('доска растягивается до правого края без изменения отступов других представлений',
-  taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0;overflow-x:clip}'));
+check('доска делит общие боковые отступы с остальными представлениями, как в референсе',
+  taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){overflow-x:clip}') &&
+  !taskLayoutStyle.includes('wp-board-lanes){padding-right'));
 check('плашки сводки доски закреплены вместе с тулбаром при прокрутке',
   taskLayoutStyle.includes('.planner-page .wp-board-pin{position:sticky;top:0;z-index:9;') &&
   taskLayoutStyle.includes('.planner-page .wp-board-pin:has(>.wp-board-toolbar.is-scrollable){position:static;box-shadow:none}') &&

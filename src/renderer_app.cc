@@ -41,7 +41,7 @@ bool g_auto_consent = true;
 // document_start content-scripts MV2-расширений shell-режима (строковый id
 // фрейма -> JSON [{js,css}]): браузер присылает их сообщением
 // shelter.extscripts на старте загрузки, выполняются в OnContextCreated —
-// раньше любого скрипта страницы (см. Shell::PushExtScripts).
+// раньше любого скрипта страницы (см. PushExtScriptsToFrame в src/shell.cc).
 // Идентификаторы фреймов в CEF строковые (CefFrame::GetIdentifier -> CefString),
 // в отличие от числовых идентификаторов браузеров.
 std::map<std::string, std::string> g_pending_ext_scripts;

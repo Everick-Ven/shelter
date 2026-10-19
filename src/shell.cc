@@ -712,7 +712,7 @@ std::string BuildExtListJson() {
   return os.str();
 }
 
-void Shell::PushExtScripts(CefRefPtr<CefFrame> frame) {
+void PushExtScriptsToFrame(CefRefPtr<CefFrame> frame) {
   if (!frame) return;
   ExtEnsureScanned();
   if (g_exts.empty()) return;
@@ -3110,7 +3110,7 @@ void Shell::OnTabLoadStart(CefRefPtr<CefBrowser> browser,
   // OnContextCreated: прямой ExecuteJavaScript из браузерного процесса
   // контекст ещё не застаёт и молча дропается. End-фазу (контекст уже есть)
   // по-прежнему внедряем напрямую в OnTabLoadEnd.
-  PushExtScripts(frame);
+  PushExtScriptsToFrame(frame);
   if (blocker::Enabled()) InjectBlockerCss(frame);
 }
 

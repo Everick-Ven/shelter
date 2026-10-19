@@ -196,11 +196,6 @@ class Shell {
   // странице.
   void PushProtections(CefRefPtr<CefFrame> frame);
   void PushProtectionsToTabs();
-  // Отправляет рендереру document_start content-scripts MV2-расширений,
-  // подходящие под URL фрейма: рендерер выполнит их в OnContextCreated —
-  // раньше любого скрипта страницы (см. shelter.extscripts).
-  void PushExtScripts(CefRefPtr<CefFrame> frame);
-
   // Биты защит для командной строки новых дочерних процессов (см.
   // BrowserApp::OnBeforeChildProcessLaunch): 1 — анти-отпечаток, 2 — cookies.
   // Без этого новый процесс (переход на другой сайт) рождался бы со значениями

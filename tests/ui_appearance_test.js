@@ -99,7 +99,7 @@ assert(plannerCss.includes('.wp-calendar-span.is-done{opacity:1;border-color:col
 assert(plannerCss.includes('.wp-calendar-span.is-done>span{color:rgb(var(--ok));text-decoration:line-through}'));
 assert(!plannerCss.includes('.wp-month-event') && !html.includes('wpMonthEvent'), 'month pills are replaced by history-style dots');
 assert(plannerCss.includes('.wp-task.is-done{border-color:color-mix(in srgb,rgb(var(--ok)) 36%,var(--line))') && plannerCss.includes('.wp-task.is-done .wp-task-title{color:rgb(var(--ok));text-decoration:line-through}'), 'completed task cards use green and a strike-through');
-assert(plannerCss.includes('.wp-week-grid.is-all-day .wp-task.is-done{border-color:color-mix(in srgb,rgb(var(--ok)) 36%,var(--line));border-left-color:rgb(var(--ok));background:color-mix(in srgb,rgb(var(--ok)) 10%,var(--card))'), 'week-card priority tints do not override the completed green state');
+assert(plannerCss.includes('.wp-week-grid .wp-task{grid-template-columns:26px minmax(0,1fr) 30px;padding:7px 8px;border:0;border-left:2px solid rgb(var(--accent));border-radius:calc(10px*var(--rs));background:var(--card-2);box-shadow:none}') && plannerCss.includes('.wp-week-grid .wp-task.is-overdue{border-left:2px solid rgb(var(--danger))}'), 'week task chips mirror the history event chips with an accent bar');
 assert(plannerCss.includes('.wp-calendar-completed-toggle{flex:none;display:inline-flex;'));
 assert(plannerCss.includes('.wp-month-day.is-today{'));
 assert(plannerCss.includes('.wp-month-selected{'));
@@ -109,8 +109,8 @@ assert(plannerCss.includes('.wp-day{display:flex;flex-direction:column;gap:6px;m
 assert(plannerCss.includes('.wp-month-day{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:5px;min-width:0;min-height:84px;aspect-ratio:1.22;padding:7px;border:1px solid var(--line);border-radius:calc(14px*var(--rs));background:var(--card);box-shadow:var(--hi);overflow:hidden;cursor:pointer;'), 'month cells mirror the compact history metrics');
 assert(plannerCss.includes('.wp-month-day.is-today{background:linear-gradient(145deg,rgb(var(--ga)),rgb(var(--gc)) 58%,rgb(var(--gb)));border-color:transparent;') && plannerCss.includes('.wp-month-day.is-selected{border-color:rgb(var(--accent));box-shadow:0 0 0 1px rgb(var(--accent)),0 12px 26px -16px rgb(var(--accent))}'), 'month today/selected states mirror history');
 assert(plannerCss.includes('.wp-month-day.is-today.is-selected{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px rgb(var(--gc))'), 'the selected today cell keeps the history ring');
-assert(plannerCss.includes('.wp-week-grid.is-all-day .wp-day.is-selected{border:0;box-shadow:inset 0 0 0 1px rgb(var(--accent)/.45)}') && plannerCss.includes('.wp-week-grid.is-all-day .wp-day.is-selected .wp-day-head{background:color-mix(in srgb,rgb(var(--accent)) 14%,var(--card-2))}') && plannerCss.includes('.wp-week-grid.is-all-day .wp-day.is-selected .wp-day-head>div b{color:rgb(var(--accent))}'), 'the selected week day keeps a visible inset ring with a tinted header');
-assert(plannerCss.includes('.wp-week-grid.is-all-day .wp-day.is-today.is-selected .wp-day-head{background:color-mix(in srgb,rgb(var(--accent)) 18%,var(--card-2))}'), 'the selected today column stays distinct from an unselected today');
+assert(plannerCss.includes('.wp-day.is-today{border-color:rgb(var(--accent)/.5);box-shadow:0 0 0 1px rgb(var(--accent)/.25)}') && plannerCss.includes('.wp-day.is-selected:not(.is-today){border-color:rgb(var(--accent));box-shadow:0 0 0 1px rgb(var(--accent)/.25)}'), 'today and selected week cards use history-style accent rings');
+assert(!plannerCss.includes('.wp-week-grid.is-all-day .wp-day.is-selected'), 'week selection reuses the base card ring instead of a flat override');
 assert(html.includes('class="btn sm wp-add-day"'), 'day columns use a standard small button for quick add');
 assert(!/\.wp-add-day\{[^}]*dashed/.test(plannerCss) && !plannerCss.includes('.wp-add-day:hover'), 'the day quick-add button uses the standard button chrome');
 assert(plannerCss.includes('html[data-theme="graphite"] .wp-month-day.is-today .wp-month-date,') && plannerCss.includes('#0E0E10'), 'graphite today cells use dark ink on the light gradient');
@@ -127,10 +127,11 @@ assert(plannerCss.includes('.wp-month-mini-dots i.p-critical{background:var(--wp
 assert(html.includes('data-act="wpMonthMiniToggle"') && html.includes('wp-month-layout is-mini'), 'the month summary toggles the side miniature');
 assert(html.includes('wpRenameSelfAssignee(prevName, name)'), 'renaming the profile remaps self-assigned tasks');
 assert(html.includes("function accountName() { return (S.account && S.account.name) || (S.ui && S.ui.profileName) || 'Вы'; }"), 'the browser user falls back to the profile name');
-assert(plannerCss.includes('.wp-week-grid.is-all-day{position:relative;display:block;'));
-assert(plannerCss.includes('.wp-week-grid.is-all-day .wp-day-head{'));
-assert(plannerCss.includes('.wp-week-grid.is-all-day .wp-task.p-critical') && plannerCss.includes('.wp-week-grid.is-all-day .wp-task.p-high') && plannerCss.includes('.wp-week-grid.is-all-day .wp-task.p-normal') && plannerCss.includes('.wp-week-grid.is-all-day .wp-task.p-none'), 'week cards use urgency-specific task colors');
-assert(plannerCss.includes('.wp-week-span-layer{top:60px;left:0;right:0;column-gap:0}'));
+assert(plannerCss.includes('.wp-week-grid.is-all-day{position:relative;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;'));
+assert(!plannerCss.includes('.wp-week-grid.is-all-day .wp-day-head'), 'week headers reuse the base row layout');
+assert(plannerCss.includes('.wp-day-head{display:flex;align-items:baseline;justify-content:space-between;gap:6px;min-height:32px;padding:2px 4px 6px}'), 'week day headers keep the history row layout');
+assert(plannerCss.includes('.wp-task.p-critical{border-color:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 30%,var(--line));border-left:3px solid var(--wp-prio-critical,rgb(var(--danger)));') && plannerCss.includes('.wp-task.p-high{') && plannerCss.includes('.wp-task.p-normal{') && plannerCss.includes('.wp-task.p-none{'), 'week chips tint their accent bar through the shared urgency presets');
+assert(plannerCss.includes('.wp-week-span-layer{top:56px;left:0;right:0}'));
 assert(plannerCss.includes('.wp-week-grid.is-all-day .wp-day-span-spacer{flex:none;height:var(--wp-day-span-space,0px)}'), 'week cells reserve space below the header for range lanes');
 assert(plannerCss.includes('.wp-quick-quadrant{'));
 const taskTitleRule = (plannerCss.match(/(?:^|})\.wp-task-title\{([^}]*)\}/) || [])[1] || '';

@@ -161,6 +161,12 @@ check('новый rail задач содержит мобильный слой �
 check('месячная сетка и выбранный день используют двухколоночную компоновку, как в «Истории»',
   taskLayoutStyle.includes('.wp-month-layout{') && taskLayoutStyle.includes('grid-template-columns:minmax(0,1fr) 330px') &&
   html.includes('<div class="wp-month-layout"><div class="wp-month-calendar">'));
+check('мини-календарь закреплён слева, а подробный день занимает правую колонку',
+  taskLayoutStyle.includes('.wp-month-layout.is-mini{grid-template-columns:232px minmax(0,1fr)}') &&
+  taskLayoutStyle.includes('.wp-month-layout.is-mini>.wp-month-mini{position:sticky;top:0}') &&
+  taskLayoutStyle.includes('.wp-month-layout.is-mini>.wp-month-selected{position:static;max-height:none;overflow:visible}') &&
+  taskLayoutStyle.includes('.wp-month-layout.is-mini{grid-template-columns:minmax(0,1fr)}') &&
+  html.includes('<div class="wp-month-layout is-mini">'));
 check('доска делит общие боковые отступы с остальными представлениями, как в референсе',
   taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){overflow-x:clip}') &&
   !taskLayoutStyle.includes('wp-board-lanes){padding-right'));

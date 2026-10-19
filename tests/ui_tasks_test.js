@@ -189,7 +189,7 @@ const uid = prefix => String(prefix || 'id') + '-test-' + (++__uid);
 const boardCode = () => 'SHTR-TEST';
 const parseRu = s => { const m = String(s || '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
 const accountEmail = () => String((S.account && S.account.email) || '').trim().toLowerCase();
-const accountName = () => (S.account && S.account.name) || 'Вы';
+const accountName = () => (S.account && S.account.name) || (S.ui && S.ui.profileName) || 'Вы';
 const defaultBoard = () => ({ id: '', name: 'Моя доска', code: '', projects: [], people: ['Вы'], prios: [], terms: [], formats: [], statuses: [], tasks: [], invites: [], ownerEmail: '' });
 let __ensureBoardCount=0;
 const ensureBoard = () => { __ensureBoardCount++; if (!S.board) S.board = defaultBoard(); if (!Array.isArray(S.board.tasks)) S.board.tasks = []; if (!Array.isArray(S.board.projects)) S.board.projects = []; };
@@ -234,9 +234,9 @@ vm.runInNewContext(harness + '\n' + domSelectSource + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, saveNowCount:()=>__saveNowCount, ensureBoardCount:()=>__ensureBoardCount, actions: ACT, render: RENDER, after: AFTER,
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
-  wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
+  wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
+  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
@@ -302,15 +302,37 @@ assert.strictEqual(api.wpIsMine({ assignee: 'Другой исполнитель
 assert.strictEqual(api.wpAssigneeLabel({ assignee: 'Я' }), 'Alex');
 assert.strictEqual(api.wpAssigneeLabel({ assignee: 'ВЫ' }), 'Alex');
 assert.strictEqual(api.wpAssigneeLabel({ assignee: 'ALEX@example.test' }), 'Alex');
+assert.strictEqual(api.wpAssigneeLabel({ assignee: 'me' }), 'Alex', 'the stored self marker resolves to the profile name');
+assert.strictEqual(api.wpCanonicalAssignee('Alex'), 'me');
+assert.strictEqual(api.wpCanonicalAssignee('я'), 'me');
+assert.strictEqual(api.wpCanonicalAssignee('ALEX@example.test'), 'me');
+assert.strictEqual(api.wpCanonicalAssignee(''), '', 'unassigned tasks stay unassigned');
+assert.strictEqual(api.wpCanonicalAssignee('Другой исполнитель'), 'Другой исполнитель', 'foreign assignees keep their literal names');
+assert.strictEqual(api.WP_SELF_ASSIGNEE, 'me');
+const savedAccount = state.account;
+state.account = null; state.ui.profileName = 'Гость';
+assert.strictEqual(api.wpCurrentAssignee(), 'Гость', 'the profile name identifies the browser user without login');
+state.account = savedAccount; delete state.ui.profileName;
 const assigneeChoices = Array.from(api.wpAssigneeChoices());
 assert.strictEqual(assigneeChoices.filter(name => name === 'Alex').length, 1, 'self aliases collapse into one account-name option');
 for (const alias of ['Вы', 'Я', 'вы', 'я', 'YOU', 'me', 'alex@example.test']) assert(!assigneeChoices.includes(alias), `assignee choices must not expose the self alias ${alias}`);
 const selfAliasCard = api.wpTaskCard(state.board.tasks.find(task => task.id === 'self-ya'), { compact: true });
 assert(selfAliasCard.includes('Исполнитель: Alex') && selfAliasCard.includes('<span>Alex</span>'), "compact cards display the signed-in user's name instead of Вы/Я");
 const legacyAliasBoard = api.wpNormalizeBoard({ id: 'alias-board', name: 'Доска', people: ['Вы', 'Анна'], tasks: [{ id: 'alias-task', title: 'Старый исполнитель', assignee: 'Вы' }, { id: 'other-task', title: 'Чужой исполнитель', assignee: 'Анна' }] });
-assert.strictEqual(legacyAliasBoard.tasks.find(task => task.id === 'alias-task').assignee, 'Alex', 'stored Вы aliases migrate to the account name on load');
+assert.strictEqual(legacyAliasBoard.tasks.find(task => task.id === 'alias-task').assignee, 'me', 'stored Вы aliases migrate to the self marker on load');
+assert.strictEqual(api.wpAssigneeLabel(legacyAliasBoard.tasks.find(task => task.id === 'alias-task')), 'Alex');
 assert.strictEqual(legacyAliasBoard.tasks.find(task => task.id === 'other-task').assignee, 'Анна');
 assert(legacyAliasBoard.people.includes('Alex') && !legacyAliasBoard.people.includes('Вы'), 'board people migrate stored self aliases to the account name');
+const boardBeforeRename = state.board;
+const staleBoard = { id: 'stale-board', tasks: [{ id: 'stale-self', title: 'Старое имя', assignee: 'Alex' }, { id: 'stale-other', title: 'Чужое имя', assignee: 'Анна' }], people: ['Alex', 'Анна'] };
+state.board = staleBoard; state.boards = [staleBoard];
+state.account.name = 'Борис';
+assert.strictEqual(api.wpRenameSelfAssignee('Alex', 'Борис'), 1, 'renaming the profile remaps tasks with the previous name');
+assert.strictEqual(staleBoard.tasks[0].assignee, 'me');
+assert.strictEqual(api.wpAssigneeLabel(staleBoard.tasks[0]), 'Борис', 'self-assigned tasks follow the profile name');
+assert.strictEqual(staleBoard.tasks[1].assignee, 'Анна', 'foreign assignees survive a profile rename');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(staleBoard.people)), ['Борис', 'Анна']);
+state.account.name = 'Alex'; state.board = boardBeforeRename; state.boards = null;
 // Both calendar modes span every visible project on the active board, even if a project detail was open previously.
 api.WP.projectId = 'project-1';
 const weekIds = new Set(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id));
@@ -340,6 +362,33 @@ assert(monthMarkup.includes('wp-month-dots'), 'month cells render history-style 
 const oct14Cell = api.wpMonthDay('2026-10-14', Array.from(api.wpMonthEntities('2026-10-01')));
 assert(oct14Cell.includes('<span class="wp-month-count">2</span>') && (oct14Cell.match(/<i class="p-/g) || []).length === 2, 'month cells dot only the signed-in user’s tasks for that date');
 assert(!monthMarkup.includes('Чужая задача'));
+assert(monthMarkup.includes('data-act="wpMonthMiniToggle"') && monthMarkup.includes('Компактный календарь'), 'the month summary offers the mini-calendar toggle');
+const miniDay = api.wpMonthMiniDay('2026-10-14', Array.from(api.wpMonthEntities('2026-10-01')));
+assert(miniDay.startsWith('<button type="button" class="wp-month-mini-day') && miniDay.includes('data-date="2026-10-14"') && miniDay.includes('<span class="wp-month-mini-num">14</span>'), 'mini days are compact date buttons');
+assert(miniDay.includes('data-drop-date="2026-10-14"'), 'mini days accept dragged tasks like full cells');
+assert.strictEqual((miniDay.match(/<i class="p-/g) || []).length, 2, 'mini days dot their tasks by priority');
+const miniEmpty = api.wpMonthMiniDay('2026-10-21', Array.from(api.wpMonthEntities('2026-10-01')));
+assert(miniEmpty.includes('<span class="wp-month-mini-dots"></span>'), 'empty mini days keep the dot row for uniform rows');
+api.WP.monthMini = true;
+const miniMarkup = api.wpViewHtml();
+assert(miniMarkup.includes('wp-month-layout is-mini') && miniMarkup.includes('wp-month-mini-grid') && !miniMarkup.includes('class="wp-month-grid"') && miniMarkup.includes('wp-month-selected'), 'mini mode collapses the month into the side miniature with the day panel on the right');
+const miniSelectedBtn = miniMarkup.match(/<button[^>]*data-date="2026-10-13"[^>]*>/)[0];
+assert(miniSelectedBtn.includes('is-selected'), 'the miniature marks the selected day');
+state.board.tasks.push({ id: 'mini-note', title: 'С заметкой', homeType: 'personal', assignee: 'me', scheduledDate: '2026-10-13', statusKey: 'open', priorityKey: 'normal', description: 'Подробности дня', tags: [] });
+assert(api.wpViewHtml().includes('Подробности дня'), 'mini mode shows detailed day tasks with notes');
+api.WP.monthMini = false;
+assert(!api.wpViewHtml().includes('Подробности дня'), 'the full month keeps compact day cards');
+state.board.tasks.pop();
+api.wpToggleMonthMini();
+assert.strictEqual(api.WP.monthMini, true);
+assert.strictEqual(state.ui.plannerMonthMini, true, 'the mini toggle persists');
+api.wpToggleMonthMini();
+assert.strictEqual(api.WP.monthMini, false);
+assert.strictEqual(state.ui.plannerMonthMini, false);
+const calendarModeBeforeMiniRestore = api.WP.calendarMode;
+api.WP._monthMiniRestored = false; state.ui.plannerMonthMini = true; api.wpEnsureState();
+assert.strictEqual(api.WP.monthMini, true, 'the mini mode restores from saved state');
+api.WP._monthMiniRestored = true; api.WP.monthMini = false; state.ui.plannerMonthMini = false; api.WP.calendarMode = calendarModeBeforeMiniRestore;
 assert(!api.wpNavHtml().includes('data-view="matrix"') && !api.wpNavHtml().includes('label:"Матрица"'), 'Matrix must no longer be a planner navigation destination');
 const rangeTasks = [
   { id: 'span-before-month', title: 'Срок на границе месяца', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-09-25', deadlineAt: '2026-10-02', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 1, order: 20, tags: [] },
@@ -737,7 +786,8 @@ state.board.tasks = [];
 const createdPersonal = api.wpCreateTask('Личная с меткой', '2026-10-13', null, 2, 'Я', false, 'personal');
 assert(createdPersonal);
 assert.strictEqual(createdPersonal.homeType, 'personal');
-assert.strictEqual(createdPersonal.assignee, 'Alex', 'new tasks persist the canonical account name rather than a self alias');
+assert.strictEqual(createdPersonal.assignee, 'me', 'new tasks persist the self marker rather than a name copy');
+assert.strictEqual(api.wpAssigneeLabel(createdPersonal), 'Alex', 'new tasks display the profile name');
 assert.strictEqual(createdPersonal.matrixQuadrant, 2);
 assert.strictEqual(createdPersonal.statusKey, 'open');
 const projectTarget = api.wpContextAddTarget('projects', 'project-1');
@@ -799,7 +849,8 @@ assert(!legacyMatrixForm.includes('прежний список') && !legacyMatri
 const applied = { id: 'new-project-task', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null };
 api.wpApplyTaskForm(applied, { ...formValues, title: 'Метка в проекте', kind: 'project', projectId: 'project-1', quadrant: 0, statusKey: 'open' }, { newTask: true });
 assert.strictEqual(applied.homeType, 'project');
-assert.strictEqual(applied.assignee, 'Alex', 'saving an alias from an older form stores the account name');
+assert.strictEqual(applied.assignee, 'me', 'saving an alias from an older form stores the self marker');
+assert.strictEqual(api.wpAssigneeLabel(applied), 'Alex');
 assert.strictEqual(applied.matrixQuadrant, null, 'stale quadrant input from older forms is ignored');
 const moveTask = { id: 'move-personal-project', title: 'Перенос', homeType: 'personal', homeId: '', projectId: '', project: '', assignee: 'Alex', statusKey: 'open', priorityKey: 'normal', tags: [] };
 state.board.tasks.push(moveTask);
@@ -1105,7 +1156,8 @@ assert.strictEqual(typeof api.actions.wpView, 'function');
   assert.strictEqual(selfPayload.transfer.target, 'self');
   const stampedBoards = [{ id: 'b1', tasks: [{ id: 't1', title: 'Для меня', assignee: 'Кто-то' , transferToId: 'SH-AAAA-BBBB' }] }];
   assert.strictEqual(api.wpApplyTransferRemap(stampedBoards, executorPayload.transfer), 1);
-  assert.strictEqual(stampedBoards[0].tasks[0].assignee, 'Alex', 'importing an executor file makes the importer the assignee');
+  assert.strictEqual(stampedBoards[0].tasks[0].assignee, 'me', 'importing an executor file makes the importer the assignee');
+  assert.strictEqual(api.wpAssigneeLabel(stampedBoards[0].tasks[0]), 'Alex');
   assert(!('transferToId' in stampedBoards[0].tasks[0]), 'transfer stamps are stripped on import');
   const legacyStamped = [{ id: 'b2', tasks: [{ id: 't2', title: 'Старый штамп', assignee: 'Анна', transferToId: 'SH-AAAA-BBBB' }] }];
   assert.strictEqual(api.wpApplyTransferRemap(legacyStamped, selfPayload.transfer), 0, 'self imports keep assignees');

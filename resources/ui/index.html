@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-PRQVj3gR7nhT4jN2JMlIfbPjorAkOg+X8x9sKBW5Ksw=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-5Olvj3zUxMvhfAAY2OhxjzZzR252RcyIcHxnlcOmWkA=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4105,6 +4105,25 @@ html[data-theme="graphite"] .wp-month-day.is-today .wp-month-add:hover{backgroun
 .wp-month-selected h2{margin:0;font:600 16px/1.2 var(--font-d);letter-spacing:-.015em}
 .wp-month-selected>header span{color:var(--text-3);font-size:12px}
 .wp-month-selected .wp-task-list{gap:6px}
+.wp-month-mini{min-width:0;padding:12px 10px;border:1px solid var(--line);border-radius:calc(14px*var(--rs));background:var(--card);box-shadow:var(--hi)}
+.wp-month-mini-dows{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin-bottom:6px}
+.wp-month-mini-dows>div{text-align:center;color:var(--text-3);font-size:10px;font-weight:550}
+.wp-month-mini-grid{display:flex;flex-direction:column;gap:2px;min-width:0}
+.wp-month-mini-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.wp-month-mini-day{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;padding:4px 1px 5px;border:0;border-radius:calc(8px*var(--rs));background:transparent;color:var(--text);cursor:pointer}
+.wp-month-mini-day:hover{background:var(--card-2)}
+.wp-month-mini-day.drop-active{background:color-mix(in srgb,rgb(var(--accent)) 14%,var(--card));box-shadow:0 0 0 1.5px rgb(var(--accent))}
+.wp-month-mini-num{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;font-size:12px;font-variant-numeric:tabular-nums}
+.wp-month-mini-day.is-selected .wp-month-mini-num{background:var(--card-3);font-weight:650}
+.wp-month-mini-day.is-today .wp-month-mini-num{background:linear-gradient(145deg,rgb(var(--ga)),rgb(var(--gc)) 58%,rgb(var(--gb)));color:#fff;font-weight:650}
+.wp-month-mini-day.is-today.is-selected .wp-month-mini-num{box-shadow:0 0 0 2px var(--card),0 0 0 3.5px rgb(var(--gc))}
+html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color:#0E0E10}
+.wp-month-mini-day.is-out{opacity:.34}
+.wp-month-mini-dots{display:flex;align-items:center;justify-content:center;gap:3px;min-height:6px}
+.wp-month-mini-dots i{width:5px;height:5px;border-radius:50%;background:var(--wp-prio-none,var(--text-4))}
+.wp-month-mini-dots i.p-normal{background:var(--wp-prio-normal,rgb(var(--accent)))}
+.wp-month-mini-dots i.p-high{background:var(--wp-prio-high,rgb(var(--warn)))}
+.wp-month-mini-dots i.p-critical{background:var(--wp-prio-critical,rgb(var(--danger)))}
 .wp-week-selected{margin-top:13px;padding:11px 12px;border:1px solid var(--line);border-radius:calc(14px*var(--rs));background:color-mix(in srgb,var(--card-2) 48%,var(--card));box-shadow:var(--hi)}
 .wp-week-selected>header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .wp-week-selected>header>div{display:flex;align-items:baseline;gap:9px;min-width:0}
@@ -4579,6 +4598,9 @@ html[data-theme="graphite"] .wp-month-day.is-today .wp-month-add:hover{backgroun
   display:grid;grid-template-columns:minmax(0,1fr) 330px;
   align-items:start;gap:18px;min-width:0;
 }
+.wp-month-layout.is-mini{grid-template-columns:232px minmax(0,1fr)}
+.wp-month-layout.is-mini>.wp-month-mini{position:sticky;top:0}
+.wp-month-layout.is-mini>.wp-month-selected{position:static;max-height:none;overflow:visible}
 .planner-page .wp-month-calendar{min-width:0}
 .planner-page .wp-month-dows,.planner-page .wp-month-days{gap:8px}
 .planner-page .wp-month-grid{gap:8px}
@@ -4610,6 +4632,8 @@ html[data-theme="graphite"] .wp-month-day.is-today .wp-month-add:hover{backgroun
 @container wp-workspace (max-width:980px){
   .wp-month-layout{grid-template-columns:minmax(0,1fr)}
   .wp-month-layout>.wp-month-selected{position:static;max-height:none;margin-top:0}
+  .wp-month-layout.is-mini{grid-template-columns:minmax(0,1fr)}
+  .wp-month-layout.is-mini>.wp-month-mini{position:static}
 }
 @container wp-workspace (max-width:760px){
   .planner-page .wp-topbar{flex-wrap:wrap;gap:10px;padding:12px 16px}
@@ -5779,7 +5803,7 @@ const defaultBoard = () => ({
   ownerEmail: ''
 });
 function accountEmail() { return String((S.account && S.account.email) || '').trim().toLowerCase(); }
-function accountName() { return (S.account && S.account.name) || 'Вы'; }
+function accountName() { return (S.account && S.account.name) || (S.ui && S.ui.profileName) || 'Вы'; }
 function boardCode() {
   const rnd = () => Math.random().toString(36).slice(2, 6).toUpperCase();
   let c = '', guard = 0;
@@ -11704,8 +11728,10 @@ function openProfileSettings() {
   const save = () => {
     const name = input.value.replace(/\s+/g, ' ').trim();
     if (!name) { toast('Введите имя профиля', { icon: 'info' }); input.focus(); return; }
+    const prevName = S.account ? String(S.account.name || '') : String((S.ui && S.ui.profileName) || '');
     if (S.account) { S.account.name = name; S.account.initials = initialsOf(name); }
     else S.ui.profileName = name;
+    if (prevName && prevName !== name) wpRenameSelfAssignee(prevName, name);
     S.ui.profileAvatar = avatarDraft || '';
     saveNow(); renderUser(); refreshPage('profile'); closeModal(modal); toast('Настройки аккаунта сохранены', { icon: 'check' });
   };
@@ -13656,10 +13682,10 @@ function init() {
    ========================================================= */
 const WP_SCHEMA = 7;
 const WP = {
-  view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', calendarShowCompleted: true, boardShowCompleted: true,
+  view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', calendarShowCompleted: true, boardShowCompleted: true, monthMini: false,
   sidebarCollapsed: false, railOpen: false, allFilter: 'active', allAssigneeFilter: 'all', allMineOnly: false, allProjectFilter: 'all', allSort: 'urgency', allSortDir: 'desc', allTagFilter: 'all', quick: null, reviewSelected: [],
   boardHomeFilter: 'all', boardAssigneeFilter: 'all', boardMineOnly: false, boardFocus: 'all', boardTagFilter: 'all', boardSort: 'urgency', boardSortDir: 'desc',
-  _sortRestored: false, _searchTimer: 0, _calendarModeRestored: false, _completedVisibilityRestored: false, _sidebarRestored: false, _touchX: null, _undoToken: 0
+  _sortRestored: false, _searchTimer: 0, _calendarModeRestored: false, _completedVisibilityRestored: false, _sidebarRestored: false, _monthMiniRestored: false, _touchX: null, _undoToken: 0
 };
 const WP_STATUS = { open: 'В работе', waiting: 'Пауза', done: 'Готово', cancelled: 'Отменена' };
 const WP_STATUS_RU = { open: 'Открыта', waiting: 'Ожидание', done: 'Выполнена', cancelled: 'Отменена' };
@@ -14207,10 +14233,8 @@ function wpNormalizeBoard(board) {
   if(wpIsObj(b.eisen) && Array.isArray(b.eisen.tasks)) { b.legacy=Object.assign({},wpIsObj(b.legacy)?b.legacy:{},{eisenSettings:wpClone(b.eisen.settings||{})}); delete b.eisen; }
   b.tasks=b.tasks.map((t,i)=>wpMapLegacyTask(t,i,b)).filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i);
   const selfAssignee=wpCurrentAssignee();
-  if(selfAssignee && selfAssignee!=='Вы') {
-    b.tasks.forEach(t=>{ if(t && (t.assignee==='Вы'||t.assignee==='Я')) t.assignee=selfAssignee; });
-    if(Array.isArray(b.people)) b.people=b.people.map(p=>p==='Вы'||p==='Я'?selfAssignee:p);
-  }
+  b.tasks.forEach(t=>{ if(wpIsObj(t) && t.assignee!=null && typeof t.assignee!=='object') t.assignee=wpCanonicalAssignee(t.assignee); });
+  if(Array.isArray(b.people)) b.people=b.people.map(p=>p==='Вы'||p==='Я'?selfAssignee:p);
   const taskMap=new Map(b.tasks.map(t=>[t.id,t]));
   const rulesById=new Map();
   b.recurrenceRules=b.recurrenceRules.filter(wpIsObj).map(r=>{
@@ -14397,6 +14421,10 @@ function wpEnsureState() {
     WP.sidebarCollapsed=S.ui.plannerSidebarCollapsed===true;
     WP._sidebarRestored=true;
   }
+  if(!WP._monthMiniRestored) {
+    WP.monthMini=S.ui.plannerMonthMini===true;
+    WP._monthMiniRestored=true;
+  }
   if(!WP.weekStart) WP.weekStart=wpWeekStart(wpDateKey(Date.now()));
   if(!WP.mobileDate || wpWeekStart(WP.mobileDate)!==WP.weekStart) {
     const today=wpDateKey(Date.now()); WP.mobileDate=today>=WP.weekStart&&today<=wpAddDays(WP.weekStart,6) ? today : WP.weekStart;
@@ -14567,6 +14595,27 @@ function wpNormalizeAssignee(value) {
 }
 function wpAssigneeLabel(task) {
   return wpNormalizeAssignee(task && task.assignee);
+}
+/* Исполнитель «пользователь браузера» хранится единой меткой, а отображаемое
+   имя всегда берётся из профиля — переименование подхватывается само. */
+const WP_SELF_ASSIGNEE='me';
+function wpCanonicalAssignee(value) {
+  const text=wpNormalizeAssignee(value); if(!text) return '';
+  return wpTextKey(text)===wpTextKey(wpCurrentAssignee()) ? WP_SELF_ASSIGNEE : text;
+}
+function wpRenameSelfAssignee(oldName,newName) {
+  const from=wpTextKey(oldName), to=String(newName||'').trim(); if(!from||!to) return 0;
+  const boards=[]; [S.board].concat(Array.isArray(S.boards)?S.boards:[]).forEach(board=>{ if(wpIsObj(board)&&!boards.includes(board)) boards.push(board); });
+  let remapped=0;
+  boards.forEach(board=>{
+    (board.tasks||[]).forEach(task=>{
+      if(!wpIsObj(task)||task.assignee==null||typeof task.assignee==='object') return;
+      const label=wpTextKey(task.assignee);
+      if(label===from||label==='вы'||label==='я') { task.assignee=WP_SELF_ASSIGNEE; remapped++; }
+    });
+    if(Array.isArray(board.people)) board.people=board.people.map(person=>wpTextKey(person)===from?to:person);
+  });
+  return remapped;
 }
 /* Единые правила фильтрации и сортировки для списка и доски. */
 const WP_LIST_FILTERS=[['active','Активные'],['open','В работе'],['waiting','Ожидание'],['done','Выполненные'],['cancelled','Отменённые'],['all','Все']];
@@ -15039,7 +15088,7 @@ function wpCreateTask(title,date=null,projectId=null,quadrant=null,assignee=wpCu
   if(suggestedHome==='project' && !pr) return false;
   const id=uid('task'), resolvedHome=WP_HOME_TYPES.includes(suggestedHome)?suggestedHome:'personal';
   const scheduledDate=wpDateKey(date)||null, q=wpValidQuadrant(quadrant);
-  const data={id,title:text,kind:resolvedHome==='project'?'project':'personal',homeType:resolvedHome,homeId:resolvedHome==='project'?pr.id:'',project:resolvedHome==='project'?pr.name:'',projectId:resolvedHome==='project'?pr.id:'',inbox:resolvedHome==='inbox',assignee:wpNormalizeAssignee(assignee)||wpCurrentAssignee(),ownerEmail:accountEmail()||(S.board.ownerEmail||''),scheduledDate,deadlineAt:null,statusKey:'open',status:'В работе',priorityKey:'normal',prio:'Не срочные',prevPrio:'Не срочные',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:null,description:'',comment:'',tags:[],matrixQuadrant:q,importance:q==null?null:q<2,urgency:q==null?null:(q===0||q===2),recurrenceRuleId:null,parentTaskId:null,durationEstimateMinutes:null,reminderAt:null,waitingReason:'',reviewAt:null,order:Date.now(),schemaVersion:WP_SCHEMA,legacy:{}};
+  const data={id,title:text,kind:resolvedHome==='project'?'project':'personal',homeType:resolvedHome,homeId:resolvedHome==='project'?pr.id:'',project:resolvedHome==='project'?pr.name:'',projectId:resolvedHome==='project'?pr.id:'',inbox:resolvedHome==='inbox',assignee:wpCanonicalAssignee(assignee)||WP_SELF_ASSIGNEE,ownerEmail:accountEmail()||(S.board.ownerEmail||''),scheduledDate,deadlineAt:null,statusKey:'open',status:'В работе',priorityKey:'normal',prio:'Не срочные',prevPrio:'Не срочные',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:null,description:'',comment:'',tags:[],matrixQuadrant:q,importance:q==null?null:q<2,urgency:q==null?null:(q===0||q===2),recurrenceRuleId:null,parentTaskId:null,durationEstimateMinutes:null,reminderAt:null,waitingReason:'',reviewAt:null,order:Date.now(),schemaVersion:WP_SCHEMA,legacy:{}};
   wpSyncTaskAliases(data); S.board.tasks.push(data); return data;
 }
 function wpRefFromElement(el) {
@@ -15193,10 +15242,20 @@ function wpToggleCalendarCompleted(scope='calendar') {
   }
   persist(); wpRenderView();
 }
-function wpSelectedDayPanel(date,entities,mode) {
+function wpMonthMiniToggle() {
+  const mini=WP.monthMini===true, label=mini?'Обычный календарь':'Компактный календарь';
+  return `<button type="button" class="btn sm ghost wp-month-mini-toggle ${mini?'is-active':''}" data-act="wpMonthMiniToggle" aria-pressed="${mini}" aria-label="${label}" title="${label}">${ico('sidebar')}<span>${label}</span></button>`;
+}
+function wpToggleMonthMini() {
+  if(!wpIsObj(S.ui)) S.ui={};
+  WP.monthMini=WP.monthMini!==true;
+  S.ui.plannerMonthMini=WP.monthMini;
+  persist(); wpRenderView();
+}
+function wpSelectedDayPanel(date,entities,mode,detailed=false) {
   const selected=wpCalendarShownEntities(entities).filter(task=>wpTaskCoversDate(task,date));
   const label=wpDateLabel(date), sectionClass=mode==='week'?'wp-week-selected':'wp-month-selected';
-  return `<section class="${sectionClass}" aria-label="Задачи на ${esc(label)}" aria-live="polite"><header><div><h2>${esc(label)}</h2><span>${selected.length} ${plural(selected.length,['задача','задачи','задач'])}</span></div><button type="button" class="btn sm ghost" data-act="wpQuickDay" data-date="${esc(date)}">${ico('plus')}Добавить</button></header><div class="wp-task-list">${selected.map(task=>wpTaskCard(task,{compact:true})).join('')||wpEmpty('calendar','На этот день задач нет','Выберите дату в календаре, чтобы посмотреть её задачи.')}</div></section>`;
+  return `<section class="${sectionClass}" aria-label="Задачи на ${esc(label)}" aria-live="polite"><header><div><h2>${esc(label)}</h2><span>${selected.length} ${plural(selected.length,['задача','задачи','задач'])}</span></div><button type="button" class="btn sm ghost" data-act="wpQuickDay" data-date="${esc(date)}">${ico('plus')}Добавить</button></header><div class="wp-task-list">${selected.map(task=>wpTaskCard(task,detailed?{}:{compact:true})).join('')||wpEmpty('calendar','На этот день задач нет','Выберите дату в календаре, чтобы посмотреть её задачи.')}</div></section>`;
 }
 function wpWeekSummary(entities) {
   const active=entities.filter(t=>['open','waiting'].includes(wpTaskStatus(t))).length;
@@ -15234,13 +15293,23 @@ function wpMonthWeek(days,entities) {
 }
 function wpMonthSummary(entities) {
   const active=entities.filter(t=>['open','waiting'].includes(wpTaskStatus(t))).length, done=entities.filter(t=>wpTaskStatus(t)==='done').length, overdue=entities.filter(wpDeadlineOverdue).length;
-  return `<div class="wp-month-summary"><span>${ico('list')}<b>${active+done}</b> задач</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${wpCalendarCompletedToggle()}</div>`;
+  return `<div class="wp-month-summary"><span>${ico('list')}<b>${active+done}</b> задач</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${wpCalendarCompletedToggle()}${wpMonthMiniToggle()}</div>`;
+}
+function wpMonthMiniDay(date,entities) {
+  const list=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date));
+  const p=wpDateParts(date), outside=wpMonthStart(date)!==WP.monthStart, today=date===wpDateKey(Date.now()), selected=date===WP.mobileDate;
+  return `<button type="button" class="wp-month-mini-day${outside?' is-out':''}${today?' is-today':''}${selected?' is-selected':''}" data-drop-date="${date}" data-act="wpCalendarSelectDate" data-date="${date}" aria-label="${esc(wpDateLabel(date))}, ${list.length} задач"><span class="wp-month-mini-num">${p?p.d:''}</span><span class="wp-month-mini-dots">${list.slice(0,3).map(task=>`<i class="p-${wpPriority(task)}"></i>`).join('')}</span></button>`;
+}
+function wpMonthMini(monthStart,entities) {
+  const days=wpMonthKeys(monthStart), weeks=Array.from({length:Math.ceil(days.length/7)},(_,i)=>days.slice(i*7,i*7+7));
+  return `<div class="wp-month-mini"><div class="wp-month-mini-dows" role="row">${WP_WEEKDAYS.map(d=>`<div role="columnheader">${d}</div>`).join('')}</div><div class="wp-month-mini-grid" role="grid" aria-label="${esc(wpFmtMonth(monthStart))}">${weeks.map(week=>`<div class="wp-month-mini-week" role="row">${week.map(date=>wpMonthMiniDay(date,entities)).join('')}</div>`).join('')}</div></div>`;
 }
 function wpMonthView() {
   if(wpMonthStart(WP.mobileDate)!==WP.monthStart) WP.mobileDate=WP.monthStart;
   const days=wpMonthKeys(WP.monthStart), entities=wpMonthEntities(WP.monthStart), monthEnd=wpAddDays(wpShiftMonth(WP.monthStart,1),-1);
   const inMonth=entities.filter(t=>wpTaskOverlapsRange(t,WP.monthStart,monthEnd));
   const weeks=Array.from({length:Math.ceil(days.length/7)},(_,i)=>days.slice(i*7,i*7+7));
+  if(WP.monthMini===true) return `${wpMonthSummary(inMonth)}${wpQuickGlobalArea()}<div class="wp-month-layout is-mini">${wpMonthMini(WP.monthStart,entities)}${wpSelectedDayPanel(WP.mobileDate,entities,'month',true)}</div>`;
   return `${wpMonthSummary(inMonth)}${wpQuickGlobalArea()}<div class="wp-month-layout"><div class="wp-month-calendar"><div class="wp-month-dows" role="row">${WP_WEEKDAYS.map(d=>`<div role="columnheader">${d}</div>`).join('')}</div><div class="wp-month-grid" role="grid" aria-label="${esc(wpFmtMonth(WP.monthStart))}">${weeks.map(week=>wpMonthWeek(week,entities)).join('')}</div></div>${wpSelectedDayPanel(WP.mobileDate,entities,'month')}</div>`;
 }
 function wpListEmpty(label) {
@@ -16105,7 +16174,7 @@ function wpApplyTaskForm(task,v,{series=false,newTask=false}={}) {
   const pr=homeType==='project' ? (S.board.projects||[]).find(p=>p && p.id===v.projectId) : null;
   if(homeType==='project' && !pr) throw new Error('missing project destination');
   if(!wpSetTaskHome(task,homeType,pr?pr.id:'')) throw new Error('invalid task home');
-  task.title=v.title; task.assignee=wpNormalizeAssignee(v.assignee)||'';
+  task.title=v.title; task.assignee=wpCanonicalAssignee(v.assignee);
   task.scheduledDate=v.scheduledDate; delete task.scheduledEndDate; task.deadlineAt=v.deadlineAt;
   task.priorityKey=v.priorityKey; task.description=v.description; task.comment=v.description;
   task.tags=v.tags; task.durationEstimateMinutes=v.durationEstimateMinutes; task.waitingReason=v.waitingReason; task.reviewAt=v.reviewAt;
@@ -16120,7 +16189,7 @@ function wpReconcileSubtasks(parent,lines) {
   lines.forEach((title,i)=>{
     let child=current[i];
     if(!child) {
-      child={id:uid('task'),title,kind:parent.kind,homeType:wpTaskHomeType(parent),homeId:parent.homeId||parent.projectId||'',project:parent.project||'',projectId:parent.projectId||'',parentTaskId:parent.id,scheduledDate:parent.scheduledDate||null,inbox:wpTaskHomeType(parent)==='inbox',deadlineAt:null,statusKey:'open',priorityKey:'normal',prio:'Не срочные',status:'В работе',assignee:wpAssigneeLabel(parent)||wpCurrentAssignee(),ownerEmail:parent.ownerEmail||'',description:'',comment:'',tags:[],matrixQuadrant:null,importance:null,urgency:null,recurrenceRuleId:null,completedAt:null,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),order:Date.now()+i,schemaVersion:WP_SCHEMA,legacy:{}};
+      child={id:uid('task'),title,kind:parent.kind,homeType:wpTaskHomeType(parent),homeId:parent.homeId||parent.projectId||'',project:parent.project||'',projectId:parent.projectId||'',parentTaskId:parent.id,scheduledDate:parent.scheduledDate||null,inbox:wpTaskHomeType(parent)==='inbox',deadlineAt:null,statusKey:'open',priorityKey:'normal',prio:'Не срочные',status:'В работе',assignee:wpCanonicalAssignee(wpAssigneeLabel(parent)||wpCurrentAssignee()),ownerEmail:parent.ownerEmail||'',description:'',comment:'',tags:[],matrixQuadrant:null,importance:null,urgency:null,recurrenceRuleId:null,completedAt:null,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),order:Date.now()+i,schemaVersion:WP_SCHEMA,legacy:{}};
       S.board.tasks.push(child);
     } else { child.title=title; child.kind=parent.kind; child.homeType=wpTaskHomeType(parent); child.homeId=parent.homeId||parent.projectId||''; child.projectId=parent.projectId||''; child.project=parent.project||''; child.scheduledDate=parent.scheduledDate||null; delete child.scheduledEndDate; child.inbox=wpTaskHomeType(parent)==='inbox'; child.statusKey='open'; child.status='В работе'; child.updatedAt=new Date().toISOString(); }
   });
@@ -16134,7 +16203,7 @@ function wpApplyOccurrenceForm(task,ent,v) {
     durationEstimateMinutes:task.durationEstimateMinutes||null,waitingReason:task.waitingReason||'',reviewAt:task.reviewAt||null,matrixQuadrant:wpQuadrant(task),importance:task.importance,urgency:task.urgency,qm:task.qm,inbox:wpTaskHomeType(task)==='inbox'
   };
   const homeType=WP_HOME_TYPES.includes(v.kind)?v.kind:'personal';
-  const next={title:v.title,kind:homeType==='project'?'project':'personal',homeType,homeId:homeType==='project'?(pr?pr.id:''):'',projectId:homeType==='project'?(pr?pr.id:''):'',project:homeType==='project'?(pr?pr.name:''):'',inbox:homeType==='inbox',assignee:wpNormalizeAssignee(v.assignee)||'',priorityKey:v.priorityKey,description:v.description,tags:v.tags,durationEstimateMinutes:v.durationEstimateMinutes,waitingReason:v.waitingReason,reviewAt:v.reviewAt};
+  const next={title:v.title,kind:homeType==='project'?'project':'personal',homeType,homeId:homeType==='project'?(pr?pr.id:''):'',projectId:homeType==='project'?(pr?pr.id:''):'',project:homeType==='project'?(pr?pr.name:''):'',inbox:homeType==='inbox',assignee:wpCanonicalAssignee(v.assignee),priorityKey:v.priorityKey,description:v.description,tags:v.tags,durationEstimateMinutes:v.durationEstimateMinutes,waitingReason:v.waitingReason,reviewAt:v.reviewAt};
   Object.keys(next).forEach(k=>{
     const a=JSON.stringify(next[k]===undefined?null:next[k]), b=JSON.stringify(base[k]===undefined?null:base[k]);
     if(a===b) delete rec.overrides[k]; else rec.overrides[k]=next[k];
@@ -16347,9 +16416,9 @@ function wpExportBoardProjects(board,projectIds) {
   }).map(wpClone);
   copy.invites=(Array.isArray(board.invites)?board.invites:[]).filter(invite=>selected.has(String(invite&&invite.projectId||''))).map(wpClone);
   const visiblePeople=new Set();
-  tasks.forEach(task=>{const value=task&&task.assignee;const label=String(value&&typeof value==='object'?(value.name||value.email||value.id||''):value||'').trim().toLocaleLowerCase();if(label)visiblePeople.add(label);});
-  projects.forEach(project=>(Array.isArray(project.members)?project.members:[]).forEach(member=>{const value=member&&typeof member==='object'?(member.name||member.email||member.id||''):member;const label=String(value||'').trim().toLocaleLowerCase();if(label)visiblePeople.add(label);}));
-  copy.people=(Array.isArray(board.people)?board.people:[]).filter(person=>{const value=person&&typeof person==='object'?(person.name||person.email||person.id||''):person;return visiblePeople.has(String(value||'').trim().toLocaleLowerCase());}).map(wpClone);
+  tasks.forEach(task=>{const label=wpTextKey(wpNormalizeAssignee(task&&task.assignee));if(label)visiblePeople.add(label);});
+  projects.forEach(project=>(Array.isArray(project.members)?project.members:[]).forEach(member=>{const value=member&&typeof member==='object'?(member.name||member.email||member.id||''):member;const label=wpTextKey(value);if(label)visiblePeople.add(label);}));
+  copy.people=(Array.isArray(board.people)?board.people:[]).filter(person=>{const value=person&&typeof person==='object'?(person.name||person.email||person.id||''):person;return visiblePeople.has(wpTextKey(value));}).map(wpClone);
   return copy;
 }
 function wpSelfTaskId() {
@@ -16382,11 +16451,11 @@ function wpTaskContactOptionsHtml(selectedId) {
 function wpApplyTransferRemap(boards,transfer) {
   if(!Array.isArray(boards)) return 0;
   const executor=wpIsObj(transfer)&&transfer.target==='executor';
-  const self=wpCurrentAssignee(); let remapped=0;
+  let remapped=0;
   boards.forEach(board=>{(board&&board.tasks||[]).forEach(task=>{
     if(!wpIsObj(task)||task.transferToId==null) return;
     delete task.transferToId;
-    if(executor) { task.assignee=self; remapped++; }
+    if(executor) { task.assignee=WP_SELF_ASSIGNEE; remapped++; }
   });});
   return remapped;
 }
@@ -17050,6 +17119,7 @@ Object.assign(ACT,{
   wpWeekMove:el=>wpNavWeek(el.dataset.delta),
   wpCalendarMove:el=>wpCalendarMove(el.dataset.delta),
   wpCalendarToggleCompleted:el=>wpToggleCalendarCompleted(el.dataset.scope),
+  wpMonthMiniToggle:()=>wpToggleMonthMini(),
   wpWeekToday:()=>wpGoToday(),
   wpMobileDay:el=>wpSetMobileDay(el.dataset.date),
   wpCalendarSelectDate:el=>wpSelectCalendarDate(el.dataset.date),

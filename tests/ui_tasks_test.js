@@ -462,6 +462,8 @@ assert(boardToolbar.includes('Показать выполненные задач
 assert(boardToolbar.includes('data-wp-filter-menu="board"') && boardToolbar.includes('data-act="wpFilterMenu"') && boardToolbar.includes('data-scope="board"'), 'the board filter opens through the shared popup trigger');
 assert(planner.includes("const WP_BOARD_FOCUS=[['all','Все'],['urgent','Срочные'],['overdue','Просроченные'],['today','Срок сегодня'],['noDeadline','Без срока'],['unplanned','Без даты начала']]"), 'the board offers all six reference focus options');
 assert(!boardToolbar.includes('wp-filter-pills'), 'board focus choices are not separate pill buttons');
+assert(planner.includes('<div class="wp-board-pin">${wpBoardToolbar(items)}${wpBoardSummary(items)}</div>'), 'the board pins its toolbar and summary strip together while scrolling');
+assert(planner.includes("toolbar.closest('.wp-board-pin')") && planner.includes('stuck.getBoundingClientRect().height>view.clientHeight*.6'), 'the stickiness guard measures the whole pinned header, not the toolbar alone');
 assert(api.WP.calendarShowCompleted, 'the board toolbar keeps the completed calendar filter untouched');
 api.actions.wpBoardFocus({dataset:{filter:'urgent'}});
 assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id).sort(),['board-other','board-urgent'],'Urgent means high or critical priority on the board');

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-07x8wJKuFKOHgnXsuzHit53RJlGKLsX/m9gs5k0/zEQ=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-lc+f+kWRjSe41PQr/Qebdu7vhW2us/lWHY5TbE2kgaE=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4682,6 +4682,10 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .planner-page .wp-date-control.is-iconless{gap:0}
 /* Доска использует всю доступную ширину; остальные представления сохраняют общий правый отступ. */
 .planner-page .wp-view:has(>.wp-board-lanes){padding-right:0;overflow-x:clip}
+/* Плашки сводки закреплены вместе с тулбаром: столбцы длинные, подписи должны быть видны. */
+.planner-page .wp-board-pin{position:sticky;top:0;z-index:9;margin:0;padding:0 0 10px;background:var(--surface);box-shadow:0 calc(-1 * var(--wp-view-pad-top,16px)) 0 var(--surface)}
+.planner-page .wp-board-pin:has(>.wp-board-toolbar.is-scrollable){position:static;box-shadow:none}
+.planner-page .wp-board-pin>.wp-board-summary{margin-bottom:0}
 </style>
 <style id="shelter-task-logic">
 /* Задачи: самостоятельные направления сортировки и общие доступные popup-меню. */
@@ -14668,7 +14672,7 @@ function wpSyncFilterStickiness() {
   const view=$('#wpView'),toolbar=view&&view.querySelector('.wp-all-toolbar,.wp-board-toolbar');
   if(!view||!toolbar)return;
   // Высокая панель не должна запирать прокрутку короткого окна или закрывать задачи.
-  const tall=toolbar.getBoundingClientRect().height>view.clientHeight*.6;
+  const pin=toolbar.closest('.wp-board-pin'),stuck=pin||toolbar,tall=stuck.getBoundingClientRect().height>view.clientHeight*.6;
   toolbar.classList.toggle('is-scrollable',tall);
 }
 function wpWatchTaskFilters() {
@@ -14677,7 +14681,7 @@ function wpWatchTaskFilters() {
   const view=$('#wpView'),toolbar=view&&view.querySelector('.wp-all-toolbar,.wp-board-toolbar');
   if(!toolbar||!window.ResizeObserver)return;
   if(!WP._toolbarResizeObserver)WP._toolbarResizeObserver=new ResizeObserver(wpSyncFilterStickiness);
-  WP._toolbarResizeObserver.observe(view);WP._toolbarResizeObserver.observe(toolbar);
+  WP._toolbarResizeObserver.observe(view);WP._toolbarResizeObserver.observe(toolbar);{const pin=toolbar.closest('.wp-board-pin');if(pin)WP._toolbarResizeObserver.observe(pin);}
 }
 function wpTrackMenuAnchor() {
   const menu=OV.menu;if(!menu||!menu.anchor)return;
@@ -15255,7 +15259,7 @@ function wpBoardToolbar(items) {
 function wpBoardView() {
   const items=wpBoardEntities(),columns=[['open','В работе'],['waiting','Ожидание'],['done','Готово'],['cancelled','Отменённые']];
   const empty=!items.length&&wpFiltersDirty('board')?'<div class="wp-board-no-results"><span>Нет задач по выбранным условиям.</span><button type="button" class="btn sm ghost" data-act="wpBoardReset">Сбросить фильтры</button></div>':'';
-  return `${wpBoardToolbar(items)}${wpBoardSummary(items)}${empty}<div class="wp-board-lanes" aria-label="Доска задач">${columns.map(([status,label])=>{const lane=items.filter(task=>wpTaskStatus(task)===status);return `<section class="wp-board-column" data-drop-status="${status}" aria-label="${label}, ${lane.length} ${plural(lane.length,['задача','задачи','задач'])}"><header><div><b>${label}</b><span>${lane.length}</span></div><button type="button" class="wp-icon-btn" data-act="wpBoardAdd" data-status="${status}" aria-label="Добавить задачу: ${label}">${ico('plus')}</button></header><div class="wp-board-items">${lane.map(task=>wpTaskCard(task,{compact:true,board:true})).join('')||'<div class="wp-board-empty">Пока нет задач</div>'}</div></section>`;}).join('')}</div>`;
+  return `<div class="wp-board-pin">${wpBoardToolbar(items)}${wpBoardSummary(items)}</div>${empty}<div class="wp-board-lanes" aria-label="Доска задач">${columns.map(([status,label])=>{const lane=items.filter(task=>wpTaskStatus(task)===status);return `<section class="wp-board-column" data-drop-status="${status}" aria-label="${label}, ${lane.length} ${plural(lane.length,['задача','задачи','задач'])}"><header><div><b>${label}</b><span>${lane.length}</span></div><button type="button" class="wp-icon-btn" data-act="wpBoardAdd" data-status="${status}" aria-label="Добавить задачу: ${label}">${ico('plus')}</button></header><div class="wp-board-items">${lane.map(task=>wpTaskCard(task,{compact:true,board:true})).join('')||'<div class="wp-board-empty">Пока нет задач</div>'}</div></section>`;}).join('')}</div>`;
 }
 function wpProjectCard(project) {
   const list=wpEntitiesForProject(project.id), active=list.filter(t=>['open','waiting'].includes(wpTaskStatus(t))).length;

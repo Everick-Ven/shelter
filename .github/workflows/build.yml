@@ -4,8 +4,10 @@ on:
   push:
     branches: [main, 'arena/**']
     tags: ['v*']
-  pull_request:
   workflow_dispatch:
+# NOTE: no `pull_request` trigger on purpose — with both `push` and
+# `pull_request` every push to a PR branch built twice (push + synchronize).
+# Push builds already report commit checks on same-repo PRs, so one run is enough.
 
 permissions:
   contents: read

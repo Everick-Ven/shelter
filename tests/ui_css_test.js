@@ -163,6 +163,10 @@ check('месячная сетка и выбранный день использ
   html.includes('<div class="wp-month-layout"><div class="wp-month-calendar">'));
 check('доска растягивается до правого края без изменения отступов других представлений',
   taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0;overflow-x:clip}'));
+check('плашки сводки доски закреплены вместе с тулбаром при прокрутке',
+  taskLayoutStyle.includes('.planner-page .wp-board-pin{position:sticky;top:0;z-index:9;') &&
+  taskLayoutStyle.includes('.planner-page .wp-board-pin:has(>.wp-board-toolbar.is-scrollable){position:static;box-shadow:none}') &&
+  taskLayoutStyle.includes('.planner-page .wp-board-pin>.wp-board-summary{margin-bottom:0}'));
 check('рабочее поле задач резервирует место под полосу прокрутки, чтобы контент не ездил',
   taskLayoutStyle.includes('.planner-page .wp-view{') && taskLayoutStyle.includes('scrollbar-gutter:stable'));
 check('доска задач вмещается в ширину экрана без горизонтальной прокрутки',

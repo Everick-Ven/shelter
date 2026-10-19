@@ -36,6 +36,7 @@ assert.match(workflow, /build\/shelter-version\.txt/);
 assert.match(workflow, /"\/DAppVersion=\$version"/);
 assert.match(workflow, /SHELTER-macos-x64-\$\{version\}\.dmg/);
 assert.match(workflow, /--expected-version/);
+assert.doesNotMatch(workflow, /^\s+pull_request:\s*$/m, 'the build must not trigger on both push and pull_request (one push should start one run)');
 assert.doesNotMatch(workflow, /1\.0\.165/);
 assert.match(read('README.md'), /SHELTER_VERSION/);
 assert.match(read('README.md'), /SHELTER-macos-x64-<версия>\.dmg/);

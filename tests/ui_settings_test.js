@@ -140,6 +140,12 @@ check('кнопки ползунков двигают соседний range ч�
   /dispatchEvent\(new Event\('change', \{ bubbles: true \}\)\)/.test(html));
 check('кнопки свечения гаснут вместе с ползунком',
   (settingsMarkup.match(/\$\{glowOff \? 'disabled' : ''\}>[−+]<\/button>/g) || []).length === 4);
+check('контролы ползунков не плодят вложенные контейнеры',
+  (settingsMarkup.match(/<div class="uiscale"/g) || []).length === 6 &&
+  !/<div class="uiscale>/.test(settingsMarkup));
+check('кнопка «меньше» стоит вплотную к ползунку, без мусора между ними',
+  (settingsMarkup.match(/aria-label="Мельче">−<\/button><input type="range"/g) || []).length === 4 &&
+  (settingsMarkup.match(/aria-label="Меньше" \$\{glowOff \? 'disabled' : ''\}>−<\/button><input type="range"/g) || []).length === 2);
 check('масштаб шрифта понимает !important у кегля',
   html.includes("const sized = v.match(/^([\\d.]+px|clamp\\([^)]+\\))(\\s*!important)?$/);"));
 const sync = cut('function syncSwitches()', 'const PREF_TOAST');

@@ -236,7 +236,7 @@ globalThis.__api = {
   wpDateKey, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthEvent, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpTaskPriorityClass, wpTaskPriorityStyle, wpApplyEntityHome,
+  wpDeadlineText, wpTaskCard, wpDayColumn, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
@@ -335,7 +335,11 @@ assert(weekMarkup.includes('Проектная задача Вы') && weekMarkup
 api.WP.calendarMode = 'month';
 const monthMarkup = api.wpViewHtml();
 assert(monthMarkup.includes('wp-month-grid') && monthMarkup.includes('Октябрь 2026'));
-assert(monthMarkup.includes('Исполнитель Я') && monthMarkup.includes('Проектная задача Вы') && monthMarkup.includes('Задача второго проекта Я') && !monthMarkup.includes('Чужая задача'));
+assert(monthMarkup.includes('Исполнитель Я') && monthMarkup.includes('Проектная задача Вы'), 'the selected-day panel lists that date’s tasks with titles');
+assert(monthMarkup.includes('wp-month-dots'), 'month cells render history-style priority dots');
+const oct14Cell = api.wpMonthDay('2026-10-14', Array.from(api.wpMonthEntities('2026-10-01')));
+assert(oct14Cell.includes('<span class="wp-month-count">2</span>') && (oct14Cell.match(/<i class="p-/g) || []).length === 2, 'month cells dot only the signed-in user’s tasks for that date');
+assert(!monthMarkup.includes('Чужая задача'));
 assert(!api.wpNavHtml().includes('data-view="matrix"') && !api.wpNavHtml().includes('label:"Матрица"'), 'Matrix must no longer be a planner navigation destination');
 const rangeTasks = [
   { id: 'span-before-month', title: 'Срок на границе месяца', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-09-25', deadlineAt: '2026-10-02', statusKey: 'open', priorityKey: 'normal', matrixQuadrant: 1, order: 20, tags: [] },
@@ -366,7 +370,8 @@ const monthWeekMarkup = api.wpMonthWeek(octoberGrid.slice(14, 21), rangeTasks);
 assert.strictEqual(countId(monthWeekMarkup, 'week-span'), 1, 'a multi-day task is rendered once as a row, not copied into each date');
 assert.strictEqual(countId(monthWeekMarkup, 'month-span-a'), 1, 'overlapping ranges each have one row in the month week');
 assert.strictEqual(countId(monthWeekMarkup, 'month-span-b'), 1, 'the end date is included in the horizontal range');
-assert.strictEqual(countId(monthWeekMarkup, 'single-day-task', 'data-id'), 1, 'a single-day task remains a normal event in its date cell');
+const singleDayCell = api.wpMonthDay('2026-10-15', rangeTasks);
+assert(singleDayCell.includes('<span class="wp-month-dots"><i class="p-normal"></i></span>'), 'a single-day task remains a priority dot in its date cell');
 assert(monthWeekMarkup.includes('wp-calendar-span wp-calendar-span--month p-critical'), 'month span tint follows critical priority regardless of stored legacy quadrant fields');
 assert(monthWeekMarkup.includes('wp-calendar-span wp-calendar-span--month p-none'), 'no-priority ranges use a neutral tint');
 assert(monthWeekMarkup.includes('Приоритет: Критичный') && monthWeekMarkup.includes('Приоритет: Без приоритета'), 'range labels expose the priority');
@@ -376,13 +381,13 @@ assert.strictEqual(weekLayout.segments.length, 3, 'only tasks with a date range 
 assert(weekLayout.segments.find(segment => segment.task.id === 'week-span').continuesBefore, 'week range rows clip cleanly at the week boundary');
 const crowdedSpans = [0, 1, 2].map(i => ({ id: `crowd-${i}`, title: `Перекрытие ${i}`, homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-13', deadlineAt: '2026-10-15', statusKey: 'open', priorityKey: 'normal', order: 30 + i, tags: [] }));
 const crowdedLayout = api.wpCalendarSpanLayout(weekDays, crowdedSpans, 2);
-assert.strictEqual(crowdedLayout.laneCount, 2, 'month weeks cap horizontal lanes so tiles keep a fixed height');
+assert.strictEqual(crowdedLayout.laneCount, 2, 'month weeks cap horizontal lanes so tiles stay compact');
 assert.strictEqual(crowdedLayout.segments.filter(segment => segment.lane < 0).length, 1, 'ranges beyond the lane cap are marked as overflow');
 const crowdedMarkup = api.wpMonthWeek(weekDays, crowdedSpans);
 assert.strictEqual(countId(crowdedMarkup, 'crowd-0'), 1);
 assert.strictEqual(countId(crowdedMarkup, 'crowd-1'), 1);
 assert.strictEqual(countId(crowdedMarkup, 'crowd-2'), 0, 'the third overlapping range is not rendered as a row');
-assert(crowdedMarkup.includes('+ 1 ещё'), 'overflow ranges are counted in the day overflow instead of vanishing');
+assert(crowdedMarkup.includes('<em>+1</em>'), 'overflow ranges are counted in the day dots instead of vanishing');
 const rangeWeekCards = api.wpWeekCalendar(weekDays, rangeTasks);
 assert(rangeWeekCards.includes('wp-calendar-span-layer wp-week-span-layer'), 'week mode restores its horizontal multi-day layer');
 assert.strictEqual(countId(rangeWeekCards, 'week-span'), 1, 'the week view renders each spanning task once, not as a card in each covered day');
@@ -415,7 +420,7 @@ assert.strictEqual(countId(completedWeekMarkup, 'done-single', 'data-task-id'), 
 assert(completedWeekMarkup.includes('<details class="wp-done-fold" open>'), 'visible completed single-day tasks are expanded in the week calendar');
 const completedMonthMarkup = api.wpMonthWeek(octoberGrid.slice(14, 21), completedCalendarTasks);
 assert(completedMonthMarkup.includes('wp-calendar-span wp-calendar-span--month p-high is-done'));
-assert(completedMonthMarkup.includes('wp-month-event wp-title-marquee-clip p-normal is-done'), 'completed one-day month events keep their task state');
+assert(completedMonthMarkup.includes('<span class="wp-month-dots"><i class="p-normal"></i></span>'), 'completed one-day month tasks keep a priority dot in their date cell');
 assert(completedMonthMarkup.includes('Статус: выполнена'), 'calendar controls announce completed status to assistive technology');
 assert(api.wpCalendarCompletedToggle('calendar').includes('data-scope="calendar"') && api.wpCalendarCompletedToggle('calendar').includes('aria-pressed="true"'));
 assert(api.wpCalendarCompletedToggle('board').includes('data-scope="board"') && api.wpCalendarCompletedToggle('board').includes('aria-pressed="true"'));
@@ -483,8 +488,8 @@ assert(boardToolbar.includes('Показать выполненные задач
 assert(boardToolbar.includes('data-wp-filter-menu="board"') && boardToolbar.includes('data-act="wpFilterMenu"') && boardToolbar.includes('data-scope="board"'), 'the board filter opens through the shared popup trigger');
 assert(planner.includes("const WP_BOARD_FOCUS=[['all','Все'],['urgent','Срочные'],['overdue','Просроченные'],['today','Срок сегодня'],['noDeadline','Без срока'],['unplanned','Без даты начала']]"), 'the board offers all six reference focus options');
 assert(!boardToolbar.includes('wp-filter-pills'), 'board focus choices are not separate pill buttons');
-assert(planner.includes('<div class="wp-board-pin">${wpBoardToolbar(items)}${wpBoardSummary(items)}</div>'), 'the board pins its toolbar and summary strip together while scrolling');
-assert(planner.includes("toolbar.closest('.wp-board-pin')") && planner.includes('stuck.getBoundingClientRect().height>view.clientHeight*.6'), 'the stickiness guard measures the whole pinned header, not the toolbar alone');
+assert(planner.includes('${wpBoardToolbar(items)}<div class="wp-board-pin">${wpBoardSummary(items)}</div>'), 'the board pins only its summary strip while the toolbar scrolls');
+assert(planner.includes("view.querySelector('.wp-board-pin')") && planner.includes('stuck.getBoundingClientRect().height>view.clientHeight*.6'), 'the stickiness guard measures the pinned summary strip');
 assert(api.WP.calendarShowCompleted, 'the board toolbar keeps the completed calendar filter untouched');
 api.actions.wpBoardFocus({dataset:{filter:'urgent'}});
 assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id).sort(),['board-other','board-urgent'],'Urgent means high or critical priority on the board');
@@ -840,17 +845,23 @@ assert(taskMarkup.includes(`<span class="wp-title-marquee-text">${longTitle}</sp
 assert(taskMarkup.includes('До: 19.10.2026'));
 assert(taskMarkup.includes('class="wp-task p-normal'), 'task cards expose the priority class used for urgency coloring');
 assert.strictEqual(api.wpValidPriorityColor('#7c5cff'), '#7c5cff');
-assert.strictEqual(api.wpValidPriorityColor('red'), '', 'only hex colors are accepted as custom priority colors');
-assert.strictEqual(api.wpTaskPriorityClass({ priorityKey: 'high', priorityColor: '#12ab34' }), 'custom');
-assert.strictEqual(api.wpTaskPriorityClass({ priorityKey: 'high', priorityColor: '' }), 'high');
-const customCard = api.wpTaskCard({ id: 'custom-color', title: 'Свой цвет', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'normal', priorityColor: '#12ab34', tags: [] }, { compact: true });
-assert(customCard.includes('wp-task p-custom') && customCard.includes('--wp-prio:#12ab34'), 'task cards render the custom priority color');
-const customPill = api.wpMonthEvent({ id: 'custom-pill', title: 'Пилюля', homeType: 'personal', scheduledDate: '2026-10-15', statusKey: 'open', priorityKey: 'normal', priorityColor: '#12ab34' });
-assert(customPill.includes('p-custom') && customPill.includes('--wp-prio:#12ab34'), 'month pills render the custom priority color');
-assert(createForm.includes('id="wpPriorityColor"') && createForm.includes('id="wpPriorityColorOn"'), 'the task editor exposes a custom priority color');
-const colored = { id: 'color-save', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [] };
-api.wpApplyTaskForm(colored, { ...formValues, title: 'Цвет сохраняется', kind: 'personal', projectId: '', priorityColor: '#12ab34', statusKey: 'open' }, { newTask: true });
-assert.strictEqual(colored.priorityColor, '#12ab34', 'saving the editor persists the custom priority color');
+assert.strictEqual(api.wpValidPriorityColor('red'), '', 'only hex colors are accepted as board priority presets');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpBoardPriorityColors({ priorityColors: { high: '#12ab34', critical: 'red' } }))), { none: '', normal: '', high: '#12ab34', critical: '' }, 'board presets keep only valid hex colors per priority');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpBoardPriorityColors({}))), { none: '', normal: '', high: '', critical: '' }, 'boards without presets fall back to theme colors');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpDefaultPriorityColors())), { none: '#8a8f9e', normal: '#7c5cff', high: '#f5a524', critical: '#f31260' }, 'preset defaults resolve to fixed hex colors without a DOM');
+assert.strictEqual(api.wpPriorityVarsStyle({ priorityColors: { normal: '#112233', high: '#445566' } }), '--wp-prio-normal:#112233;--wp-prio-high:#445566');
+assert.strictEqual(api.wpPriorityVarsStyle({}), '');
+assert.strictEqual(api.wpPriorityVarsAttr({ priorityColors: { critical: '#aabbcc' } }), ' style="--wp-prio-critical:#aabbcc"');
+assert.strictEqual(api.wpPriorityVarsAttr({}), '');
+const presetCard = api.wpTaskCard({ id: 'preset-color', title: 'Пресет доски', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'normal', priorityColor: '#12ab34', tags: [] }, { compact: true });
+assert(presetCard.includes('wp-task p-normal') && !presetCard.includes('--wp-prio:'), 'task cards no longer carry per-task custom colors');
+assert.strictEqual(api.wpMonthDots([{ priorityKey: 'high' }, { priorityKey: 'normal' }]), '<span class="wp-month-dots"><i class="p-high"></i><i class="p-normal"></i></span>', 'month cells show one priority dot per task');
+assert.strictEqual(api.wpMonthDots([]), '', 'empty days render no dots');
+assert.strictEqual(api.wpMonthDots([{ priorityKey: 'critical' }, { priorityKey: 'high' }, { priorityKey: 'normal' }, { priorityKey: 'none' }], 1), '<span class="wp-month-dots"><i class="p-critical"></i><i class="p-high"></i><i class="p-normal"></i><em>+2</em></span>', 'month cells cap dots and count the rest like history');
+assert(!createForm.includes('wpPriorityColor'), 'the task editor no longer exposes a per-task color picker');
+const noColor = { id: 'no-color-save', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [] };
+api.wpApplyTaskForm(noColor, { ...formValues, title: 'Без цвета', kind: 'personal', projectId: '', statusKey: 'open' }, { newTask: true });
+assert.strictEqual(noColor.priorityColor, undefined, 'saving the editor does not persist a per-task color');
 const startDateMarkup = api.wpTaskCard({ id: 'start-date-task', title: 'Дата старта', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true });
 assert(startDateMarkup.includes('Начало ·') && !startDateMarkup.includes('План ·'), 'task cards use the renamed start-date label');
 const compactDateMarkup = api.wpTaskCard({ id: 'week-date-task', title: 'Короткая карточка', homeType: 'personal', assignee: 'Alex', deadlineAt: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true, inDay: true });

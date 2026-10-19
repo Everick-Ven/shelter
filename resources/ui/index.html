@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-ptYN65bDamL/np7V9asKHrCfJGAQF3DuhlyEunFlCEc=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-PRQVj3gR7nhT4jN2JMlIfbPjorAkOg+X8x9sKBW5Ksw=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -3825,14 +3825,14 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-mobile-weekstrip{display:none}.wp-week-mobile{display:none}
 .wp-week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;min-width:0;overflow:visible;padding:0 0 7px}
 .wp-day{display:flex;flex-direction:column;gap:6px;min-width:0;min-height:420px;padding:10px 8px;border:1px solid var(--line);border-radius:calc(16px*var(--rs));background:var(--card);cursor:pointer;transition:transform .3s var(--ease),border-color .2s,box-shadow .3s}.wp-day:hover{transform:translate3d(0,-2px,0);border-color:var(--line-3)}.wp-day.is-today{border-color:rgb(var(--accent)/.5);box-shadow:0 0 0 1px rgb(var(--accent)/.25)}.wp-day.is-selected:not(.is-today){border-color:rgb(var(--accent));box-shadow:0 0 0 1px rgb(var(--accent)/.25)}.wp-day.drop-active,.wp-inbox-shelf.drop-active,.wp-quadrant.drop-active{border-color:rgb(var(--accent));box-shadow:0 0 0 3px rgb(var(--accent)/.16);background:color-mix(in srgb,rgb(var(--accent)) 9%,var(--card))}.wp-day-head{display:flex;align-items:baseline;justify-content:space-between;gap:6px;min-height:32px;padding:2px 4px 6px}.wp-day-head>div{display:flex;align-items:baseline;gap:5px}.wp-day-head>div span{font-size:12px;color:var(--text-3)}.wp-day-head>div b{font:600 18px/1 var(--font-d);letter-spacing:-.03em}.wp-day-head>div small{font-size:10.5px;color:var(--text-3)}.wp-day.is-today .wp-day-head>div b{color:rgb(var(--accent))}.wp-day-count{display:grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--card-3);color:var(--text-3);font-size:9px}.wp-day-items{display:flex;flex:1;flex-direction:column;gap:6px;padding:0;min-height:40px}.wp-day-empty{margin:auto 0;color:var(--text-3);font-size:10.5px;text-align:center;padding:14px 0}.wp-add-day{display:flex;align-items:center;justify-content:center;gap:5px;min-height:27px;border:1px dashed var(--line-2);border-radius:calc(8px*var(--rs));background:transparent;color:var(--text-3);font-size:10px;cursor:pointer}.wp-add-day:hover{border-color:rgb(var(--accent)/.5);color:var(--text)}.wp-add-day .i{width:12px;height:12px}
-.wp-task{position:relative;display:grid;grid-template-columns:18px minmax(0,1fr) 22px;align-items:start;gap:6px;padding:7px 6px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));background:var(--card);box-shadow:var(--hi);min-width:0;transition:border-color .16s,background .16s,transform .16s,opacity .16s}.wp-task:hover{border-color:var(--line-3);background:color-mix(in srgb,var(--card-2) 42%,var(--card))}.wp-task.dragging{opacity:.45;transform:scale(.98)}.wp-task.is-overdue{border-left:2px solid rgb(var(--danger))}.wp-task.is-done{opacity:.68}.wp-task.is-done .wp-task-title{text-decoration:line-through;color:var(--text-3)}.wp-check{display:grid;place-items:center;width:17px;height:17px;margin-top:1px;padding:0;border:1px solid var(--line-3);border-radius:calc(6px*var(--rs));background:var(--card-2);color:transparent;cursor:pointer;transition:background .14s,border-color .14s,color .14s}.wp-check:hover{border-color:rgb(var(--accent));color:rgb(var(--accent))}.wp-check.on{border-color:rgb(var(--ok));background:rgb(var(--ok));color:var(--surface)}.wp-check .i{width:11px;height:11px}.wp-task-copy{min-width:0}.wp-task-title{display:block;width:100%;min-width:0;padding:0;border:0;background:transparent;color:var(--text);font:550 10.7px/1.35 var(--font);text-align:left;white-space:nowrap;word-break:normal;overflow-wrap:normal;overflow:hidden;text-overflow:ellipsis;cursor:pointer}.wp-task-title:hover{color:rgb(var(--accent))}.wp-task-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 7px;margin-top:5px;color:var(--text-3);font-size:8.7px;line-height:1.35}.wp-task-meta>span{display:inline-flex;align-items:center;gap:3px;min-width:0}.wp-task-meta .i{width:10px;height:10px;flex:none}.wp-priority{white-space:nowrap}.wp-priority i{display:block;width:5px;height:5px;border-radius:50%;background:var(--text-4)}.wp-priority.p-normal i{background:rgb(var(--accent))}.wp-priority.p-high i{background:rgb(var(--warn))}.wp-priority.p-critical i{background:rgb(var(--danger))}.wp-priority.p-none i{background:var(--line-3)}.wp-priority.p-custom i{background:var(--wp-prio)}.wp-deadline.overdue{color:rgb(var(--danger));font-weight:600}.wp-repeat{color:rgb(var(--accent));white-space:nowrap}.wp-origin{color:var(--text-4)}.wp-chip{display:inline-flex;align-items:center;min-height:16px;padding:0 5px;border-radius:99px;font-size:8px;font-weight:650}.wp-chip.waiting{background:rgb(var(--warn)/.12);color:rgb(var(--warn))}.wp-chip.done{background:rgb(var(--ok)/.12);color:rgb(var(--ok))}.wp-chip.cancelled{background:var(--card-3);color:var(--text-3)}.wp-chip.inbox{background:rgb(var(--accent)/.12);color:rgb(var(--accent))}.wp-tag{color:var(--text-4);white-space:nowrap}.wp-wait-reason{display:flex;align-items:flex-start;gap:4px;margin-top:5px;color:rgb(var(--warn));font-size:8.5px;line-height:1.4}.wp-wait-reason .i{width:10px;height:10px;flex:none}.wp-task-note{margin-top:5px;color:var(--text-3);font-size:9px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}.wp-icon-btn{transition:background .15s,color .15s,border-color .15s}.wp-task>.wp-icon-btn{width:22px;height:22px;border:0;background:transparent;color:var(--text-4);opacity:.72}.wp-task>.wp-icon-btn .i{width:13px;height:13px}.wp-task>.wp-icon-btn:hover{opacity:1;color:var(--text);background:var(--card-3)}.wp-series-mark{display:grid;place-items:center;width:17px;height:17px;color:rgb(var(--accent))}.wp-series-mark .i{width:14px;height:14px}.wp-done-fold{padding-top:3px;border-top:1px solid var(--line)}.wp-done-fold summary{color:var(--text-3);font-size:9px;cursor:pointer;padding:3px 2px}.wp-done-fold>div{display:flex;flex-direction:column;gap:5px;margin-top:4px}
+.wp-task{position:relative;display:grid;grid-template-columns:18px minmax(0,1fr) 22px;align-items:start;gap:6px;padding:7px 6px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));background:var(--card);box-shadow:var(--hi);min-width:0;transition:border-color .16s,background .16s,transform .16s,opacity .16s}.wp-task:hover{border-color:var(--line-3);background:color-mix(in srgb,var(--card-2) 42%,var(--card))}.wp-task.dragging{opacity:.45;transform:scale(.98)}.wp-task.is-overdue{border-left:2px solid rgb(var(--danger))}.wp-task.is-done{opacity:.68}.wp-task.is-done .wp-task-title{text-decoration:line-through;color:var(--text-3)}.wp-check{display:grid;place-items:center;width:17px;height:17px;margin-top:1px;padding:0;border:1px solid var(--line-3);border-radius:calc(6px*var(--rs));background:var(--card-2);color:transparent;cursor:pointer;transition:background .14s,border-color .14s,color .14s}.wp-check:hover{border-color:rgb(var(--accent));color:rgb(var(--accent))}.wp-check.on{border-color:rgb(var(--ok));background:rgb(var(--ok));color:var(--surface)}.wp-check .i{width:11px;height:11px}.wp-task-copy{min-width:0}.wp-task-title{display:block;width:100%;min-width:0;padding:0;border:0;background:transparent;color:var(--text);font:550 10.7px/1.35 var(--font);text-align:left;white-space:nowrap;word-break:normal;overflow-wrap:normal;overflow:hidden;text-overflow:ellipsis;cursor:pointer}.wp-task-title:hover{color:rgb(var(--accent))}.wp-task-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 7px;margin-top:5px;color:var(--text-3);font-size:8.7px;line-height:1.35}.wp-task-meta>span{display:inline-flex;align-items:center;gap:3px;min-width:0}.wp-task-meta .i{width:10px;height:10px;flex:none}.wp-priority{white-space:nowrap}.wp-priority i{display:block;width:5px;height:5px;border-radius:50%;background:var(--text-4)}.wp-priority.p-normal i{background:var(--wp-prio-normal,rgb(var(--accent)))}.wp-priority.p-high i{background:var(--wp-prio-high,rgb(var(--warn)))}.wp-priority.p-critical i{background:var(--wp-prio-critical,rgb(var(--danger)))}.wp-priority.p-none i{background:var(--wp-prio-none,var(--line-3))}.wp-deadline.overdue{color:rgb(var(--danger));font-weight:600}.wp-repeat{color:rgb(var(--accent));white-space:nowrap}.wp-origin{color:var(--text-4)}.wp-chip{display:inline-flex;align-items:center;min-height:16px;padding:0 5px;border-radius:99px;font-size:8px;font-weight:650}.wp-chip.waiting{background:rgb(var(--warn)/.12);color:rgb(var(--warn))}.wp-chip.done{background:rgb(var(--ok)/.12);color:rgb(var(--ok))}.wp-chip.cancelled{background:var(--card-3);color:var(--text-3)}.wp-chip.inbox{background:rgb(var(--accent)/.12);color:rgb(var(--accent))}.wp-tag{color:var(--text-4);white-space:nowrap}.wp-wait-reason{display:flex;align-items:flex-start;gap:4px;margin-top:5px;color:rgb(var(--warn));font-size:8.5px;line-height:1.4}.wp-wait-reason .i{width:10px;height:10px;flex:none}.wp-task-note{margin-top:5px;color:var(--text-3);font-size:9px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}.wp-icon-btn{transition:background .15s,color .15s,border-color .15s}.wp-task>.wp-icon-btn{width:22px;height:22px;border:0;background:transparent;color:var(--text-4);opacity:.72}.wp-task>.wp-icon-btn .i{width:13px;height:13px}.wp-task>.wp-icon-btn:hover{opacity:1;color:var(--text);background:var(--card-3)}.wp-series-mark{display:grid;place-items:center;width:17px;height:17px;color:rgb(var(--accent))}.wp-series-mark .i{width:14px;height:14px}.wp-done-fold{padding-top:3px;border-top:1px solid var(--line)}.wp-done-fold summary{color:var(--text-3);font-size:9px;cursor:pointer;padding:3px 2px}.wp-done-fold>div{display:flex;flex-direction:column;gap:5px;margin-top:4px}
 .wp-inbox-shelf{margin:9px 0 0;border:1px solid var(--line);border-radius:calc(13px*var(--rs));background:color-mix(in srgb,var(--card-2) 60%,var(--card));overflow:hidden}.wp-inbox-shelf>summary{display:flex;align-items:center;gap:8px;min-height:42px;padding:0 12px;list-style:none;cursor:pointer}.wp-inbox-shelf>summary::-webkit-details-marker{display:none}.wp-inbox-shelf>summary>span{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600}.wp-inbox-shelf>summary .i{width:15px;height:15px;color:var(--text-3)}.wp-inbox-shelf>summary>b{display:grid;place-items:center;min-width:20px;height:19px;padding:0 5px;border-radius:99px;background:var(--card-3);font-size:9px}.wp-inbox-shelf>summary>small{margin-left:auto;color:var(--text-3);font-size:9px}.wp-shelf-content{display:flex;flex-direction:column;gap:6px;padding:9px;border-top:1px solid var(--line)}.wp-shelf-content>.wp-task{max-width:100%}
 .wp-subbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:5px 0 10px;color:var(--text-3);font-size:10.5px}.wp-subbar>div b{color:var(--text-2)}.wp-filter-pills{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));background:var(--card-2)}.wp-filter-pills button{height:26px;padding:0 9px;border:0;border-radius:calc(7px*var(--rs));background:transparent;color:var(--text-3);font:500 10px var(--font);cursor:pointer}.wp-filter-pills button.active{background:var(--card);color:var(--text);box-shadow:var(--sh-sm)}.wp-task-list{display:flex;flex-direction:column;gap:6px}.wp-task-list>.wp-task{padding:9px 10px;grid-template-columns:20px minmax(0,1fr) 28px}.wp-task-list .wp-task-title{font-size:12px}.wp-task-list .wp-task-meta{font-size:9.5px}.wp-empty{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:190px;justify-content:center;padding:20px;color:var(--text-3);text-align:center}.wp-empty>.i{width:28px;height:28px;color:var(--text-4);margin-bottom:3px}.wp-empty b{font-size:13px;color:var(--text-2)}.wp-empty span{max-width:330px;font-size:10.5px;line-height:1.5}.wp-empty .btn{margin-top:5px}
 .wp-project-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 10px;color:var(--text-3);font-size:10.5px}.wp-project-toolbar b{color:var(--text-2)}.wp-project-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}.wp-project-card{display:flex;align-items:center;gap:5px;min-height:63px;padding:7px;border:1px solid var(--line);border-radius:calc(13px*var(--rs));background:var(--card);box-shadow:var(--hi)}.wp-project-open{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:3px;border:0;background:transparent;color:var(--text);text-align:left;cursor:pointer}.wp-project-icon{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:calc(11px*var(--rs));background:var(--card-2);color:rgb(var(--accent))}.wp-project-icon .i{width:17px;height:17px}.wp-project-copy{display:flex;flex-direction:column;gap:4px;min-width:0}.wp-project-copy b{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wp-project-copy small{font-size:9px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wp-project-chevron{color:var(--text-4)}.wp-project-chevron .i{width:14px;height:14px}.wp-project-card>.wp-icon-btn{width:27px;height:27px;border:0;background:transparent}.wp-project-head{display:flex;align-items:center;gap:9px;margin:4px 0 10px}.wp-project-head>span{margin-right:auto;color:var(--text-3);font-size:10px}.wp-personal-project{display:flex;align-items:center;gap:8px;width:100%;margin-top:9px;padding:10px 12px;border:1px solid var(--line);border-radius:calc(11px*var(--rs));background:var(--card-2);color:var(--text-2);text-align:left;cursor:pointer}.wp-personal-project>.i:first-child{width:15px;height:15px}.wp-personal-project b{margin-left:auto;font-size:10px}.wp-personal-project>.i:last-child{width:13px;height:13px;color:var(--text-4)}
 .wp-matrix-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.wp-quadrant{min-height:170px;padding:10px;border:1px solid var(--line);border-radius:calc(14px*var(--rs));background:var(--card);transition:background .15s,border-color .15s,box-shadow .15s}.wp-quadrant>header{display:flex;align-items:center;gap:8px;padding:0 1px 9px;border-bottom:1px solid var(--line)}.wp-quadrant>header>i{width:8px;height:8px;border-radius:99px;background:var(--text-4)}.wp-quadrant.q0>header>i{background:rgb(var(--danger))}.wp-quadrant.q1>header>i{background:rgb(var(--accent))}.wp-quadrant.q2>header>i{background:rgb(var(--warn))}.wp-quadrant.q3>header>i{background:var(--text-4)}.wp-quadrant header b{display:block;font-size:11px}.wp-quadrant header small{display:block;margin-top:2px;color:var(--text-3);font-size:9px}.wp-quadrant-items{display:flex;flex-direction:column;gap:5px;padding-top:7px}.wp-quadrant-empty{display:block;padding:13px 4px;color:var(--text-4);font-size:9.5px;text-align:center}.wp-unplaced{margin-top:10px;padding:10px;border:1px dashed var(--line-2);border-radius:calc(13px*var(--rs))}.wp-unplaced>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.wp-unplaced>div:first-child b{font-size:11px}.wp-unplaced>div:first-child small{color:var(--text-3);font-size:9px}.wp-matrix-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.wp-matrix-picker button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-height:62px;padding:10px;border:1px solid var(--line);border-radius:calc(11px*var(--rs));background:var(--card-2);color:var(--text);text-align:left;cursor:pointer}.wp-matrix-picker button:hover{border-color:rgb(var(--accent)/.45);background:var(--card-3)}.wp-matrix-picker button i{width:7px;height:7px;border-radius:99px;background:rgb(var(--accent))}.wp-matrix-picker button.q0 i{background:rgb(var(--danger))}.wp-matrix-picker button.q2 i{background:rgb(var(--warn))}.wp-matrix-picker button b{font-size:10.5px}.wp-matrix-picker button small{font-size:9px;color:var(--text-3)}
 .wp-migration-error{display:flex;align-items:flex-start;gap:8px;margin:8px 0;padding:9px 11px;border:1px solid rgb(var(--danger)/.35);border-radius:calc(10px*var(--rs));background:rgb(var(--danger)/.07);color:var(--text-2);font-size:10.5px;line-height:1.45}.wp-migration-error .i{width:15px;height:15px;flex:none;color:rgb(var(--danger))}.wp-series-info{display:flex;align-items:flex-start;gap:8px;padding:9px 10px;margin:0 0 10px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));background:var(--card-2);color:var(--text-2);font-size:10px;line-height:1.45}.wp-series-info>.i{width:15px;height:15px;flex:none;color:rgb(var(--accent))}.wp-series-info b{font-weight:600}.wp-series-info small{display:block;margin-top:3px;color:var(--text-3)}.wp-scope-switch{display:flex;gap:3px;margin:0 0 12px;padding:3px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));background:var(--card-2)}.wp-scope-switch button{flex:1;min-height:29px;border:0;border-radius:calc(7px*var(--rs));background:transparent;color:var(--text-3);font:500 10.5px var(--font);cursor:pointer}.wp-scope-switch button.active{background:var(--card);color:var(--text);box-shadow:var(--sh-sm)}
 .wp-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 12px}.wp-form-grid .field{min-width:0}.wp-form-grid .field>span{display:block;margin:0 0 5px;color:var(--text-2);font-size:10.5px;font-weight:550}.wp-form-grid .field.full{grid-column:1/-1}.wp-form-grid textarea.input{height:auto;min-height:67px;padding:9px 11px;resize:vertical;line-height:1.45}.wp-editor-section{margin-top:12px;padding:10px 11px;border:1px solid var(--line);border-radius:calc(12px*var(--rs));background:color-mix(in srgb,var(--card-2) 42%,var(--card))}.wp-editor-section>summary{list-style:none;display:flex;align-items:center;min-height:23px;color:var(--text-2);font-size:10.5px;font-weight:600;cursor:pointer}.wp-editor-section>summary::-webkit-details-marker{display:none}.wp-editor-section>summary:after{content:'+';margin-left:auto;color:var(--text-3);font-size:15px}.wp-editor-section[open]>summary:after{content:'−'}.wp-editor-section>.wp-form-grid,.wp-editor-repeat{padding-top:11px}.wp-editor-repeat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}.wp-editor-repeat .field>span{display:block;margin-bottom:5px;font-size:10px;color:var(--text-2)}.wp-repeat-options{display:contents}.wp-repeat-options[hidden]{display:none}.wp-weekdays{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px}.wp-weekdays[hidden]{display:none}.wp-weekdays label{position:relative;cursor:pointer}.wp-weekdays input{position:absolute;opacity:0;pointer-events:none}.wp-weekdays span{display:grid;place-items:center;min-width:34px;height:28px;padding:0 6px;border:1px solid var(--line);border-radius:calc(8px*var(--rs));background:var(--card);color:var(--text-3);font-size:9.5px}.wp-weekdays input:checked+span{border-color:rgb(var(--accent)/.48);background:rgb(var(--accent)/.13);color:var(--text)}.wp-form-hint{grid-column:1/-1;margin:0;color:var(--text-3);font-size:9px;line-height:1.45}.wp-picker-quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.wp-picker-quick .btn{font-size:10px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.wp-color-row{display:flex;align-items:center;gap:8px;min-height:30px}.wp-color-row input[type=color]{width:46px;height:28px;padding:2px;border:1px solid var(--line-2);border-radius:calc(7px*var(--rs));background:var(--card-2);cursor:pointer}
+.wp-color-row{display:flex;align-items:center;gap:8px;min-height:30px}.wp-color-row input[type=color]{width:46px;height:28px;padding:2px;border:1px solid var(--line-2);border-radius:calc(7px*var(--rs));background:var(--card-2);cursor:pointer}.wp-color-row.is-dot input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--line-2);border-radius:50%;background:transparent}.wp-color-row.is-dot input[type=color]::-webkit-color-swatch-wrapper{padding:0}.wp-color-row.is-dot input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}.wp-color-row.is-dot input[type=color]::-moz-color-swatch{border:0;border-radius:50%}
 .wp-task button:focus-visible,.wp-nav button:focus-visible,.wp-icon-btn:focus-visible,.wp-add-day:focus-visible,.wp-filter-pills button:focus-visible,.wp-project-open:focus-visible,.wp-week-controls button:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}
 @media(max-width:1250px){.wp-layout{grid-template-columns:150px minmax(0,1fr);gap:14px}.wp-rail{padding:12px 7px}.wp-week-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.wp-brandline p{max-width:390px}}
 @media(max-width:900px){.wp-layout{grid-template-columns:1fr;gap:10px}.wp-rail{position:static;min-height:0;padding:7px;border-radius:calc(14px*var(--rs));gap:0}.wp-rail-brand,.wp-rail-footer{display:none}.wp-nav{flex-direction:row;overflow-x:auto;gap:4px;scrollbar-width:none}.wp-nav::-webkit-scrollbar{display:none}.wp-nav-item{flex:none;min-height:35px;padding:0 10px;font-size:10.5px}.wp-nav-item .i{width:14px;height:14px}.wp-week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wp-search{width:min(260px,32vw)}}
@@ -4072,41 +4072,38 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-month-dows{margin-bottom:8px}
 .wp-month-dows>div{text-align:center;font-size:11px;font-weight:550;color:var(--text-2)}
 .wp-month-dows>div:nth-child(n+6){color:var(--text-3)}
-.wp-month-day{position:relative;display:flex;flex-direction:column;gap:5px;min-width:0;min-height:126px;padding:7px;border:1px solid var(--line);border-radius:calc(14px*var(--rs));background:var(--card);box-shadow:var(--hi);overflow:hidden;cursor:pointer;transition:transform .2s var(--ease),border-color .18s,box-shadow .18s}
-.wp-month-day:hover{transform:translateY(-1px);border-color:var(--line-3)}
-.wp-month-day.is-out{opacity:.48}
-.wp-month-day.is-today{border-color:rgb(var(--accent)/.55);box-shadow:0 0 0 1px rgb(var(--accent)/.22)}
-.wp-month-day.is-selected:not(.is-today){border-color:rgb(var(--accent));box-shadow:0 0 0 1px rgb(var(--accent)/.3)}
+.wp-month-day{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:5px;min-width:0;min-height:84px;aspect-ratio:1.22;padding:7px;border:1px solid var(--line);border-radius:calc(14px*var(--rs));background:var(--card);box-shadow:var(--hi);overflow:hidden;cursor:pointer;transition:transform .2s var(--ease),border-color .18s,box-shadow .18s}
+.wp-month-day:hover{transform:translate3d(0,-2px,0);border-color:var(--line-3)}
+.wp-month-day.is-out{opacity:.34}
+.wp-month-day.is-today{background:linear-gradient(145deg,rgb(var(--ga)),rgb(var(--gc)) 58%,rgb(var(--gb)));border-color:transparent;box-shadow:0 14px 30px -14px rgb(var(--gc)/.8)}
+.wp-month-day.is-today .wp-month-date,.wp-month-day.is-today .wp-month-count,.wp-month-day.is-today .wp-month-dots em{color:#fff}
+.wp-month-day.is-today .wp-month-dots i{box-shadow:0 0 0 1.5px rgba(255,255,255,.7)}
+.wp-month-day.is-today .wp-month-add{color:#fff}
+.wp-month-day.is-today .wp-month-add:hover{border-color:transparent;background:rgba(255,255,255,.16);color:#fff}
+html[data-theme="graphite"] .wp-month-day.is-today .wp-month-date,html[data-theme="graphite"] .wp-month-day.is-today .wp-month-count,html[data-theme="graphite"] .wp-month-day.is-today .wp-month-dots em,html[data-theme="graphite"] .wp-month-day.is-today .wp-month-add{color:#0E0E10}
+html[data-theme="graphite"] .wp-month-day.is-today .wp-month-add:hover{background:rgba(0,0,0,.08);border-color:transparent;color:#0E0E10}
+.wp-month-day.is-selected{border-color:rgb(var(--accent));box-shadow:0 0 0 1px rgb(var(--accent)),0 12px 26px -16px rgb(var(--accent))}
+.wp-month-day.is-today.is-selected{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px rgb(var(--gc)),0 14px 30px -14px rgb(var(--gc)/.8)}
 .wp-month-day.drop-active{border-color:rgb(var(--accent));box-shadow:0 0 0 3px rgb(var(--accent)/.16);background:color-mix(in srgb,rgb(var(--accent)) 8%,var(--card))}
 .wp-month-day-head{display:flex;align-items:center;gap:5px;min-height:27px}
-.wp-month-date{display:grid;place-items:center;width:26px;height:26px;flex:none;padding:0;border:1px solid transparent;border-radius:calc(8px*var(--rs));background:transparent;color:var(--text-2);font:600 12px/1 var(--font-d);font-variant-numeric:tabular-nums;cursor:pointer}
-.wp-month-date:hover{background:var(--card-3);color:var(--text)}
-.wp-month-date.today{border-color:transparent;border-radius:50%;background:linear-gradient(140deg,rgb(var(--ga)),rgb(var(--gc)) 58%,rgb(var(--gb)));color:#fff;box-shadow:0 5px 12px -7px rgb(var(--accent))}
-.wp-month-count{display:grid;place-items:center;min-width:18px;height:18px;margin-left:auto;padding:0 4px;border-radius:99px;background:var(--card-3);color:var(--text-3);font-size:9px;font-variant-numeric:tabular-nums}
-.wp-month-add{display:grid;place-items:center;width:24px;height:24px;flex:none;margin-left:auto;padding:0;border:1px solid transparent;border-radius:calc(7px*var(--rs));background:transparent;color:var(--text-3);cursor:pointer}
+.wp-month-date{position:relative;flex:none;padding:0;border:0;background:transparent;color:var(--text);font:600 15px/1.2 var(--font-d);font-variant-numeric:tabular-nums;cursor:pointer}
+.wp-month-count{margin-left:auto;color:var(--text-3);font-size:11px;font-variant-numeric:tabular-nums}
+.wp-month-add{display:grid;place-items:center;width:24px;height:24px;flex:none;margin-left:auto;padding:0;border:1px solid transparent;border-radius:calc(7px*var(--rs));background:transparent;color:var(--text-3);cursor:pointer;opacity:0;transition:opacity .15s,background .15s,color .15s,border-color .15s}
 .wp-month-count+.wp-month-add{margin-left:0}
+.wp-month-day:hover .wp-month-add,.wp-month-day:focus-within .wp-month-add,.wp-month-add:focus-visible{opacity:1}
 .wp-month-add:hover{border-color:var(--line);background:var(--card-2);color:rgb(var(--accent))}
 .wp-month-add .i{width:13px;height:13px}
-.wp-month-events{display:flex;flex-direction:column;gap:3px;min-width:0}
-.wp-month-event{display:flex;align-items:center;gap:4px;width:100%;min-width:0;min-height:22px;padding:3px 4px;border:0;border-left:2px solid rgb(var(--accent));border-radius:calc(5px*var(--rs));background:var(--card-2);color:var(--text-2);font:500 9px/1.25 var(--font);text-align:left;cursor:pointer;transition:filter .14s,color .14s}
-.wp-month-event:hover{filter:brightness(1.03);color:var(--text)}
-.wp-month-event>i{width:5px;height:5px;flex:none;border-radius:50%;background:rgb(var(--accent))}
-.wp-month-event.is-waiting{background:color-mix(in srgb,rgb(var(--warn)) 7%,var(--card-2))}
-.wp-month-event.p-critical{border-left-color:rgb(var(--danger));background:color-mix(in srgb,rgb(var(--danger)) 12%,var(--card-2))}.wp-month-event.p-critical>i{background:rgb(var(--danger))}
-.wp-month-event.p-high{border-left-color:rgb(var(--warn));background:color-mix(in srgb,rgb(var(--warn)) 12%,var(--card-2))}.wp-month-event.p-high>i{background:rgb(var(--warn))}
-.wp-month-event.p-normal{border-left-color:rgb(var(--accent));background:color-mix(in srgb,rgb(var(--accent)) 9%,var(--card-2))}.wp-month-event.p-normal>i{background:rgb(var(--accent))}
-.wp-month-event.p-none{border-left-color:var(--text-4);background:var(--card-2)}.wp-month-event.p-none>i{background:var(--text-4)}
-.wp-month-event.p-custom{border-left-color:var(--wp-prio);background:color-mix(in srgb,var(--wp-prio) 12%,var(--card-2))}.wp-month-event.p-custom>i{background:var(--wp-prio)}
-.wp-month-event.is-done{opacity:1;border-left-color:rgb(var(--ok));background:color-mix(in srgb,rgb(var(--ok)) 12%,var(--card-2));color:rgb(var(--ok))}.wp-month-event.is-done>i{background:rgb(var(--ok))}.wp-month-event.is-done>span{color:rgb(var(--ok));text-decoration:line-through}.wp-month-event.is-done>small{color:color-mix(in srgb,rgb(var(--ok)) 72%,var(--text-3))}
-.wp-month-event>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wp-month-event>small{flex:none;color:var(--text-4);font-size:8px}
-.wp-month-more{align-self:flex-start;padding:2px 4px;border:0;border-radius:calc(4px*var(--rs));background:transparent;color:var(--text-3);font:500 8.5px var(--font);cursor:pointer}
-.wp-month-more:hover{background:var(--card-2);color:rgb(var(--accent))}
+.wp-month-dots{position:relative;display:flex;align-items:center;gap:4px;min-height:8px}
+.wp-month-dots i{width:7px;height:7px;border-radius:50%;background:var(--wp-prio-none,var(--text-4));box-shadow:inset 0 0 0 1px var(--dot-ring),0 0 0 1.5px var(--card)}
+.wp-month-dots i.p-normal{background:var(--wp-prio-normal,rgb(var(--accent)))}
+.wp-month-dots i.p-high{background:var(--wp-prio-high,rgb(var(--warn)))}
+.wp-month-dots i.p-critical{background:var(--wp-prio-critical,rgb(var(--danger)))}
+.wp-month-dots em{font-style:normal;font-size:10.5px;color:var(--text-3);margin-left:3px}
 .wp-month-selected{margin-top:13px;padding:11px 12px;border:1px solid var(--line);border-radius:calc(14px*var(--rs));background:color-mix(in srgb,var(--card-2) 48%,var(--card));box-shadow:var(--hi)}
-.wp-month-selected>header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.wp-month-selected>header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
 .wp-month-selected>header>div{display:flex;align-items:baseline;gap:9px;min-width:0}
-.wp-month-selected h2{margin:0;font:600 13px/1.2 var(--font-d);letter-spacing:-.01em}
-.wp-month-selected>header span{color:var(--text-3);font-size:10px}
+.wp-month-selected h2{margin:0;font:600 16px/1.2 var(--font-d);letter-spacing:-.015em}
+.wp-month-selected>header span{color:var(--text-3);font-size:12px}
 .wp-month-selected .wp-task-list{gap:6px}
 .wp-week-selected{margin-top:13px;padding:11px 12px;border:1px solid var(--line);border-radius:calc(14px*var(--rs));background:color-mix(in srgb,var(--card-2) 48%,var(--card));box-shadow:var(--hi)}
 .wp-week-selected>header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
@@ -4140,9 +4137,9 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .wp-month-dows>div{font-size:8px}
   .wp-month-day{min-height:54px;padding:4px;border-radius:calc(9px*var(--rs));gap:1px}
   .wp-month-day-head{min-height:25px;gap:2px}
-  .wp-month-date{width:24px;height:24px;font-size:10px}
-  .wp-month-count{min-width:15px;height:15px;padding:0 3px;font-size:8px}
-  .wp-month-add,.wp-month-events,.wp-month-more{display:none}
+  .wp-month-date{font-size:10px}
+  .wp-month-count{font-size:8px}
+  .wp-month-add{display:none}
   .wp-month-selected{padding:9px}
   .wp-month-selected>header>div{flex-wrap:wrap;gap:3px 7px}
   .wp-week-selected{padding:9px}
@@ -4157,9 +4154,9 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .wp-month-dows>div{font-size:8px}
   .wp-month-day{min-height:54px;padding:4px;border-radius:calc(9px*var(--rs));gap:1px}
   .wp-month-day-head{min-height:25px;gap:2px}
-  .wp-month-date{width:24px;height:24px;font-size:10px}
-  .wp-month-count{min-width:15px;height:15px;padding:0 3px;font-size:8px}
-  .wp-month-add,.wp-month-events,.wp-month-more{display:none}
+  .wp-month-date{font-size:10px}
+  .wp-month-count{font-size:8px}
+  .wp-month-add{display:none}
   .wp-month-selected{padding:9px}
   .wp-month-selected>header>div{flex-wrap:wrap;gap:3px 7px}
   .wp-week-selected{padding:9px}
@@ -4174,8 +4171,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-brandline h1{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .wp-title-marquee-text{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .wp-title-marquee-clip.is-title-overflowing:hover>.wp-title-marquee-text,.wp-title-marquee-clip.is-title-overflowing:focus-visible>.wp-title-marquee-text{width:max-content;max-width:none;overflow:visible;text-overflow:clip;animation:wpTaskTitleMarquee var(--wp-title-duration,6s) linear .45s infinite alternate;will-change:transform}
-.wp-month-event{overflow:hidden}
-.wp-month-event.is-title-overflowing:hover>.wp-title-marquee-text,.wp-month-event.is-title-overflowing:focus-visible>.wp-title-marquee-text{flex:none}
+
 .wp-task-meta>span{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .wp-task-meta .wp-assignee{max-width:min(180px,100%);overflow:hidden;text-overflow:ellipsis}
 .wp-task-meta .wp-assignee>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -4211,11 +4207,10 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-calendar-span>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wp-calendar-span>small{flex:none;margin-left:auto;color:var(--text-3);font-size:8px;font-variant-numeric:tabular-nums}
 .wp-calendar-span.is-waiting{background:color-mix(in srgb,rgb(var(--warn)) 16%,var(--card-2))}
-.wp-calendar-span.p-critical{border-color:color-mix(in srgb,rgb(var(--danger)) 30%,var(--line));background:color-mix(in srgb,rgb(var(--danger)) 13%,var(--card-2))}
-.wp-calendar-span.p-high{border-color:color-mix(in srgb,rgb(var(--warn)) 30%,var(--line));background:color-mix(in srgb,rgb(var(--warn)) 13%,var(--card-2))}
-.wp-calendar-span.p-normal{border-color:color-mix(in srgb,rgb(var(--accent)) 24%,var(--line));background:color-mix(in srgb,rgb(var(--accent)) 10%,var(--card-2))}
+.wp-calendar-span.p-critical{border-color:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 30%,var(--line));background:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 13%,var(--card-2))}
+.wp-calendar-span.p-high{border-color:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 30%,var(--line));background:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 13%,var(--card-2))}
+.wp-calendar-span.p-normal{border-color:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 24%,var(--line));background:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 10%,var(--card-2))}
 .wp-calendar-span.p-none{border-color:var(--line);background:var(--card-2)}
-.wp-calendar-span.p-custom{border-color:color-mix(in srgb,var(--wp-prio) 40%,var(--line));background:color-mix(in srgb,var(--wp-prio) 15%,var(--card-2))}
 .wp-calendar-span.is-done{opacity:1;border-color:color-mix(in srgb,rgb(var(--ok)) 42%,var(--line));background:color-mix(in srgb,rgb(var(--ok)) 14%,var(--card-2));color:rgb(var(--ok))}.wp-calendar-span.is-done>span{color:rgb(var(--ok));text-decoration:line-through}.wp-calendar-span.is-done>small{color:color-mix(in srgb,rgb(var(--ok)) 72%,var(--text-3))}
 .wp-calendar-span.continues-before{border-top-left-radius:5px;border-bottom-left-radius:5px}
 .wp-calendar-span.continues-after{border-top-right-radius:5px;border-bottom-right-radius:5px}
@@ -4238,11 +4233,10 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-week-grid.is-all-day .wp-day-items{flex:1;min-height:70px;padding:7px 6px;gap:6px}
 .wp-week-grid.is-all-day .wp-day-empty{margin:12px 0;padding:12px 2px;font-size:9px}
 .wp-week-grid.is-all-day .wp-task{grid-template-columns:16px minmax(0,1fr) 18px;align-items:start;gap:4px;padding:7px 5px;border:1px solid var(--line);border-left:3px solid var(--line-3);border-radius:calc(10px*var(--rs));background:var(--card);box-shadow:none}
-.wp-week-grid.is-all-day .wp-task.p-critical{border-color:color-mix(in srgb,rgb(var(--danger)) 28%,var(--line));border-left-color:rgb(var(--danger));background:color-mix(in srgb,rgb(var(--danger)) 11%,var(--card))}
-.wp-week-grid.is-all-day .wp-task.p-high{border-color:color-mix(in srgb,rgb(var(--warn)) 28%,var(--line));border-left-color:rgb(var(--warn));background:color-mix(in srgb,rgb(var(--warn)) 11%,var(--card))}
-.wp-week-grid.is-all-day .wp-task.p-normal{border-color:color-mix(in srgb,rgb(var(--accent)) 23%,var(--line));border-left-color:rgb(var(--accent));background:color-mix(in srgb,rgb(var(--accent)) 8%,var(--card))}
-.wp-week-grid.is-all-day .wp-task.p-none{border-color:var(--line);border-left-color:var(--line-3);background:var(--card)}
-.wp-week-grid.is-all-day .wp-task.p-custom{border-color:color-mix(in srgb,var(--wp-prio) 30%,var(--line));border-left-color:var(--wp-prio);background:color-mix(in srgb,var(--wp-prio) 11%,var(--card))}
+.wp-week-grid.is-all-day .wp-task.p-critical{border-color:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 28%,var(--line));border-left-color:var(--wp-prio-critical,rgb(var(--danger)));background:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 11%,var(--card))}
+.wp-week-grid.is-all-day .wp-task.p-high{border-color:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 28%,var(--line));border-left-color:var(--wp-prio-high,rgb(var(--warn)));background:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 11%,var(--card))}
+.wp-week-grid.is-all-day .wp-task.p-normal{border-color:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 23%,var(--line));border-left-color:var(--wp-prio-normal,rgb(var(--accent)));background:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 8%,var(--card))}
+.wp-week-grid.is-all-day .wp-task.p-none{border-color:var(--line);border-left-color:var(--wp-prio-none,var(--line-3));background:var(--card)}
 .wp-week-grid.is-all-day .wp-task.is-overdue{border-left-color:rgb(var(--danger))}
 .wp-week-grid.is-all-day .wp-task:hover{filter:brightness(1.03)}
 .wp-week-grid.is-all-day .wp-task-title{font-size:10px}
@@ -4250,11 +4244,10 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-week-grid.is-all-day .wp-check{width:15px;height:15px}
 .wp-week-grid.is-all-day .wp-task>.wp-icon-btn{width:18px;height:18px}
 /* Priority tint on task cards is independent from their Matrix classification. */
-.wp-task.p-critical{border-color:color-mix(in srgb,rgb(var(--danger)) 30%,var(--line));border-left:3px solid rgb(var(--danger));background:color-mix(in srgb,rgb(var(--danger)) 11%,var(--card))}
-.wp-task.p-high{border-color:color-mix(in srgb,rgb(var(--warn)) 30%,var(--line));border-left:3px solid rgb(var(--warn));background:color-mix(in srgb,rgb(var(--warn)) 10%,var(--card))}
-.wp-task.p-normal{border-color:color-mix(in srgb,rgb(var(--accent)) 24%,var(--line));border-left:3px solid rgb(var(--accent));background:color-mix(in srgb,rgb(var(--accent)) 7%,var(--card))}
-.wp-task.p-none{border-color:var(--line);border-left:3px solid var(--line-3);background:var(--card)}
-.wp-task.p-custom{border-color:color-mix(in srgb,var(--wp-prio) 32%,var(--line));border-left:3px solid var(--wp-prio);background:color-mix(in srgb,var(--wp-prio) 11%,var(--card))}
+.wp-task.p-critical{border-color:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 30%,var(--line));border-left:3px solid var(--wp-prio-critical,rgb(var(--danger)));background:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 11%,var(--card))}
+.wp-task.p-high{border-color:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 30%,var(--line));border-left:3px solid var(--wp-prio-high,rgb(var(--warn)));background:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 10%,var(--card))}
+.wp-task.p-normal{border-color:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 24%,var(--line));border-left:3px solid var(--wp-prio-normal,rgb(var(--accent)));background:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 7%,var(--card))}
+.wp-task.p-none{border-color:var(--line);border-left:3px solid var(--wp-prio-none,var(--line-3));background:var(--card)}
 .wp-task.is-overdue{border-left-color:rgb(var(--danger))}
 .wp-task.is-done{border-color:color-mix(in srgb,rgb(var(--ok)) 36%,var(--line));background:color-mix(in srgb,rgb(var(--ok)) 10%,var(--card));opacity:.92}
 .wp-task.is-done .wp-task-title{color:rgb(var(--ok));text-decoration:line-through}
@@ -4409,13 +4402,12 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 @media(max-width:560px){.wp-transfer-passwords{grid-template-columns:1fr}}
 
 /* В раскладке задач меню занимает всю высоту, а прокручивается только рабочее поле. */
-.planner-page{display:flex;height:100%;min-height:100%;padding:0;overflow:hidden}
+.planner-page{display:flex;height:100%;min-height:100%;padding:0;overflow:clip}
 .wp-layout{flex:1 1 auto;grid-template-columns:170px minmax(0,1fr);gap:0;align-items:stretch;height:100%;min-height:0}
 .wp-rail{position:relative;top:auto;align-self:stretch;height:100%;min-height:0;padding:15px 10px;border:0;border-right:1px solid var(--line);border-radius:0;box-shadow:none}
-.wp-main{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;padding:22px 28px 26px}
+.wp-main{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:clip;padding:22px 28px 26px}
 .wp-topbar,.wp-currentbar{flex:none}
 .wp-view{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
-.wp-month-day{height:150px;aspect-ratio:auto}
 @container shelter (max-width:620px){.wp-month-day{height:78px}}
 @media(max-width:900px){
   .wp-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:10px}
@@ -4584,7 +4576,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 
 /* Месяц — компактная сетка и панель выбранного дня, как в «Истории». */
 .wp-month-layout{
-  display:grid;grid-template-columns:minmax(0,1fr) 280px;
+  display:grid;grid-template-columns:minmax(0,1fr) 330px;
   align-items:start;gap:18px;min-width:0;
 }
 .planner-page .wp-month-calendar{min-width:0}
@@ -4593,17 +4585,12 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .planner-page .wp-month-dows{margin-bottom:8px}
 .planner-page .wp-month-dows>div{font-size:11px;font-weight:500}
 .planner-page .wp-month-day{
-  width:100%;max-width:100%;min-width:0;min-height:84px;aspect-ratio:auto;gap:3px;padding:6px;
+  width:100%;max-width:100%;min-width:0;min-height:84px;aspect-ratio:1.22;gap:3px;padding:6px;
   border-radius:calc(15px*var(--rs));
 }
 .planner-page .wp-month-day-head{min-height:24px;gap:3px}
-.planner-page .wp-month-date{width:24px;height:24px;font-size:12px}
 .planner-page .wp-month-add{width:24px;height:24px}
-.planner-page .wp-month-count{min-width:16px;height:16px;padding:0 3px;font-size:8px}
-.planner-page .wp-month-events{gap:2px}
-.planner-page .wp-month-event{min-height:18px;padding:2px 4px;font-size:9px;line-height:1.2}
-.planner-page .wp-month-event>small{display:none}
-.planner-page .wp-month-more{min-height:14px;padding:0 3px;font-size:8px}
+.planner-page .wp-month-count{font-size:11px}
 .planner-page .wp-month-span-layer{top:34px;left:0;right:0;column-gap:8px}
 .planner-page .wp-calendar-span--month{gap:4px;padding:1px 5px;font-size:8px}
 .planner-page .wp-calendar-span--month>small{font-size:7px}
@@ -4641,8 +4628,8 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .planner-page .wp-month-day{height:78px;aspect-ratio:auto;padding:4px;gap:1px;border-radius:calc(11px*var(--rs))}
   .planner-page .wp-month-date{font-size:11px}
   .planner-page .wp-month-day-head{min-height:24px;gap:2px}
-  .planner-page .wp-month-count{min-width:14px;height:14px;font-size:8px}
-  .planner-page .wp-month-add,.planner-page .wp-month-events,.planner-page .wp-month-more{display:none}
+  .planner-page .wp-month-count{font-size:8px}
+  .planner-page .wp-month-add{display:none}
   .planner-page .wp-month-span-layer{top:30px;left:0;right:0;column-gap:5px}
   .planner-page .wp-calendar-span--month{font-size:7px;padding:1px 3px;gap:2px}
   .planner-page .wp-calendar-span--month>small{display:none}
@@ -4693,9 +4680,9 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .planner-page .wp-date-control.is-iconless{gap:0}
 /* Доска делит общие боковые отступы с остальными представлениями (как в референсе); запрещена только горизонтальная прокрутка. */
 .planner-page .wp-view:has(>.wp-board-lanes){overflow-x:clip}
-/* Плашки сводки закреплены вместе с тулбаром: столбцы длинные, подписи должны быть видны. */
+/* Плашки сводки закреплены, тулбар прокручивается: столбцы длинные, цифры должны быть видны. */
 .planner-page .wp-board-pin{position:sticky;top:0;z-index:9;margin:0;padding:0 0 10px;background:var(--surface);box-shadow:0 calc(-1 * var(--wp-view-pad-top,16px)) 0 var(--surface)}
-.planner-page .wp-board-pin:has(>.wp-board-toolbar.is-scrollable){position:static;box-shadow:none}
+.planner-page .wp-board-pin.is-scrollable{position:static;box-shadow:none}
 .planner-page .wp-board-pin>.wp-board-summary{margin-bottom:0}
 </style>
 <style id="shelter-task-logic">
@@ -10288,12 +10275,15 @@ function taskDicts() {
   let cur = 'projects';
   const label = v => typeof v === 'string' ? v : ((v && v.name) || '');
   const body = () => boardCard() + `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${D.map(d => `<button class="btn sm ${d[0] === cur ? 'primary' : 'ghost'}" data-dk="${d[0]}">${d[1]}</button>`).join('')}</div>
-    <div class="set-card">${(S.board[cur] || []).map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b></div>${(locked[cur] || []).includes(v) ? '<span class="chip">системное</span>' : `${cur === 'projects' ? `<button class="icon-btn" data-inv="${i}" aria-label="Пригласить">${ico('users')}</button>` : ''}<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'}</div>
-    <div style="display:flex;gap:8px;margin-top:12px"><input class="input" id="dAdd" placeholder="Новое значение"><button class="btn" data-da="1">${ico('plus')}Добавить</button></div>`;
+    ${cur==='prios'?prioBody():`<div class="set-card">${(S.board[cur] || []).map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b></div>${(locked[cur] || []).includes(v) ? '<span class="chip">системное</span>' : `${cur === 'projects' ? `<button class="icon-btn" data-inv="${i}" aria-label="Пригласить">${ico('users')}</button>` : ''}<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'}</div>
+    <div style="display:flex;gap:8px;margin-top:12px"><input class="input" id="dAdd" placeholder="Новое значение"><button class="btn" data-da="1">${ico('plus')}Добавить</button></div>`}`;
+  const prioBody=()=>{ const colors=wpBoardPriorityColors(S.board), defaults=wpDefaultPriorityColors();
+    return `<div class="set-card">${['none','normal','high','critical'].map(k=>{ const label=WP_PRIORITY_RU[k]||k; return `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label)}</b></div><span class="wp-color-row is-dot"><input type="color" data-prio-color="${k}" value="${esc(colors[k]||defaults[k])}" aria-label="Цвет приоритета «${esc(label)}»"></span></div>`; }).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap"><button class="btn ghost sm" data-prio-reset="1">Сбросить к цветам темы</button><span class="muted" style="font-size:12px">Цвета действуют на всю доску</span></div>`; };
   const m = openModal({ width: 520, html: `<div class="modal-h"><div class="mi-ic">${ico('sliders')}</div><h3>Настройка</h3><button class="icon-btn" data-close="1" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b" id="dictB">${body()}</div>` });
   const root = m.scrim, re = () => { $('#dictB', root).innerHTML = body(); };
   root.addEventListener('click', async e => {
-    const el = e.target.closest('[data-dk],[data-dr],[data-dd],[data-da],[data-close],[data-inv],[data-bcopy],[data-bren]'); if (!el) return;
+    const el = e.target.closest('[data-dk],[data-dr],[data-dd],[data-da],[data-close],[data-inv],[data-bcopy],[data-bren],[data-prio-reset]'); if (!el) return;
     const arr = S.board[cur];
     if (el.dataset.bcopy) { copyText(S.board.code || ''); toast('Идентификатор доски скопирован', { icon: 'copy' }); return; }
     if (el.dataset.bren) {
@@ -10309,6 +10299,7 @@ function taskDicts() {
     }
     if (el.dataset.close) { closeModal(m); tasksRerender(true); return; }
     if (el.dataset.dk) { cur = el.dataset.dk; re(); return; }
+    if (el.dataset.prioReset) { S.board.priorityColors = {}; persist(); wpApplyBoardPriorityVars(); re(); return; }
     if (el.dataset.inv) { const p = arr[+el.dataset.inv]; if (p && p.id) projectInvite(p.id); return; }
     if (el.dataset.da) {
       const v = $('#dAdd', root).value.trim(); if (!v) return;
@@ -10339,6 +10330,13 @@ function taskDicts() {
       }
       persist(); re();
     }
+  });
+  root.addEventListener('input', e => {
+    const inp = e.target.closest('[data-prio-color]'); if (!inp) return;
+    const c = wpValidPriorityColor(inp.value); if (!c) return;
+    if (!wpIsObj(S.board.priorityColors)) S.board.priorityColors = {};
+    S.board.priorityColors[inp.dataset.prioColor] = c;
+    persist(); wpApplyBoardPriorityVars();
   });
 }
 function projectInvite(projectId) {
@@ -13706,8 +13704,40 @@ function wpSetTaskHome(task,homeType,projectId='') {
 }
 const wpPriority = t => (t && ['none','normal','high','critical'].includes(t.priorityKey)) ? t.priorityKey : ({'Критично':'critical','Срочно':'high','Не срочные':'normal','Выполнено':(t && t.prevPrio === 'Срочно' ? 'high' : t && t.prevPrio === 'Критично' ? 'critical' : 'normal')}[t && t.prio] || 'normal');
 function wpValidPriorityColor(value) { const s=String(value||'').trim(); return /^#[0-9a-fA-F]{6}$/.test(s)?s:''; }
-function wpTaskPriorityClass(task) { return wpValidPriorityColor(task&&task.priorityColor)?'custom':wpPriority(task); }
-function wpTaskPriorityStyle(task) { const c=wpValidPriorityColor(task&&task.priorityColor); return c?`--wp-prio:${c}`:''; }
+function wpBoardPriorityColors(board) {
+  const stored=wpIsObj(board)&&wpIsObj(board.priorityColors)?board.priorityColors:{};
+  const out={};
+  ['none','normal','high','critical'].forEach(k=>{ out[k]=wpValidPriorityColor(stored[k]); });
+  return out;
+}
+function wpPriorityVarsStyle(board) {
+  const colors=wpBoardPriorityColors(board);
+  return ['none','normal','high','critical'].filter(k=>colors[k]).map(k=>`--wp-prio-${k}:${colors[k]}`).join(';');
+}
+function wpPriorityVarsAttr(board) { const v=wpPriorityVarsStyle(board); return v?` style="${v}"`:''; }
+function wpApplyBoardPriorityVars() {
+  const root=document.querySelector('.planner-page'); if(!root) return;
+  const colors=wpBoardPriorityColors(S.board);
+  ['none','normal','high','critical'].forEach(k=>{ if(colors[k]) root.style.setProperty(`--wp-prio-${k}`,colors[k]); else root.style.removeProperty(`--wp-prio-${k}`); });
+}
+function wpCssColorToHex(value,fallback) {
+  const v=String(value||'').trim(); let m=v.match(/^#([0-9a-fA-F]{6})$/);
+  if(m) return '#'+m[1].toLowerCase();
+  m=v.match(/^#([0-9a-fA-F]{3})$/);
+  if(m) return '#'+m[1].split('').map(c=>c+c).join('').toLowerCase();
+  m=v.match(/^(\d{1,3})[,\s]+(\d{1,3})[,\s]+(\d{1,3})$/);
+  if(m) return '#'+m.slice(1,4).map(n=>Math.min(255,Math.max(0,+n)).toString(16).padStart(2,'0')).join('');
+  return fallback;
+}
+function wpDefaultPriorityColors() {
+  const cssVar=name=>{ try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); } catch(_){ return ''; } };
+  return {
+    none:wpCssColorToHex(cssVar('--text-4'),'#8a8f9e'),
+    normal:wpCssColorToHex(cssVar('--accent'),'#7c5cff'),
+    high:wpCssColorToHex(cssVar('--warn'),'#f5a524'),
+    critical:wpCssColorToHex(cssVar('--danger'),'#f31260')
+  };
+}
 function wpDateParts(value) {
   if (value == null || value === '') return null;
   if (value instanceof Date && Number.isFinite(value.getTime())) return { y:value.getFullYear(), m:value.getMonth()+1, d:value.getDate() };
@@ -14687,19 +14717,19 @@ function wpTaskVisibility() {
   return visible;
 }
 function wpSyncFilterStickiness() {
-  const view=$('#wpView'),toolbar=view&&view.querySelector('.wp-all-toolbar,.wp-board-toolbar');
-  if(!view||!toolbar)return;
+  const view=$('#wpView'); if(!view)return;
+  const pin=view.querySelector('.wp-board-pin'),toolbar=view.querySelector('.wp-all-toolbar,.wp-board-toolbar'),stuck=pin||toolbar;
+  if(!stuck)return;
   // Высокая панель не должна запирать прокрутку короткого окна или закрывать задачи.
-  const pin=toolbar.closest('.wp-board-pin'),stuck=pin||toolbar,tall=stuck.getBoundingClientRect().height>view.clientHeight*.6;
-  toolbar.classList.toggle('is-scrollable',tall);
+  stuck.classList.toggle('is-scrollable',stuck.getBoundingClientRect().height>view.clientHeight*.6);
 }
 function wpWatchTaskFilters() {
   if(WP._toolbarResizeObserver)WP._toolbarResizeObserver.disconnect();
   wpSyncFilterStickiness();
-  const view=$('#wpView'),toolbar=view&&view.querySelector('.wp-all-toolbar,.wp-board-toolbar');
-  if(!toolbar||!window.ResizeObserver)return;
+  const view=$('#wpView'),toolbar=view&&view.querySelector('.wp-all-toolbar,.wp-board-toolbar'),pin=view&&view.querySelector('.wp-board-pin');
+  if((!toolbar&&!pin)||!window.ResizeObserver)return;
   if(!WP._toolbarResizeObserver)WP._toolbarResizeObserver=new ResizeObserver(wpSyncFilterStickiness);
-  WP._toolbarResizeObserver.observe(view);WP._toolbarResizeObserver.observe(toolbar);{const pin=toolbar.closest('.wp-board-pin');if(pin)WP._toolbarResizeObserver.observe(pin);}
+  WP._toolbarResizeObserver.observe(view);if(toolbar)WP._toolbarResizeObserver.observe(toolbar);if(pin)WP._toolbarResizeObserver.observe(pin);
 }
 function wpTrackMenuAnchor() {
   const menu=OV.menu;if(!menu||!menu.anchor)return;
@@ -14927,11 +14957,11 @@ function wpTaskCard(task, opts={}) {
   const statusChip=opts.board?'':status==='waiting' ? `<span class="wp-chip waiting">Ожидание</span>` : done ? `<span class="wp-chip done">Готово</span>` : status==='cancelled' ? `<span class="wp-chip cancelled">Отменена</span>` : '';
   const boardStatus=opts.board?`<div class="wp-board-task-status"><label><span class="sr-only">Статус</span><select class="select" data-act="wpBoardStatus" ${dataAttrs} aria-label="Статус задачи: ${esc(task.title||'Без названия')}" ${parentSeries?'disabled':''}>${wpStatusOptions(status)}</select></label></div>`:'';
   const deadline=wpDeadlineText(task,!!opts.inDay), deadlineFull=wpDeadlineText(task);
-  const prio=wpPriority(task), prioClass=wpTaskPriorityClass(task), prioStyle=wpTaskPriorityStyle(task), prioLabel=WP_PRIORITY_RU[prio] || 'Обычный', assignee=wpAssigneeLabel(task);
+  const prio=wpPriority(task), prioLabel=WP_PRIORITY_RU[prio] || 'Обычный', assignee=wpAssigneeLabel(task);
   const commentCount=wpCanCommentTask(task)?wpTaskCommentList(task).length:null;
   const drag=(parentSeries || opts.draggable===false) ? '' : ' draggable="true"';
   const origin=entityType==='occurrence' && task.scheduledDate && task.scheduledDate!==task.originalDate ? `<span class="wp-origin">из ${wpFmtDate(task.originalDate)}</span>` : '';
-  return `<article class="wp-task p-${esc(prioClass)} ${opts.board?'wp-board-task':''} ${done?'is-done':''} ${status==='cancelled'?'is-cancelled':''} ${overdue?'is-overdue':''} ${entityType==='occurrence'?'is-occurrence':''}"${prioStyle?` style="${prioStyle}"`:''} ${dataAttrs} data-task-id="${esc(task.taskId||task.id)}"${drag}>
+  return `<article class="wp-task p-${esc(prio)} ${opts.board?'wp-board-task':''} ${done?'is-done':''} ${status==='cancelled'?'is-cancelled':''} ${overdue?'is-overdue':''} ${entityType==='occurrence'?'is-occurrence':''}" ${dataAttrs} data-task-id="${esc(task.taskId||task.id)}"${drag}>
     ${parentSeries?`<span class="wp-series-mark" aria-label="Серия повторяющейся задачи">${ico('ref')}</span>`:`<button type="button" class="wp-check ${done?'on':''}" data-act="taskToggle" ${dataAttrs} aria-label="${done||status==='cancelled'?'Вернуть задачу в работу':'Отметить выполненной'}">${ico('check')}</button>`}
     <div class="wp-task-copy">
       <button type="button" class="wp-task-title wp-title-marquee-clip" data-act="taskEdit" ${dataAttrs} aria-label="${esc(task.title || 'Без названия')}"><span class="wp-title-marquee-text">${esc(task.title || 'Без названия')}</span></button>
@@ -14940,7 +14970,7 @@ function wpTaskCard(task, opts={}) {
         ${showHome ? `<span class="wp-chip home" aria-label="${wpTaskHomeType(task)==='project'?'Проект':'Список'}: ${esc(homeLabel)}" title="${esc(homeLabel)}">${ico(wpTaskHomeType(task)==='project'?'folder':wpTaskHomeType(task)==='inbox'?'inbox':'user')}<span class="wp-home-label">${esc(homeLabel)}</span></span>` : ''}
         ${`<span class="wp-assignee" title="Исполнитель: ${esc(assignee||'не назначен')}">${ico('user')}<span>${esc(assignee||'Не назначено')}</span></span>`}
         ${commentCount!==null?`<button type="button" class="wp-comment-link" data-act="taskEdit" data-open-comments="1" ${dataAttrs} title="Комментарии: ${commentCount}" aria-label="Открыть комментарии к задаче, ${commentCount}">${ico('chat')}<span>${commentCount}</span></button>`:''}
-        <span class="wp-priority p-${esc(prioClass)}" aria-label="Приоритет: ${esc(prioLabel)}"><i></i>${esc(prioLabel)}</span>
+        <span class="wp-priority p-${esc(prio)}" aria-label="Приоритет: ${esc(prioLabel)}"><i></i>${esc(prioLabel)}</span>
         ${!showHome && WP.view!=='projects' && wpTaskHomeType(task)==='project' ? `<span>${ico('folder')}${esc(wpHomeLabel(task))}</span>` : ''}
         ${planned ? `<span>${ico('calendar')}${esc(planned)}</span>` : ''}
         ${deadline ? `<span class="wp-deadline ${overdue?'overdue':''}" title="${esc(deadlineFull)}" aria-label="${esc(deadlineFull)}">${ico('clock')}${esc(deadline)}</span>` : ''}
@@ -15125,9 +15155,8 @@ function wpCalendarSpanEvent(segment,mode) {
   const fullRange=`${wpFmtDate(start,true)} — ${wpFmtDate(end,true)}`;
   const priorityLabel=WP_PRIORITY_RU[priority] || 'Обычный';
   const aria=`${title} · ${fullRange}${status==='done'?' · Статус: выполнена':''} · Приоритет: ${priorityLabel}`;
-  const classes=['wp-calendar-span',`wp-calendar-span--${mode}`,`p-${wpTaskPriorityClass(task)}`,status==='done'?'is-done':'',status==='waiting'?'is-waiting':'',segment.continuesBefore?'continues-before':'',segment.continuesAfter?'continues-after':''].filter(Boolean).join(' ');
-  const prioStyle=wpTaskPriorityStyle(task);
-  const style=`grid-column:${segment.startColumn+1}/${segment.endColumn+2};grid-row:${segment.lane+1}${prioStyle?`;${prioStyle}`:''}`;
+  const classes=['wp-calendar-span',`wp-calendar-span--${mode}`,`p-${priority}`,status==='done'?'is-done':'',status==='waiting'?'is-waiting':'',segment.continuesBefore?'continues-before':'',segment.continuesAfter?'continues-after':''].filter(Boolean).join(' ');
+  const style=`grid-column:${segment.startColumn+1}/${segment.endColumn+2};grid-row:${segment.lane+1}`;
   return `<button type="button" class="${classes}" data-act="taskEdit" ${wpEntityDataAttrs(task)} draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}" style="${style}"><span>${esc(title)}</span><small>${esc(range)}</small></button>`;
 }
 function wpWeekCalendar(days,entities) {
@@ -15183,18 +15212,17 @@ function wpWeekView() {
   const ents=wpWeekEntities(WP.weekStart), days=wpWeekKeys(WP.weekStart);
   return `${wpWeekSummary(ents)}${wpDecisionPanel()}${wpQuickGlobalArea()}${wpMobileStrip()}<div class="wp-week-mobile" aria-live="polite">${wpDayColumn(WP.mobileDate,ents,{includeMultiDay:true})}</div>${wpWeekCalendar(days,ents)}${wpSelectedDayPanel(WP.mobileDate,ents,'week')}`;
 }
-function wpMonthEvent(task) {
-  const status=wpTaskStatus(task), priority=wpPriority(task), prioClass=wpTaskPriorityClass(task), prioStyle=wpTaskPriorityStyle(task);
-  const priorityLabel=WP_PRIORITY_RU[priority] || 'Обычный';
-  const title=`${task.title||'Без названия'}${status==='done'?' · Статус: выполнена':''} · Приоритет: ${priorityLabel}`;
-  return `<button type="button" class="wp-month-event wp-title-marquee-clip p-${esc(prioClass)} ${status==='done'?'is-done':''} ${status==='waiting'?'is-waiting':''}"${prioStyle?` style="${prioStyle}"`:''} data-act="taskEdit" ${wpEntityDataAttrs(task)} aria-label="${esc(title)}"><i></i><span class="wp-title-marquee-text">${esc(task.title||'Без названия')}</span></button>`;
+function wpMonthDots(tasks,extraHidden=0) {
+  const dots=tasks.slice(0,3), more=tasks.length-dots.length+(+extraHidden||0);
+  if(!dots.length&&!more) return '';
+  return `<span class="wp-month-dots">${dots.map(task=>`<i class="p-${wpPriority(task)}"></i>`).join('')}${more?`<em>+${more}</em>`:''}</span>`;
 }
 function wpMonthDay(date,entities,spanSpace=0,extraHidden=0) {
   const list=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date)), single=list.filter(t=>!wpTaskHasDateSpan(t));
-  const visible=single.slice(0,2), more=single.length-visible.length+(+extraHidden||0), p=wpDateParts(date), outside=wpMonthStart(date)!==WP.monthStart, today=date===wpDateKey(Date.now()), selected=date===WP.mobileDate;
+  const p=wpDateParts(date), outside=wpMonthStart(date)!==WP.monthStart, today=date===wpDateKey(Date.now()), selected=date===WP.mobileDate;
   return `<section class="wp-month-day ${outside?'is-out':''} ${today?'is-today':''} ${selected?'is-selected':''}" role="gridcell" style="--wp-month-span-space:${spanSpace}px" data-drop-date="${date}" data-act="wpCalendarSelectDate" data-date="${date}" aria-label="${esc(wpDateLabel(date))}, ${list.length} задач">
-    <header class="wp-month-day-head"><button type="button" class="wp-month-date ${today?'today':''}" data-act="wpCalendarSelectDate" data-date="${date}" aria-label="Выбрать ${esc(wpDateLabel(date))}">${p?p.d:''}</button>${list.length?`<span class="wp-month-count">${list.length}</span>`:''}<button type="button" class="wp-month-add" data-act="wpQuickDay" data-date="${date}" aria-label="Добавить задачу на ${esc(wpDateLabel(date))}">${ico('plus')}</button></header>
-    <div class="wp-month-span-spacer" aria-hidden="true"></div><div class="wp-month-events">${visible.map(wpMonthEvent).join('')}</div>${more?`<button type="button" class="wp-month-more" data-act="wpCalendarSelectDate" data-date="${date}">+ ${more} ещё</button>`:''}
+    <header class="wp-month-day-head"><button type="button" class="wp-month-date" data-act="wpCalendarSelectDate" data-date="${date}" aria-label="Выбрать ${esc(wpDateLabel(date))}">${p?p.d:''}</button>${list.length?`<span class="wp-month-count">${list.length}</span>`:''}<button type="button" class="wp-month-add" data-act="wpQuickDay" data-date="${date}" aria-label="Добавить задачу на ${esc(wpDateLabel(date))}">${ico('plus')}</button></header>
+    <div class="wp-month-span-spacer" aria-hidden="true"></div>${wpMonthDots(single,extraHidden)}
   </section>`;
 }
 function wpMonthWeek(days,entities) {
@@ -15278,7 +15306,7 @@ function wpBoardToolbar(items) {
 function wpBoardView() {
   const items=wpBoardEntities(),columns=[['open','В работе'],['waiting','Ожидание'],['done','Готово'],['cancelled','Отменённые']];
   const empty=!items.length&&wpFiltersDirty('board')?'<div class="wp-board-no-results"><span>Нет задач по выбранным условиям.</span><button type="button" class="btn sm ghost" data-act="wpBoardReset">Сбросить фильтры</button></div>':'';
-  return `<div class="wp-board-pin">${wpBoardToolbar(items)}${wpBoardSummary(items)}</div>${empty}<div class="wp-board-lanes" aria-label="Доска задач">${columns.map(([status,label])=>{const lane=items.filter(task=>wpTaskStatus(task)===status);return `<section class="wp-board-column" data-drop-status="${status}" aria-label="${label}, ${lane.length} ${plural(lane.length,['задача','задачи','задач'])}"><div class="wp-board-items">${lane.map(task=>wpTaskCard(task,{compact:true,board:true})).join('')||'<div class="wp-board-empty">Пока нет задач</div>'}</div></section>`;}).join('')}</div>`;
+  return `${wpBoardToolbar(items)}<div class="wp-board-pin">${wpBoardSummary(items)}</div>${empty}<div class="wp-board-lanes" aria-label="Доска задач">${columns.map(([status,label])=>{const lane=items.filter(task=>wpTaskStatus(task)===status);return `<section class="wp-board-column" data-drop-status="${status}" aria-label="${label}, ${lane.length} ${plural(lane.length,['задача','задачи','задач'])}"><div class="wp-board-items">${lane.map(task=>wpTaskCard(task,{compact:true,board:true})).join('')||'<div class="wp-board-empty">Пока нет задач</div>'}</div></section>`;}).join('')}</div>`;
 }
 function wpProjectCard(project) {
   const list=wpEntitiesForProject(project.id), active=list.filter(t=>['open','waiting'].includes(wpTaskStatus(t))).length;
@@ -15321,7 +15349,7 @@ function wpRenderTaskPage() {
   if(!WP._viewRestored) { if(S.ui.plannerView && ['week','board','inbox','all','projects'].includes(S.ui.plannerView)) WP.view=S.ui.plannerView; WP._viewRestored=true; }
   ensureBoard();
   const error=S.taskMigrationPending ? `<div class="wp-migration-error" role="status">${ico('info')}<span>${esc(S.taskMigrationError||'Проверьте сводку миграции перед продолжением.')}</span><button type="button" class="btn sm ghost" data-act="wpMigrationPreview">Сводка миграции</button></div>` : S.taskMigrationOK===false ? `<div class="wp-migration-error" role="alert">${ico('ban')}<span>${esc(S.taskMigrationError||'Миграция остановлена. Данные защищены и доступны только для чтения.')}</span></div>` : '';
-  return `<div class="page planner-page"><div class="wp-layout ${WP.sidebarCollapsed?'is-sidebar-collapsed':''} ${WP.railOpen?'is-rail-open':''}">
+  return `<div class="page planner-page"${wpPriorityVarsAttr(S.board)}><div class="wp-layout ${WP.sidebarCollapsed?'is-sidebar-collapsed':''} ${WP.railOpen?'is-rail-open':''}">
     <aside class="wp-rail ${WP.sidebarCollapsed?'is-collapsed':''}" aria-label="Навигация задач">
       <div class="wp-rail-brand"><div class="wp-rail-name"><span class="wp-rail-mark">${ico('tasks')}</span><span><b>Задачи</b><small>Локальный планировщик</small></span></div>${wpSidebarToggleHtml()}</div>
       <nav class="wp-nav" id="wpNav" aria-label="Представления задач">${wpNavHtml()}</nav>
@@ -15971,7 +15999,7 @@ function wpEditorValues(root) {
   return {
     title:String((g('#wpTitle')||{}).value||'').trim(),kind:(g('#wpKind')||{}).value||'personal',projectId:(g('#wpProject')||{}).value||'',assignee:(g('#wpAssignee')||{}).value||'',
     scheduledDate:wpDateKey((g('#wpScheduled')||{}).value)||null,deadlineAt:wpDateKey((g('#wpDeadline')||{}).value)||null,
-    statusKey:(g('#wpStatus')||{}).value||'open',priorityKey:(g('#wpPriority')||{}).value||'normal',priorityColor:(g('#wpPriorityColorOn')||{}).checked?wpValidPriorityColor((g('#wpPriorityColor')||{}).value):'',
+    statusKey:(g('#wpStatus')||{}).value||'open',priorityKey:(g('#wpPriority')||{}).value||'normal',
     description:String((g('#wpDescription')||{}).value||'').trim(),tags,waitingReason:String((g('#wpWaitingReason')||{}).value||'').trim(),
     reviewAt:wpDateKey((g('#wpReviewAt')||{}).value)||null,
     durationEstimateMinutes:(+((g('#wpDuration')||{}).value||0)>0 ? clamp(+g('#wpDuration').value,1,100000) : null),
@@ -15990,7 +16018,7 @@ function wpEditorBaseValues(task,scope,recurring) {
   return {
     title:raw.title||'',kind:wpTaskHomeType(raw),projectId:raw.homeId||raw.projectId||'',assignee:wpAssigneeLabel(raw)||'',
     scheduledDate:wpDateKey(raw.scheduledDate)||null,deadlineAt:wpDeadlineKey(raw.deadlineAt)||null,
-    statusKey:wpTaskStatus(raw),priorityKey:wpPriority(raw),priorityColor:wpValidPriorityColor(raw.priorityColor),description:raw.description||raw.comment||'',
+    statusKey:wpTaskStatus(raw),priorityKey:wpPriority(raw),description:raw.description||raw.comment||'',
     tags:Array.isArray(raw.tags)?raw.tags.join(', '):'',waitingReason:raw.waitingReason||'',reviewAt:wpDateKey(raw.reviewAt)||'',
     durationEstimateMinutes:raw.durationEstimateMinutes||'',
     frequency:rule&&rule.active?rule.frequency:'none',interval:rule?(rule.frequency==='interval'?rule.intervalDays:rule.interval)||1:1,
@@ -16050,7 +16078,6 @@ function wpEditorBodyHtml(task,scope,isNew,values,hasSeries,sourceTask) {
       <label class="field"><span>Крайний срок</span><input class="input" id="wpDeadline" type="date" value="${esc(values.deadlineAt||'')}"></label>
       ${statusField}
       <label class="field"><span>Приоритет</span><select class="select" id="wpPriority">${[['none','Без приоритета'],['normal','Обычный'],['high','Срочный'],['critical','Критичный']].map(([v,l])=>`<option value="${v}" ${values.priorityKey===v?'selected':''}>${l}</option>`).join('')}</select></label>
-      <label class="field"><span>Свой цвет приоритета</span><span class="wp-color-row"><input type="checkbox" id="wpPriorityColorOn"${values.priorityColor?' checked':''} aria-label="Использовать свой цвет приоритета"><input type="color" id="wpPriorityColor" value="${esc(values.priorityColor||'#7c5cff')}" aria-label="Свой цвет приоритета"></span></label>
     </div>
     <details class="wp-editor-section"><summary>Дополнительные поля</summary><div class="wp-form-grid">
       <label class="field full"><span>Описание / заметка</span><textarea class="input" id="wpDescription" rows="3" placeholder="Детали, ссылки, договорённости">${esc(values.description)}</textarea></label>
@@ -16080,7 +16107,7 @@ function wpApplyTaskForm(task,v,{series=false,newTask=false}={}) {
   if(!wpSetTaskHome(task,homeType,pr?pr.id:'')) throw new Error('invalid task home');
   task.title=v.title; task.assignee=wpNormalizeAssignee(v.assignee)||'';
   task.scheduledDate=v.scheduledDate; delete task.scheduledEndDate; task.deadlineAt=v.deadlineAt;
-  task.priorityKey=v.priorityKey; task.priorityColor=wpValidPriorityColor(v.priorityColor); task.description=v.description; task.comment=v.description;
+  task.priorityKey=v.priorityKey; task.description=v.description; task.comment=v.description;
   task.tags=v.tags; task.durationEstimateMinutes=v.durationEstimateMinutes; task.waitingReason=v.waitingReason; task.reviewAt=v.reviewAt;
   if(!series) wpSetTaskStatus(task,v.statusKey);
   task.updatedAt=new Date().toISOString();
@@ -16103,11 +16130,11 @@ function wpApplyOccurrenceForm(task,ent,v) {
   const rec=wpMaterializeOccurrence(task,ent.originalDate);
   const pr=v.kind==='project' ? (S.board.projects||[]).find(p=>p && p.id===v.projectId) : null;
   const base={
-    title:task.title,kind:wpTaskHomeType(task)==='project'?'project':'personal',homeType:wpTaskHomeType(task),homeId:task.homeId||task.projectId||'',projectId:task.homeId||task.projectId||'',project:task.project||'',assignee:wpAssigneeLabel(task),priorityKey:wpPriority(task),priorityColor:wpValidPriorityColor(task.priorityColor),description:task.description||task.comment||'',tags:task.tags||[],
+    title:task.title,kind:wpTaskHomeType(task)==='project'?'project':'personal',homeType:wpTaskHomeType(task),homeId:task.homeId||task.projectId||'',projectId:task.homeId||task.projectId||'',project:task.project||'',assignee:wpAssigneeLabel(task),priorityKey:wpPriority(task),description:task.description||task.comment||'',tags:task.tags||[],
     durationEstimateMinutes:task.durationEstimateMinutes||null,waitingReason:task.waitingReason||'',reviewAt:task.reviewAt||null,matrixQuadrant:wpQuadrant(task),importance:task.importance,urgency:task.urgency,qm:task.qm,inbox:wpTaskHomeType(task)==='inbox'
   };
   const homeType=WP_HOME_TYPES.includes(v.kind)?v.kind:'personal';
-  const next={title:v.title,kind:homeType==='project'?'project':'personal',homeType,homeId:homeType==='project'?(pr?pr.id:''):'',projectId:homeType==='project'?(pr?pr.id:''):'',project:homeType==='project'?(pr?pr.name:''):'',inbox:homeType==='inbox',assignee:wpNormalizeAssignee(v.assignee)||'',priorityKey:v.priorityKey,priorityColor:wpValidPriorityColor(v.priorityColor),description:v.description,tags:v.tags,durationEstimateMinutes:v.durationEstimateMinutes,waitingReason:v.waitingReason,reviewAt:v.reviewAt};
+  const next={title:v.title,kind:homeType==='project'?'project':'personal',homeType,homeId:homeType==='project'?(pr?pr.id:''):'',projectId:homeType==='project'?(pr?pr.id:''):'',project:homeType==='project'?(pr?pr.name:''):'',inbox:homeType==='inbox',assignee:wpNormalizeAssignee(v.assignee)||'',priorityKey:v.priorityKey,description:v.description,tags:v.tags,durationEstimateMinutes:v.durationEstimateMinutes,waitingReason:v.waitingReason,reviewAt:v.reviewAt};
   Object.keys(next).forEach(k=>{
     const a=JSON.stringify(next[k]===undefined?null:next[k]), b=JSON.stringify(base[k]===undefined?null:base[k]);
     if(a===b) delete rec.overrides[k]; else rec.overrides[k]=next[k];

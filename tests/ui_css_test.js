@@ -158,15 +158,15 @@ check('новый rail задач содержит мобильный слой �
   taskLayoutStyle.includes('@container shelter (max-width:900px)') &&
   taskLayoutStyle.includes('.planner-page .wp-layout.is-rail-open .wp-rail') && taskLayoutStyle.includes('.wp-rail-scrim{') &&
   html.includes('class="wp-mobile-menu" data-act="wpRailOpen"') && html.includes('class="wp-rail-scrim" data-act="wpRailClose"'));
-check('месячная сетка и выбранный день используют двухколоночную компоновку',
-  taskLayoutStyle.includes('.wp-month-layout{') && taskLayoutStyle.includes('grid-template-columns:minmax(0,1fr) 280px') &&
+check('месячная сетка и выбранный день используют двухколоночную компоновку, как в «Истории»',
+  taskLayoutStyle.includes('.wp-month-layout{') && taskLayoutStyle.includes('grid-template-columns:minmax(0,1fr) 330px') &&
   html.includes('<div class="wp-month-layout"><div class="wp-month-calendar">'));
 check('доска делит общие боковые отступы с остальными представлениями, как в референсе',
   taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){overflow-x:clip}') &&
   !taskLayoutStyle.includes('wp-board-lanes){padding-right'));
-check('плашки сводки доски закреплены вместе с тулбаром при прокрутке',
+check('плашки сводки доски закреплены при прокрутке, тулбар прокручивается',
   taskLayoutStyle.includes('.planner-page .wp-board-pin{position:sticky;top:0;z-index:9;') &&
-  taskLayoutStyle.includes('.planner-page .wp-board-pin:has(>.wp-board-toolbar.is-scrollable){position:static;box-shadow:none}') &&
+  taskLayoutStyle.includes('.planner-page .wp-board-pin.is-scrollable{position:static;box-shadow:none}') &&
   taskLayoutStyle.includes('.planner-page .wp-board-pin>.wp-board-summary{margin-bottom:0}'));
 check('рабочее поле задач резервирует место под полосу прокрутки, чтобы контент не ездил',
   taskLayoutStyle.includes('.planner-page .wp-view{') && taskLayoutStyle.includes('scrollbar-gutter:stable'));
@@ -177,9 +177,11 @@ check('доска задач вмещается в ширину экрана б�
   !/\.wp-board-lanes\{[^}]*scroll-snap/.test(plannerStyle) &&
   plannerStyle.includes('.wp-board-task-status .select{width:auto;min-width:min(115px,100%)') &&
   plannerStyle.includes('.wp-board-column>header b{font-size:11px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'));
-check('месячная сетка задач использует фиксированную высоту плиток, исключающую растяжение',
-  plannerStyle.includes('.wp-month-day{height:150px;aspect-ratio:auto}') &&
+check('месячная сетка задач повторяет компактные метрики «Истории», слой диапазонов привязан к шапке дня',
+  plannerStyle.includes('min-height:84px;aspect-ratio:1.22;') &&
+  !plannerStyle.includes('.wp-month-day{height:150px;') &&
   taskLayoutStyle.includes('.planner-page .wp-month-day{height:78px;') &&
+  taskLayoutStyle.includes('.planner-page .wp-month-day-head{min-height:24px;gap:3px}') &&
   taskLayoutStyle.includes('.planner-page .wp-month-span-layer{top:34px;left:0;right:0;column-gap:8px}') &&
   taskLayoutStyle.includes('.planner-page .wp-month-span-layer{top:30px;left:0;right:0;column-gap:5px}'));
 

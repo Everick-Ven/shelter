@@ -240,7 +240,7 @@ globalThis.__api = {
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
-  wpSetStatusRef, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson,
+  wpSetStatusRef, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson, wpBoardPersonIndexById, wpDeleteTaskContact, wpContactIdUsedAnywhere,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects, wpMergeImportedTaskData, wpApplyImportedTaskData,
   wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
 };`, context, { timeout: 5000 });
@@ -1157,8 +1157,25 @@ assert.strictEqual(typeof api.actions.wpView, 'function');
   assert.strictEqual(api.wpBoardAddPerson(personBoard, 'Иван', 'SH-AAAA-BBBB'), false, 're-adding the same assignee is a no-op');
   assert.strictEqual(api.wpBoardPersonIndex(personBoard, 'АННА'), 1, 'assignee lookup ignores case');
   assert(html.includes('id="dAddId"'), 'the board settings assignee tab has an invite-id field');
-  assert(html.includes("label: 'ID для приглашений (можно пустым)'"), 'editing an assignee asks for the invite id');
-  assert(html.includes('wpBoardAddPerson(wpEnsureBoardShape(),nm,cid)'), 'export contacts join the board assignee list');
+  assert(html.includes('function personDlg('), 'editing an assignee uses a single name+id dialog');
+  assert(html.includes('data-pp-name') && html.includes('data-pp-id'), 'the assignee dialog has both fields');
+  assert(html.includes("personDlg({ title: 'Исполнитель'"), 'the board settings edit flow opens the assignee dialog');
+  assert(html.includes('Исполнитель с таким именем уже есть'), 'duplicate assignee names trigger a warning');
+  assert(html.includes('Этот ID уже привязан к исполнителю'), 'duplicate invite ids trigger a warning');
+  assert(html.includes('wpBoardAddPerson(board,nm,cid)'), 'export contacts join the board assignee list');
+  assert(html.includes('wpBoardPersonIndexById(board,cid)'), 'export resolves contacts against board assignees by id');
+  assert.strictEqual(api.wpBoardPersonIndexById(personBoard, 'sh-cccc-dddd'), 1, 'assignee lookup by id ignores case');
+  assert.strictEqual(api.wpBoardPersonIndexById(personBoard, 'SH-QQQQ-QQQQ'), -1);
+  assert.strictEqual(api.wpSaveTaskContact('SH-CCCC-DDDD', 'Анна'), true);
+  assert.strictEqual(api.wpDeleteTaskContact('sh-cccc-dddd'), true, 'replaced invite ids drop their stale contact');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpTaskContacts())), [{ id: 'SH-AAAA-BBBB', nick: 'Иван' }]);
+  assert.strictEqual(api.wpDeleteTaskContact('SH-QQQQ-QQQQ'), false);
+  const prevBoard = state.board, prevBoards = state.boards;
+  state.board = { id: 'person-board', people: ['Иван', { name: 'Анна', contactId: 'SH-CCCC-DDDD' }] };
+  state.boards = [];
+  assert.strictEqual(api.wpContactIdUsedAnywhere('sh-cccc-dddd'), true);
+  assert.strictEqual(api.wpContactIdUsedAnywhere('SH-QQQQ-QQQQ'), false);
+  state.board = prevBoard; state.boards = prevBoards;
   const executorPayload = api.wpExportPayload('all', [], { target: 'executor', targetId: 'sh-aaaa-bbbb', targetNick: 'Иван' });
   assert.strictEqual(executorPayload.transfer.target, 'executor');
   assert.strictEqual(executorPayload.transfer.targetId, 'SH-AAAA-BBBB');

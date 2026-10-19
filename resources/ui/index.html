@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-GS+9F4aH4DtdNbytiZhEM2UxJ3rwMeDG9kwMLA9hQwY=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-AnnhKp34HWSHem/5jpVWG8zMEbdiqrYSVq6vaSJCZ08=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -6564,6 +6564,44 @@ function promptDlg({ title, value = '', placeholder = '', ok = 'Готово', l
     setTimeout(() => { inp.focus(); inp.select(); }, 50);
   });
 }
+/* Диалог исполнителя: имя и ID для приглашений в одном окне. nameError/idError —
+   необязательные валидаторы (возвращают текст предупреждения или ''); при
+   ошибке диалог не закрывается, чтобы можно было поправить значение.
+   Резолвит {name, contactId} или null при отмене. */
+function personDlg({ title, name = '', contactId = '', nameError, idError }) {
+  return new Promise(res => {
+    let done = false;
+    const m = openModal({ width: 440,
+      html: `<div class="modal-h"><h3>${esc(title)}</h3></div>
+        <div class="modal-b">
+          <label class="field"><span>Имя</span><input class="input" data-pp-name value="${esc(name)}" placeholder="Например: Иван" autocomplete="off"></label>
+          <label class="field"><span>ID для приглашений (необязательно)</span><input class="input" data-pp-id value="${esc(contactId)}" placeholder="SH-XXXX-XXXX" autocomplete="off" spellcheck="false" style="text-transform:uppercase"></label>
+        </div>
+        <div class="modal-f"><button class="btn ghost" data-r="0">Отмена</button><button class="btn primary" data-r="1">Сохранить</button></div>`,
+      onClose: () => { if (!done) { done = true; res(null); } } });
+    const root = m.scrim;
+    const nameEl = root.querySelector('[data-pp-name]');
+    const idEl = root.querySelector('[data-pp-id]');
+    const finish = v => { if (done) return; done = true; res(v); closeModal(m); };
+    const save = () => {
+      const v = nameEl.value.trim();
+      if (!v) { nameEl.focus(); return; }
+      if (nameError) {
+        const err = nameError(v);
+        if (err) { toast(err, { icon: 'info' }); nameEl.focus(); nameEl.select(); return; }
+      }
+      const cid = idEl.value.trim().toUpperCase();
+      if (idError) {
+        const err = idError(cid);
+        if (err) { toast(err, { icon: 'info' }); idEl.focus(); idEl.select(); return; }
+      }
+      finish({ name: v, contactId: cid });
+    };
+    root.addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; if (b.dataset.r === '1') save(); else finish(null); });
+    [nameEl, idEl].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } }));
+    setTimeout(() => { nameEl.focus(); nameEl.select(); }, 50);
+  });
+}
 function agentDlg() {
   const cur = S.ai || {};
   return new Promise(res => {
@@ -10377,9 +10415,13 @@ function taskDicts() {
       const v = $('#dAdd', root).value.trim(); if (!v) return;
       if (cur === 'projects') addProject(v);
       else if (cur === 'people') {
+        if (wpBoardPersonIndex(S.board, v) >= 0) { toast('Исполнитель с таким именем уже есть — добавьте фамилию или иное уникальное обозначение', { icon: 'info' }); return; }
         const idEl = $('#dAddId', root);
         const cid = idEl ? idEl.value.trim().toUpperCase() : '';
-        if (wpBoardAddPerson(S.board, v, cid) && cid) wpSaveTaskContact(cid, v);
+        const byId = cid ? wpBoardPersonIndexById(S.board, cid) : -1;
+        if (byId >= 0) { toast('Этот ID уже привязан к исполнителю «' + wpPersonName(S.board.people[byId]) + '»', { icon: 'info' }); return; }
+        S.board.people.push(wpMakePerson(v, cid));
+        if (cid) wpSaveTaskContact(cid, v);
       }
       else if (!arr.includes(v)) arr.push(v);
       persist(); re(); return;
@@ -10397,16 +10439,24 @@ function taskDicts() {
     if (el.dataset.dr) {
       const i = +el.dataset.dr, old = label(arr[i]);
       if (cur === 'people') {
-        const v = await promptDlg({ title: 'Исполнитель', label: 'Имя', value: old, ok: 'Далее' });
-        if (v == null || !v) return;
         const cidOld = wpPersonContactId(arr[i]);
-        const cid = await promptDlg({ title: 'Исполнитель', label: 'ID для приглашений (можно пустым)', value: cidOld, placeholder: 'SH-XXXX-XXXX', ok: 'Сохранить' });
-        if (cid == null) return;
-        const cidNew = cid.trim().toUpperCase();
-        if (v === old && cidNew === cidOld) return;
-        arr[i] = wpMakePerson(v, cidNew);
-        if (v !== old) S.board.tasks.forEach(x => { if (x.assignee === old) x.assignee = v; });
-        if (cidNew) wpSaveTaskContact(cidNew, v);
+        const r = await personDlg({ title: 'Исполнитель', name: old, contactId: cidOld,
+          nameError: v => {
+            const ix = wpBoardPersonIndex(S.board, v);
+            return (ix >= 0 && ix !== i) ? 'Исполнитель с таким именем уже есть — добавьте фамилию или иное уникальное обозначение' : '';
+          },
+          idError: cid => {
+            if (!cid) return '';
+            const ix = wpBoardPersonIndexById(S.board, cid);
+            return (ix >= 0 && ix !== i) ? 'Этот ID уже привязан к исполнителю «' + wpPersonName(S.board.people[ix]) + '»' : '';
+          }
+        });
+        if (!r) return;
+        if (r.name === old && r.contactId === cidOld) return;
+        arr[i] = wpMakePerson(r.name, r.contactId);
+        if (r.name !== old) S.board.tasks.forEach(x => { if (x.assignee === old) x.assignee = r.name; });
+        if (r.contactId) wpSaveTaskContact(r.contactId, r.name);
+        if (cidOld && cidOld !== r.contactId && !wpContactIdUsedAnywhere(cidOld)) wpDeleteTaskContact(cidOld);
         persist(); re(); return;
       }
       const v = await promptDlg({ title: 'Переименовать', value: old, ok: 'Сохранить' }); if (!v || v === old) return;
@@ -14758,6 +14808,36 @@ function wpBoardAddPerson(board, name, contactId) {
   }
   return false;
 }
+/* Индекс исполнителя по ID приглашений (-1, если нет). ID уникален в пределах
+   доски: один ID всегда указывает на одного человека. */
+function wpBoardPersonIndexById(board, contactId) {
+  const key = String(contactId || '').trim().toUpperCase();
+  if (!key || !board || !Array.isArray(board.people)) return -1;
+  return board.people.findIndex(p => wpPersonContactId(p) === key);
+}
+/* Удаляет контакт из общей адресной книги. Вызывается, только когда ID
+   отвязан от человека (заменён или стёрт): протухший контакт с чужим ID
+   отправил бы экспорт не тому получателю. */
+function wpDeleteTaskContact(id) {
+  id = String(id || '').trim().toUpperCase();
+  if (!id || !wpIsObj(S.ui) || !Array.isArray(S.ui.taskContacts)) return false;
+  const next = S.ui.taskContacts.filter(
+    c => !(wpIsObj(c) && String(c.id || '').trim().toUpperCase() === id));
+  if (next.length === S.ui.taskContacts.length) return false;
+  S.ui.taskContacts = next;
+  try { persist(); } catch (_) {}
+  return true;
+}
+/* Проверяет, привязан ли ID к исполнителю хотя бы на одной доске. */
+function wpContactIdUsedAnywhere(contactId) {
+  const key = String(contactId || '').trim().toUpperCase();
+  if (!key) return false;
+  const boards = [];
+  if (wpIsObj(S.board)) boards.push(S.board);
+  (Array.isArray(S.boards) ? S.boards : []).forEach(
+    b => { if (wpIsObj(b) && !boards.includes(b)) boards.push(b); });
+  return boards.some(b => wpBoardPersonIndexById(b, key) >= 0);
+}
 function wpNormalizeAssignee(value) {
   const raw=value && typeof value==='object' ? (value.name||value.email||value.id||'') : value;
   const text=String(raw||'').trim(); if(!text) return '';
@@ -16716,9 +16796,22 @@ function wpOpenTaskExportDialog() {
       if(id==null||!String(id).trim())return;
       const nick=await promptDlg({title:'Пригласить по ID',label:'Ник партнёра в вашем браузере',placeholder:'Например: Иван',ok:'Сохранить'});
       if(nick==null||!String(nick).trim())return;
-      if(!wpSaveTaskContact(id,nick)){toast('Не удалось сохранить исполнителя.',{icon:'ban'});return;}
       const cid=String(id).trim().toUpperCase(), nm=String(nick).trim();
-      if(wpBoardAddPerson(wpEnsureBoardShape(),nm,cid)){try{persist();}catch(_){}}
+      const board=wpEnsureBoardShape();
+      const byId=wpBoardPersonIndexById(board,cid), byName=wpBoardPersonIndex(board,nm);
+      if(byId>=0&&byId!==byName){
+        if(byName>=0){toast('Исполнитель с таким именем уже есть — добавьте фамилию или иное уникальное обозначение',{icon:'info'});return;}
+        const oldName=wpPersonName(board.people[byId]);
+        board.people[byId]={name:nm,contactId:cid};
+        (board.tasks||[]).forEach(t=>{if(wpIsObj(t)&&t.assignee===oldName)t.assignee=nm;});
+        wpSaveTaskContact(cid,nm);
+        try{persist();}catch(_){}
+      } else if(byName>=0&&wpPersonContactId(board.people[byName])&&wpPersonContactId(board.people[byName])!==cid){
+        toast('Исполнитель с таким именем уже есть — добавьте фамилию или иное уникальное обозначение',{icon:'info'});return;
+      } else {
+        if(!wpSaveTaskContact(cid,nm)){toast('Не удалось сохранить исполнителя.',{icon:'ban'});return;}
+        if(wpBoardAddPerson(board,nm,cid)){try{persist();}catch(_){}}
+      }
       const contact=$('#wpTaskExportContact',root);if(contact)contact.innerHTML=wpTaskContactOptionsHtml(cid);
       toast('Исполнитель добавлен.',{icon:'check'});return;
     }

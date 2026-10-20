@@ -177,18 +177,18 @@ check('плашки сводки доски закреплены при прок
 check('рабочее поле задач резервирует место под полосу прокрутки, чтобы контент не ездил',
   taskLayoutStyle.includes('.planner-page .wp-view{') && taskLayoutStyle.includes('scrollbar-gutter:stable'));
 check('доска задач вмещается в ширину экрана без горизонтальной прокрутки',
-  plannerStyle.includes('.wp-board-lanes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:9px;overflow-x:hidden') &&
+  plannerStyle.includes('.wp-board-lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));align-items:start;gap:9px;overflow-x:hidden') &&
   !plannerStyle.includes('repeat(4,minmax(220px,1fr))') && !/\.wp-board-lanes\{[^}]*overflow-x:auto/.test(plannerStyle) &&
   (plannerStyle.match(/\.wp-board-lanes\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:7px\}/g) || []).length === 2 &&
   !/\.wp-board-lanes\{[^}]*scroll-snap/.test(plannerStyle) &&
   plannerStyle.includes('.wp-board-task-status .select{width:auto;min-width:min(115px,100%)') &&
   plannerStyle.includes('.wp-board-column>header b{font-size:13px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'));
-check('месячная сетка задач повторяет компактные метрики «Истории», слой диапазонов привязан к шапке дня',
+check('месячная сетка задач повторяет компактные метрики «Истории», без слоя диапазонов — только точки',
   plannerStyle.includes('min-height:84px;aspect-ratio:1.22;') &&
   !plannerStyle.includes('.wp-month-day{height:150px;') &&
   taskLayoutStyle.includes('.planner-page .wp-month-day{height:78px;') &&
   taskLayoutStyle.includes('.planner-page .wp-month-day-head{min-height:24px;gap:3px}') &&
-  taskLayoutStyle.includes('.planner-page .wp-month-span-layer{top:34px;left:0;right:0;column-gap:8px}') &&
-  taskLayoutStyle.includes('.planner-page .wp-month-span-layer{top:30px;left:0;right:0;column-gap:5px}'));
+  !plannerStyle.includes('wp-month-span-layer') &&
+  !taskLayoutStyle.includes('wp-month-span-layer'));
 
 finish();

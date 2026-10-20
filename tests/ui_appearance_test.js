@@ -105,7 +105,7 @@ assert(plannerCss.includes('.wp-calendar-span:hover{border-color:rgb(var(--accen
 assert(plannerCss.includes('.wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);'), 'day capsules share the visible hover lift');
 assert(!plannerCss.includes('.wp-month-event') && !html.includes('wpMonthEvent'), 'month pills are replaced by history-style dots');
 assert(plannerCss.includes('.wp-task.is-done{border-color:color-mix(in srgb,rgb(var(--ok)) 36%,var(--line))') && plannerCss.includes('.wp-task.is-done .wp-task-title{color:rgb(var(--ok));text-decoration:line-through}'), 'completed task cards use green and a strike-through');
-assert(plannerCss.includes('.wp-day-capsule{display:flex;align-items:center;gap:8px;') && plannerCss.includes('.wp-day-capsule.p-critical') && plannerCss.includes('.wp-day-capsule.p-high') && plannerCss.includes('.wp-day-capsule.p-normal') && plannerCss.includes('.wp-day-capsule.p-none'), 'week day cells render thin capsules tinted by urgency');
+assert(plannerCss.includes('.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;') && plannerCss.includes('.wp-day-capsule.p-critical') && plannerCss.includes('.wp-day-capsule.p-high') && plannerCss.includes('.wp-day-capsule.p-normal') && plannerCss.includes('.wp-day-capsule.p-none'), 'week day cells render four-line capsules tinted by urgency');
 assert(plannerCss.includes('.wp-calendar-completed-toggle{flex:none;display:inline-flex;'));
 assert(plannerCss.includes('.wp-month-day.is-today{'));
 assert(plannerCss.includes('.wp-month-selected{'));
@@ -194,8 +194,10 @@ assert(plannerMoreMenu.includes("label:'Мой ID для приглашений'
 const taskExportDialog = section('function wpOpenTaskExportDialog() {', 'function wpExportTasks() {');
 assert(taskExportDialog.includes('wpTaskExportTarget') && taskExportDialog.includes('wpTaskExportContact') && taskExportDialog.includes('wpTaskExportSelfId'), 'the export dialog offers self/executor branches with invite-id contacts');
 const boardColumns = section('function wpBoardView() {', 'function wpProjectCard(project) {');
-assert(boardColumns.includes("moveMode=WP.boardMoveColumns===true") && boardColumns.includes("(moveMode||!['open','waiting','done','overdue'].includes(status))?wpBoardLaneHeader(status,label,lane.length,moveMode&&dictKeys.has(status),laneIdx,columns.length):''"), 'board columns render headers only for custom statuses, never duplicating the KPI strip');
-assert(html.includes('<header><div><b>${esc(label)}</b>${move}</div><span>${count}</span></header>') && html.includes('function wpBoardLaneHeader('), 'lane headers keep their exact markup with optional move controls');
+assert(!boardColumns.includes('wpBoardSummary(') && boardColumns.includes('${wpBoardToolbar(items)}${empty}${hint}<div class="wp-board-lanes"'), 'the board drops the KPI strip: every lane carries its own header with name and count');
+assert(boardColumns.includes('wpBoardLaneHeader(status,label,lane.length,canMove,laneIdx,columns.length,wpStatusColor(status))'), 'every lane header resolves its lane color');
+assert(html.includes('function wpBoardLaneHeader(') && html.includes('wp-lane-dot') && html.includes('wp-lane-grip') && html.includes('wp-lanes-hint'), 'lane headers carry color dots, drag grips, and a move-mode hint');
+assert(html.includes('data-ws-color value=') && html.includes('data-status-color=') && html.includes('function wpStatusColorDot('), 'lane colors are assigned in the status editor and previewed in the dictionary');
 const quickAddRoute = section('function wpQuickAddOpen(date=null, projectId=null, assignee=wpCurrentAssignee(), context', 'function wpCreateTask(');
 assert(quickAddRoute.includes('wpOpenEditor(null,{scheduledDate:'), 'quick-add entries open the full task editor');
 const plannerPageRenderer = section('function wpRenderTaskPage() {', 'function wpSetView(');

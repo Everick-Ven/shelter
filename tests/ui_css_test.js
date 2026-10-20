@@ -183,8 +183,8 @@ check('доска задач вмещается в ширину экрана б�
   plannerStyle.includes('.wp-board-task-status .select{width:auto;min-width:min(115px,100%)') &&
   plannerStyle.includes('.wp-board-column>header b{font-size:13px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'));
 check('капсулы дня раскрыты на всю ширину столбца и отделены от многодневных рядов',
-  plannerStyle.includes('.wp-day-capsule{display:flex;align-items:center;gap:8px;width:100%;min-width:0;min-height:24px;margin:0 -8px;') &&
-  plannerStyle.includes('padding:2px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));') &&
+  plannerStyle.includes('.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -8px;') &&
+  plannerStyle.includes('padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));') &&
   plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin-left:-9px;margin-right:-9px}') &&
   plannerStyle.includes('.wp-week-grid.has-spans .wp-day-items{margin-top:3px}'));
 check('месячная сетка задач повторяет компактные метрики «Истории», без слоя диапазонов — только точки',

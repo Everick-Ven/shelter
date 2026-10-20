@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-RZVGLytE7BqsWKfHhT4yhbYa4WAgGbqo3DXu/61tZps=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-hcgnJcJha4s3hmXFCfJgTAYbytmdnNYuaKexy6ybK8A=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -3934,6 +3934,17 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-board-column>header .wp-icon-btn .i{width:14px;height:14px}
 .wp-board-column>header .wp-lane-move{display:flex;align-items:center;gap:2px;min-width:0;height:auto;padding:0;border:0;border-radius:0;background:transparent;color:inherit;font-size:inherit}
 .wp-board-column>header .wp-lane-move .wp-icon-btn:disabled{opacity:.35;cursor:default}
+.wp-board-column>header.has-lane-color{border-bottom-color:color-mix(in srgb,var(--lane) 45%,var(--line))}
+.wp-board-column>header .wp-lane-dot{width:9px;height:9px;border-radius:50%;background:var(--lane);flex:none}
+.wp-board-column>header .wp-lane-grip{display:inline-flex;align-items:center;color:var(--text-3);cursor:grab}
+.wp-board-column>header .wp-lane-grip .i{width:14px;height:14px}
+.wp-board-column[draggable="true"]>header{cursor:grab}
+.wp-board-column.dragging{opacity:.45}
+.wp-board-column.drop-before{box-shadow:-3px 0 0 rgb(var(--accent))}
+.wp-board-column.drop-after{box-shadow:3px 0 0 rgb(var(--accent))}
+.wp-lanes-hint{display:flex;align-items:center;gap:7px;margin:0 0 8px;padding:7px 10px;border:1px dashed var(--line-2);border-radius:calc(9px*var(--rs));color:var(--text-2);font-size:12px}
+.wp-lanes-hint .i{width:13px;height:13px;flex:none}
+.wp-status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-left:7px;vertical-align:baseline}
 .wp-status-flag{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));cursor:pointer}
 .wp-status-flag+.wp-status-flag{margin-top:8px}
 .wp-status-flag input{width:16px;height:16px;margin-top:2px;flex:none;accent-color:rgb(var(--accent))}
@@ -4220,7 +4231,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 /* Multi-day tasks stay as date-only rows spanning their deadline range; tint follows urgency. */
 .wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(var(--wp-span-lanes),20px);column-gap:10px;row-gap:3px;pointer-events:none;z-index:3}
 .wp-calendar-span{display:flex;align-items:center;gap:8px;min-width:0;min-height:20px;padding:1px 8px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:99px;background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.15 var(--font);text-align:left;white-space:nowrap;overflow:hidden;cursor:pointer;pointer-events:auto;transition:filter .14s,box-shadow .14s,opacity .14s,transform .14s,border-color .14s}
-.wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03)}
+.wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}
 .wp-calendar-span:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:1px}
 .wp-calendar-span>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wp-calendar-span>small{flex:none;margin-left:auto;color:var(--text-2);font-size:11.5px;font-variant-numeric:tabular-nums}
@@ -4230,11 +4241,11 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .wp-calendar-span.p-normal{border-color:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 24%,var(--line));background:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 10%,var(--card-2))}
 .wp-calendar-span.p-none{border-color:var(--line);background:var(--card-2)}
 .wp-calendar-span.is-done{opacity:1;border-color:color-mix(in srgb,rgb(var(--ok)) 42%,var(--line));background:color-mix(in srgb,rgb(var(--ok)) 14%,var(--card-2));color:rgb(var(--ok))}.wp-calendar-span.is-done>span{color:rgb(var(--ok));text-decoration:line-through}.wp-calendar-span.is-done>small{color:color-mix(in srgb,rgb(var(--ok)) 72%,var(--text-3))}
-.wp-day-capsule{display:flex;align-items:center;gap:8px;width:100%;min-width:0;min-height:24px;margin:0 -8px;padding:2px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.2 var(--font);text-align:left;white-space:nowrap;overflow:hidden;cursor:pointer;transition:filter .14s,box-shadow .14s,transform .14s,border-color .14s,background .14s}
+.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -8px;padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.35 var(--font);text-align:left;overflow:hidden;cursor:pointer;transition:filter .14s,box-shadow .14s,transform .14s,border-color .14s,background .14s}
 .wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03)}
 .wp-day-capsule:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:1px}
-.wp-day-capsule>span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wp-day-capsule>small{flex:none;margin-left:auto;color:var(--text-2);font-size:11.5px;font-variant-numeric:tabular-nums}
+.wp-day-capsule>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:12.5px;font-weight:600}
+.wp-day-capsule>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-2);font-size:11px;font-variant-numeric:tabular-nums}
 .wp-day-capsule.is-waiting{background:color-mix(in srgb,rgb(var(--warn)) 16%,var(--card-2))}
 .wp-day-capsule.p-critical{border-color:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 30%,var(--line));background:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 13%,var(--card-2))}
 .wp-day-capsule.p-high{border-color:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 30%,var(--line));background:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 13%,var(--card-2))}
@@ -4245,7 +4256,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .wp-day-capsule.is-done>span{color:rgb(var(--ok));text-decoration:line-through}
 .wp-day-capsule.is-done>small{color:color-mix(in srgb,rgb(var(--ok)) 72%,var(--text-3))}
 .wp-day-capsule.is-overdue{border-color:color-mix(in srgb,rgb(var(--danger)) 45%,var(--line))}
-.wp-day-capsule.is-overdue>small{color:rgb(var(--danger));font-weight:650}
+.wp-day-capsule.is-overdue>.wp-cap-mid{color:rgb(var(--danger));font-weight:650}
 .wp-day-capsule.is-cancelled{opacity:.6}
 .wp-day-capsule.is-cancelled>span{text-decoration:line-through}
 .wp-calendar-span.continues-before{border-top-left-radius:5px;border-bottom-left-radius:5px}
@@ -10378,6 +10389,8 @@ function boardCard() {
   const b = S.board || {};
   return `<div class="set-card" style="margin-bottom:12px"><div class="set-row" style="padding:9px 12px"><div class="tx"><b>Доска: ${esc(b.name || 'Моя доска')}</b><span>Идентификатор ${esc(b.code || '—')}</span></div><button class="icon-btn" data-bcopy="1" aria-label="Копировать идентификатор">${ico('copy')}</button><button class="icon-btn" data-bren="1" aria-label="Переименовать доску">${ico('pencil')}</button></div></div>`;
 }
+/* Цветная точка статуса в настройке словарей. */
+function wpStatusColorDot(v) { const c = v && wpValidStatusColor(v.color); return c ? `<i class="wp-status-dot" style="background:${c}" aria-hidden="true"></i>` : ''; }
 /* Чипы логики статуса в настройке словарей. */
 function wpStatusFlagChips(v) {
   const f = v && typeof v === 'object' ? v.flags : null;
@@ -10386,12 +10399,13 @@ function wpStatusFlagChips(v) {
   return parts.length ? `<span>${esc(parts.join(' · '))}</span>` : '';
 }
 /* Редактор статуса: название + логика (что делать с задачами в этом статусе).
-   Резолвит {name, flags} или null при отмене. */
-function wpStatusDlg({ title, name = '', flags = null, statusKey = '', nameError }) {
+   Резолвит {name, flags, color} или null при отмене. */
+function wpStatusDlg({ title, name = '', flags = null, statusKey = '', nameError, color = '' }) {
   return new Promise(res => {
     let done = false;
     const f = flags && typeof flags === 'object' ? flags : {};
     const checked = k => f[k] === true ? ' checked' : '';
+    const colorInit = wpValidStatusColor(color);
     const m = openModal({ width: 440,
       html: `<div class="modal-h"><h3>${esc(title)}</h3></div>
         <div class="modal-b">
@@ -10400,7 +10414,8 @@ function wpStatusDlg({ title, name = '', flags = null, statusKey = '', nameError
             <label class="wp-status-flag"><input type="checkbox" data-ws-flag="done"${checked('done')}><span><b>Считать выполненной</b><small>Задачи засчитываются как готовые: статистика, фильтры, зачёркивание.</small></span></label>
             <label class="wp-status-flag"><input type="checkbox" data-ws-flag="noRemind"${checked('noRemind')}><span><b>Не напоминать</b><small>Без просрочки и разборов: тихий, но активный статус.</small></span></label>
             <label class="wp-status-flag"><input type="checkbox" data-ws-flag="outdated"${checked('outdated')}><span><b>Неактуальна</b><small>Скрывать из активных списков и календаря, приглушать.</small></span></label>
-          </div>${statusKey === 'cancelled' ? '<p class="wp-form-hint">«Отменена» уже не напоминает и не считается активной.</p>' : ''}</div>
+          </div>
+          <label class="field"><span>Цвет шапки колонки</span><span class="wp-color-row is-dot"><input type="checkbox" data-ws-color-on${colorInit ? ' checked' : ''} aria-label="Свой цвет шапки"><input type="color" data-ws-color value="${esc(colorInit || '#808080')}" aria-label="Цвет шапки колонки"></span></label>${statusKey === 'cancelled' ? '<p class="wp-form-hint">«Отменена» уже не напоминает и не считается активной.</p>' : ''}</div>
         <div class="modal-f"><button class="btn ghost" data-r="0">Отмена</button><button class="btn primary" data-r="1">Сохранить</button></div>`,
       onClose: () => { if (!done) { done = true; res(null); } } });
     const root = m.scrim, nameEl = root.querySelector('[data-ws-name]');
@@ -10410,7 +10425,9 @@ function wpStatusDlg({ title, name = '', flags = null, statusKey = '', nameError
       if (nameError) { const err = nameError(v); if (err) { toast(err, { icon: 'info' }); nameEl.focus(); nameEl.select(); return; } }
       const out = {};
       root.querySelectorAll('[data-ws-flag]').forEach(el => { out[el.dataset.wsFlag] = el.checked === true; });
-      finish({ name: v, flags: out });
+      const colorOn = root.querySelector('[data-ws-color-on]'), colorEl = root.querySelector('[data-ws-color]');
+      const laneColor = colorOn && colorOn.checked && colorEl ? wpValidStatusColor(colorEl.value) : '';
+      finish({ name: v, flags: out, color: laneColor });
     };
     root.addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; if (b.dataset.r === '1') save(); else finish(null); });
     nameEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
@@ -10424,7 +10441,7 @@ function taskDicts() {
   let cur = 'projects';
   const label = v => typeof v === 'string' ? v : ((v && v.name) || '');
   const body = () => boardCard() + `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${D.map(d => `<button class="btn sm ${d[0] === cur ? 'primary' : 'ghost'}" data-dk="${d[0]}">${d[1]}</button>`).join('')}</div>
-    ${cur==='prios'?prioBody():`<div class="set-card">${(S.board[cur] || []).map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b>${cur === 'people' && wpPersonContactId(v) ? `<span>ID ${esc(wpPersonContactId(v))}</span>` : ''}${cur === 'statuses' ? wpStatusFlagChips(v) : ''}</div>${(cur === 'statuses' ? (v && v.key === 'done') : (locked[cur] || []).includes(v)) ? '<span class="chip">системное</span>' : `${cur === 'projects' ? `<button class="icon-btn" data-inv="${i}" aria-label="Пригласить">${ico('users')}</button>` : ''}<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'}</div>
+    ${cur==='prios'?prioBody():`<div class="set-card">${(S.board[cur] || []).map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b>${cur === 'people' && wpPersonContactId(v) ? `<span>ID ${esc(wpPersonContactId(v))}</span>` : ''}${cur === 'statuses' && (!v || v.key !== 'done') ? wpStatusColorDot(v) : ''}${cur === 'statuses' ? wpStatusFlagChips(v) : ''}</div>${cur === 'statuses' && v && v.key === 'done' ? `<span class="chip">системное</span><span class="wp-color-row is-dot"><input type="color" data-status-color="${esc(v.key)}" value="${esc(wpStatusColor(v.key) || '#808080')}" aria-label="Цвет шапки колонки ${esc(label(v))}"><button class="icon-btn" data-screset="${esc(v.key)}" aria-label="Убрать цвет шапки" title="Убрать цвет шапки">${ico('x')}</button></span>` : (cur === 'statuses' ? false : (locked[cur] || []).includes(v)) ? '<span class="chip">системное</span>' : `${cur === 'projects' ? `<button class="icon-btn" data-inv="${i}" aria-label="Пригласить">${ico('users')}</button>` : ''}<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'}</div>
     ${cur === 'statuses'
       ? `<button class="btn" data-da="1" style="width:100%;margin-top:12px">${ico('plus')}Новый статус</button>`
       : `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${cur === 'people'
@@ -10453,12 +10470,13 @@ function taskDicts() {
     if (el.dataset.close) { closeModal(m); return; }
     if (el.dataset.dk) { cur = el.dataset.dk; re(); return; }
     if (el.dataset.prioReset) { S.board.priorityColors = {}; persist(); wpApplyBoardPriorityVars(); re(); return; }
+    if (el.dataset.screset) { const st = arr.find(s => s && s.key === el.dataset.screset); if (st && st.color) { delete st.color; persist(); re(); } return; }
     if (el.dataset.inv) { const p = arr[+el.dataset.inv]; if (p && p.id) projectInvite(p.id); return; }
     if (el.dataset.da) {
       if (cur === 'statuses') {
         const r = await wpStatusDlg({ title: 'Новый статус', nameError: v => arr.some(s => String((s && s.name) || s || '').trim().toLowerCase() === v.toLowerCase()) ? 'Такой статус уже есть' : '' });
         if (!r) return;
-        arr.push(wpMakeBoardStatus(r.name, r.flags, S.board));
+        arr.push(wpMakeBoardStatus(r.name, r.flags, S.board, '', r.color));
         persist(); re(); return;
       }
       const v = $('#dAdd', root).value.trim(); if (!v) return;
@@ -10521,9 +10539,9 @@ function taskDicts() {
       }
       if (cur === 'statuses') {
         const st = arr[i], key = st && st.key;
-        const r = await wpStatusDlg({ title: 'Статус', name: old, flags: st && st.flags, statusKey: key || '', nameError: v => arr.some((s, j) => j !== i && String((s && s.name) || s || '').trim().toLowerCase() === v.toLowerCase()) ? 'Такой статус уже есть' : '' });
+        const r = await wpStatusDlg({ title: 'Статус', name: old, flags: st && st.flags, statusKey: key || '', color: st && st.color, nameError: v => arr.some((s, j) => j !== i && String((s && s.name) || s || '').trim().toLowerCase() === v.toLowerCase()) ? 'Такой статус уже есть' : '' });
         if (!r) return;
-        arr[i] = wpMakeBoardStatus(r.name, r.flags, S.board, key);
+        arr[i] = wpMakeBoardStatus(r.name, r.flags, S.board, key, r.color);
         S.board.tasks.forEach(x => { if (x && x.statusKey === key) x.status = r.name; });
         persist(); re(); return;
       }
@@ -10540,6 +10558,8 @@ function taskDicts() {
     }
   });
   root.addEventListener('input', e => {
+    const scol = e.target.closest('[data-status-color]');
+    if (scol) { const c = wpValidStatusColor(scol.value); if (!c) return; const st = (S.board.statuses || []).find(s => s && s.key === scol.dataset.statusColor); if (!st) return; st.color = c; persist(); return; }
     const inp = e.target.closest('[data-prio-color]'); if (!inp) return;
     const c = wpValidPriorityColor(inp.value); if (!c) return;
     if (!wpIsObj(S.board.priorityColors)) S.board.priorityColors = {};
@@ -13994,11 +14014,11 @@ function wpNormalizeStatusFlags(raw) {
 function wpNormalizeStatusesArray(raw) {
   const out = [], seen = new Set();
   (Array.isArray(raw) ? raw : []).forEach(s => {
-    let key = '', name = '', flags = null;
+    let key = '', name = '', flags = null, color = '';
     if (typeof s === 'string') { name = s.trim(); key = wpStatusKeyForName(name); }
-    else if (wpIsObj(s)) { name = String(s.name || '').trim(); key = String(s.key || '').trim() || wpStatusKeyForName(name); flags = wpNormalizeStatusFlags(s.flags); }
+    else if (wpIsObj(s)) { name = String(s.name || '').trim(); key = String(s.key || '').trim() || wpStatusKeyForName(name); flags = wpNormalizeStatusFlags(s.flags); color = wpValidStatusColor(s.color); }
     if (!name || !key || seen.has(key)) return;
-    seen.add(key); out.push(flags ? { key, name, flags } : { key, name });
+    const entry = { key, name }; if (flags) entry.flags = flags; if (color) entry.color = color; seen.add(key); out.push(entry);
   });
   if (!out.length) return wpDefaultStatuses();
   if (!seen.has('done')) out.push({ key: 'done', name: 'Готово' });
@@ -14032,6 +14052,8 @@ const wpTaskDone = t => wpStatusDone(wpTaskStatus(t));
 const wpTaskOutdated = t => wpStatusOutdated(wpTaskStatus(t));
 const wpTaskQuiet = t => wpStatusQuiet(wpTaskStatus(t));
 const wpTaskClosed = t => wpStatusClosed(wpTaskStatus(t));
+function wpValidStatusColor(value) { const s=String(value||'').trim(); return /^#[0-9a-fA-F]{6}$/.test(s)?s:''; }
+function wpStatusColor(key, board) { const hit=wpBoardStatuses(board).find(s=>s.key===key); return hit?wpValidStatusColor(hit.color):''; }
 /* Новый статус с известным названием забирает канонический ключ (своя колонка
    сразу наполняется задачами, а не дублирует крайнюю служебную полосу);
    иначе — стабильный уникальный ключ. */
@@ -14041,10 +14063,12 @@ function wpStatusKeyForNewName(name, board) {
   if (canonical && !wpBoardStatuses(board).some(s => s.key === canonical)) return canonical;
   return uid('st');
 }
-function wpMakeBoardStatus(name, flags, board, keepKey = '') {
+function wpMakeBoardStatus(name, flags, board, keepKey = '', color = '') {
   const entry = { key: String(keepKey || '').trim() || wpStatusKeyForNewName(name, board), name: String(name || '').trim() };
   const clean = wpNormalizeStatusFlags(flags);
   if (clean) entry.flags = clean;
+  const lane = wpValidStatusColor(color);
+  if (lane) entry.color = lane;
   return entry;
 }
 function wpMoveBoardStatus(key, dir) {
@@ -14053,9 +14077,20 @@ function wpMoveBoardStatus(key, dir) {
   if (i < 0 || j < 0 || j >= arr.length) return false;
   const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp; return true;
 }
-function wpBoardLaneHeader(status, label, count, canMove, idx, total) {
+function wpMoveBoardStatusTo(key, toIndex) {
+  const board = wpEnsureBoardShape(), arr = board && Array.isArray(board.statuses) ? board.statuses : [];
+  const from = arr.findIndex(s => s && s.key === key);
+  if (from < 0) return false;
+  const to = Math.max(0, Math.min(arr.length - 1, Math.round(+toIndex) || 0));
+  if (from === to) return false;
+  arr.splice(to, 0, arr.splice(from, 1)[0]); return true;
+}
+function wpBoardLaneHeader(status, label, count, canMove, idx, total, color = '') {
+  const lane = wpValidStatusColor(color);
+  const dot = lane ? '<i class="wp-lane-dot" aria-hidden="true"></i>' : '';
+  const grip = canMove ? `<span class="wp-lane-grip" title="Тяните, чтобы переместить колонку">${ico('dots-v')}</span>` : '';
   const move = canMove ? `<span class="wp-lane-move"><button type="button" class="wp-icon-btn" data-act="wpBoardColMove" data-status="${esc(status)}" data-dir="-1" aria-label="Переместить колонку «${esc(label)}» влево"${idx <= 0 ? ' disabled' : ''}>${ico('chev-l')}</button><button type="button" class="wp-icon-btn" data-act="wpBoardColMove" data-status="${esc(status)}" data-dir="1" aria-label="Переместить колонку «${esc(label)}» вправо"${idx >= total - 1 ? ' disabled' : ''}>${ico('chev-r')}</button></span>` : '';
-  return `<header><div><b>${esc(label)}</b>${move}</div><span>${count}</span></header>`;
+  return `<header${lane ? ` class="has-lane-color" style="--lane:${lane}"` : ''}><div>${dot}${grip}<b>${esc(label)}</b>${move}</div><span>${count}</span></header>`;
 }
 const WP_PRIORITY = { none: 'Не срочные', normal: 'Не срочные', high: 'Срочно', critical: 'Критично' };
 const WP_PRIORITY_RU = { none: 'Без приоритета', normal: 'Обычный', high: 'Срочный', critical: 'Критичный' };
@@ -15686,10 +15721,13 @@ function wpWeekCalendar(days,entities) {
 function wpDayCapsule(task) {
   const status=wpTaskStatus(task), prio=wpPriority(task), title=task.title||'Без названия';
   const done=wpStatusDone(status), overdue=(wpDeadlineOverdue(task) || status==='overdue');
-  const meta=[wpAssigneeLabel(task),wpDeadlineText(task,true)].filter(Boolean).join(' · ');
-  const aria=`${title}${meta?` · ${meta}`:''}${done?' · Статус: выполнена':''}`;
+  const top=[wpHomeLabel(task),WP_PRIORITY_RU[prio]].filter(Boolean).join(' · ');
+  const mid=[wpAssigneeLabel(task)||'Не назначено',wpDeadlineText(task,true)||'Без срока'].join(' · ');
+  const tags=wpTaskTags(task).slice(0,2).map(tag=>'#'+tag).join(' ');
+  const bottom=[wpStatusLabel(status),tags].filter(Boolean).join(' · ');
+  const aria=`${title} · ${top} · ${mid} · ${bottom}${done?' · Статус: выполнена':''}`;
   const classes=['wp-day-capsule',`p-${prio}`,done?'is-done':'',status==='waiting'?'is-waiting':'',overdue?'is-overdue':'',wpStatusOutdated(status)?'is-cancelled':''].filter(Boolean).join(' ');
-  return `<button type="button" class="${classes}" data-act="taskEdit" ${wpEntityDataAttrs(task)} data-task-id="${esc(task.taskId||task.id)}" draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}"><span>${esc(title)}</span>${meta?`<small>${esc(meta)}</small>`:''}</button>`;
+  return `<button type="button" class="${classes}" data-act="taskEdit" ${wpEntityDataAttrs(task)} data-task-id="${esc(task.taskId||task.id)}" draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}"><small class="wp-cap-top">${esc(top)}</small><span>${esc(title)}</span><small class="wp-cap-mid">${esc(mid)}</small><small class="wp-cap-bot">${esc(bottom)}</small></button>`;
 }
 function wpDayColumn(date,entities,{spanSpace=0,includeMultiDay=false}={}) {
   const covering=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date));
@@ -15839,7 +15877,7 @@ function wpBoardToolbar(items) {
   return `<div class="wp-board-toolbar"><div class="wp-filter-layout wp-board-filter-row">
     ${wpFilterMenuTrigger('board',current[1])}${wpCalendarCompletedToggle('board')}
     <button type="button" class="wp-my-filter ${WP.boardMineOnly?'active':''}" data-act="wpBoardMineToggle" aria-pressed="${WP.boardMineOnly===true}">${ico('user')}Мои задачи</button>
-    <button type="button" class="wp-my-filter ${WP.boardMoveColumns?'active':''}" data-act="wpBoardMoveToggle" aria-pressed="${WP.boardMoveColumns===true}" title="Перемещать колонки: включить режим и двигать колонки стрелками в заголовках">${ico('pin')}Колонки</button>
+    <button type="button" class="wp-my-filter ${WP.boardMoveColumns?'active':''}" data-act="wpBoardMoveToggle" aria-pressed="${WP.boardMoveColumns===true}" title="Колонки: включить режим и тянуть колонки за шапки или двигать стрелками">${ico('columns')}Колонки</button>
     ${wpFilterSelect('board','assignee','Исполнитель','Фильтр по исполнителю',assignees,WP.boardAssigneeFilter,'wp-filter-assignee')}
     ${wpFilterSelect('board','home','Список / проект','Фильтр по списку и проекту',wpHomeFilterOptions(),WP.boardHomeFilter,'wp-filter-project')}
     ${wpFilterSelect('board','tag','Тег','Фильтр по тегу',tags,WP.boardTagFilter,'wp-filter-tag')}
@@ -15850,7 +15888,8 @@ function wpBoardToolbar(items) {
 function wpBoardView() {
   const items=wpBoardEntities(),columns=wpBoardColumns(items),moveMode=WP.boardMoveColumns===true,dictKeys=new Set(wpBoardStatuses().map(s=>s.key));
   const empty=!items.length&&wpFiltersDirty('board')?'<div class="wp-board-no-results"><span>Нет задач по выбранным условиям.</span><button type="button" class="btn sm ghost" data-act="wpBoardReset">Сбросить фильтры</button></div>':'';
-  return `${wpBoardToolbar(items)}${wpBoardSummary(items)}${empty}<div class="wp-board-lanes" style="--wp-lanes:${columns.length}" aria-label="Доска задач">${columns.map(([status,label],laneIdx)=>{const lane=items.filter(task=>wpTaskStatus(task)===status);return `<section class="wp-board-column" data-drop-status="${esc(status)}" aria-label="${label}, ${lane.length} ${plural(lane.length,['задача','задачи','задач'])}">${(moveMode||!['open','waiting','done','overdue'].includes(status))?wpBoardLaneHeader(status,label,lane.length,moveMode&&dictKeys.has(status),laneIdx,columns.length):''}<div class="wp-board-items">${lane.map(task=>wpTaskCard(task,{compact:true,board:true})).join('')||'<div class="wp-board-empty">Пока нет задач</div>'}</div></section>`;}).join('')}</div>`;
+  const hint=moveMode?`<div class="wp-lanes-hint" role="note">${ico('info')}<span>Тяните колонки за шапки или двигайте стрелками — порядок сохраняется автоматически</span></div>`:'';
+  return `${wpBoardToolbar(items)}${empty}${hint}<div class="wp-board-lanes" style="--wp-lanes:${columns.length}" aria-label="Доска задач">${columns.map(([status,label],laneIdx)=>{const lane=items.filter(task=>wpTaskStatus(task)===status),canMove=moveMode&&dictKeys.has(status);return `<section class="wp-board-column" data-drop-status="${esc(status)}" aria-label="${label}, ${lane.length} ${plural(lane.length,['задача','задачи','задач'])}}"${canMove?` draggable="true" data-lane="${esc(status)}"`:''}>${wpBoardLaneHeader(status,label,lane.length,canMove,laneIdx,columns.length,wpStatusColor(status))}<div class="wp-board-items">${lane.map(task=>wpTaskCard(task,{compact:true,board:true})).join('')||'<div class="wp-board-empty">Пока нет задач</div>'}</div></section>`;}).join('')}</div>`;
 }
 function wpProjectCard(project) {
   const list=wpEntitiesForProject(project.id), active=list.filter(t=>!wpTaskClosed(t)).length;
@@ -16012,15 +16051,24 @@ function wpAfterTaskPage() {
     if(cb) { const id=cb.dataset.id; if(cb.checked && !WP.reviewSelected.includes(id)) WP.reviewSelected.push(id); else WP.reviewSelected=WP.reviewSelected.filter(x=>x!==id); wpRenderView(); return; }
   });
   root.addEventListener('dragstart',e=>{
-    const card=e.target.closest('.wp-task[draggable="true"],.wp-calendar-span[draggable="true"]'); if(!card || S.taskMigrationOK===false) { if(card) e.preventDefault(); return; }
-    const payload={id:card.dataset.id,entityType:card.dataset.entityType||'task',seriesTaskId:card.dataset.seriesId||'',originalDate:card.dataset.originalDate||''};
-    try { e.dataTransfer.setData('application/x-shelter-task',JSON.stringify(payload)); e.dataTransfer.setData('text/plain',JSON.stringify(payload)); e.dataTransfer.effectAllowed='move'; } catch(_){}
-    card.classList.add('dragging');
+    const card=e.target.closest('.wp-task[draggable="true"],.wp-calendar-span[draggable="true"]');
+    if(card) {
+      if(S.taskMigrationOK===false) { e.preventDefault(); return; }
+      const payload={id:card.dataset.id,entityType:card.dataset.entityType||'task',seriesTaskId:card.dataset.seriesId||'',originalDate:card.dataset.originalDate||''};
+      try { e.dataTransfer.setData('application/x-shelter-task',JSON.stringify(payload)); e.dataTransfer.setData('text/plain',JSON.stringify(payload)); e.dataTransfer.effectAllowed='move'; } catch(_){}
+      card.classList.add('dragging'); return;
+    }
+    const lane=e.target.closest('.wp-board-column[data-lane][draggable="true"]'); if(!lane) return;
+    if(S.taskMigrationOK===false) { e.preventDefault(); return; }
+    WP._colDrag=lane.dataset.lane;
+    try { e.dataTransfer.setData('application/x-shelter-lane',WP._colDrag); e.dataTransfer.effectAllowed='move'; } catch(_){}
+    lane.classList.add('dragging');
   });
-  root.addEventListener('dragend',e=>{const card=e.target.closest('.wp-task,.wp-calendar-span'); if(card) card.classList.remove('dragging'); root.querySelectorAll('.drop-active').forEach(x=>x.classList.remove('drop-active'));});
-  root.addEventListener('dragover',e=>{const zone=e.target.closest('[data-drop-date],[data-drop-inbox],[data-drop-status]'); if(!zone) return; e.preventDefault(); zone.classList.add('drop-active');});
-  root.addEventListener('dragleave',e=>{const zone=e.target.closest('[data-drop-date],[data-drop-inbox],[data-drop-status]'); if(zone && !zone.contains(e.relatedTarget)) zone.classList.remove('drop-active');});
+  root.addEventListener('dragend',e=>{const card=e.target.closest('.wp-task,.wp-calendar-span,.wp-board-column'); if(card) card.classList.remove('dragging'); WP._colDrag=null; root.querySelectorAll('.drop-active,.wp-board-column.drop-before,.wp-board-column.drop-after').forEach(x=>x.classList.remove('drop-active','drop-before','drop-after'));});
+  root.addEventListener('dragover',e=>{if(WP._colDrag){const lane=e.target.closest('.wp-board-column[data-lane]');root.querySelectorAll('.wp-board-column.drop-before,.wp-board-column.drop-after').forEach(x=>x.classList.remove('drop-before','drop-after'));if(!lane||lane.dataset.lane===WP._colDrag)return;e.preventDefault();const r=lane.getBoundingClientRect();lane.classList.add((e.clientX-r.left)>r.width/2?'drop-after':'drop-before');return;}const zone=e.target.closest('[data-drop-date],[data-drop-inbox],[data-drop-status]'); if(!zone) return; e.preventDefault(); zone.classList.add('drop-active');});
+  root.addEventListener('dragleave',e=>{const lane=e.target.closest('.wp-board-column[data-lane]'); if(lane&&!lane.contains(e.relatedTarget))lane.classList.remove('drop-before','drop-after');const zone=e.target.closest('[data-drop-date],[data-drop-inbox],[data-drop-status]'); if(zone && !zone.contains(e.relatedTarget)) zone.classList.remove('drop-active');});
   root.addEventListener('drop',e=>{
+    if(WP._colDrag){e.preventDefault();const lane=e.target.closest('.wp-board-column[data-lane]'),key=WP._colDrag,after=!!(lane&&lane.classList.contains('drop-after'));WP._colDrag=null;root.querySelectorAll('.wp-board-column.dragging,.wp-board-column.drop-before,.wp-board-column.drop-after').forEach(x=>x.classList.remove('dragging','drop-before','drop-after'));if(!lane||!key||lane.dataset.lane===key)return;const keys=wpStatusKeys(),from=keys.indexOf(key);let to=keys.indexOf(lane.dataset.lane)+(after?1:0);if(from<0||to<0)return;if(from<to)to-=1;if(from===to)return;wpCommit(`Колонка «${wpStatusLabel(key)}» перемещена`,()=>wpMoveBoardStatusTo(key,to));return;}
     const zone=e.target.closest('[data-drop-date],[data-drop-inbox],[data-drop-status]'); if(!zone) return;
     e.preventDefault(); zone.classList.remove('drop-active');
     let ref=null; try { ref=JSON.parse(e.dataTransfer.getData('application/x-shelter-task')||e.dataTransfer.getData('text/plain')); } catch(_){}

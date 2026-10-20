@@ -487,7 +487,7 @@ class ShellWindowDelegate : public CefWindowDelegate {
                              const CefRect&) override {
     TrackWindowMode(window);
   }
-  void OnWindowFullscreenTransition(CefPtr<CefWindow> window,
+  void OnWindowFullscreenTransition(CefRefPtr<CefWindow> window,
                                     bool is_completed) override {
     if (is_completed) TrackWindowMode(window);
   }

@@ -198,7 +198,7 @@ const boardColumns = section('function wpBoardView() {', 'function wpProjectCard
 assert(!boardColumns.includes('wpBoardSummary(') && boardColumns.includes('${wpBoardToolbar(items)}${empty}${hint}<div class="wp-board-lanes"'), 'the board drops the KPI strip: every lane carries its own header with name and count');
 assert(boardColumns.includes('wpBoardLaneHeader(status,label,lane.length,canMove,laneIdx,columns.length,wpStatusColor(status))'), 'every lane header resolves its lane color');
 assert(html.includes('function wpBoardLaneHeader(') && html.includes('wp-lane-dot') && html.includes('wp-lane-grip') && html.includes('wp-lanes-hint'), 'lane headers carry color dots, drag grips, and a move-mode hint');
-assert(html.includes('data-ws-color value=') && html.includes('data-status-color=') && html.includes('function wpStatusColorDot('), 'lane colors are assigned in the status editor and previewed in the dictionary');
+assert(html.includes('data-ws-swatch-pick') && html.includes('data-ws-swatch=') && html.includes('function wpStatusColorDot('), 'lane colors are assigned in the status editor and previewed in the dictionary');
 const quickAddRoute = section('function wpQuickAddOpen(date=null, projectId=null, assignee=wpCurrentAssignee(), context', 'function wpCreateTask(');
 assert(quickAddRoute.includes('wpOpenEditor(null,{scheduledDate:'), 'quick-add entries open the full task editor');
 const plannerPageRenderer = section('function wpRenderTaskPage() {', 'function wpSetView(');

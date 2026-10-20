@@ -196,6 +196,9 @@ check('карточки доски не рвут верстку в узких к
   plannerStyle.includes('.wp-board-task .wp-task-meta>span{max-width:100%;min-width:0;overflow:hidden;overflow-wrap:anywhere}') &&
   plannerStyle.includes('.wp-board-task .wp-task-meta .wp-deadline{flex:0 1 auto;min-width:0;white-space:normal}') &&
   plannerStyle.includes('.wp-board-task .wp-chip,.wp-board-task .wp-tag{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'));
+check('статусы красятся из шести свотчей с кольцом активного цвета',
+  plannerStyle.includes('.wp-swatches{display:flex;align-items:center;gap:6px;flex:none}') &&
+  plannerStyle.includes('.wp-swatch.is-on{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--sw,var(--line-3))}'));
 check('месячная сетка задач повторяет компактные метрики «Истории», без слоя диапазонов — только точки',
   plannerStyle.includes('min-height:84px;aspect-ratio:1.22;') &&
   !plannerStyle.includes('.wp-month-day{height:150px;') &&

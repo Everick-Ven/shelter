@@ -198,7 +198,8 @@ const std::set<std::string>& DiagnosticMethodNames() {
       "cookie.setEnabled", "https.setEnabled", "dns.setProvider",
       "strict.setEnabled", "strict.allow", "ghost.setEnabled",
       "shell.filestate", "dl.decision", "dl.control", "privacy.clear",
-      "dbg.protections", "dbg.hit", "dbg.clip", "window.minimize",
+      "dbg.protections", "dbg.hit", "dbg.clip", "dbg.window",
+      "window.minimize",
       "window.maximize", "window.close", "window.openPlain",
       "privacy.clear", "auth.open", "devtools.ctl", "ai.test", "ai.chat",
       "clipboard.read", "clipboard.write", "tab.captureThumbs",
@@ -752,6 +753,16 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success(std::string("{\"fp\":") +
                 ((flags & 1) ? "true" : "false") + ",\"cookies\":" +
                 ((flags & 2) ? "true" : "false") + "}");
+    return true;
+  }
+  if (m == "dbg.window") {  // диагностика (CI): состояние главного окна
+    CefRefPtr<CefWindow> window = Shell::Get().window();
+    const bool maximized = window.get() && window->IsMaximized();
+    const bool fullscreen = window.get() && window->IsFullscreen();
+    std::ostringstream out;
+    out << "{\"maximized\":" << (maximized ? "true" : "false")
+        << ",\"fullscreen\":" << (fullscreen ? "true" : "false") << "}";
+    cb->Success(out.str());
     return true;
   }
   if (m == "dbg.hit") {  // диагностика hitTest (macOS), только для CI

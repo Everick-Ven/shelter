@@ -9,6 +9,7 @@ TOKENS = (
     b"SHELTER_SMOKE_URL",
     b"dbg.hit",
     b"dbg.clip",
+    b"dbg.window",
 )
 
 

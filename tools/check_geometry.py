@@ -43,6 +43,28 @@ def user_data_dir() -> str:
     return os.path.expanduser("~/Library/Application Support/SHELTER")
 
 
+WINDOW_STATE_MAGIC = "SHELTER_WINDOW_STATE_V2"
+
+
+def write_window_state(directory: str, mode: str = "maximized") -> str:
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, "window-state-v2")
+    with open(path, "w", encoding="utf-8", newline="\n") as stream:
+        stream.write(f"{WINDOW_STATE_MAGIC}\n{mode}\n100 100 1440 900\n")
+    return path
+
+
+def read_window_state_mode(path: str) -> str:
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as stream:
+            lines = stream.read().splitlines()
+    except OSError:
+        return ""
+    if len(lines) < 2 or lines[0].strip() != WINDOW_STATE_MAGIC:
+        return ""
+    return lines[1].strip()
+
+
 def read_lines(path: str) -> List[str]:
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as stream:
@@ -209,6 +231,12 @@ def main() -> int:
 
     logfile = os.path.join(user_data_dir(), "shelter.log")
     stderr_file = "geometry-app.log"
+    try:
+        state_file = write_window_state(user_data_dir())
+    except OSError as exc:
+        out("cannot pre-write window state:", exc)
+        return 2
+    out("pre-written window state:", state_file)
     marker = "shell: content bounds"
     seen = len(read_lines(logfile))
     port = reserve_port()
@@ -282,6 +310,16 @@ def main() -> int:
           };
         })()"""
 
+        window_state_expression = (
+            "new Promise(function(resolve){"
+            "if (typeof window.cefQuery !== 'function') { resolve(''); return; }"
+            "window.cefQuery({request:'{\"m\":\"dbg.window\"}',"
+            " persistent:false,"
+            "onSuccess:function(r){resolve(r||'');},"
+            "onFailure:function(){resolve('');}});"
+            "})"
+        )
+
         def ui_ready() -> bool:
             last_ui_state[0] = cdp.evaluate(readiness_expression)
             return (
@@ -300,6 +338,19 @@ def main() -> int:
             state = json.dumps(last_ui_state[0], ensure_ascii=False)
             raise GeometryError(f"{exc}; last UI state: {state}") from exc
         out("UI bridge ready:", json.dumps(last_ui_state[0], ensure_ascii=False))
+        window_state = cdp.evaluate(window_state_expression)
+        out("main window state:", window_state)
+        try:
+            window_info = json.loads(window_state)
+        except (TypeError, ValueError):
+            window_info = {}
+        if window_info.get("maximized") is not True:
+            raise GeometryError(
+                "main window is not maximized despite saved state 'maximized': "
+                f"{window_state!r}"
+            )
+        if window_info.get("fullscreen") is True:
+            raise GeometryError("main window unexpectedly fullscreen")
         navigation = cdp.evaluate(
             "(() => { window.shelter.navigate('https://example.com/'); "
             "return {activeTabId: window.getActiveTabId()}; })()"
@@ -419,6 +470,9 @@ def main() -> int:
             f"OK: content ({x},{y} {width}x{height}) "
             f"inside client {client_width}x{client_height}"
         )
+        if read_window_state_mode(state_file) != "maximized":
+            raise GeometryError("saved window mode was overwritten during startup")
+        out("saved window mode intact: maximized")
         return 0
     except Exception as exc:
         diagnostic_state = json.dumps(last_ui_state[0], ensure_ascii=False)
@@ -440,6 +494,10 @@ def main() -> int:
         if cdp is not None:
             cdp.close()
         kill(process)
+        try:
+            os.remove(state_file)
+        except OSError:
+            pass
         try:
             stderr_stream.close()
         except OSError:

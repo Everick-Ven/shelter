@@ -150,10 +150,21 @@ constexpr size_t kMaxExtensionPermissionLength = 512;
 constexpr size_t kMaxInstalledExtensions = 256;
 constexpr std::uintmax_t kMaxPendingWipeListBytes = 64u * 1024u;
 constexpr size_t kMaxPendingWipeEntries = 1024;
-constexpr char kMainWindowStateFile[] = "window-state-v1";
-constexpr char kMainWindowStateMagic[] = "SHELTER_WINDOW_STATE_V1";
+constexpr char kMainWindowStateFile[] = "window-state-v2";
+constexpr char kMainWindowStateMagic[] = "SHELTER_WINDOW_STATE_V2";
+// Legacy v1 хранил только режим без bounds; читается как запасной вариант,
+// новые записи всегда идут в v2.
+constexpr char kLegacyWindowStateFile[] = "window-state-v1";
+constexpr char kLegacyWindowStateMagic[] = "SHELTER_WINDOW_STATE_V1";
+constexpr std::uintmax_t kMaxWindowStateBytes = 256;
 
 enum class MainWindowMode { kNormal, kMaximized, kFullscreen };
+
+struct MainWindowState {
+  MainWindowMode mode = MainWindowMode::kMaximized;
+  CefRect normal_bounds;
+  bool has_normal_bounds = false;
+};
 
 const char* MainWindowModeName(MainWindowMode mode) {
   switch (mode) {
@@ -165,6 +176,92 @@ const char* MainWindowModeName(MainWindowMode mode) {
       return "fullscreen";
   }
   return "maximized";
+}
+
+bool SameRect(const CefRect& left, const CefRect& right) {
+  return left.x == right.x && left.y == right.y &&
+         left.width == right.width && left.height == right.height;
+}
+
+bool ParseWindowModeLine(const std::string& line, MainWindowMode* mode) {
+  if (!mode) return false;
+  if (line == "normal") {
+    *mode = MainWindowMode::kNormal;
+    return true;
+  }
+  if (line == "maximized") {
+    *mode = MainWindowMode::kMaximized;
+    return true;
+  }
+  if (line == "fullscreen") {
+    *mode = MainWindowMode::kFullscreen;
+    return true;
+  }
+  return false;
+}
+
+// Строго "x y w h": четыре целых числа, диапазоны с запасом под любые экраны.
+bool ParseWindowBoundsLine(const std::string& line, CefRect* rect) {
+  if (!rect) return false;
+  const char* p = line.c_str();
+  long values[4] = {0, 0, 0, 0};
+  for (int i = 0; i < 4; ++i) {
+    while (*p == ' ') ++p;
+    if (*p != '-' && (*p < '0' || *p > '9')) return false;
+    char* end = nullptr;
+    values[i] = std::strtol(p, &end, 10);
+    if (end == p) return false;
+    p = end;
+    if (i < 3 && *p != ' ') return false;
+  }
+  while (*p == ' ') ++p;
+  if (*p != '\0') return false;
+  if (values[0] < -100000 || values[0] > 100000 || values[1] < -100000 ||
+      values[1] > 100000 || values[2] < 1 || values[2] > 100000 ||
+      values[3] < 1 || values[3] > 100000) {
+    return false;
+  }
+  *rect = CefRect(static_cast<int>(values[0]), static_cast<int>(values[1]),
+                  static_cast<int>(values[2]), static_cast<int>(values[3]));
+  return true;
+}
+
+// Размер по умолчанию: 1440x900 по центру рабочей области главного монитора.
+CefRect DefaultMainWindowBounds() {
+  int w = 1440, h = 900, x = 60, y = 40;
+  if (auto display = CefDisplay::GetPrimaryDisplay()) {
+    const CefRect wa = display->GetWorkArea();
+    w = std::min(w, std::max(kMinWidth, wa.width - 80));
+    h = std::min(h, std::max(kMinHeight, wa.height - 80));
+    x = wa.x + (wa.width - w) / 2;
+    y = wa.y + (wa.height - h) / 2;
+  }
+  return CefRect(x, y, w, h);
+}
+
+// Прямоугольник пригоден, только если заметно пересекает рабочую область
+// существующего монитора (монитор могли отключить или переставить).
+bool IsRectOnAnyWorkArea(const CefRect& rect) {
+  if (rect.width < kMinWidth || rect.height < kMinHeight) return false;
+  std::vector<CefRefPtr<CefDisplay>> displays;
+  CefDisplay::GetAllDisplays(displays);
+  for (const auto& display : displays) {
+    if (!display) continue;
+    const CefRect wa = display->GetWorkArea();
+    const int overlap_x = std::max(rect.x, wa.x);
+    const int overlap_y = std::max(rect.y, wa.y);
+    const int overlap_w =
+        std::min(rect.x + rect.width, wa.x + wa.width) - overlap_x;
+    const int overlap_h =
+        std::min(rect.y + rect.height, wa.y + wa.height) - overlap_y;
+    if (overlap_w >= kMinWidth && overlap_h >= kMinHeight) return true;
+  }
+  return false;
+}
+
+fs::path LegacyMainWindowStatePath() {
+  return fs::u8path(platform::UserDataDir()) /
+         fs::u8path(kLegacyWindowStateFile);
 }
 
 fs::path MainWindowStatePath() {
@@ -182,42 +279,70 @@ bool IsOptionalWindowStateFileSafe(const fs::path& path) {
   return !ec && links == 1;
 }
 
-MainWindowMode ReadMainWindowMode() {
+MainWindowState ReadMainWindowState() {
+  MainWindowState state;
   const fs::path path = MainWindowStatePath();
-  if (!security::IsRegularFileWithoutLink(path))
-    return MainWindowMode::kMaximized;
-  std::error_code ec;
-  const std::uintmax_t size = fs::file_size(path, ec);
-  if (ec || size > 128) return MainWindowMode::kMaximized;
-
-  std::ifstream input(path, std::ios::binary);
-  std::string magic;
-  std::string value;
-  if (!input || !std::getline(input, magic) || !std::getline(input, value) ||
-      input.peek() != std::char_traits<char>::eof() ||
-      magic != kMainWindowStateMagic) {
-    return MainWindowMode::kMaximized;
+  if (security::IsRegularFileWithoutLink(path)) {
+    std::error_code ec;
+    const std::uintmax_t size = fs::file_size(path, ec);
+    if (!ec && size <= kMaxWindowStateBytes) {
+      std::ifstream input(path, std::ios::binary);
+      std::string magic, mode_line, bounds_line;
+      if (input && std::getline(input, magic) &&
+          std::getline(input, mode_line) &&
+          std::getline(input, bounds_line) &&
+          input.peek() == std::char_traits<char>::eof() &&
+          magic == kMainWindowStateMagic &&
+          ParseWindowModeLine(mode_line, &state.mode)) {
+        CefRect bounds;
+        state.has_normal_bounds = ParseWindowBoundsLine(bounds_line, &bounds);
+        if (state.has_normal_bounds) state.normal_bounds = bounds;
+        return state;
+      }
+    }
   }
-  if (value == "normal") return MainWindowMode::kNormal;
-  if (value == "fullscreen") return MainWindowMode::kFullscreen;
-  return MainWindowMode::kMaximized;
+  const fs::path legacy = LegacyMainWindowStatePath();
+  if (security::IsRegularFileWithoutLink(legacy)) {
+    std::error_code ec;
+    const std::uintmax_t size = fs::file_size(legacy, ec);
+    if (!ec && size <= 128) {
+      std::ifstream input(legacy, std::ios::binary);
+      std::string magic, mode_line;
+      if (input && std::getline(input, magic) &&
+          std::getline(input, mode_line) &&
+          input.peek() == std::char_traits<char>::eof() &&
+          magic == kLegacyWindowStateMagic &&
+          ParseWindowModeLine(mode_line, &state.mode)) {
+        return state;
+      }
+    }
+  }
+  return state;
 }
 
-bool WriteMainWindowMode(MainWindowMode mode) {
+MainWindowMode ReadMainWindowMode() {
+  return ReadMainWindowState().mode;
+}
+
+bool WriteMainWindowState(const MainWindowState& state) {
   const fs::path directory = fs::u8path(platform::UserDataDir());
   if (directory.empty() || !security::EnsureDirectoryWithoutLink(directory))
     return false;
 
   const fs::path path = directory / fs::u8path(kMainWindowStateFile);
-  const fs::path temporary = directory / fs::u8path("window-state-v1.tmp");
+  const fs::path temporary = directory / fs::u8path("window-state-v2.tmp");
   if (!IsOptionalWindowStateFileSafe(path) ||
       !IsOptionalWindowStateFileSafe(temporary)) {
     return false;
   }
 
+  const CefRect bounds = state.has_normal_bounds ? state.normal_bounds
+                                                 : DefaultMainWindowBounds();
   std::ofstream output(temporary, std::ios::binary | std::ios::trunc);
   if (!output) return false;
-  output << kMainWindowStateMagic << '\n' << MainWindowModeName(mode) << '\n';
+  output << kMainWindowStateMagic << '\n' << MainWindowModeName(state.mode)
+         << '\n' << bounds.x << ' ' << bounds.y << ' ' << bounds.width << ' '
+         << bounds.height << '\n';
   output.flush();
   if (!output) {
     output.close();
@@ -247,6 +372,12 @@ bool WriteMainWindowMode(MainWindowMode mode) {
   return security::IsRegularFileWithoutLink(path);
 }
 
+bool WriteMainWindowMode(MainWindowMode mode) {
+  MainWindowState state = ReadMainWindowState();
+  state.mode = mode;
+  return WriteMainWindowState(state);
+}
+
 void SaveMainWindowMode(CefRefPtr<CefWindow> window) {
   if (!window || window->IsMinimized()) return;
   MainWindowMode mode = MainWindowMode::kNormal;
@@ -255,14 +386,28 @@ void SaveMainWindowMode(CefRefPtr<CefWindow> window) {
   } else if (window->IsMaximized()) {
     mode = MainWindowMode::kMaximized;
   }
-  if (ReadMainWindowMode() != mode) WriteMainWindowMode(mode);
+  MainWindowState state = ReadMainWindowState();
+  if (mode == MainWindowMode::kNormal) {
+    // В обычном режиме запоминаем и bounds; переходные значения меньше
+    // минимума игнорируем, чтобы не отравить файл мусором.
+    const CefRect bounds = window->GetBoundsInScreen();
+    if (bounds.width >= kMinWidth && bounds.height >= kMinHeight) {
+      if (state.mode == mode && state.has_normal_bounds &&
+          SameRect(state.normal_bounds, bounds)) {
+        return;
+      }
+      state.normal_bounds = bounds;
+      state.has_normal_bounds = true;
+    } else if (state.mode == mode) {
+      return;
+    }
+  } else if (state.mode == mode) {
+    return;
+  }
+  state.mode = mode;
+  WriteMainWindowState(state);
 }
 
-
-bool SameRect(const CefRect& left, const CefRect& right) {
-  return left.x == right.x && left.y == right.y &&
-         left.width == right.width && left.height == right.height;
-}
 
 CefRefPtr<CefImage> LoadWindowIcon() {
   std::ifstream f(
@@ -314,8 +459,21 @@ class ShellWindowDelegate : public CefWindowDelegate {
   bool CanMaximize(CefRefPtr<CefWindow>) override { return true; }
   bool CanMinimize(CefRefPtr<CefWindow>) override { return true; }
 
+  CefRect GetInitialBounds(CefRefPtr<CefWindow>) override {
+    const MainWindowState state = ReadMainWindowState();
+    if (state.mode == MainWindowMode::kNormal && state.has_normal_bounds &&
+        IsRectOnAnyWorkArea(state.normal_bounds)) {
+      return state.normal_bounds;
+    }
+    return DefaultMainWindowBounds();
+  }
   cef_show_state_t GetInitialShowState(CefRefPtr<CefWindow>) override {
-    switch (ReadMainWindowMode()) {
+    // Режим читаем один раз: пока окно не пришло в него, события размеров
+    // (они приходят ДО применения развёрнутого состояния) ничего не сохраняют,
+    // иначе первый же OnWindowBoundsChanged затирает "maximized" значением
+    // "normal", и при следующем запуске окно открывается маленьким.
+    initial_mode_ = ReadMainWindowMode();
+    switch (initial_mode_) {
       case MainWindowMode::kNormal:
         return CEF_SHOW_STATE_NORMAL;
       case MainWindowMode::kFullscreen:
@@ -327,22 +485,17 @@ class ShellWindowDelegate : public CefWindowDelegate {
   }
   void OnWindowBoundsChanged(CefRefPtr<CefWindow> window,
                              const CefRect&) override {
-    SaveMainWindowMode(window);
+    TrackWindowMode(window);
   }
-  void OnWindowFullscreenTransition(CefRefPtr<CefWindow> window,
+  void OnWindowFullscreenTransition(CefPtr<CefWindow> window,
                                     bool is_completed) override {
-    if (is_completed) SaveMainWindowMode(window);
+    if (is_completed) TrackWindowMode(window);
   }
 
 
   CefSize GetPreferredSize(CefRefPtr<CefView>) override {
-    int w = 1440, h = 900;
-    if (auto d = CefDisplay::GetPrimaryDisplay()) {
-      CefRect wa = d->GetWorkArea();
-      w = std::min(w, std::max(kMinWidth, wa.width - 80));
-      h = std::min(h, std::max(kMinHeight, wa.height - 80));
-    }
-    return CefSize(w, h);
+    const CefRect bounds = DefaultMainWindowBounds();
+    return CefSize(bounds.width, bounds.height);
   }
   CefSize GetMinimumSize(CefRefPtr<CefView>) override {
     return CefSize(kMinWidth, kMinHeight);
@@ -352,7 +505,28 @@ class ShellWindowDelegate : public CefWindowDelegate {
   }
 
  private:
+  // Сохраняем режим только после того, как окно достигло запрошенного при
+  // старте; до этого события размеров относятся к построению окна.
+  void TrackWindowMode(CefRefPtr<CefWindow> window) {
+    if (!window) return;
+    if (!tracking_) {
+      if (window->IsMinimized()) return;
+      MainWindowMode now = MainWindowMode::kNormal;
+      if (window->IsFullscreen()) {
+        now = MainWindowMode::kFullscreen;
+      } else if (window->IsMaximized()) {
+        now = MainWindowMode::kMaximized;
+      }
+      if (now != initial_mode_) return;
+      tracking_ = true;
+      return;
+    }
+    SaveMainWindowMode(window);
+  }
+
   CefRefPtr<CefBrowserView> ui_view_;
+  MainWindowMode initial_mode_ = MainWindowMode::kMaximized;
+  bool tracking_ = false;
   IMPLEMENT_REFCOUNTING(ShellWindowDelegate);
   DISALLOW_COPY_AND_ASSIGN(ShellWindowDelegate);
 };

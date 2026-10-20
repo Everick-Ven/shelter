@@ -194,5 +194,7 @@ check('месячная сетка задач повторяет компакт�
   taskLayoutStyle.includes('.planner-page .wp-month-day-head{min-height:24px;gap:3px}') &&
   !plannerStyle.includes('wp-month-span-layer') &&
   !taskLayoutStyle.includes('wp-month-span-layer'));
+check('кнопки футера модальных окон центрированы',
+  css.includes('.modal-f{display:flex;justify-content:center;gap:8px;'));
 
 finish();

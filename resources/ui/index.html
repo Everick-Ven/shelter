@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-soOnD65RBQTPbjr+4oVdxRl74d+Rr8G10WVtNtkWM5M=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-T/lno4wd8dmxsPiYf3R3w+531hHHjs6gp2XTgWc4kaw=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -3932,6 +3932,14 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-board-column>header span{display:grid;place-items:center;min-width:21px;height:19px;padding:0 5px;border:1px solid var(--line);border-radius:99px;background:var(--card-3);color:var(--text-2);font-size:11.5px}
 .wp-board-column>header .wp-icon-btn{width:27px;height:27px}
 .wp-board-column>header .wp-icon-btn .i{width:14px;height:14px}
+.wp-board-column>header .wp-lane-move{display:flex;align-items:center;gap:2px;min-width:0;height:auto;padding:0;border:0;border-radius:0;background:transparent;color:inherit;font-size:inherit}
+.wp-board-column>header .wp-lane-move .wp-icon-btn:disabled{opacity:.35;cursor:default}
+.wp-status-flag{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));cursor:pointer}
+.wp-status-flag+.wp-status-flag{margin-top:8px}
+.wp-status-flag input{width:16px;height:16px;margin-top:2px;flex:none;accent-color:rgb(var(--accent))}
+.wp-status-flag>span{display:block;min-width:0}
+.wp-status-flag b{display:block;font-size:13px}
+.wp-status-flag small{display:block;color:var(--text-2);font-size:12px;line-height:1.4}
 .wp-board-items{display:flex;flex-direction:column;gap:7px;min-height:216px}
 .wp-board-empty{display:grid;place-items:center;flex:1;min-height:125px;border:1px dashed var(--line);border-radius:calc(10px*var(--rs));color:var(--text-2);font-size:12px}
 .wp-board-task{grid-template-columns:24px minmax(0,1fr) 26px;padding:9px 8px;gap:7px}
@@ -10370,6 +10378,45 @@ function boardCard() {
   const b = S.board || {};
   return `<div class="set-card" style="margin-bottom:12px"><div class="set-row" style="padding:9px 12px"><div class="tx"><b>Доска: ${esc(b.name || 'Моя доска')}</b><span>Идентификатор ${esc(b.code || '—')}</span></div><button class="icon-btn" data-bcopy="1" aria-label="Копировать идентификатор">${ico('copy')}</button><button class="icon-btn" data-bren="1" aria-label="Переименовать доску">${ico('pencil')}</button></div></div>`;
 }
+/* Чипы логики статуса в настройке словарей. */
+function wpStatusFlagChips(v) {
+  const f = v && typeof v === 'object' ? v.flags : null;
+  if (!f || typeof f !== 'object') return '';
+  const parts = [f.done === true ? 'выполнено' : null, f.noRemind === true ? 'без напоминаний' : null, f.outdated === true ? 'неактуально' : null].filter(Boolean);
+  return parts.length ? `<span>${esc(parts.join(' · '))}</span>` : '';
+}
+/* Редактор статуса: название + логика (что делать с задачами в этом статусе).
+   Резолвит {name, flags} или null при отмене. */
+function wpStatusDlg({ title, name = '', flags = null, statusKey = '', nameError }) {
+  return new Promise(res => {
+    let done = false;
+    const f = flags && typeof flags === 'object' ? flags : {};
+    const checked = k => f[k] === true ? ' checked' : '';
+    const m = openModal({ width: 440,
+      html: `<div class="modal-h"><h3>${esc(title)}</h3></div>
+        <div class="modal-b">
+          <label class="field"><span>Название</span><input class="input" data-ws-name value="${esc(name)}" placeholder="Например: На проверке" autocomplete="off"></label>
+          <div class="field"><span>Логика статуса</span>
+            <label class="wp-status-flag"><input type="checkbox" data-ws-flag="done"${checked('done')}><span><b>Считать выполненной</b><small>Задачи засчитываются как готовые: статистика, фильтры, зачёркивание.</small></span></label>
+            <label class="wp-status-flag"><input type="checkbox" data-ws-flag="noRemind"${checked('noRemind')}><span><b>Не напоминать</b><small>Без просрочки и разборов: тихий, но активный статус.</small></span></label>
+            <label class="wp-status-flag"><input type="checkbox" data-ws-flag="outdated"${checked('outdated')}><span><b>Неактуальна</b><small>Скрывать из активных списков и календаря, приглушать.</small></span></label>
+          </div>${statusKey === 'cancelled' ? '<p class="wp-form-hint">«Отменена» уже не напоминает и не считается активной.</p>' : ''}</div>
+        <div class="modal-f"><button class="btn ghost" data-r="0">Отмена</button><button class="btn primary" data-r="1">Сохранить</button></div>`,
+      onClose: () => { if (!done) { done = true; res(null); } } });
+    const root = m.scrim, nameEl = root.querySelector('[data-ws-name]');
+    const finish = v => { if (done) return; done = true; res(v); closeModal(m); };
+    const save = () => {
+      const v = nameEl.value.trim(); if (!v) { nameEl.focus(); return; }
+      if (nameError) { const err = nameError(v); if (err) { toast(err, { icon: 'info' }); nameEl.focus(); nameEl.select(); return; } }
+      const out = {};
+      root.querySelectorAll('[data-ws-flag]').forEach(el => { out[el.dataset.wsFlag] = el.checked === true; });
+      finish({ name: v, flags: out });
+    };
+    root.addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; if (b.dataset.r === '1') save(); else finish(null); });
+    nameEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+    setTimeout(() => { nameEl.focus(); nameEl.select(); }, 50);
+  });
+}
 function taskDicts() {
   ensureBoard();
   const D = [['projects', 'Проекты'], ['people', 'Исполнители'], ['prios', 'Приоритеты'], ['statuses', 'Статусы']];
@@ -10377,10 +10424,12 @@ function taskDicts() {
   let cur = 'projects';
   const label = v => typeof v === 'string' ? v : ((v && v.name) || '');
   const body = () => boardCard() + `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${D.map(d => `<button class="btn sm ${d[0] === cur ? 'primary' : 'ghost'}" data-dk="${d[0]}">${d[1]}</button>`).join('')}</div>
-    ${cur==='prios'?prioBody():`<div class="set-card">${(S.board[cur] || []).map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b>${cur === 'people' && wpPersonContactId(v) ? `<span>ID ${esc(wpPersonContactId(v))}</span>` : ''}</div>${(cur === 'statuses' ? (v && v.key === 'done') : (locked[cur] || []).includes(v)) ? '<span class="chip">системное</span>' : `${cur === 'projects' ? `<button class="icon-btn" data-inv="${i}" aria-label="Пригласить">${ico('users')}</button>` : ''}<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'}</div>
-    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${cur === 'people'
-      ? `<input class="input" id="dAdd" placeholder="Имя исполнителя" style="flex:1;min-width:130px"><input class="input" id="dAddId" placeholder="ID для приглашений" style="flex:1;min-width:130px" autocomplete="off" spellcheck="false"><button class="btn" data-da="1">${ico('plus')}Добавить</button>`
-      : `<input class="input" id="dAdd" placeholder="Новое значение"><button class="btn" data-da="1">${ico('plus')}Добавить</button>`}</div>`}`;
+    ${cur==='prios'?prioBody():`<div class="set-card">${(S.board[cur] || []).map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b>${cur === 'people' && wpPersonContactId(v) ? `<span>ID ${esc(wpPersonContactId(v))}</span>` : ''}${cur === 'statuses' ? wpStatusFlagChips(v) : ''}</div>${(cur === 'statuses' ? (v && v.key === 'done') : (locked[cur] || []).includes(v)) ? '<span class="chip">системное</span>' : `${cur === 'projects' ? `<button class="icon-btn" data-inv="${i}" aria-label="Пригласить">${ico('users')}</button>` : ''}<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'}</div>
+    ${cur === 'statuses'
+      ? `<button class="btn" data-da="1" style="width:100%;margin-top:12px">${ico('plus')}Новый статус</button>`
+      : `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${cur === 'people'
+        ? `<input class="input" id="dAdd" placeholder="Имя исполнителя" style="flex:1;min-width:130px"><input class="input" id="dAddId" placeholder="ID для приглашений" style="flex:1;min-width:130px" autocomplete="off" spellcheck="false"><button class="btn" data-da="1">${ico('plus')}Добавить</button>`
+        : `<input class="input" id="dAdd" placeholder="Новое значение"><button class="btn" data-da="1">${ico('plus')}Добавить</button>`}</div>`}`;
   const prioBody=()=>{ const colors=wpBoardPriorityColors(S.board), defaults=wpDefaultPriorityColors();
     return `<div class="set-card">${['none','normal','high','critical'].map(k=>{ const label=WP_PRIORITY_RU[k]||k; return `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label)}</b></div><span class="wp-color-row is-dot"><input type="color" data-prio-color="${k}" value="${esc(colors[k]||defaults[k])}" aria-label="Цвет приоритета «${esc(label)}»"></span></div>`; }).join('')}</div>
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap"><button class="btn ghost sm" data-prio-reset="1">Сбросить к цветам темы</button><span class="muted" style="font-size:12px">Цвета действуют на всю доску</span></div>`; };
@@ -10406,6 +10455,12 @@ function taskDicts() {
     if (el.dataset.prioReset) { S.board.priorityColors = {}; persist(); wpApplyBoardPriorityVars(); re(); return; }
     if (el.dataset.inv) { const p = arr[+el.dataset.inv]; if (p && p.id) projectInvite(p.id); return; }
     if (el.dataset.da) {
+      if (cur === 'statuses') {
+        const r = await wpStatusDlg({ title: 'Новый статус', nameError: v => arr.some(s => String((s && s.name) || s || '').trim().toLowerCase() === v.toLowerCase()) ? 'Такой статус уже есть' : '' });
+        if (!r) return;
+        arr.push(wpMakeBoardStatus(r.name, r.flags, S.board));
+        persist(); re(); return;
+      }
       const v = $('#dAdd', root).value.trim(); if (!v) return;
       if (cur === 'projects') addProject(v);
       else if (cur === 'people') {
@@ -10416,10 +10471,6 @@ function taskDicts() {
         if (byId >= 0) { toast('Этот ID уже привязан к исполнителю «' + wpPersonName(S.board.people[byId]) + '»', { icon: 'info' }); return; }
         S.board.people.push(wpMakePerson(v, cid));
         if (cid) wpSaveTaskContact(cid, v);
-      }
-      else if (cur === 'statuses') {
-        if (arr.some(s => String((s && s.name) || s || '').trim().toLowerCase() === v.toLowerCase())) { toast('Такой статус уже есть', { icon: 'info' }); return; }
-        arr.push({ key: uid('st'), name: v });
       }
       else if (!arr.includes(v)) arr.push(v);
       persist(); re(); return;
@@ -10468,13 +10519,18 @@ function taskDicts() {
         if (cidOld && cidOld !== r.contactId && !wpContactIdUsedAnywhere(cidOld)) wpDeleteTaskContact(cidOld);
         persist(); re(); return;
       }
+      if (cur === 'statuses') {
+        const st = arr[i], key = st && st.key;
+        const r = await wpStatusDlg({ title: 'Статус', name: old, flags: st && st.flags, statusKey: key || '', nameError: v => arr.some((s, j) => j !== i && String((s && s.name) || s || '').trim().toLowerCase() === v.toLowerCase()) ? 'Такой статус уже есть' : '' });
+        if (!r) return;
+        arr[i] = wpMakeBoardStatus(r.name, r.flags, S.board, key);
+        S.board.tasks.forEach(x => { if (x && x.statusKey === key) x.status = r.name; });
+        persist(); re(); return;
+      }
       const v = await promptDlg({ title: 'Переименовать', value: old, ok: 'Сохранить' }); if (!v || v === old) return;
       if (cur === 'projects') {
         arr[i].name = v;
         S.board.tasks.forEach(x => { if (x.projectId === arr[i].id || x.project === old) x.project = v; });
-      } else if (cur === 'statuses') {
-        arr[i] = { key: arr[i] && arr[i].key, name: v };
-        S.board.tasks.forEach(x => { if (x && x.statusKey === arr[i].key) x.status = v; });
       } else {
         arr[i] = v;
         const f = { people: 'assignee', prios: 'prio', terms: 'term', formats: 'format', statuses: 'status' }[cur];
@@ -13921,7 +13977,7 @@ const WP_SCHEMA = 7;
 const WP = {
   view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', calendarShowCompleted: true, boardShowCompleted: true, monthMini: false,
   sidebarCollapsed: false, railOpen: false, allFilter: 'active', allAssigneeFilter: 'all', allMineOnly: false, allProjectFilter: 'all', allSort: 'urgency', allSortDir: 'desc', allTagFilter: 'all', quick: null, reviewSelected: [],
-  boardHomeFilter: 'all', boardAssigneeFilter: 'all', boardMineOnly: false, boardFocus: 'all', boardTagFilter: 'all', boardSort: 'urgency', boardSortDir: 'desc',
+  boardHomeFilter: 'all', boardAssigneeFilter: 'all', boardMineOnly: false, boardFocus: 'all', boardTagFilter: 'all', boardSort: 'urgency', boardSortDir: 'desc', boardMoveColumns: false,
   _sortRestored: false, _searchTimer: 0, _calendarModeRestored: false, _completedVisibilityRestored: false, _sidebarRestored: false, _monthMiniRestored: false, _touchX: null, _undoToken: 0
 };
 const WP_STATUS = { open: 'В работе', waiting: 'Ожидают', done: 'Готово', cancelled: 'Отменена', overdue: 'Просрочено' };
@@ -13930,14 +13986,19 @@ const WP_STATUS_BY_LABEL = { 'В работе': 'open', 'Пауза': 'waiting',
 const wpDefaultStatuses = () => [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }, { key: 'overdue', name: 'Просрочено' }];
 function wpStatusKeyForName(name) { const n = String(name || '').trim(); if (WP_STATUS_BY_LABEL[n]) return WP_STATUS_BY_LABEL[n]; const slug = n.toLowerCase().replace(/[\s_]+/g, '-').replace(/["'<>&\\]+/g, '').replace(/^-+|-+$/g, ''); return n ? ('st-' + (slug || 'x')) : ''; }
 function wpIsOldDefaultStatuses(raw) { return Array.isArray(raw) && raw.length === 3 && raw[0] === 'В работе' && raw[1] === 'Пауза' && raw[2] === 'Готово'; }
+function wpNormalizeStatusFlags(raw) {
+  const f = wpIsObj(raw) ? raw : {};
+  const clean = { done: f.done === true, noRemind: f.noRemind === true, outdated: f.outdated === true };
+  return (clean.done || clean.noRemind || clean.outdated) ? clean : null;
+}
 function wpNormalizeStatusesArray(raw) {
   const out = [], seen = new Set();
   (Array.isArray(raw) ? raw : []).forEach(s => {
-    let key = '', name = '';
+    let key = '', name = '', flags = null;
     if (typeof s === 'string') { name = s.trim(); key = wpStatusKeyForName(name); }
-    else if (wpIsObj(s)) { name = String(s.name || '').trim(); key = String(s.key || '').trim() || wpStatusKeyForName(name); }
+    else if (wpIsObj(s)) { name = String(s.name || '').trim(); key = String(s.key || '').trim() || wpStatusKeyForName(name); flags = wpNormalizeStatusFlags(s.flags); }
     if (!name || !key || seen.has(key)) return;
-    seen.add(key); out.push({ key, name });
+    seen.add(key); out.push(flags ? { key, name, flags } : { key, name });
   });
   if (!out.length) return wpDefaultStatuses();
   if (!seen.has('done')) out.push({ key: 'done', name: 'Готово' });
@@ -13954,6 +14015,48 @@ function wpBoardColumns(items) {
   (Array.isArray(items) ? items : []).forEach(t => { const k = wpTaskStatus(t); if (!known.has(k)) { known.add(k); cols.push([k, WP_STATUS[k] || (t && t.status) || k]); } });
   return cols;
 }
+/* Логика статусов: как в CRM (Jira/ClickUp/Notion), поведение задачи определяет
+   категория статуса, а не его название. done — засчитывать выполненной,
+   noRemind — тихий статус без просрочки и разборов, outdated — неактуальна
+   (вне активного workflow, но не засчитана готовой). Системные done/cancelled
+   несут свою логику неявно; флаги расширяют её на свои статусы. */
+function wpStatusFlags(key, board) {
+  const hit = wpBoardStatuses(board).find(s => s.key === key);
+  return wpNormalizeStatusFlags(hit && hit.flags) || { done: false, noRemind: false, outdated: false };
+}
+const wpStatusDone = (key, board) => key === 'done' || wpStatusFlags(key, board).done;
+const wpStatusOutdated = (key, board) => key === 'cancelled' || wpStatusFlags(key, board).outdated;
+const wpStatusQuiet = (key, board) => key === 'done' || key === 'cancelled' || wpStatusFlags(key, board).done || wpStatusFlags(key, board).outdated || wpStatusFlags(key, board).noRemind;
+const wpStatusClosed = (key, board) => key === 'done' || key === 'cancelled' || wpStatusFlags(key, board).done || wpStatusFlags(key, board).outdated;
+const wpTaskDone = t => wpStatusDone(wpTaskStatus(t));
+const wpTaskOutdated = t => wpStatusOutdated(wpTaskStatus(t));
+const wpTaskQuiet = t => wpStatusQuiet(wpTaskStatus(t));
+const wpTaskClosed = t => wpStatusClosed(wpTaskStatus(t));
+/* Новый статус с известным названием забирает канонический ключ (своя колонка
+   сразу наполняется задачами, а не дублирует крайнюю служебную полосу);
+   иначе — стабильный уникальный ключ. */
+function wpStatusKeyForNewName(name, board) {
+  const n = String(name || '').trim(); if (!n) return '';
+  const canonical = WP_STATUS_BY_LABEL[n];
+  if (canonical && !wpBoardStatuses(board).some(s => s.key === canonical)) return canonical;
+  return uid('st');
+}
+function wpMakeBoardStatus(name, flags, board, keepKey = '') {
+  const entry = { key: String(keepKey || '').trim() || wpStatusKeyForNewName(name, board), name: String(name || '').trim() };
+  const clean = wpNormalizeStatusFlags(flags);
+  if (clean) entry.flags = clean;
+  return entry;
+}
+function wpMoveBoardStatus(key, dir) {
+  const board = wpEnsureBoardShape(), arr = board && Array.isArray(board.statuses) ? board.statuses : [];
+  const i = arr.findIndex(s => s && s.key === key), j = i + (dir < 0 ? -1 : 1);
+  if (i < 0 || j < 0 || j >= arr.length) return false;
+  const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp; return true;
+}
+function wpBoardLaneHeader(status, label, count, canMove, idx, total) {
+  const move = canMove ? `<span class="wp-lane-move"><button type="button" class="wp-icon-btn" data-act="wpBoardColMove" data-status="${esc(status)}" data-dir="-1" aria-label="Переместить колонку «${esc(label)}» влево"${idx <= 0 ? ' disabled' : ''}>${ico('chev-l')}</button><button type="button" class="wp-icon-btn" data-act="wpBoardColMove" data-status="${esc(status)}" data-dir="1" aria-label="Переместить колонку «${esc(label)}» вправо"${idx >= total - 1 ? ' disabled' : ''}>${ico('chev-r')}</button></span>` : '';
+  return `<header><div><b>${esc(label)}</b>${move}</div><span>${count}</span></header>`;
+}
 const WP_PRIORITY = { none: 'Не срочные', normal: 'Не срочные', high: 'Срочно', critical: 'Критично' };
 const WP_PRIORITY_RU = { none: 'Без приоритета', normal: 'Обычный', high: 'Срочный', critical: 'Критичный' };
 const WP_WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -13961,7 +14064,7 @@ const WP_MONTHS = ['янв.', 'февр.', 'мар.', 'апр.', 'мая', 'ию
 const WP_MONTH_NAMES = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
 const wpClone = x => x == null ? x : JSON.parse(JSON.stringify(x));
 const wpIsObj = x => !!x && typeof x === 'object' && !Array.isArray(x);
-const wpTaskStatus = t => wpValidStatusKey(t && t.statusKey) || (t && WP_STATUS_BY_LABEL[t.status]) || wpStatusKeyByName(t && t.status) || 'open';
+const wpTaskStatus = t => wpValidStatusKey(t && t.statusKey) || wpStatusKeyByName(t && t.status) || (t && WP_STATUS_BY_LABEL[t.status]) || 'open';
 const WP_HOME_TYPES=['inbox','personal','project'];
 function wpTaskHomeType(t) {
   if(!wpIsObj(t)) return 'personal';
@@ -14301,7 +14404,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Enter'||e.key===' '||(e.altKey&&(e.key==='ArrowDown'||e.key==='ArrowUp'))) { e.preventDefault(); wpOpenNativeDateCalendar(input); }
 },true);
 function wpDeadlineOverdue(t, today=wpDateKey(Date.now())) {
-  if(!t || wpTaskStatus(t)==='done' || wpTaskStatus(t)==='cancelled' || !t.deadlineAt) return false;
+  if(!t || wpTaskQuiet(t) || !t.deadlineAt) return false;
   const key=wpDeadlineKey(t.deadlineAt); return !!key && key < today;
 }
 function wpDeadlineText(t,compact=false) {
@@ -14376,7 +14479,7 @@ function wpMapLegacyTask(task,index,board) {
   if(!out.id) out.id=uid('task');
   if(!out.title) out.title=String(t.name || t.text || '');
   const wasDone=t.statusKey==='done' || t.status==='Готово';
-  let statusKey=wpValidStatusKey(t.statusKey,board) || WP_STATUS_BY_LABEL[t.status] || wpStatusKeyByName(t.status,board) || 'open';
+  let statusKey=wpValidStatusKey(t.statusKey,board) || wpStatusKeyByName(t.status,board) || WP_STATUS_BY_LABEL[t.status] || 'open';
   if(!wpValidStatusKey(t.statusKey,board) && t.status && !WP_STATUS_BY_LABEL[t.status] && !wpStatusKeyByName(t.status,board)) legacy.unknownStatus=t.status;
   let prio=t.prio;
   if(prio==='Выполнено') { legacy.completedPriorityLabel='Выполнено'; prio=t.prevPrio || 'Не срочные'; }
@@ -15218,7 +15321,7 @@ function wpSortEntities(items,sortBy='urgency',direction=null,{groupStatus=direc
     // Старые календарные представления сохраняют активные задачи перед закрытыми.
     // Явно выбранная сортировка списка/доски применяется без скрытых групп статуса.
     if(groupStatus) {
-      const closed=status=>['done','cancelled'].includes(status)?1:0;
+      const closed=status=>wpStatusClosed(status)?1:0;
       const statusDiff=closed(a.status)-closed(b.status);if(statusDiff)return statusDiff;
     }
     const primary=compare(a.key,b.key,dir);if(primary)return primary;
@@ -15232,22 +15335,22 @@ function wpRangeEntities(start,end) {
   const out=[], seen=new Set();
   wpBaseTasks().forEach(t=>{
     if(wpTaskRule(t)) return;
-    if(wpTaskOverlapsRange(t,from,to) && wpTaskStatus(t)!=='cancelled') { out.push(Object.assign({},t,{entityType:'task',taskId:t.id})); seen.add(t.id); }
+    if(wpTaskOverlapsRange(t,from,to) && !wpTaskOutdated(t)) { out.push(Object.assign({},t,{entityType:'task',taskId:t.id})); seen.add(t.id); }
   });
   wpBaseTasks().forEach(task=>{
     const rule=wpTaskRule(task); if(!rule || !rule.active) return;
     const span=wpTaskScheduleOffset(task), occurrenceFrom=span!=null ? wpAddDays(from,-span) : from;
     wpDatesInRange(rule,task,occurrenceFrom,to).forEach(d=>{
-      const rec=wpFindOccurrence(task.id,d); if(rec && rec.statusKey==='cancelled') return;
+      const rec=wpFindOccurrence(task.id,d); if(rec && wpStatusOutdated(rec.statusKey)) return;
       const ent=wpEffectiveOccurrence(task,d,rec);
-      if(wpTaskOverlapsRange(ent,from,to) && ent.statusKey!=='cancelled') { out.push(ent); seen.add(ent.id); }
+      if(wpTaskOverlapsRange(ent,from,to) && !wpStatusOutdated(ent.statusKey)) { out.push(ent); seen.add(ent.id); }
     });
   });
   (S.board.occurrences||[]).forEach(rec=>{
-    if(!rec || !rec.seriesTaskId || rec.statusKey==='cancelled' || seen.has(rec.id)) return;
+    if(!rec || !rec.seriesTaskId || wpStatusOutdated(rec.statusKey) || seen.has(rec.id)) return;
     const task=(S.board.tasks||[]).find(t=>t && t.id===rec.seriesTaskId); if(!task || !canSeeTask(task)) return;
     const ent=wpEffectiveOccurrence(task,rec.originalDate,rec);
-    if(wpTaskOverlapsRange(ent,from,to) && ent.statusKey!=='cancelled') { out.push(ent); seen.add(ent.id); }
+    if(wpTaskOverlapsRange(ent,from,to) && !wpStatusOutdated(ent.statusKey)) { out.push(ent); seen.add(ent.id); }
   });
   return wpSortEntities(out.filter(wpSearchMatch));
 }
@@ -15257,7 +15360,7 @@ function wpCalendarEntities(start,end) {
 }
 function wpCalendarShownEntities(entities) {
   const rows=Array.isArray(entities) ? entities : [];
-  return WP.calendarShowCompleted===false ? rows.filter(task=>wpTaskStatus(task)!=='done') : rows;
+  return WP.calendarShowCompleted===false ? rows.filter(task=>!wpTaskDone(task)) : rows;
 }
 function wpWeekEntities(start) {
   return wpCalendarEntities(start,wpAddDays(start,6));
@@ -15269,11 +15372,11 @@ function wpMonthEntities(start) {
 function wpInboxEntities() {
   const out=[];
   wpBaseTasks().forEach(t=>{
-    if(wpTaskRule(t) || !wpIsInboxTask(t) || ['done','cancelled'].includes(wpTaskStatus(t))) return;
+    if(wpTaskRule(t) || !wpIsInboxTask(t) || wpTaskClosed(t)) return;
     out.push(Object.assign({},t,{entityType:'task',taskId:t.id}));
   });
   (S.board.occurrences||[]).forEach(rec=>{
-    if(!rec || ['done','cancelled'].includes(rec.statusKey)) return;
+    if(!rec || wpStatusClosed(rec.statusKey)) return;
     const task=(S.board.tasks||[]).find(t=>t && t.id===rec.seriesTaskId); if(!task || !canSeeTask(task)) return;
     const ent=wpEffectiveOccurrence(task,rec.originalDate,rec); if(wpIsInboxTask(ent)) out.push(ent);
   });
@@ -15283,8 +15386,8 @@ function wpAllEntities({ignoreFilters=false,ignoreSearch=false}={}) {
   let items=wpTaskEntities();
   if(!ignoreSearch)items=items.filter(wpSearchMatch);
   if(ignoreFilters)return items;
-  if(WP.allFilter==='active')items=items.filter(task=>!['done','cancelled'].includes(wpTaskStatus(task)));
-  else if(WP.allFilter!=='all')items=items.filter(task=>wpTaskStatus(task)===WP.allFilter);
+  if(WP.allFilter==='active')items=items.filter(task=>!wpTaskClosed(task));
+  else if(WP.allFilter!=='all')items=items.filter(task=>WP.allFilter==='done'?wpTaskDone(task):WP.allFilter==='cancelled'?wpTaskOutdated(task):wpTaskStatus(task)===WP.allFilter);
   items=wpFilterByAssignee(items,WP.allAssigneeFilter,WP.allMineOnly===true);
   items=wpFilterByTag(items,WP.allTagFilter);
   items=wpFilterByHome(items,WP.allProjectFilter);
@@ -15293,12 +15396,12 @@ function wpAllEntities({ignoreFilters=false,ignoreSearch=false}={}) {
 function wpDecisionEntities(weekStart) {
   const out=[], seen=new Set();
   wpBaseTasks().forEach(t=>{
-    if(wpTaskRule(t) || !t.scheduledDate || t.scheduledDate>=weekStart || wpTaskScheduleEnd(t)>=weekStart || ['done','cancelled'].includes(wpTaskStatus(t))) return;
+    if(wpTaskRule(t) || !t.scheduledDate || t.scheduledDate>=weekStart || wpTaskScheduleEnd(t)>=weekStart || wpTaskQuiet(t)) return;
     if(t.reviewedWeekStart===weekStart) return;
     out.push(Object.assign({},t,{entityType:'task',taskId:t.id,_decision:true})); seen.add(t.id);
   });
   (S.board.occurrences||[]).forEach(rec=>{
-    if(!rec || !rec.seriesTaskId || ['done','cancelled'].includes(rec.statusKey) || rec.lastReviewedWeekStart===weekStart) return;
+    if(!rec || !rec.seriesTaskId || wpStatusQuiet(rec.statusKey) || rec.lastReviewedWeekStart===weekStart) return;
     const task=(S.board.tasks||[]).find(t=>t && t.id===rec.seriesTaskId); if(!task || !canSeeTask(task)) return;
     const ent=wpEffectiveOccurrence(task,rec.originalDate,rec);
     if(!ent.scheduledDate || ent.scheduledDate>=weekStart || wpTaskScheduleEnd(ent)>=weekStart) return;
@@ -15330,11 +15433,11 @@ function wpHomeMatches(task,homeType,homeId='') {
 }
 function wpHomeEntities(homeType,homeId='') {
   const out=[];
-  wpBaseTasks().forEach(t=>{if(wpHomeMatches(t,homeType,homeId)&&wpTaskStatus(t)!=='cancelled')out.push(Object.assign({},t,{entityType:'task',taskId:t.id}));});
+  wpBaseTasks().forEach(t=>{if(wpHomeMatches(t,homeType,homeId)&&!wpTaskOutdated(t))out.push(Object.assign({},t,{entityType:'task',taskId:t.id}));});
   (S.board.occurrences||[]).forEach(rec=>{
-    if(!rec||rec.statusKey==='cancelled') return;
+    if(!rec||wpStatusOutdated(rec.statusKey)) return;
     const task=(S.board.tasks||[]).find(t=>t&&t.id===rec.seriesTaskId); if(!task||!canSeeTask(task)) return;
-    const ent=wpEffectiveOccurrence(task,rec.originalDate,rec); if(wpHomeMatches(ent,homeType,homeId)&&wpTaskStatus(ent)!=='cancelled')out.push(ent);
+    const ent=wpEffectiveOccurrence(task,rec.originalDate,rec); if(wpHomeMatches(ent,homeType,homeId)&&!wpTaskOutdated(ent))out.push(ent);
   });
   return wpSortEntities(out.filter(wpSearchMatch));
 }
@@ -15351,14 +15454,14 @@ function wpRuleDescription(task) {
   const label=r.frequency==='daily' ? (n===1?'Каждый день':`Каждые ${n} дн.`) : r.frequency==='weekly' ? (n===1?'Каждую неделю':`Каждые ${n} нед.`) : r.frequency==='monthly' ? (n===1?'Каждый месяц':`Каждые ${n} мес.`) : `Каждые ${r.intervalDays||n} дн.`;
   return `${label}${r.mode==='afterCompletion'?' · от выполнения':''}`;
 }
-function wpSubtasks(taskId) { return (S.board.tasks||[]).filter(t=>t && t.parentTaskId===taskId && wpTaskStatus(t)!=='cancelled'); }
+function wpSubtasks(taskId) { return (S.board.tasks||[]).filter(t=>t && t.parentTaskId===taskId && !wpTaskOutdated(t)); }
 function wpSubtaskSummary(taskId) {
   const items=wpSubtasks(taskId); if(!items.length) return '';
-  const done=items.filter(t=>wpTaskStatus(t)==='done').length;
+  const done=items.filter(t=>wpTaskDone(t)).length;
   return `${done}/${items.length} подзадач`;
 }
 function wpTaskCard(task, opts={}) {
-  const status=wpTaskStatus(task), done=status==='done', overdue=(wpDeadlineOverdue(task) || status==='overdue');
+  const status=wpTaskStatus(task), done=wpStatusDone(status), overdue=(wpDeadlineOverdue(task) || status==='overdue');
   const id=String(task.id||''), entityType=task.entityType || 'task';
   const parentSeries=entityType==='task' && !!wpTaskRule(task);
   const d={ 'data-id':id,'data-entity-type':entityType };
@@ -15370,15 +15473,15 @@ function wpTaskCard(task, opts={}) {
   const homeLabel=wpHomeLabel(task);
   const sub=task.entityType==='task' ? wpSubtaskSummary(task.id) : '';
   const tags=Array.isArray(task.tags) ? task.tags.filter(Boolean).slice(0,3) : [];
-  const statusChip=(opts.board || status==='open')?'':`<span class="wp-chip ${status==='waiting'?'waiting':done?'done':status==='cancelled'?'cancelled':'custom'}">${esc(wpStatusLabel(status))}</span>`;
+  const statusChip=(opts.board || status==='open')?'':`<span class="wp-chip ${status==='waiting'?'waiting':done?'done':wpStatusOutdated(status)?'cancelled':'custom'}">${esc(wpStatusLabel(status))}</span>`;
   const boardStatus=opts.board?`<div class="wp-board-task-status"><label><span class="sr-only">Статус</span><select class="select" data-act="wpBoardStatus" ${dataAttrs} aria-label="Статус задачи: ${esc(task.title||'Без названия')}" ${parentSeries?'disabled':''}>${wpStatusOptions(status)}</select></label></div>`:'';
   const deadline=wpDeadlineText(task,!!opts.inDay), deadlineFull=wpDeadlineText(task);
   const prio=wpPriority(task), prioLabel=WP_PRIORITY_RU[prio] || 'Обычный', assignee=wpAssigneeLabel(task);
   const commentCount=wpCanCommentTask(task)?wpTaskCommentList(task).length:null;
   const drag=(parentSeries || opts.draggable===false) ? '' : ' draggable="true"';
   const origin=entityType==='occurrence' && task.scheduledDate && task.scheduledDate!==task.originalDate ? `<span class="wp-origin">из ${wpFmtDate(task.originalDate)}</span>` : '';
-  return `<article class="wp-task p-${esc(prio)} ${opts.board?'wp-board-task':''} ${done?'is-done':''} ${status==='cancelled'?'is-cancelled':''} ${overdue?'is-overdue':''} ${entityType==='occurrence'?'is-occurrence':''}" ${dataAttrs} data-task-id="${esc(task.taskId||task.id)}"${drag}>
-    ${parentSeries?`<span class="wp-series-mark" aria-label="Серия повторяющейся задачи">${ico('ref')}</span>`:`<button type="button" class="wp-check ${done?'on':''}" data-act="taskToggle" ${dataAttrs} aria-label="${done||status==='cancelled'?'Вернуть задачу в работу':'Отметить выполненной'}">${ico('check')}</button>`}
+  return `<article class="wp-task p-${esc(prio)} ${opts.board?'wp-board-task':''} ${done?'is-done':''} ${wpStatusOutdated(status)?'is-cancelled':''} ${overdue?'is-overdue':''} ${entityType==='occurrence'?'is-occurrence':''}" ${dataAttrs} data-task-id="${esc(task.taskId||task.id)}"${drag}>
+    ${parentSeries?`<span class="wp-series-mark" aria-label="Серия повторяющейся задачи">${ico('ref')}</span>`:`<button type="button" class="wp-check ${done?'on':''}" data-act="taskToggle" ${dataAttrs} aria-label="${done||wpStatusOutdated(status)?'Вернуть задачу в работу':'Отметить выполненной'}">${ico('check')}</button>`}
     <div class="wp-task-copy">
       <button type="button" class="wp-task-title wp-title-marquee-clip" data-act="taskEdit" ${dataAttrs} aria-label="${esc(task.title || 'Без названия')}"><span class="wp-title-marquee-text">${esc(task.title || 'Без названия')}</span></button>
       <div class="wp-task-meta">
@@ -15570,8 +15673,8 @@ function wpCalendarSpanEvent(segment,mode) {
   const start=wpTaskScheduleStart(task), end=wpTaskScheduleEnd(task), range=wpSpanDateLabel(start,end);
   const fullRange=`${wpFmtDate(start,true)} — ${wpFmtDate(end,true)}`;
   const priorityLabel=WP_PRIORITY_RU[priority] || 'Обычный';
-  const aria=`${title} · ${fullRange}${status==='done'?' · Статус: выполнена':''} · Приоритет: ${priorityLabel}`;
-  const classes=['wp-calendar-span',`wp-calendar-span--${mode}`,`p-${priority}`,status==='done'?'is-done':'',status==='waiting'?'is-waiting':'',segment.continuesBefore?'continues-before':'',segment.continuesAfter?'continues-after':''].filter(Boolean).join(' ');
+  const aria=`${title} · ${fullRange}${wpStatusDone(status)?' · Статус: выполнена':''} · Приоритет: ${priorityLabel}`;
+  const classes=['wp-calendar-span',`wp-calendar-span--${mode}`,`p-${priority}`,wpStatusDone(status)?'is-done':'',status==='waiting'?'is-waiting':'',segment.continuesBefore?'continues-before':'',segment.continuesAfter?'continues-after':''].filter(Boolean).join(' ');
   const style=`grid-column:${segment.startColumn+1}/${segment.endColumn+2};grid-row:${segment.lane+1}`;
   return `<button type="button" class="${classes}" data-act="taskEdit" ${wpEntityDataAttrs(task)} draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}" style="${style}"><span>${esc(title)}</span><small>${esc(range)}</small></button>`;
 }
@@ -15582,17 +15685,17 @@ function wpWeekCalendar(days,entities) {
 }
 function wpDayCapsule(task) {
   const status=wpTaskStatus(task), prio=wpPriority(task), title=task.title||'Без названия';
-  const done=status==='done', overdue=(wpDeadlineOverdue(task) || status==='overdue');
+  const done=wpStatusDone(status), overdue=(wpDeadlineOverdue(task) || status==='overdue');
   const meta=[wpAssigneeLabel(task),wpDeadlineText(task,true)].filter(Boolean).join(' · ');
   const aria=`${title}${meta?` · ${meta}`:''}${done?' · Статус: выполнена':''}`;
-  const classes=['wp-day-capsule',`p-${prio}`,done?'is-done':'',status==='waiting'?'is-waiting':'',overdue?'is-overdue':'',status==='cancelled'?'is-cancelled':''].filter(Boolean).join(' ');
+  const classes=['wp-day-capsule',`p-${prio}`,done?'is-done':'',status==='waiting'?'is-waiting':'',overdue?'is-overdue':'',wpStatusOutdated(status)?'is-cancelled':''].filter(Boolean).join(' ');
   return `<button type="button" class="${classes}" data-act="taskEdit" ${wpEntityDataAttrs(task)} data-task-id="${esc(task.taskId||task.id)}" draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}"><span>${esc(title)}</span>${meta?`<small>${esc(meta)}</small>`:''}</button>`;
 }
 function wpDayColumn(date,entities,{spanSpace=0,includeMultiDay=false}={}) {
   const covering=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date));
   const all=includeMultiDay?covering:covering.filter(t=>!wpTaskHasDateSpan(t));
-  const open=all.filter(t=>wpTaskStatus(t)!=='done'), done=all.filter(t=>wpTaskStatus(t)==='done');
-  const activeCount=covering.filter(t=>!['done','cancelled'].includes(wpTaskStatus(t))).length;
+  const open=all.filter(t=>!wpTaskDone(t)), done=all.filter(t=>wpTaskDone(t));
+  const activeCount=covering.filter(t=>!wpTaskClosed(t)).length;
   const keyToday=wpDateKey(Date.now()), d=wpDateObj(date), idx=d ? (d.getDay()+6)%7 : 0;
   return `<section class="wp-day ${date===keyToday?'is-today':''} ${date===WP.mobileDate?'is-selected':''}" data-drop-date="${date}" data-act="wpCalendarSelectDate" data-date="${date}" aria-label="${WP_WEEKDAYS[idx]} ${wpFmtDate(date,true)}, ${covering.length} задач">
     <header class="wp-day-head"><div><b>${wpDateParts(date).d}</b><span>${WP_WEEKDAYS[idx]}</span></div><span class="wp-day-count" aria-label="${activeCount} незавершённых">${activeCount||''}</span></header>
@@ -15633,10 +15736,10 @@ function wpSelectedDayPanel(date,entities,mode,detailed=false) {
   return `<section class="${sectionClass}" aria-label="Задачи на ${esc(label)}" aria-live="polite"><header><div><h2>${esc(label)}</h2><span>${selected.length} ${plural(selected.length,['задача','задачи','задач'])}</span></div><button type="button" class="btn sm ghost" data-act="wpQuickDay" data-date="${esc(date)}">${ico('plus')}Добавить</button></header><div class="wp-task-list">${selected.map(task=>wpTaskCard(task,detailed?{}:{compact:true})).join('')||wpEmpty('calendar','На этот день задач нет','Выберите дату в календаре, чтобы посмотреть её задачи.')}</div></section>`;
 }
 function wpWeekSummary(entities) {
-  const active=entities.filter(t=>!['done','cancelled'].includes(wpTaskStatus(t))).length;
-  const done=entities.filter(t=>wpTaskStatus(t)==='done').length;
+  const active=entities.filter(t=>!wpTaskClosed(t)).length;
+  const done=entities.filter(t=>wpTaskDone(t)).length;
   const overdue=entities.filter(wpDeadlineOverdue).length;
-  const mins=entities.filter(t=>!['done','cancelled'].includes(wpTaskStatus(t))).reduce((s,t)=>s+(+t.durationEstimateMinutes||0),0);
+  const mins=entities.filter(t=>!wpTaskClosed(t)).reduce((s,t)=>s+(+t.durationEstimateMinutes||0),0);
   return `<div class="wp-week-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${mins?`<span>${ico('timer')}~${esc(fmtDur(mins))} оценки</span>`:''}${wpCalendarCompletedToggle()}</div>`;
 }
 function wpMobileStrip() {
@@ -15663,7 +15766,7 @@ function wpMonthWeek(days,entities) {
   return `<div class="wp-month-week"><div class="wp-month-days" role="row">${days.map(date=>wpMonthDay(date,entities)).join('')}</div></div>`;
 }
 function wpMonthSummary(entities) {
-  const active=entities.filter(t=>!['done','cancelled'].includes(wpTaskStatus(t))).length, done=entities.filter(t=>wpTaskStatus(t)==='done').length, overdue=entities.filter(wpDeadlineOverdue).length;
+  const active=entities.filter(t=>!wpTaskClosed(t)).length, done=entities.filter(t=>wpTaskDone(t)).length, overdue=entities.filter(wpDeadlineOverdue).length;
   return `<div class="wp-month-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('layers')}<b>${active+done}</b> задач</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${wpCalendarCompletedToggle()}${wpMonthMiniToggle()}</div>`;
 }
 function wpMonthMiniDay(date,entities) {
@@ -15720,12 +15823,12 @@ function wpBoardEntities() {
   else if(WP.boardFocus==='today')items=items.filter(task=>wpDeadlineKey(task.deadlineAt)===wpDateKey(Date.now()));
   else if(WP.boardFocus==='noDeadline')items=items.filter(task=>!wpDeadlineKey(task.deadlineAt));
   else if(WP.boardFocus==='unplanned')items=items.filter(task=>!wpDateKey(task.scheduledDate));
-  if(WP.boardShowCompleted===false)items=items.filter(task=>wpTaskStatus(task)!=='done');
+  if(WP.boardShowCompleted===false)items=items.filter(task=>!wpTaskDone(task));
   return wpSortEntities(items,WP.boardSort,WP.boardSortDir,{groupStatus:false});
 }
 function wpBoardSummary(items) {
   const count=status=>items.filter(t=>wpTaskStatus(t)===status).length;
-  const cards=[[wpStatusLabel('open'),count('open')],[wpStatusLabel('waiting'),count('waiting')],[wpStatusLabel('done'),count('done')],[wpStatusLabel('overdue'),items.filter(t=>wpDeadlineOverdue(t)).length]];
+  const cards=[[wpStatusLabel('open'),count('open')],[wpStatusLabel('waiting'),count('waiting')],[wpStatusLabel('done'),items.filter(t=>wpTaskDone(t)).length],[wpStatusLabel('overdue'),items.filter(t=>wpDeadlineOverdue(t)).length]];
   return `<div class="wp-board-summary" aria-label="Сводка по доске">${cards.map(([label,n])=>`<div class="wp-board-kpi"><span>${label}</span><b>${n}</b></div>`).join('')}</div>`;
 }
 function wpBoardToolbar(items) {
@@ -15736,6 +15839,7 @@ function wpBoardToolbar(items) {
   return `<div class="wp-board-toolbar"><div class="wp-filter-layout wp-board-filter-row">
     ${wpFilterMenuTrigger('board',current[1])}${wpCalendarCompletedToggle('board')}
     <button type="button" class="wp-my-filter ${WP.boardMineOnly?'active':''}" data-act="wpBoardMineToggle" aria-pressed="${WP.boardMineOnly===true}">${ico('user')}Мои задачи</button>
+    <button type="button" class="wp-my-filter ${WP.boardMoveColumns?'active':''}" data-act="wpBoardMoveToggle" aria-pressed="${WP.boardMoveColumns===true}" title="Перемещать колонки: включить режим и двигать колонки стрелками в заголовках">${ico('pin')}Колонки</button>
     ${wpFilterSelect('board','assignee','Исполнитель','Фильтр по исполнителю',assignees,WP.boardAssigneeFilter,'wp-filter-assignee')}
     ${wpFilterSelect('board','home','Список / проект','Фильтр по списку и проекту',wpHomeFilterOptions(),WP.boardHomeFilter,'wp-filter-project')}
     ${wpFilterSelect('board','tag','Тег','Фильтр по тегу',tags,WP.boardTagFilter,'wp-filter-tag')}
@@ -15744,26 +15848,26 @@ function wpBoardToolbar(items) {
   </div><div class="wp-filter-foot"><div class="wp-filter-count" role="status" aria-live="polite" aria-atomic="true">Показано <b>${items.length}</b> из ${total}</div><span class="wp-sort-hint">${esc(spec.hint)}</span></div></div>`;
 }
 function wpBoardView() {
-  const items=wpBoardEntities(),columns=wpBoardColumns(items);
+  const items=wpBoardEntities(),columns=wpBoardColumns(items),moveMode=WP.boardMoveColumns===true,dictKeys=new Set(wpBoardStatuses().map(s=>s.key));
   const empty=!items.length&&wpFiltersDirty('board')?'<div class="wp-board-no-results"><span>Нет задач по выбранным условиям.</span><button type="button" class="btn sm ghost" data-act="wpBoardReset">Сбросить фильтры</button></div>':'';
-  return `${wpBoardToolbar(items)}${wpBoardSummary(items)}${empty}<div class="wp-board-lanes" style="--wp-lanes:${columns.length}" aria-label="Доска задач">${columns.map(([status,label])=>{const lane=items.filter(task=>wpTaskStatus(task)===status);return `<section class="wp-board-column" data-drop-status="${esc(status)}" aria-label="${label}, ${lane.length} ${plural(lane.length,['задача','задачи','задач'])}">${['open','waiting','done','overdue'].includes(status)?'':`<header><div><b>${esc(label)}</b></div><span>${lane.length}</span></header>`}<div class="wp-board-items">${lane.map(task=>wpTaskCard(task,{compact:true,board:true})).join('')||'<div class="wp-board-empty">Пока нет задач</div>'}</div></section>`;}).join('')}</div>`;
+  return `${wpBoardToolbar(items)}${wpBoardSummary(items)}${empty}<div class="wp-board-lanes" style="--wp-lanes:${columns.length}" aria-label="Доска задач">${columns.map(([status,label],laneIdx)=>{const lane=items.filter(task=>wpTaskStatus(task)===status);return `<section class="wp-board-column" data-drop-status="${esc(status)}" aria-label="${label}, ${lane.length} ${plural(lane.length,['задача','задачи','задач'])}">${(moveMode||!['open','waiting','done','overdue'].includes(status))?wpBoardLaneHeader(status,label,lane.length,moveMode&&dictKeys.has(status),laneIdx,columns.length):''}<div class="wp-board-items">${lane.map(task=>wpTaskCard(task,{compact:true,board:true})).join('')||'<div class="wp-board-empty">Пока нет задач</div>'}</div></section>`;}).join('')}</div>`;
 }
 function wpProjectCard(project) {
-  const list=wpEntitiesForProject(project.id), active=list.filter(t=>!['done','cancelled'].includes(wpTaskStatus(t))).length;
-  const done=list.filter(t=>wpTaskStatus(t)==='done').length;
+  const list=wpEntitiesForProject(project.id), active=list.filter(t=>!wpTaskClosed(t)).length;
+  const done=list.filter(t=>wpTaskDone(t)).length;
   const late=list.filter(wpDeadlineOverdue).length;
   return `<article class="wp-project-card"><button type="button" class="wp-project-open" data-act="wpOpenProject" data-project-id="${esc(project.id)}"><span class="wp-project-icon">${ico('folder')}</span><span class="wp-project-copy"><b>${esc(project.name)}</b><small>${active} активных · ${done} выполнено${late?` · ${late} просрочено`:''}</small></span><span class="wp-project-chevron">${ico('chev-r')}</span></button><button type="button" class="wp-icon-btn" data-act="wpProjectMenu" data-project-id="${esc(project.id)}" aria-label="Действия проекта ${esc(project.name)}">${ico('dots')}</button></article>`;
 }
 function wpProjectsView() {
   if(WP.projectId==='__personal__') {
     const list=wpEntitiesForProject('');
-    return `<div class="wp-project-head"><button type="button" class="btn sm ghost" data-act="wpProjectsBack">${ico('chev-l')}Все проекты</button><span>${list.filter(t=>!['done','cancelled'].includes(wpTaskStatus(t))).length} активных · ${list.filter(t=>wpTaskStatus(t)==='done').length} выполнено</span><span></span></div>${wpQuickGlobalArea()}<div class="wp-task-list">${list.map(t=>wpTaskCard(t)).join('')||wpListEmpty('Личных задач пока нет')}</div>`;
+    return `<div class="wp-project-head"><button type="button" class="btn sm ghost" data-act="wpProjectsBack">${ico('chev-l')}Все проекты</button><span>${list.filter(t=>!wpTaskClosed(t)).length} активных · ${list.filter(t=>wpTaskDone(t)).length} выполнено</span><span></span></div>${wpQuickGlobalArea()}<div class="wp-task-list">${list.map(t=>wpTaskCard(t)).join('')||wpListEmpty('Личных задач пока нет')}</div>`;
   }
   if(WP.projectId) {
     const project=(S.board.projects||[]).find(p=>p && p.id===WP.projectId);
     if(!project) { WP.projectId=''; return wpProjectsView(); }
     const list=wpEntitiesForProject(project.id);
-    return `<div class="wp-project-head"><button type="button" class="btn sm ghost" data-act="wpProjectsBack">${ico('chev-l')}Все проекты</button><span>${list.filter(t=>!['done','cancelled'].includes(wpTaskStatus(t))).length} активных · ${list.filter(t=>wpTaskStatus(t)==='done').length} выполнено</span></div>${wpQuickGlobalArea()}<div class="wp-task-list">${list.map(t=>wpTaskCard(t)).join('')||wpListEmpty('В проекте пока нет задач')}</div>`;
+    return `<div class="wp-project-head"><button type="button" class="btn sm ghost" data-act="wpProjectsBack">${ico('chev-l')}Все проекты</button><span>${list.filter(t=>!wpTaskClosed(t)).length} активных · ${list.filter(t=>wpTaskDone(t)).length} выполнено</span></div>${wpQuickGlobalArea()}<div class="wp-task-list">${list.map(t=>wpTaskCard(t)).join('')||wpListEmpty('В проекте пока нет задач')}</div>`;
   }
   const projects=visibleProjects().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
   const personal=wpEntitiesForProject('').length;
@@ -16056,7 +16160,7 @@ function wpCommit(label,mutate,{undo=true,refresh=true,captureState=null,restore
 function wpSetTaskStatus(task,key) {
   if(!task) return;
   const prev=wpTaskStatus(task); task.statusKey=key; task.status=wpStatusLabel(key)||'В работе';
-  if(key==='done') task.completedAt=task.completedAt || new Date().toISOString();
+  if(wpStatusDone(key)) task.completedAt=task.completedAt || new Date().toISOString();
   else task.completedAt=null;
   task.updatedAt=new Date().toISOString();
   // Приоритет намеренно не зависит от статуса выполнения.
@@ -16070,7 +16174,7 @@ function wpSetStatusRef(ref,key) {
   wpCommit(`Статус изменён · ${label}`,()=>{
     if(ent.entityType==='occurrence') {
       const task=(S.board.tasks||[]).find(t=>t&&t.id===ent.seriesTaskId); if(!task) return;
-      const rec=wpMaterializeOccurrence(task,ent.originalDate); rec.statusKey=key; rec.completedAt=key==='done'?new Date().toISOString():null; rec.updatedAt=new Date().toISOString();
+      const rec=wpMaterializeOccurrence(task,ent.originalDate); rec.statusKey=key; rec.completedAt=wpStatusDone(key)?new Date().toISOString():null; rec.updatedAt=new Date().toISOString();
     } else {
       const task=(S.board.tasks||[]).find(t=>t&&t.id===ent.id); wpSetTaskStatus(task,key);
     }
@@ -16112,11 +16216,11 @@ function wpSetDeadlineCommand(ref,date) {
 function wpToggleTask(ref) {
   const ent=wpFindEntity(ref); if(!ent) return;
   if(ent.entityType!=='occurrence' && wpTaskRule(ent)) { toast('У серии нельзя завершить шаблон. Завершите отдельный экземпляр.',{icon:'info'}); return; }
-  const current=wpTaskStatus(ent), next=(current==='done'||current==='cancelled')?wpDefaultStatusKey():'done';
-  wpCommit(next==='done'?'Задача выполнена':'Задача возвращена в работу',()=>{
+  const current=wpTaskStatus(ent), next=wpStatusClosed(current)?wpDefaultStatusKey():'done';
+  wpCommit(wpStatusDone(next)?'Задача выполнена':'Задача возвращена в работу',()=>{
     if(ent.entityType==='occurrence') {
       const task=(S.board.tasks||[]).find(t=>t && t.id===ent.seriesTaskId); if(!task) return;
-      const rec=wpMaterializeOccurrence(task,ent.originalDate); rec.statusKey=next; rec.completedAt=next==='done'?new Date().toISOString():null; rec.updatedAt=new Date().toISOString();
+      const rec=wpMaterializeOccurrence(task,ent.originalDate); rec.statusKey=next; rec.completedAt=wpStatusDone(next)?new Date().toISOString():null; rec.updatedAt=new Date().toISOString();
     } else {
       const task=(S.board.tasks||[]).find(t=>t && t.id===ent.id); wpSetTaskStatus(task,next);
     }
@@ -16130,7 +16234,7 @@ function wpApplyReviewChoice(ref,choice,date,weekStart) {
     else if(choice==='cancel') { rec.statusKey='cancelled'; rec.completedAt=null; }
     else if(choice==='keep') { rec.lastReviewedWeekStart=weekStart; }
     else {
-      rec.statusKey=wpTaskStatus(ent); rec.completedAt=rec.statusKey==='done'?(rec.completedAt||ent.completedAt||null):null;
+      rec.statusKey=wpTaskStatus(ent); rec.completedAt=wpStatusDone(rec.statusKey)?(rec.completedAt||ent.completedAt||null):null;
       if(choice==='today'||choice==='date'||choice==='clear') { const next=wpShiftScheduleRange(ent,target); rec.scheduledDate=next.scheduledDate; delete rec.scheduledEndDate; }
       if(choice==='inbox') { rec.scheduledDate=null; delete rec.scheduledEndDate; rec.homeType='inbox'; rec.homeId=''; rec.homeTypeInherited=false; rec.inbox=true; rec.overrides=Object.assign({},rec.overrides||{},{homeType:'inbox',homeId:'',kind:'personal',projectId:'',project:'',inbox:true}); }
       else if(choice==='today'||choice==='date'||choice==='clear') { rec.inbox=wpTaskHomeType(task)==='inbox'; }
@@ -16213,10 +16317,10 @@ function wpReviewMenu(anchor) {
 }
 function wpTaskMenu(anchor) {
   const ref=wpRefFromElement(anchor), task=wpFindEntity(ref); if(!task) return;
-  const done=wpTaskStatus(task)==='done', recurring=!!wpTaskRule(task), isOccurrence=task.entityType==='occurrence';
+  const done=wpTaskDone(task), recurring=!!wpTaskRule(task), isOccurrence=task.entityType==='occurrence';
   const items=[];
   const moveLabel=recurring&&!isOccurrence?'Переместить всю серию…':'Переместить…';
-  if(isOccurrence || !recurring) items.push({label:done||wpTaskStatus(task)==='cancelled'?'Вернуть в работу':'Отметить выполненной',icon:'check',run:()=>wpToggleTask(ref)});
+  if(isOccurrence || !recurring) items.push({label:done||wpTaskOutdated(task)?'Вернуть в работу':'Отметить выполненной',icon:'check',run:()=>wpToggleTask(ref)});
   items.push({label:moveLabel,icon:'folder',run:()=>wpMoveHomePicker(ref,recurring&&!isOccurrence?{scope:'series'}:{})});
   if(isOccurrence || !recurring) items.push({label:isOccurrence?'Изменить этот экземпляр':'Изменить',icon:'pencil',run:()=>wpOpenEditor(ref)});
   if(isOccurrence) {
@@ -16586,7 +16690,7 @@ function wpApplyOccurrenceForm(task,ent,v) {
     if(a===b) delete rec.overrides[k]; else rec.overrides[k]=next[k];
   });
   rec.scheduledDate=v.scheduledDate; delete rec.scheduledEndDate; rec.deadlineAt=v.deadlineAt; rec.statusKey=v.statusKey;
-  rec.completedAt=v.statusKey==='done' ? (rec.completedAt||new Date().toISOString()) : null;
+  rec.completedAt=wpStatusDone(v.statusKey) ? (rec.completedAt||new Date().toISOString()) : null;
   rec.updatedAt=new Date().toISOString();
 }
 function wpSaveRule(task,v) {
@@ -17534,6 +17638,8 @@ Object.assign(ACT,{
   wpAllReset:()=>wpResetAllFilters(),
   wpBoardFocus:el=>wpSetBoardFocus(el.dataset.filter),
   wpBoardMineToggle:()=>wpToggleBoardMine(),
+  wpBoardMoveToggle:()=>{WP.boardMoveColumns=WP.boardMoveColumns!==true;wpRenderView();},
+  wpBoardColMove:el=>{const st=el.dataset.status,dir=+(el.dataset.dir||0),keys=wpStatusKeys(),i=keys.indexOf(st),j=i+dir;if(!st||!dir||i<0||j<0||j>=keys.length)return;wpCommit(`Колонка «${wpStatusLabel(st)}» перемещена`,()=>wpMoveBoardStatus(st,dir));},
   wpBoardReset:()=>wpResetBoardFilters(),
   wpBoardAdd:el=>wpBoardAdd(el),
   wpAllMineToggle:()=>wpAllMineToggle(),

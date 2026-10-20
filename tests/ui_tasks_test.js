@@ -260,9 +260,9 @@ globalThis.__api = {
   wpDateKey, wpDeadlineBeforeStart, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
+  wpDeadlineText, wpDeadlineOverdue, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
-  wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpStatusKeyForName, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
+  wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpSetStatusRef, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson, wpBoardPersonIndexById, wpDeleteTaskContact, wpContactIdUsedAnywhere,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects, wpMergeImportedTaskData, wpApplyImportedTaskData,
@@ -810,9 +810,112 @@ assert.strictEqual([...api.wpBoardColumns(customStatusTasks)][3][1], 'Отмен
 state.board.statuses = [{ key: 'st-only', name: 'Solo' }, { key: 'done', name: 'Done' }];
 assert.strictEqual(api.wpDefaultStatusKey(), 'st-only', 'new tasks fall back to the first status when open is gone');
 state.board.statuses = dictStatusesBefore;
-assert(html.includes("arr.push({ key: uid('st'), name: v });"), 'board settings add statuses as stable key/name pairs');
+assert(html.includes("arr.push(wpMakeBoardStatus(r.name, r.flags, S.board));"), 'board settings add statuses through the shared status factory');
+assert(html.includes('function wpStatusDlg(') && html.includes('data-ws-flag="done"') && html.includes('data-ws-flag="noRemind"') && html.includes('data-ws-flag="outdated"'), 'statuses gain an editor with the behavior catalog');
+assert(html.includes('data-act="wpBoardMoveToggle"') && html.includes('data-act="wpBoardColMove"'), 'board lanes reorder through an explicit move mode');
+assert(planner.includes("next=wpStatusClosed(current)?wpDefaultStatusKey():'done'"), 'toggling a closed-by-logic task returns it to work');
+assert(planner.includes("if(!t || wpTaskQuiet(t) || !t.deadlineAt) return false;"), 'quiet statuses never go overdue');
 assert(html.includes('Статус «Готово» нужен для учёта выполненных задач'), 'the structural done status cannot be deleted');
 assert(planner.includes('columns=wpBoardColumns(items)'), 'the board renders its lanes from the shared dictionary');
+
+// New statuses adopt canonical keys and fill their own lane instead of duplicating the edge fallback lane.
+const adoptBefore = state.board.statuses;
+state.board.statuses = [{ key: 'open', name: 'В работе' }, { key: 'done', name: 'Готово' }];
+assert.strictEqual(api.wpStatusKeyForNewName('Отменена'), 'cancelled', 'a known status name adopts its canonical key and fills its own lane');
+assert(api.wpStatusKeyForNewName('На проверке').startsWith('st'), 'custom names keep unique generated keys');
+assert.strictEqual(api.wpStatusKeyForNewName(''), '');
+state.board.statuses = [{ key: 'open', name: 'В работе' }, { key: 'cancelled', name: 'Отменена' }, { key: 'done', name: 'Готово' }];
+assert(api.wpStatusKeyForNewName('Отменена').startsWith('st'), 'a taken canonical key falls back to a unique lane');
+const madeStatus = JSON.parse(JSON.stringify(api.wpMakeBoardStatus('X', { done: true, noRemind: false, outdated: false }, null)));
+assert(madeStatus.key.startsWith('st') && madeStatus.name === 'X');
+assert.deepStrictEqual(madeStatus.flags, { done: true, noRemind: false, outdated: false });
+const keptStatus = JSON.parse(JSON.stringify(api.wpMakeBoardStatus('Y', null, null, 'st-keep')));
+assert.strictEqual(keptStatus.key, 'st-keep', 'renaming a status keeps its lane identity');
+assert.strictEqual('flags' in keptStatus, false, 'statuses without behaviors stay clean key/name pairs');
+state.board.statuses = adoptBefore;
+
+// Label-only tasks resolve to the board lane first, not the global label map.
+const precBefore = state.board.statuses;
+state.board.statuses = [{ key: 'st-pause', name: 'Пауза' }, { key: 'open', name: 'В работе' }, { key: 'done', name: 'Готово' }];
+assert.strictEqual(api.wpTaskStatus({ status: 'Пауза' }), 'st-pause', 'label-only tasks resolve to the board lane first, not the global label map');
+assert.strictEqual(api.wpTaskStatus({ status: 'Ожидают' }), 'waiting', 'unknown labels keep resolving through the global map');
+state.board.statuses = precBefore;
+
+// Status behaviors drive task logic the way CRM status categories do.
+const normFlags = JSON.parse(JSON.stringify([...api.wpNormalizeStatusesArray([{ key: 'st-x', name: 'X', flags: { done: true, junk: 1 } }, { key: 'open', name: 'В работе' }])]));
+assert.deepStrictEqual(normFlags[0].flags, { done: true, noRemind: false, outdated: false }, 'normalization preserves behaviors and drops unknown flags');
+assert.strictEqual('flags' in normFlags[1], false);
+const flagStatusesBefore = state.board.statuses;
+state.board.statuses = [
+  { key: 'open', name: 'В работе' },
+  { key: 'st-shipped', name: 'Отгружено', flags: { done: true, noRemind: false, outdated: false } },
+  { key: 'st-idle', name: 'Отложено', flags: { done: false, noRemind: true, outdated: false } },
+  { key: 'st-junk', name: 'Мусор', flags: { done: false, noRemind: false, outdated: true } },
+  { key: 'done', name: 'Готово' }
+];
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpStatusFlags('st-shipped'))), { done: true, noRemind: false, outdated: false });
+assert.strictEqual(api.wpStatusDone('st-shipped'), true);
+assert.strictEqual(api.wpStatusDone('done'), true, 'the structural done status keeps its implicit logic');
+assert.strictEqual(api.wpStatusOutdated('cancelled'), true, 'the legacy cancelled status keeps its implicit logic');
+assert.strictEqual(api.wpStatusQuiet('st-idle'), true);
+assert.strictEqual(api.wpStatusClosed('st-junk'), true);
+assert.strictEqual(api.wpTaskDone({ statusKey: 'st-shipped' }), true);
+assert.strictEqual(api.wpTaskOutdated({ statusKey: 'st-junk' }), true);
+assert.strictEqual(api.wpTaskClosed({ statusKey: 'open' }), false);
+const shippedTask = { id: 'flag-shipped', title: 'Отгружена', homeType: 'personal', statusKey: 'st-shipped', priorityKey: 'normal', deadlineAt: '2000-01-01', order: 1 };
+const idleTask = { id: 'flag-idle', title: 'Отложена', homeType: 'personal', statusKey: 'st-idle', priorityKey: 'normal', deadlineAt: '2000-01-01', order: 2 };
+const junkTask = { id: 'flag-junk', title: 'Мусорная', homeType: 'personal', statusKey: 'st-junk', priorityKey: 'normal', order: 3 };
+const openTask = { id: 'flag-open', title: 'Обычная', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', order: 4 };
+assert.strictEqual(api.wpDeadlineOverdue(shippedTask), false, 'done-like tasks never go overdue');
+assert.strictEqual(api.wpDeadlineOverdue(idleTask), false, 'quiet tasks never go overdue');
+assert.strictEqual(api.wpDeadlineOverdue({ statusKey: 'open', deadlineAt: '2000-01-01' }), true);
+assert(api.wpBoardSummary([shippedTask, idleTask]).includes('<span>Готово</span><b>1</b>'), 'the board summary counts done-like tasks as completed');
+assert(api.wpTaskCard(shippedTask, { compact: true }).includes('is-done'), 'done-like cards render completed');
+assert(api.wpTaskCard(junkTask, { compact: true }).includes('is-cancelled'), 'outdated cards render dimmed');
+const flagTasksBefore = state.board.tasks, flagOccBefore = state.board.occurrences, flagFilterBefore = api.WP.allFilter, flagQueryBefore = api.WP.query;
+const flagAssigneeBefore = api.WP.allAssigneeFilter, flagTagBefore = api.WP.allTagFilter, flagHomeBefore = api.WP.allProjectFilter, flagSortBefore = api.WP.allSort, flagDirBefore = api.WP.allSortDir;
+state.board.tasks = [shippedTask, idleTask, junkTask, openTask]; state.board.occurrences = [];
+api.WP.query = ''; api.WP.allAssigneeFilter = 'all'; api.WP.allTagFilter = 'all'; api.WP.allProjectFilter = 'all'; api.WP.allSort = 'urgency'; api.WP.allSortDir = 'desc';
+api.WP.allFilter = 'active';
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpAllEntities().map(t => t.id))), ['flag-idle', 'flag-open'], 'outdated and done-like tasks leave the active list, quiet tasks stay');
+api.WP.allFilter = 'done';
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpAllEntities().map(t => t.id))), ['flag-shipped'], 'the done filter includes done-like tasks');
+api.WP.allFilter = 'cancelled';
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpAllEntities().map(t => t.id))), ['flag-junk'], 'the cancelled filter includes outdated tasks');
+state.board.tasks = flagTasksBefore; state.board.occurrences = flagOccBefore; api.WP.allFilter = flagFilterBefore; api.WP.query = flagQueryBefore;
+api.WP.allAssigneeFilter = flagAssigneeBefore; api.WP.allTagFilter = flagTagBefore; api.WP.allProjectFilter = flagHomeBefore; api.WP.allSort = flagSortBefore; api.WP.allSortDir = flagDirBefore;
+state.board.statuses = flagStatusesBefore;
+
+// Board lanes reorder only in the explicit move mode.
+const moveStatusesBefore = state.board.statuses;
+state.board.statuses = [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }];
+assert.strictEqual(api.wpMoveBoardStatus('waiting', -1), true);
+assert.deepStrictEqual(state.board.statuses.map(s => s.key), ['waiting', 'open', 'done']);
+assert.strictEqual(api.wpMoveBoardStatus('waiting', -1), false, 'the first lane cannot move further left');
+assert.strictEqual(api.wpMoveBoardStatus('done', 1), false, 'the last lane cannot move further right');
+assert.strictEqual(api.wpMoveBoardStatus('missing', 1), false);
+assert.deepStrictEqual([...api.wpBoardColumns([])].map(c => c[0]), ['waiting', 'open', 'done'], 'lanes follow the reordered dictionary');
+state.board.statuses = moveStatusesBefore;
+assert(api.wpBoardLaneHeader('open', 'В работе', 2, false, 0, 3).includes('<header><div><b>В работе</b></div><span>2</span></header>'), 'calm lane headers keep their exact markup');
+assert(api.wpBoardLaneHeader('open', 'В работе', 2, true, 0, 3).includes('data-act="wpBoardColMove"'), 'move mode adds lane arrows');
+const moveModeBefore = api.WP.boardMoveColumns, moveTasksBefore = state.board.tasks, moveOccBefore2 = state.board.occurrences;
+const moveQueryBefore = api.WP.query, moveFocusBefore = api.WP.boardFocus, moveShowBefore = api.WP.boardShowCompleted, moveMineBefore = api.WP.boardMineOnly;
+const moveHomeBefore = api.WP.boardHomeFilter, moveAssigneeBefore = api.WP.boardAssigneeFilter, moveTagBefore = api.WP.boardTagFilter;
+state.board.statuses = [{ key: 'open', name: 'В работе' }, { key: 'st-x', name: 'Своя' }, { key: 'done', name: 'Готово' }];
+state.board.tasks = []; state.board.occurrences = [];
+api.WP.query = ''; api.WP.boardFocus = 'all'; api.WP.boardShowCompleted = true; api.WP.boardMineOnly = false;
+api.WP.boardHomeFilter = 'all'; api.WP.boardAssigneeFilter = 'all'; api.WP.boardTagFilter = 'all';
+api.WP.boardMoveColumns = true;
+const moveMarkup = api.wpBoardView();
+assert.strictEqual((moveMarkup.match(/data-act="wpBoardColMove"/g) || []).length, 6, 'every dictionary lane offers both move buttons in move mode');
+assert(moveMarkup.includes('data-dir="-1"') && moveMarkup.includes('disabled'), 'edge lanes disable the outward move button');
+api.WP.boardMoveColumns = false;
+const calmMarkup = api.wpBoardView();
+assert(!calmMarkup.includes('wpBoardColMove'), 'move buttons disappear outside move mode');
+assert.strictEqual((calmMarkup.match(/<header>/g) || []).length, 1, 'semantic lanes keep skipping headers outside move mode');
+state.board.statuses = moveStatusesBefore; state.board.tasks = moveTasksBefore; state.board.occurrences = moveOccBefore2;
+api.WP.query = moveQueryBefore; api.WP.boardFocus = moveFocusBefore; api.WP.boardShowCompleted = moveShowBefore; api.WP.boardMineOnly = moveMineBefore;
+api.WP.boardHomeFilter = moveHomeBefore; api.WP.boardAssigneeFilter = moveAssigneeBefore; api.WP.boardTagFilter = moveTagBefore; api.WP.boardMoveColumns = moveModeBefore;
 const dayCapsule = api.wpDayCapsule({ id: 'cap-1', title: 'Капсула', homeType: 'personal', statusKey: 'open', priorityKey: 'high', deadlineAt: '2026-10-15', tags: [] });
 assert(dayCapsule.includes('wp-day-capsule p-high') && dayCapsule.includes('data-task-id="cap-1"') && dayCapsule.includes('data-act="taskEdit"'), 'single-day tasks render as thin capsules that open the editor');
 const dayCapsuleMeta = api.wpDayCapsule({ id: 'cap-2', title: 'Мета', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', assignee: 'Владимир', deadlineAt: '2026-10-20', tags: [] });

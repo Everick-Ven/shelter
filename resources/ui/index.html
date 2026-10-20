@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-T/lno4wd8dmxsPiYf3R3w+531hHHjs6gp2XTgWc4kaw=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-RZVGLytE7BqsWKfHhT4yhbYa4WAgGbqo3DXu/61tZps=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -10429,7 +10429,7 @@ function taskDicts() {
       ? `<button class="btn" data-da="1" style="width:100%;margin-top:12px">${ico('plus')}Новый статус</button>`
       : `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${cur === 'people'
         ? `<input class="input" id="dAdd" placeholder="Имя исполнителя" style="flex:1;min-width:130px"><input class="input" id="dAddId" placeholder="ID для приглашений" style="flex:1;min-width:130px" autocomplete="off" spellcheck="false"><button class="btn" data-da="1">${ico('plus')}Добавить</button>`
-        : `<input class="input" id="dAdd" placeholder="Новое значение"><button class="btn" data-da="1">${ico('plus')}Добавить</button>`}</div>`}`;
+        : `<input class="input" id="dAdd" placeholder="Новое значение"><button class="btn" data-da="1">${ico('plus')}Добавить</button>`}</div>`}`}`;
   const prioBody=()=>{ const colors=wpBoardPriorityColors(S.board), defaults=wpDefaultPriorityColors();
     return `<div class="set-card">${['none','normal','high','critical'].map(k=>{ const label=WP_PRIORITY_RU[k]||k; return `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label)}</b></div><span class="wp-color-row is-dot"><input type="color" data-prio-color="${k}" value="${esc(colors[k]||defaults[k])}" aria-label="Цвет приоритета «${esc(label)}»"></span></div>`; }).join('')}</div>
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap"><button class="btn ghost sm" data-prio-reset="1">Сбросить к цветам темы</button><span class="muted" style="font-size:12px">Цвета действуют на всю доску</span></div>`; };

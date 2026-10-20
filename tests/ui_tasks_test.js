@@ -569,8 +569,24 @@ assert(boardToolbar.includes('Показать выполненные задач
 assert(boardToolbar.includes('data-wp-filter-menu="board"') && boardToolbar.includes('data-act="wpFilterMenu"') && boardToolbar.includes('data-scope="board"'), 'the board filter opens through the shared popup trigger');
 assert(planner.includes("const WP_BOARD_FOCUS=[['all','Все'],['urgent','Срочные'],['overdue','Просроченные'],['today','Срок сегодня'],['noDeadline','Без срока'],['unplanned','Без даты начала']]"), 'the board offers all six reference focus options');
 assert(!boardToolbar.includes('wp-filter-pills'), 'board focus choices are not separate pill buttons');
-assert(planner.includes('${wpBoardToolbar(items)}<div class="wp-board-pin">${wpBoardSummary(items)}</div>'), 'the board pins only its summary strip while the toolbar scrolls');
-assert(planner.includes("view.querySelector('.wp-board-pin')") && planner.includes('stuck.getBoundingClientRect().height>view.clientHeight*.6'), 'the stickiness guard measures the pinned summary strip');
+assert(planner.includes('${wpBoardToolbar(items)}${wpBoardSummary(items)}') && !planner.includes('<div class="wp-board-pin">'), 'the board summary flows statically under the toolbar with no sticky pin wrapper');
+assert(planner.includes("view.querySelector('.wp-board-pin')") && planner.includes('stuck.getBoundingClientRect().height>view.clientHeight*.6'), 'the stickiness guard measures the tallest strip without locking scroll');
+const probeBoard = { id: 'probe-5', name: 'Probe', code: 'P', taskSchemaVersion: api.schema, ownerEmail: '', projects: [], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }, { key: 'overdue', name: 'Просрочено' }, { key: 'st_probe_1', name: 'Новый' }],
+  tasks: [{ id: 'pt1', title: 'T', homeType: 'personal', statusKey: 'st_probe_1', priorityKey: 'normal', order: 1 }] };
+const keepBoard = state.board, keepBoards = state.boards, keepId = state.boardId;
+const keepShow = api.WP.boardShowCompleted, keepFocus = api.WP.boardFocus, keepAllFilter = api.WP.allFilter;
+state.board = probeBoard; state.boards = [probeBoard]; state.boardId = probeBoard.id;
+api.WP.allFilter = 'all'; api.WP.boardShowCompleted = true; api.WP.boardFocus = 'all';
+const probeMarkup = api.wpBoardView();
+assert.strictEqual((probeMarkup.match(/wp-board-column/g) || []).length, 5, 'a dictionary status always adds a board lane');
+assert(probeMarkup.includes('--wp-lanes:5'), 'board lanes share one row sized by the live status count');
+assert(probeMarkup.includes('<b>Новый</b>'), 'a custom status lane carries its dictionary name');
+assert.strictEqual((probeMarkup.match(/<header>/g) || []).length, 1, 'semantic lanes skip headers and leave naming to the KPI strip');
+state.board = keepBoard; state.boards = keepBoards; state.boardId = keepId;
+api.WP.allFilter = keepAllFilter; api.WP.boardShowCompleted = keepShow; api.WP.boardFocus = keepFocus;
+assert(html.includes('width: 520, onClose: () => tasksRerender(true), html:'), 'closing the dictionaries modal always re-renders the board, even via Escape or backdrop click');
+assert(planner.includes("is-all-day${layout.segments.length?' has-spans':''}") && plannerStyle[1].includes('.wp-week-grid.has-spans .wp-day-items{margin-top:3px}'), 'span weeks keep a span-like gap between multi-day rows and capsules');
 assert(api.WP.calendarShowCompleted, 'the board toolbar keeps the completed calendar filter untouched');
 api.actions.wpBoardFocus({dataset:{filter:'urgent'}});
 assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id).sort(),['board-other','board-urgent'],'Urgent means high or critical priority on the board');
@@ -793,6 +809,8 @@ assert(html.includes('Статус «Готово» нужен для учёта
 assert(planner.includes('columns=wpBoardColumns(items)'), 'the board renders its lanes from the shared dictionary');
 const dayCapsule = api.wpDayCapsule({ id: 'cap-1', title: 'Капсула', homeType: 'personal', statusKey: 'open', priorityKey: 'high', deadlineAt: '2026-10-15', tags: [] });
 assert(dayCapsule.includes('wp-day-capsule p-high') && dayCapsule.includes('data-task-id="cap-1"') && dayCapsule.includes('data-act="taskEdit"'), 'single-day tasks render as thin capsules that open the editor');
+const dayCapsuleMeta = api.wpDayCapsule({ id: 'cap-2', title: 'Мета', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', assignee: 'Владимир', deadlineAt: '2026-10-20', tags: [] });
+assert(dayCapsuleMeta.includes('<small>Владимир · До: 20.10</small>'), 'day capsules show the assignee and deadline in one meta line');
 
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
 const monthView = api.wpViewHtml();
@@ -810,7 +828,7 @@ assert(weekSelectedAt >= 0, 'the week view shows a selected-day list below the c
 const weekSelectedPanel = rangeWeekMarkup.slice(weekSelectedAt, rangeWeekMarkup.indexOf('</section>', weekSelectedAt) + '</section>'.length);
 assert(weekSelectedPanel.includes('month-span-a') && weekSelectedPanel.includes('month-span-b') && weekSelectedPanel.includes('single-day-task'), 'the week selected-day list includes every task covering that date, including multi-day tasks');
 assert(rangeWeekMarkup.includes('Однодневная задача') && rangeWeekMarkup.includes('Задача на несколько дней'));
-const desktopWeekGrid = rangeWeekMarkup.slice(rangeWeekMarkup.indexOf('<div class="wp-week-grid is-all-day">'), weekSelectedAt);
+const desktopWeekGrid = rangeWeekMarkup.slice(rangeWeekMarkup.indexOf('<div class="wp-week-grid is-all-day'), weekSelectedAt);
 assert.strictEqual(countId(desktopWeekGrid, 'week-span'), 1, 'the desktop week grid displays a range as one horizontal row');
 assert.strictEqual(countId(desktopWeekGrid, 'month-span-a'), 1);
 assert.strictEqual(countId(desktopWeekGrid, 'single-day-task', 'data-task-id'), 1);

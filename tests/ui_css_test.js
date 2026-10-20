@@ -170,19 +170,23 @@ check('мини-календарь закреплён слева, а подро�
 check('доска делит общие боковые отступы с остальными представлениями, как в референсе',
   taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){overflow-x:clip}') &&
   !taskLayoutStyle.includes('wp-board-lanes){padding-right'));
-check('плашки сводки доски закреплены при прокрутке, тулбар прокручивается',
-  taskLayoutStyle.includes('.planner-page .wp-board-pin{position:sticky;top:0;z-index:9;') &&
-  taskLayoutStyle.includes('.planner-page .wp-board-pin.is-scrollable{position:static;box-shadow:none}') &&
-  taskLayoutStyle.includes('.planner-page .wp-board-pin>.wp-board-summary{margin-bottom:0}'));
+check('сводка доски не закреплена и не перекрывает тулбар при прокрутке',
+  !taskLayoutStyle.includes('.wp-board-pin') &&
+  html.includes('.planner-page :is(.wp-all-toolbar,.wp-board-toolbar).is-scrollable{position:relative;top:auto;box-shadow:none}'));
 check('рабочее поле задач резервирует место под полосу прокрутки, чтобы контент не ездил',
   taskLayoutStyle.includes('.planner-page .wp-view{') && taskLayoutStyle.includes('scrollbar-gutter:stable'));
 check('доска задач вмещается в ширину экрана без горизонтальной прокрутки',
-  plannerStyle.includes('.wp-board-lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));align-items:start;gap:9px;overflow-x:hidden') &&
+  plannerStyle.includes('.wp-board-lanes{display:grid;grid-template-columns:repeat(var(--wp-lanes,4),minmax(0,1fr));align-items:start;gap:9px;overflow-x:hidden') &&
   !plannerStyle.includes('repeat(4,minmax(220px,1fr))') && !/\.wp-board-lanes\{[^}]*overflow-x:auto/.test(plannerStyle) &&
   (plannerStyle.match(/\.wp-board-lanes\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:7px\}/g) || []).length === 2 &&
   !/\.wp-board-lanes\{[^}]*scroll-snap/.test(plannerStyle) &&
   plannerStyle.includes('.wp-board-task-status .select{width:auto;min-width:min(115px,100%)') &&
   plannerStyle.includes('.wp-board-column>header b{font-size:13px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'));
+check('капсулы дня раскрыты на всю ширину столбца и отделены от многодневных рядов',
+  plannerStyle.includes('.wp-day-capsule{display:flex;align-items:center;gap:8px;width:100%;min-width:0;min-height:24px;margin:0 -8px;') &&
+  plannerStyle.includes('padding:2px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));') &&
+  plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin-left:-9px;margin-right:-9px}') &&
+  plannerStyle.includes('.wp-week-grid.has-spans .wp-day-items{margin-top:3px}'));
 check('месячная сетка задач повторяет компактные метрики «Истории», без слоя диапазонов — только точки',
   plannerStyle.includes('min-height:84px;aspect-ratio:1.22;') &&
   !plannerStyle.includes('.wp-month-day{height:150px;') &&

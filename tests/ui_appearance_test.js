@@ -194,7 +194,7 @@ assert(plannerMoreMenu.includes("label:'Мой ID для приглашений'
 const taskExportDialog = section('function wpOpenTaskExportDialog() {', 'function wpExportTasks() {');
 assert(taskExportDialog.includes('wpTaskExportTarget') && taskExportDialog.includes('wpTaskExportContact') && taskExportDialog.includes('wpTaskExportSelfId'), 'the export dialog offers self/executor branches with invite-id contacts');
 const boardColumns = section('function wpBoardView() {', 'function wpProjectCard(project) {');
-assert(boardColumns.includes('<header><div><b>${esc(label)}</b></div><span>${lane.length}</span></header>'), 'board columns render dictionary names with counts under the KPI cards');
+assert(boardColumns.includes("['open','waiting','done','overdue'].includes(status)?'':") && boardColumns.includes('<header><div><b>${esc(label)}</b></div><span>${lane.length}</span></header>'), 'board columns render headers only for custom statuses, never duplicating the KPI strip');
 const quickAddRoute = section('function wpQuickAddOpen(date=null, projectId=null, assignee=wpCurrentAssignee(), context', 'function wpCreateTask(');
 assert(quickAddRoute.includes('wpOpenEditor(null,{scheduledDate:'), 'quick-add entries open the full task editor');
 const plannerPageRenderer = section('function wpRenderTaskPage() {', 'function wpSetView(');

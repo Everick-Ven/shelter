@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-hcgnJcJha4s3hmXFCfJgTAYbytmdnNYuaKexy6ybK8A=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-Zno7XNuv3Y9VBOJNqCPrvLSOMp+6ck2DY3tGCbPE0PA=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -16577,8 +16577,7 @@ function wpMoreMenu(anchor) {
     {label:'Мой ID для приглашений',icon:'copy',run:()=>{copyText(wpSelfTaskId());toast('ID скопирован: '+wpSelfTaskId(),{icon:'check'});}},
     '-',
     {label:'Экспорт задач и серий',icon:'upload',run:()=>taskExport()},
-    {label:'Импорт / восстановить задачи…',icon:'download',run:()=>wpImportFile()},
-    {label:'Скачать исходную копию миграции',icon:'archive',run:()=>wpDownloadMigrationBackup()}
+    {label:'Импорт / восстановить задачи…',icon:'download',run:()=>wpImportFile()}
   ];
   openMenu(anchor,items,{place:'bottom-end'});
 }

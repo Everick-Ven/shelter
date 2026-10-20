@@ -191,6 +191,7 @@ assert(plannerMoreMenu.includes('const boards=current?[current,...allBoards.filt
 assert.match(plannerMoreMenu, /const items=\[\s*\.\.\.boards\.map\(b=>\(\{label:b\.name\|\|'Моя доска'/);
 assert(!plannerMoreMenu.includes("label:'Календарь'") && !plannerMoreMenu.includes('Матрица') && !plannerMoreMenu.includes("wpSetView('matrix')"), 'the task more menu begins with the current board, not Calendar');
 assert(plannerMoreMenu.includes("label:'Мой ID для приглашений'"), 'the task more menu exposes the local invite id');
+assert(!plannerMoreMenu.includes('Скачать исходную копию миграции'), 'the technical migration snapshot stays out of the user menu; restore goes through support');
 const taskExportDialog = section('function wpOpenTaskExportDialog() {', 'function wpExportTasks() {');
 assert(taskExportDialog.includes('wpTaskExportTarget') && taskExportDialog.includes('wpTaskExportContact') && taskExportDialog.includes('wpTaskExportSelfId'), 'the export dialog offers self/executor branches with invite-id contacts');
 const boardColumns = section('function wpBoardView() {', 'function wpProjectCard(project) {');

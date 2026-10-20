@@ -33,11 +33,9 @@ const paletteSearch = section('function paletteItems(q) {', 'function openPalett
 assert(!paletteSearch.includes("g: 'Команды'") && !paletteSearch.includes("g: 'Вкладки'"), 'the search popup lists no tabs or commands');
 assert(!html.includes('const COMMANDS = () => ['), 'the command list is removed with the search-only popup');
 assert(html.includes('placeholder="Искать по браузеру"'), 'the search popup invites browser-wide search');
-assert(html.includes('--sb-wc:60px'), 'the collapsed sidebar rail is narrowed');
-assert(html.includes('.tab-rail.is-collapsed{width:76px}'), 'the right tab rail keeps its collapsed width');
-assert(html.includes('@media (min-width:721px){'), 'collapsed rail tweaks stay off the mobile overlay');
-assert(html.includes('.app.collapsed .nav-ind{left:50%;right:auto;width:36px;transform:translate3d(-50%,var(--y,0px),0)}'), 'the collapsed active indicator is a centered square');
-assert(html.includes('.app.collapsed .sb-pin{padding-top:2px}'), 'the collapsed search-to-overview gap is halved');
+assert(html.includes('--sb-wc:76px'), 'the collapsed sidebar rail keeps its width');
+assert(!html.includes('.app.collapsed .sb-pin{padding-top:2px}'), 'the collapsed search-to-overview gap keeps its size');
+assert(!html.includes('.app.collapsed .nav-ind{left:50%'), 'no collapsed-only rail centering overrides remain');
 assert(!html.includes('function themeMenu('));
 assert(!html.includes('function themeSwatchesMarkup('));
 const settingsStart = html.indexOf('function settingsHtml() {');

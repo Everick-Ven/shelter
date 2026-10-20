@@ -35,7 +35,7 @@
   --ease:cubic-bezier(.22,1,.36,1);
   --ease-s:cubic-bezier(.34,1.45,.64,1);
   --ease-io:cubic-bezier(.65,0,.35,1);
-  --sb-w:272px; --sb-wc:60px;
+  --sb-w:272px; --sb-wc:76px;
 }
 
 
@@ -290,25 +290,6 @@ html.theme-anim body{
 .app.collapsed .sb{width:var(--sb-wc)}
 .hc{transition:opacity .22s var(--ease)}
 .app.collapsed .hc{opacity:0;pointer-events:none}
-@media (min-width:721px){
-.app.collapsed .sb-pin{padding-top:2px}
-.app.collapsed .sb-pin .sb-label{height:14px;margin-top:5px}
-.app.collapsed .sb-top{justify-content:center;padding:0}
-.app.collapsed .brand{justify-content:center;padding:0}
-.app.collapsed .brand>.hc{display:none}
-.app.collapsed .logo{width:32px;height:32px}
-.app.collapsed .sb-search{justify-content:center;padding:0}
-.app.collapsed .sb-search>.hc{display:none}
-.app.collapsed .ni{justify-content:center;padding:0}
-.app.collapsed .ni>.hc{display:none}
-.app.collapsed .nav-ind{left:50%;right:auto;width:36px;transform:translate3d(-50%,var(--y,0px),0)}
-.app.collapsed .space-row{justify-content:center;padding:0}
-.app.collapsed .space-row>.icon-btn{display:none}
-.app.collapsed .space-btn{flex:none;justify-content:center;padding:0}
-.app.collapsed .space-btn>.hc{display:none}
-.app.collapsed #tabList .tab{justify-content:center;padding:0}
-.app.collapsed #tabList .tab>.hc{display:none}
-}
 .tab .tg{display:inline-flex;flex:none;align-items:center;color:#9F8CFF}
 .tab .tg .i{width:13px;height:13px}
 .sb-top{display:flex;align-items:center;height:20px;padding:0 6px;margin-bottom:16px;flex:none;-webkit-app-region:drag}
@@ -562,8 +543,7 @@ body.no-badges .badge{display:none!important}
 /* ---------- Правая рейка: свернуть в полоску иконок (1.0.82) ---------- */
 .rail-top{display:flex;justify-content:flex-end;align-items:center;flex:none;padding:0 2px 4px}
 .rail-top .icon-btn{width:28px;height:28px}
-/* Правая полоса вкладок не сужается вместе с левым меню. */
-.tab-rail.is-collapsed{width:76px}
+.tab-rail.is-collapsed{width:var(--sb-wc)}
 .tab-rail.is-collapsed .rail-top{justify-content:center;padding-bottom:6px}
 .tab-rail.is-collapsed .rail-toggle .i{transform:scaleX(-1)}
 #tabRight.is-collapsed .hc{opacity:0;pointer-events:none}

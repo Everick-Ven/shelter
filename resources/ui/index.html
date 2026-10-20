@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-G8f7JiJt67jd4Rev6hep/8bEz9phkoE8Exsx/FfpR1Y=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-soOnD65RBQTPbjr+4oVdxRl74d+Rr8G10WVtNtkWM5M=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -6085,14 +6085,16 @@ function load() {
   dedupeVisits();
   purgeInternalHistory();
   const rawBoardStore = store.get('shelter:board');
-  S.board = store.json('shelter:board', null);
+  const parsedBoardStore = wpStoreParse(rawBoardStore);
+  S.board = parsedBoardStore.ok ? parsedBoardStore.value : null;
   const rawBoardsStore = store.get('shelter:boards');
-  const breg = store.json('shelter:boards', null);
+  const parsedBoardsStore = wpStoreParse(rawBoardsStore);
+  const breg = parsedBoardsStore.ok ? parsedBoardsStore.value : null;
   S.boards = (breg && Array.isArray(breg.boards)) ? breg.boards : null;
   S.boardId = (breg && breg.id) || '';
   let taskStoreParseError = '';
-  try { if (rawBoardStore != null && rawBoardStore !== '') { const parsed = JSON.parse(rawBoardStore); if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) taskStoreParseError = 'Ключ shelter:board имеет неверную структуру.'; } } catch (_) { taskStoreParseError = 'Не удалось прочитать ключ shelter:board как JSON.'; }
-  try { if (rawBoardsStore != null && rawBoardsStore !== '') { const parsed = JSON.parse(rawBoardsStore); if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.boards)) taskStoreParseError = taskStoreParseError || 'Ключ shelter:boards имеет неверную структуру.'; } } catch (_) { taskStoreParseError = taskStoreParseError || 'Не удалось прочитать ключ shelter:boards как JSON.'; }
+  if (!parsedBoardStore.ok) taskStoreParseError = parsedBoardStore.reason === 'key' ? 'Не удалось расшифровать ключ shelter:board. Проверьте учётную запись ОС и повторите.' : 'Не удалось прочитать ключ shelter:board как JSON.'; else if (rawBoardStore != null && rawBoardStore !== '' && (!parsedBoardStore.value || typeof parsedBoardStore.value !== 'object' || Array.isArray(parsedBoardStore.value))) taskStoreParseError = 'Ключ shelter:board имеет неверную структуру.';
+  if (!parsedBoardsStore.ok) taskStoreParseError = taskStoreParseError || (parsedBoardsStore.reason === 'key' ? 'Не удалось расшифровать ключ shelter:boards. Проверьте учётную запись ОС и повторите.' : 'Не удалось прочитать ключ shelter:boards как JSON.'); else if (rawBoardsStore != null && rawBoardsStore !== '' && (!parsedBoardsStore.value || typeof parsedBoardsStore.value !== 'object' || !Array.isArray(parsedBoardsStore.value.boards))) taskStoreParseError = taskStoreParseError || 'Ключ shelter:boards имеет неверную структуру.';
   wpMigrateTaskStores(breg);
   if (taskStoreParseError) {
     const copyKey = 'shelter:planner:unreadable-store-backup:' + Date.now();
@@ -6185,8 +6187,10 @@ function saveNow() {
   store.set('shelter:activeTabId', activeTabIdForStore());
   store.put('shelter:bookmarks', S.bookmarks);
   if (S.taskMigrationOK !== false) {
-    store.put('shelter:board', S.board);
-    store.put('shelter:boards', Object.assign({}, S.boardsMeta || {}, { boards: S.boards || [], id: S.boardId || '' }));
+    const boardBlob = blobToStore('__boardBlob', S.board);
+    if (boardBlob !== undefined) store.set('shelter:board', boardBlob);
+    const boardsBlob = blobToStore('__boardsBlob', Object.assign({}, S.boardsMeta || {}, { boards: S.boards || [], id: S.boardId || '' }));
+    if (boardsBlob !== undefined) store.set('shelter:boards', boardsBlob);
     wpAfterTaskSave();
   }
   store.put('shelter:ext', S.ext);
@@ -14562,11 +14566,31 @@ function wpHasLegacyEisen() {
   const direct=[S.board && S.board.eisenTasks,S.board && S.board.eisen && S.board.eisen.tasks,store.json('shelter:eisenTasks',null),store.json('eisenTasks',null)];
   return direct.some(v=>Array.isArray(v) && v.length>0) || (Array.isArray(S.boards) && S.boards.some(b=>b && (Array.isArray(b.eisenTasks)&&b.eisenTasks.length || (b.eisen&&Array.isArray(b.eisen.tasks)&&b.eisen.tasks.length))));
 }
+/* Хранилище досок шифруется секретом ОС (ss1:/p1:); legacy-plaintext читается прозрачно. */
+function wpStoreEncrypt(text) {
+  if(text==null||text==='') return text;
+  try { if(typeof secretEnc==='function') { const out=secretEnc(text); if(out) return String(out); } } catch(_) {}
+  return '';
+}
+function wpStoreDecrypt(raw) {
+  if(raw==null||raw==='') return raw;
+  if(!/^(ss1:|p1:)/.test(raw)) return raw;
+  try { if(typeof secretDec==='function') { const out=secretDec(raw); if(out) return String(out); } } catch(_) {}
+  return '';
+}
+function wpStoreParse(raw) {
+  if(raw==null||raw==='') return {ok:true,value:null};
+  const text=wpStoreDecrypt(raw);
+  if(text==='') return {ok:false,reason:/^(ss1:|p1:)/.test(raw)?'key':'shape'};
+  try { return {ok:true,value:JSON.parse(text)}; }
+  catch(_) { return {ok:false,reason:'shape'}; }
+}
 function wpMigrateTaskStores(registry) {
   if(S.taskMigrationPending) return true;
   S.taskMigrationPending=false; S.taskMigrationPreviewShown=false; S.taskMigrationOriginalRaw=null;
   const sourceBoardRaw=store.get('shelter:board'), sourceRegistryRaw=store.get('shelter:boards');
-  try { if(sourceBoardRaw!=null&&sourceBoardRaw!== '') {const x=JSON.parse(sourceBoardRaw);if(!wpIsObj(x)) throw new Error('board shape');} if(sourceRegistryRaw!=null&&sourceRegistryRaw!=='') {const x=JSON.parse(sourceRegistryRaw);if(!wpIsObj(x)||!Array.isArray(x.boards)) throw new Error('registry shape');} } catch(_) { S.taskMigrationOK=false; S.taskMigrationError='Исходная доска или реестр не читаются как JSON. Автоматическая миграция не запускалась; сохраните копию и восстановите данные.'; return false; }
+  const parsedBoardStore=wpStoreParse(sourceBoardRaw), parsedRegistryStore=wpStoreParse(sourceRegistryRaw);
+  if(!parsedBoardStore.ok||!parsedRegistryStore.ok||(sourceBoardRaw!=null&&sourceBoardRaw!==''&&!wpIsObj(parsedBoardStore.value))||(sourceRegistryRaw!=null&&sourceRegistryRaw!==''&&(!wpIsObj(parsedRegistryStore.value)||!Array.isArray(parsedRegistryStore.value.boards)))) { S.taskMigrationOK=false; S.taskMigrationError=(!parsedBoardStore.ok&&parsedBoardStore.reason==='key')||(!parsedRegistryStore.ok&&parsedRegistryStore.reason==='key')?'Исходная доска или реестр не расшифрованы. Автоматическая миграция не запускалась; проверьте учётную запись ОС и повторите.':'Исходная доска или реестр не читаются как JSON. Автоматическая миграция не запускалась; сохраните копию и восстановите данные.'; return false; }
   const sourceBoards=[];
   if(wpIsObj(S.board)) sourceBoards.push(S.board);
   (Array.isArray(S.boards) ? S.boards : []).forEach(b=>{ if(wpIsObj(b)) sourceBoards.push(b); });
@@ -14580,19 +14604,21 @@ function wpMigrateTaskStores(registry) {
   const backupKey='shelter:planner:migration-backup:v6';
   const raw={}; keys.forEach(k=>raw[k]=store.get(k));
   let backupValid=false;
-  try { const old=store.get(backupKey), parsed=old&&JSON.parse(old); backupValid=!!(parsed && parsed.kind==='SHELTER_PLANNER_MIGRATION_BACKUP' && parsed.schemaVersion===WP_SCHEMA && wpIsObj(parsed.raw) && keys.every(k=>Object.prototype.hasOwnProperty.call(parsed.raw,k) && parsed.raw[k]===raw[k])); } catch(_){}
+  try { const old=store.get(backupKey), parsed=old&&wpStoreParse(old).value; backupValid=!!(parsed && parsed.kind==='SHELTER_PLANNER_MIGRATION_BACKUP' && parsed.schemaVersion===WP_SCHEMA && wpIsObj(parsed.raw) && keys.every(k=>Object.prototype.hasOwnProperty.call(parsed.raw,k) && parsed.raw[k]===raw[k])); } catch(_){}
   if(!backupValid) {
     const payload=JSON.stringify({kind:'SHELTER_PLANNER_MIGRATION_BACKUP',schemaVersion:WP_SCHEMA,createdAt:new Date().toISOString(),raw});
     const oldBackup=store.get(backupKey);
     let target=backupKey;
     if(oldBackup) target=backupKey+':'+Date.now();
-    store.set(target,payload);
-    if(store.get(target)!==payload) {
+    const blob=wpStoreEncrypt(payload);
+    if(!blob) { S.taskMigrationOK=false; S.taskMigrationError='Не удалось зашифровать резервную копию задач. Данные оставлены без записи; включён режим только для чтения.'; return false; }
+    store.set(target,blob);
+    if(store.get(target)!==blob) {
       S.taskMigrationOK=false; S.taskMigrationError='Не удалось создать проверяемую резервную копию задач. Данные оставлены без записи; включён режим только для чтения.';
       return false;
     }
     S.taskMigrationBackupKey=target;
-    if(target!==backupKey && !oldBackup) store.set(backupKey,payload);
+    if(target!==backupKey && !oldBackup) store.set(backupKey,blob);
     store.set('shelter:planner:migration-backup:latest',target);
     if(store.get('shelter:planner:migration-backup:latest')!==target) {
       store.set(backupKey,payload);
@@ -14648,10 +14674,12 @@ function wpMigrateTaskStores(registry) {
 function wpFinalizeTaskMigration() {
   if(!S.taskMigrationPending) return S.taskMigrationOK!==false;
   const raw=S.taskMigrationOriginalRaw||{}, migratedBoard=JSON.stringify(S.board), migratedRegistry=JSON.stringify(Object.assign({},S.boardsMeta||{},{boards:S.boards||[],id:S.boardId||''}));
-  store.set('shelter:board',migratedBoard); store.set('shelter:boards',migratedRegistry);
+  const encBoard=wpStoreEncrypt(migratedBoard), encRegistry=wpStoreEncrypt(migratedRegistry);
+  if(!encBoard||!encRegistry) { S.taskMigrationOK=false; S.taskMigrationError='Не удалось зашифровать данные v7. Исходные данные не тронуты; задачи остаются только для чтения.'; return false; }
+  store.set('shelter:board',encBoard); store.set('shelter:boards',encRegistry);
   let writeOK=false;
   try {
-    const saved=JSON.parse(store.get('shelter:board')||'null'), registry=JSON.parse(store.get('shelter:boards')||'null');
+    const saved=wpStoreParse(store.get('shelter:board')).value, registry=wpStoreParse(store.get('shelter:boards')).value;
     const active=registry&&Array.isArray(registry.boards)&&registry.boards.find(b=>b&&b.id===S.boardId);
     writeOK=!!(saved&&saved.id===S.boardId&&saved.taskSchemaVersion===WP_SCHEMA&&Array.isArray(saved.tasks)&&Array.isArray(saved.occurrences)&&Array.isArray(saved.recurrenceRules)&&registry&&registry.id===S.boardId&&active&&active.taskSchemaVersion===WP_SCHEMA);
   } catch(_) { writeOK=false; }
@@ -14668,7 +14696,7 @@ function wpFinalizeTaskMigration() {
 }
 function wpAfterTaskSave() {
   if(S.taskMigrationOK===false || !Array.isArray(S.taskMigrationPendingKeys) || !S.taskMigrationPendingKeys.length) return;
-  const saved=store.json('shelter:board',null), reg=store.json('shelter:boards',null);
+  const saved=wpStoreParse(store.get('shelter:board')).value, reg=wpStoreParse(store.get('shelter:boards')).value;
   const ok=saved && saved.taskSchemaVersion===WP_SCHEMA && saved.id===S.boardId && reg && reg.id===S.boardId && Array.isArray(reg.boards) && reg.boards.some(b=>b && b.id===S.boardId && b.taskSchemaVersion===WP_SCHEMA);
   if(ok) { S.taskMigrationPendingKeys.forEach(k=>store.del(k)); if(S.taskMigrationPendingKeys.every(k=>store.get(k)==null)) S.taskMigrationPendingKeys=[]; }
 }
@@ -15997,8 +16025,10 @@ function wpPersistBoard() {
     if(!valid) return false;
     const raw=JSON.stringify(board), regRaw=JSON.stringify(registry);
     if(!raw||!regRaw) return false;
-    store.set('shelter:board',raw); store.set('shelter:boards',regRaw);
-    if(store.get('shelter:board')!==raw || store.get('shelter:boards')!==regRaw) { restoreStore(); return false; }
+    const encRaw=wpStoreEncrypt(raw), encRegRaw=wpStoreEncrypt(regRaw);
+    if(!encRaw||!encRegRaw) { restoreStore(); return false; }
+    store.set('shelter:board',encRaw); store.set('shelter:boards',encRegRaw);
+    if(store.get('shelter:board')!==encRaw || store.get('shelter:boards')!==encRegRaw) { restoreStore(); return false; }
     wpAfterTaskSave();
     return true;
   } catch(_) { restoreStore(); return false; }
@@ -16980,7 +17010,9 @@ function wpDownloadMigrationBackup() {
     } catch(_) {}
   }
   if(!raw) { toast('Исходная копия миграции недоступна в режиме защиты данных.',{icon:'info'}); return; }
-  wpOpenMigrationBackupExport(raw,currentSnapshot);
+  const backupText=/^(ss1:|p1:)/.test(raw)?wpStoreDecrypt(raw):raw;
+  if(!backupText) { toast('Не удалось расшифровать копию миграции. Проверьте учётную запись ОС.',{icon:'ban'}); return; }
+  wpOpenMigrationBackupExport(backupText,currentSnapshot);
 }
 function wpCreatePreImportBackup() {
   const key='shelter:planner:preimport-backup:'+Date.now();

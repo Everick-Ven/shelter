@@ -40,6 +40,9 @@ assert(!html.includes('.wp-week-grid.is-all-day .wp-day{'), 'week day columns re
 assert(!html.includes('.wp-week-grid.is-all-day .wp-week-days>.wp-day+.wp-day'), 'week day cards are separated by grid gaps, not divider lines');
 assert(html.includes('.wp-week-grid.is-all-day .wp-week-days{display:contents}'), 'the week-days wrapper flattens so the cards become grid items');
 assert(html.includes('wpMigrateTaskStores(breg)'), 'legacy task migration must run during load');
+assert(html.includes("blobToStore('__boardBlob', S.board)") && html.includes("blobToStore('__boardsBlob'"), 'periodic task saves encrypt boards through the secret store');
+assert(html.includes('wpStoreParse(rawBoardStore)') && html.includes('wpStoreParse(rawBoardsStore)'), 'task loading decrypts before parsing');
+assert(!html.includes("store.put('shelter:board'") && !html.includes("store.put('shelter:boards'"), 'boards are never written as plaintext JSON');
 assert(planner.includes('function wpFinalizeTaskMigration()'), 'migration must require an explicit confirmation step');
 assert(planner.includes('WP._searchTimer=setTimeout') && planner.includes("search.addEventListener('input',schedule)") && planner.includes("search.addEventListener('compositionend',schedule)"), 'task search must be debounced and keep its clear control in sync');
 assert(planner.includes("if(page && page.querySelector('#wpView') && !page.querySelector('.wp-migration-error')) { wpRenderView(); return; }"), 'task-page updates patch the existing planner view instead of replacing the page');
@@ -47,7 +50,7 @@ assert(planner.includes('wpCaptureTaskEntities(editRef,{includeRules:!') && plan
 const taskPersistStart=planner.indexOf('function wpPersistBoard()');
 const taskPersistEnd=planner.indexOf('\nfunction wpUndoSnapshot',taskPersistStart);
 const taskPersistSource=planner.slice(taskPersistStart,taskPersistEnd);
-assert(taskPersistSource.includes("store.set('shelter:board',raw)") && taskPersistSource.includes("store.get('shelter:boards')!==regRaw") && !taskPersistSource.includes('JSON.parse') && !taskPersistSource.includes('saveNow()'), 'task updates verify exact board writes without parsing a second copy or rewriting unrelated application data');
+assert(taskPersistSource.includes("store.set('shelter:board',encRaw)") && taskPersistSource.includes("store.get('shelter:boards')!==encRegRaw") && taskPersistSource.includes('wpStoreEncrypt(raw)') && taskPersistSource.includes('wpStoreEncrypt(regRaw)') && !taskPersistSource.includes('JSON.parse') && !taskPersistSource.includes('saveNow()'), 'task updates encrypt and verify exact board writes without parsing a second copy or rewriting unrelated application data');
 assert(!taskPersistSource.includes('scheduleAchievementReconcile'), 'task-board persistence must not trigger achievement reconciliation');
 const statusUpdateStart=planner.indexOf('function wpSetStatusRef(ref,key) {');
 const statusUpdateEnd=planner.indexOf('\nfunction wpApplySchedule',statusUpdateStart);
@@ -195,6 +198,8 @@ const store = {
   json(k, d) { const v = this.get(k); if (v == null || v === '') return d; try { return JSON.parse(v); } catch (_) { return d; } },
   put(k, v) { this.set(k, JSON.stringify(v)); }
 };
+const secretEnc = s => globalThis.__failSecret ? '' : 'ss1:' + String(s);
+const secretDec = s => String(s).startsWith('ss1:') ? String(s).slice(4) : '';
 const S = __state;
 const RENDER = {}, AFTER = {}, ACT = {}, SEG = {};
 const OV = { stack: [] };
@@ -248,7 +253,7 @@ const state = {
   taskMigrationPreviewShown: false
 };
 const data = new Map();
-const context = { __state: state, __data: data, __denyBackup: false, __failNextStoreKey: '', __window: { crypto: webcrypto, addEventListener() {}, removeEventListener() {} }, __reducedMotion: false, crypto: webcrypto, TextEncoder, TextDecoder, btoa, atob, console, setTimeout, clearTimeout, innerWidth: 1280, innerHeight: 800 };
+const context = { __state: state, __data: data, __denyBackup: false, __failNextStoreKey: '', __failSecret: false, __window: { crypto: webcrypto, addEventListener() {}, removeEventListener() {} }, __reducedMotion: false, crypto: webcrypto, TextEncoder, TextDecoder, btoa, atob, console, setTimeout, clearTimeout, innerWidth: 1280, innerHeight: 800 };
 vm.runInNewContext(harness + '\n' + domSelectSource + '\n' + planner + `
 globalThis.__api = {
   schema: WP_SCHEMA, WP, S, store, saveNowCount:()=>__saveNowCount, ensureBoardCount:()=>__ensureBoardCount, actions: ACT, render: RENDER, after: AFTER,
@@ -258,7 +263,7 @@ globalThis.__api = {
   wpDeadlineText, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpStatusKeyForName, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
-  wpNormalizeBoard, wpMigrateTaskStores, wpFinalizeTaskMigration,
+  wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpSetStatusRef, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson, wpBoardPersonIndexById, wpDeleteTaskContact, wpContactIdUsedAnywhere,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects, wpMergeImportedTaskData, wpApplyImportedTaskData,
   wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
@@ -733,12 +738,13 @@ state.board={id:'persist-test',taskSchemaVersion:api.schema,tasks:[{id:'date-per
 state.boards=[state.board]; state.boardsMeta={retained:true}; state.boardId='persist-test'; state.taskMigrationPendingKeys=[];
 assert.strictEqual(api.wpPersistBoard(),true,'task-board persistence verifies both board records');
 assert.strictEqual(api.saveNowCount(),saveCountBefore,'saving a task board does not serialize unrelated application state');
-assert.strictEqual(JSON.parse(api.store.get('shelter:board')).id,'persist-test');
-assert.strictEqual(JSON.parse(api.store.get('shelter:boards')).retained,true);
+assert.strictEqual(JSON.parse(api.wpStoreDecrypt(api.store.get('shelter:board'))).id,'persist-test');
+assert.strictEqual(JSON.parse(api.wpStoreDecrypt(api.store.get('shelter:boards'))).retained,true);
+assert(api.store.get('shelter:board').startsWith('ss1:'), 'persisted boards are encrypted at rest');
 const dateRef={id:'date-persist',entityType:'task'}, dateCommitOptions={refresh:false,captureState:()=>api.wpCaptureTaskEntities(dateRef),restoreState:api.wpRestoreTaskEntities};
 assert.strictEqual(api.wpCommit('Дата перенесена',()=>api.wpApplySchedule(dateRef,'2026-10-25'),dateCommitOptions),true,'date edits persist through the targeted task snapshot path');
 assert.strictEqual(state.board.tasks[0].scheduledDate,'2026-10-25');
-assert.strictEqual(JSON.parse(api.store.get('shelter:board')).tasks[0].scheduledDate,'2026-10-25');
+assert.strictEqual(JSON.parse(api.wpStoreDecrypt(api.store.get('shelter:board'))).tasks[0].scheduledDate,'2026-10-25');
 assert.strictEqual(api.saveNowCount(),saveCountBefore,'a date edit does not invoke the global application serializer');
 const storedBoardBeforeFailedDate=api.store.get('shelter:board'),storedBoardsBeforeFailedDate=api.store.get('shelter:boards');
 context.__failNextStoreKey='shelter:boards';
@@ -1075,7 +1081,8 @@ assert.strictEqual(data.get('shelter:board'), rawBoard, 'migration preview must 
 assert.strictEqual(data.get('shelter:boards'), rawRegistry, 'migration preview must not overwrite the source registry');
 const backupKey = data.get('shelter:planner:migration-backup:latest');
 assert(backupKey, 'a verified migration backup index must be written');
-const backup = JSON.parse(data.get(backupKey));
+assert(data.get(backupKey).startsWith('ss1:'), 'migration backups are encrypted at rest');
+const backup = JSON.parse(api.wpStoreDecrypt(data.get(backupKey)));
 assert.strictEqual(backup.kind, 'SHELTER_PLANNER_MIGRATION_BACKUP');
 assert.strictEqual(backup.raw['shelter:board'], rawBoard);
 assert.strictEqual(backup.raw['shelter:boards'], rawRegistry);
@@ -1106,8 +1113,8 @@ assert.strictEqual(state.board.taskSchemaVersion, 7);
 assert.strictEqual(api.wpFinalizeTaskMigration(), true);
 assert.strictEqual(state.taskMigrationOK, true);
 assert.strictEqual(state.taskMigrationPending, false);
-assert.strictEqual(JSON.parse(data.get('shelter:board')).taskSchemaVersion, 7);
-assert.strictEqual(JSON.parse(data.get('shelter:boards')).customRegistryField, 'preserve');
+assert.strictEqual(JSON.parse(api.wpStoreDecrypt(data.get('shelter:board'))).taskSchemaVersion, 7);
+assert.strictEqual(JSON.parse(api.wpStoreDecrypt(data.get('shelter:boards'))).customRegistryField, 'preserve');
 assert.strictEqual(data.has('shelter:eisenTasks'), false, 'legacy standalone matrix data is removed only after verified v7 persistence');
 assert(data.has(backupKey), 'the original migration backup remains available after migration');
 
@@ -1147,7 +1154,7 @@ const migratedV6Override = state.board.occurrences.find(occurrence => occurrence
 assert.strictEqual(migratedV6Override.overrides.deadlineAt, '2026-10-13');
 assert(!Object.prototype.hasOwnProperty.call(migratedV6Override.overrides, 'scheduledEndDate'));
 assert.strictEqual(api.wpFinalizeTaskMigration(), true);
-const savedV7Board = JSON.parse(data.get('shelter:board'));
+const savedV7Board = JSON.parse(api.wpStoreDecrypt(data.get('shelter:board')));
 assert.strictEqual(savedV7Board.taskSchemaVersion, 7);
 assert(!Object.prototype.hasOwnProperty.call(savedV7Board.tasks[0], 'scheduledEndDate'));
 
@@ -1173,6 +1180,37 @@ Object.assign(state, { board: null, boards: null, boardId: '', taskMigrationOK: 
 assert.strictEqual(api.wpMigrateTaskStores(null), false);
 assert.strictEqual(state.taskMigrationOK, false);
 assert.strictEqual(data.get('shelter:board'), corrupt);
+
+// Encrypted task storage: ciphertext fixtures migrate transparently, writes stay encrypted, crypto failures never overwrite data.
+assert.strictEqual(api.wpStoreParse(null).value, null);
+assert.strictEqual(api.wpStoreParse('').value, null);
+assert.strictEqual(api.wpStoreParse('{"a":1}').value.a, 1, 'legacy plaintext stores keep parsing');
+assert.strictEqual(api.wpStoreParse('ss1:{"a":1}').value.a, 1, 'ss1: blobs decrypt before parsing');
+assert.strictEqual(api.wpStoreParse('{broken').ok, false);
+assert.strictEqual(api.wpStoreParse('{broken').reason, 'shape');
+assert.strictEqual(api.wpStoreParse('ss1:{broken').ok, false);
+data.clear();
+data.set('shelter:board', api.wpStoreEncrypt(rawBoard));
+data.set('shelter:boards', api.wpStoreEncrypt(rawRegistry));
+Object.assign(state, {
+  board: JSON.parse(rawBoard), boards: [JSON.parse(rawBoard)], boardsMeta: {}, boardId: 'board-1',
+  taskMigrationOK: true, taskMigrationPending: false, taskMigrationError: '',
+  taskMigrationPendingKeys: [], taskMigrationBackupKey: '', taskMigrationOriginalRaw: null
+});
+assert.strictEqual(api.wpMigrateTaskStores(registry), true, 'an encrypted store migrates like a plaintext one');
+assert.strictEqual(api.wpFinalizeTaskMigration(), true);
+assert(data.get('shelter:board').startsWith('ss1:'), 'finalized boards are encrypted at rest');
+assert.strictEqual(JSON.parse(api.wpStoreDecrypt(data.get('shelter:board'))).taskSchemaVersion, 7);
+context.__failSecret = true;
+assert.strictEqual(api.wpStoreEncrypt('{}'), '', 'a crypto failure yields no ciphertext');
+data.set('shelter:board', rawBoard);
+data.set('shelter:boards', rawRegistry);
+Object.assign(state, { board: JSON.parse(rawBoard), boards: [JSON.parse(rawBoard)], boardId: 'board-1', taskMigrationOK: true, taskMigrationPending: false, taskMigrationError: '', taskMigrationPendingKeys: [] });
+assert.strictEqual(api.wpMigrateTaskStores(registry), false, 'migration refuses to run when the backup cannot be encrypted');
+assert.strictEqual(data.get('shelter:board'), rawBoard);
+assert.strictEqual(api.wpPersistBoard(), false, 'commits fail closed when encryption is unavailable');
+assert.strictEqual(data.get('shelter:board'), rawBoard);
+context.__failSecret = false;
 
 assert.strictEqual(typeof api.render.tasks, 'function');
 assert.strictEqual(typeof api.actions.taskEdit, 'function');

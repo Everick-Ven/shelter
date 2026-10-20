@@ -262,7 +262,7 @@ globalThis.__api = {
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpDeadlineOverdue, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
-  wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpMoveBoardStatusTo, wpStatusColor, wpValidStatusColor, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
+  wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpMoveBoardStatusTo, wpStatusColor, wpValidStatusColor, wpDefaultStatusColor, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpSetStatusRef, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson, wpBoardPersonIndexById, wpDeleteTaskContact, wpContactIdUsedAnywhere,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects, wpMergeImportedTaskData, wpApplyImportedTaskData,
@@ -587,12 +587,12 @@ const probeMarkup = api.wpBoardView();
 assert.strictEqual((probeMarkup.match(/wp-board-column/g) || []).length, 5, 'a dictionary status always adds a board lane');
 assert(probeMarkup.includes('--wp-lanes:5'), 'board lanes share one row sized by the live status count');
 assert(probeMarkup.includes('<b>Новый</b>'), 'a custom status lane carries its dictionary name');
-assert.strictEqual((probeMarkup.match(/<header>/g) || []).length, 5, 'every lane carries its own header with name and count');
+assert.strictEqual((probeMarkup.match(/<header[\s>]/g) || []).length, 5, 'every lane carries its own header with name and count');
 assert(!probeMarkup.includes('wp-board-summary'), 'no KPI strip duplicates the lane headers');
 state.board = keepBoard; state.boards = keepBoards; state.boardId = keepId;
 api.WP.allFilter = keepAllFilter; api.WP.boardShowCompleted = keepShow; api.WP.boardFocus = keepFocus;
 assert(html.includes('width: 520, onClose: () => tasksRerender(true), html:'), 'closing the dictionaries modal always re-renders the board, even via Escape or backdrop click');
-assert(planner.includes("is-all-day${layout.segments.length?' has-spans':''}") && plannerStyle[1].includes('.wp-week-grid.has-spans .wp-day-items{margin-top:3px}'), 'span weeks keep a span-like gap between multi-day rows and capsules');
+assert(planner.includes("is-all-day${layout.segments.length?' has-spans':''}") && plannerStyle[1].includes('.wp-week-grid.has-spans .wp-day-items{margin-top:6px}'), 'span weeks keep the uniform 6px gap between multi-day rows and capsules');
 assert(api.WP.calendarShowCompleted, 'the board toolbar keeps the completed calendar filter untouched');
 api.actions.wpBoardFocus({dataset:{filter:'urgent'}});
 assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id).sort(),['board-other','board-urgent'],'Urgent means high or critical priority on the board');
@@ -916,7 +916,7 @@ api.WP.boardMoveColumns = false;
 const calmMarkup = api.wpBoardView();
 assert(!calmMarkup.includes('wpBoardColMove'), 'move buttons disappear outside move mode');
 assert(!calmMarkup.includes('data-lane="') && !calmMarkup.includes('wp-lanes-hint'), 'lanes stop dragging outside move mode');
-assert.strictEqual((calmMarkup.match(/<header>/g) || []).length, 3, 'every lane keeps its header outside move mode');
+assert.strictEqual((calmMarkup.match(/<header[\s>]/g) || []).length, 3, 'every lane keeps its header outside move mode');
 state.board.statuses = moveStatusesBefore; state.board.tasks = moveTasksBefore; state.board.occurrences = moveOccBefore2;
 api.WP.query = moveQueryBefore; api.WP.boardFocus = moveFocusBefore; api.WP.boardShowCompleted = moveShowBefore; api.WP.boardMineOnly = moveMineBefore;
 api.WP.boardHomeFilter = moveHomeBefore; api.WP.boardAssigneeFilter = moveAssigneeBefore; api.WP.boardTagFilter = moveTagBefore; api.WP.boardMoveColumns = moveModeBefore;
@@ -943,7 +943,7 @@ assert.strictEqual('color' in madePlain, false, 'statuses without a color stay c
 const colorStatusesBefore = state.board.statuses;
 state.board.statuses = [{ key: 'open', name: 'В работе' }, { key: 'st-c', name: 'Своя', color: '#445566' }, { key: 'done', name: 'Готово' }];
 assert.strictEqual(api.wpStatusColor('st-c'), '#445566');
-assert.strictEqual(api.wpStatusColor('open'), '');
+assert.strictEqual(api.wpStatusColor('open'), '#3b82f6', 'lanes without a custom color fall back to the preset');
 assert.strictEqual(api.wpStatusColor('missing'), '');
 state.board.statuses = colorStatusesBefore;
 assert(api.wpBoardLaneHeader('st-c', 'Своя', 2, false, 0, 3, '#445566').includes('<header class="has-lane-color" style="--lane:#445566"><div><i class="wp-lane-dot"'), 'colored lanes render a dot and a tinted header');
@@ -967,6 +967,21 @@ assert.strictEqual(state.board.statuses[state.board.statuses.length - 1].key, 'b
 state.board.statuses = toStatusesBefore;
 assert(planner.includes("data-lane=\"${esc(status)}\"") && planner.includes('application/x-shelter-lane') && planner.includes('wpMoveBoardStatusTo(key,to)'), 'lanes drag by header and persist through the shared mover');
 assert(html.includes('wp-lanes-hint'), 'move mode explains itself with a hint bar');
+
+// Structural statuses ship CRM-standard lane colors; clearing a custom color restores the preset.
+assert.strictEqual(api.wpDefaultStatusColor('open'), '#3b82f6');
+assert.strictEqual(api.wpDefaultStatusColor('waiting'), '#f59e0b');
+assert.strictEqual(api.wpDefaultStatusColor('done'), '#22c55e');
+assert.strictEqual(api.wpDefaultStatusColor('cancelled'), '#9ca3af');
+assert.strictEqual(api.wpDefaultStatusColor('overdue'), '#ef4444');
+assert.strictEqual(api.wpDefaultStatusColor('st-custom'), '');
+const presetStatusesBefore = state.board.statuses;
+state.board.statuses = [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают', color: 'red' }, { key: 'st-x', name: 'Своя', color: 'not-a-color' }, { key: 'done', name: 'Готово' }];
+assert.strictEqual(api.wpStatusColor('open'), '#3b82f6', 'lanes without a custom color use the preset');
+assert.strictEqual(api.wpStatusColor('waiting'), '#f59e0b', 'invalid custom colors fall back to the preset');
+assert.strictEqual(api.wpStatusColor('st-x'), '', 'custom lanes without presets stay clean');
+state.board.statuses = presetStatusesBefore;
+assert(planner.includes('laneCount*20+(laneCount-1)*6'), 'the span spacer reserves the uniform 6px rhythm');
 
 api.WP.monthStart = '2026-10-01'; api.WP.mobileDate = '2026-10-01'; api.WP.calendarMode = 'month';
 const monthView = api.wpViewHtml();

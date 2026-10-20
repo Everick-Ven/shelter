@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-Zno7XNuv3Y9VBOJNqCPrvLSOMp+6ck2DY3tGCbPE0PA=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-EYfLYsS4b3finWmd5uMCwEk+hT7PXZSvcCJW84+YxWY=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -3958,6 +3958,10 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-board-task .wp-task-meta{gap:5px 8px;margin-top:6px;font-size:11.5px}
 .wp-board-task .wp-task-meta .i{width:11px;height:11px}
 .wp-board-task>.wp-icon-btn{width:26px;height:26px}
+.wp-board-task .wp-task-meta>span{max-width:100%;min-width:0;overflow:hidden;overflow-wrap:anywhere}
+.wp-board-task .wp-task-meta .wp-deadline{flex:0 1 auto;min-width:0;white-space:normal}
+.wp-board-task .wp-task-meta .wp-repeat{white-space:normal}
+.wp-board-task .wp-chip,.wp-board-task .wp-tag{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wp-board-task-status{display:flex;align-items:center;gap:6px;margin-top:9px}
 .wp-board-task-status label{display:block;min-width:0;max-width:100%}
 .wp-board-task-status .select{width:auto;min-width:min(115px,100%);max-width:100%;height:27px;padding:0 24px 0 8px;border:1px solid var(--line);border-radius:calc(8px*var(--rs));background:var(--card-2);color:var(--text-2);font-size:12px}
@@ -4229,7 +4233,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 @media(prefers-reduced-motion:reduce){.wp-title-marquee-clip.is-title-overflowing:hover>.wp-title-marquee-text,.wp-title-marquee-clip.is-title-overflowing:focus-visible>.wp-title-marquee-text{width:100%;max-width:100%;overflow:hidden;text-overflow:ellipsis;animation:none;transform:none;will-change:auto}}
 
 /* Multi-day tasks stay as date-only rows spanning their deadline range; tint follows urgency. */
-.wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(var(--wp-span-lanes),20px);column-gap:10px;row-gap:3px;pointer-events:none;z-index:3}
+.wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(var(--wp-span-lanes),20px);column-gap:10px;row-gap:6px;pointer-events:none;z-index:3}
 .wp-calendar-span{display:flex;align-items:center;gap:8px;min-width:0;min-height:20px;padding:1px 8px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:99px;background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.15 var(--font);text-align:left;white-space:nowrap;overflow:hidden;cursor:pointer;pointer-events:auto;transition:filter .14s,box-shadow .14s,opacity .14s,transform .14s,border-color .14s}
 .wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}
 .wp-calendar-span:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:1px}
@@ -4242,7 +4246,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .wp-calendar-span.p-none{border-color:var(--line);background:var(--card-2)}
 .wp-calendar-span.is-done{opacity:1;border-color:color-mix(in srgb,rgb(var(--ok)) 42%,var(--line));background:color-mix(in srgb,rgb(var(--ok)) 14%,var(--card-2));color:rgb(var(--ok))}.wp-calendar-span.is-done>span{color:rgb(var(--ok));text-decoration:line-through}.wp-calendar-span.is-done>small{color:color-mix(in srgb,rgb(var(--ok)) 72%,var(--text-3))}
 .wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -8px;padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.35 var(--font);text-align:left;overflow:hidden;cursor:pointer;transition:filter .14s,box-shadow .14s,transform .14s,border-color .14s,background .14s}
-.wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03)}
+.wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}
 .wp-day-capsule:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:1px}
 .wp-day-capsule>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:12.5px;font-weight:600}
 .wp-day-capsule>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-2);font-size:11px;font-variant-numeric:tabular-nums}
@@ -4266,7 +4270,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .wp-week-grid.is-all-day .wp-week-days{display:contents}
 /* Calendar week mirrors the history week: separate day cards in a seven-column grid, with the multi-day span layer overlaid across the same tracks. */
 .wp-week-grid.is-all-day .wp-day-span-spacer{flex:none;height:var(--wp-day-span-space,0px)}
-.wp-week-grid.has-spans .wp-day-items{margin-top:3px}
+.wp-week-grid.has-spans .wp-day-items{margin-top:6px}
 /* Priority tint on task cards is independent from their Matrix classification. */
 .wp-task.p-critical{border-color:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 30%,var(--line));border-left:3px solid var(--wp-prio-critical,rgb(var(--danger)));background:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 11%,var(--card))}
 .wp-task.p-high{border-color:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 30%,var(--line));border-left:3px solid var(--wp-prio-high,rgb(var(--warn)));background:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 10%,var(--card))}
@@ -10390,7 +10394,7 @@ function boardCard() {
   return `<div class="set-card" style="margin-bottom:12px"><div class="set-row" style="padding:9px 12px"><div class="tx"><b>Доска: ${esc(b.name || 'Моя доска')}</b><span>Идентификатор ${esc(b.code || '—')}</span></div><button class="icon-btn" data-bcopy="1" aria-label="Копировать идентификатор">${ico('copy')}</button><button class="icon-btn" data-bren="1" aria-label="Переименовать доску">${ico('pencil')}</button></div></div>`;
 }
 /* Цветная точка статуса в настройке словарей. */
-function wpStatusColorDot(v) { const c = v && wpValidStatusColor(v.color); return c ? `<i class="wp-status-dot" style="background:${c}" aria-hidden="true"></i>` : ''; }
+function wpStatusColorDot(v) { const c = v && (wpValidStatusColor(v.color) || wpDefaultStatusColor(v.key)); return c ? `<i class="wp-status-dot" style="background:${c}" aria-hidden="true"></i>` : ''; }
 /* Чипы логики статуса в настройке словарей. */
 function wpStatusFlagChips(v) {
   const f = v && typeof v === 'object' ? v.flags : null;
@@ -10441,7 +10445,7 @@ function taskDicts() {
   let cur = 'projects';
   const label = v => typeof v === 'string' ? v : ((v && v.name) || '');
   const body = () => boardCard() + `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${D.map(d => `<button class="btn sm ${d[0] === cur ? 'primary' : 'ghost'}" data-dk="${d[0]}">${d[1]}</button>`).join('')}</div>
-    ${cur==='prios'?prioBody():`<div class="set-card">${(S.board[cur] || []).map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b>${cur === 'people' && wpPersonContactId(v) ? `<span>ID ${esc(wpPersonContactId(v))}</span>` : ''}${cur === 'statuses' && (!v || v.key !== 'done') ? wpStatusColorDot(v) : ''}${cur === 'statuses' ? wpStatusFlagChips(v) : ''}</div>${cur === 'statuses' && v && v.key === 'done' ? `<span class="chip">системное</span><span class="wp-color-row is-dot"><input type="color" data-status-color="${esc(v.key)}" value="${esc(wpStatusColor(v.key) || '#808080')}" aria-label="Цвет шапки колонки ${esc(label(v))}"><button class="icon-btn" data-screset="${esc(v.key)}" aria-label="Убрать цвет шапки" title="Убрать цвет шапки">${ico('x')}</button></span>` : (cur === 'statuses' ? false : (locked[cur] || []).includes(v)) ? '<span class="chip">системное</span>' : `${cur === 'projects' ? `<button class="icon-btn" data-inv="${i}" aria-label="Пригласить">${ico('users')}</button>` : ''}<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'}</div>
+    ${cur==='prios'?prioBody():`<div class="set-card">${(S.board[cur] || []).map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b>${cur === 'people' && wpPersonContactId(v) ? `<span>ID ${esc(wpPersonContactId(v))}</span>` : ''}${cur === 'statuses' && (!v || v.key !== 'done') ? wpStatusColorDot(v) : ''}${cur === 'statuses' ? wpStatusFlagChips(v) : ''}</div>${cur === 'statuses' && v && v.key === 'done' ? `<span class="chip">системное</span><span class="wp-color-row is-dot"><input type="color" data-status-color="${esc(v.key)}" value="${esc(wpStatusColor(v.key) || '#808080')}" aria-label="Цвет шапки колонки ${esc(label(v))}"><button class="icon-btn" data-screset="${esc(v.key)}" aria-label="Сбросить цвет шапки" title="Сбросить цвет шапки">${ico('x')}</button></span>` : (cur === 'statuses' ? false : (locked[cur] || []).includes(v)) ? '<span class="chip">системное</span>' : `${cur === 'projects' ? `<button class="icon-btn" data-inv="${i}" aria-label="Пригласить">${ico('users')}</button>` : ''}<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'}</div>
     ${cur === 'statuses'
       ? `<button class="btn" data-da="1" style="width:100%;margin-top:12px">${ico('plus')}Новый статус</button>`
       : `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${cur === 'people'
@@ -14003,6 +14007,8 @@ const WP = {
 const WP_STATUS = { open: 'В работе', waiting: 'Ожидают', done: 'Готово', cancelled: 'Отменена', overdue: 'Просрочено' };
 const WP_STATUS_KEYS = ['open', 'waiting', 'done', 'cancelled', 'overdue'];
 const WP_STATUS_BY_LABEL = { 'В работе': 'open', 'Пауза': 'waiting', 'Ожидают': 'waiting', 'Готово': 'done', 'Отменена': 'cancelled', 'Просрочено': 'overdue' };
+const WP_STATUS_COLORS = { open: '#3b82f6', waiting: '#f59e0b', done: '#22c55e', cancelled: '#9ca3af', overdue: '#ef4444' };
+function wpDefaultStatusColor(key) { return WP_STATUS_COLORS[key] || ''; }
 const wpDefaultStatuses = () => [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }, { key: 'overdue', name: 'Просрочено' }];
 function wpStatusKeyForName(name) { const n = String(name || '').trim(); if (WP_STATUS_BY_LABEL[n]) return WP_STATUS_BY_LABEL[n]; const slug = n.toLowerCase().replace(/[\s_]+/g, '-').replace(/["'<>&\\]+/g, '').replace(/^-+|-+$/g, ''); return n ? ('st-' + (slug || 'x')) : ''; }
 function wpIsOldDefaultStatuses(raw) { return Array.isArray(raw) && raw.length === 3 && raw[0] === 'В работе' && raw[1] === 'Пауза' && raw[2] === 'Готово'; }
@@ -14053,7 +14059,7 @@ const wpTaskOutdated = t => wpStatusOutdated(wpTaskStatus(t));
 const wpTaskQuiet = t => wpStatusQuiet(wpTaskStatus(t));
 const wpTaskClosed = t => wpStatusClosed(wpTaskStatus(t));
 function wpValidStatusColor(value) { const s=String(value||'').trim(); return /^#[0-9a-fA-F]{6}$/.test(s)?s:''; }
-function wpStatusColor(key, board) { const hit=wpBoardStatuses(board).find(s=>s.key===key); return hit?wpValidStatusColor(hit.color):''; }
+function wpStatusColor(key, board) { const hit=wpBoardStatuses(board).find(s=>s.key===key); return (hit && wpValidStatusColor(hit.color)) || wpDefaultStatusColor(key); }
 /* Новый статус с известным названием забирает канонический ключ (своя колонка
    сразу наполняется задачами, а не дублирует крайнюю служебную полосу);
    иначе — стабильный уникальный ключ. */
@@ -15701,7 +15707,7 @@ function wpCalendarSpanLayout(days,entities,maxLanes) {
     segment.lane=lane;
   });
   const laneCount=laneEnds.length;
-  return {segments,laneCount,space:laneCount ? laneCount*20+(laneCount-1)*3 : 0};
+  return {segments,laneCount,space:laneCount ? laneCount*20+(laneCount-1)*6 : 0};
 }
 function wpCalendarSpanEvent(segment,mode) {
   const task=segment.task, status=wpTaskStatus(task), priority=wpPriority(task), title=task.title||'Без названия';

@@ -186,7 +186,16 @@ check('капсулы дня раскрыты на всю ширину стол�
   plannerStyle.includes('.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -8px;') &&
   plannerStyle.includes('padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));') &&
   plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin-left:-9px;margin-right:-9px}') &&
-  plannerStyle.includes('.wp-week-grid.has-spans .wp-day-items{margin-top:3px}'));
+  plannerStyle.includes('.wp-week-grid.has-spans .wp-day-items{margin-top:6px}'));
+check('задачи недели держат единый ритм: зазоры 6px и одинаковый ховер у рядов и капсул',
+  plannerStyle.includes('.wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(var(--wp-span-lanes),20px);column-gap:10px;row-gap:6px;') &&
+  plannerStyle.includes('.wp-day-items{display:flex;flex:1;flex-direction:column;gap:6px;') &&
+  plannerStyle.includes('.wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}') &&
+  plannerStyle.includes('.wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}'));
+check('карточки доски не рвут верстку в узких колонках: мета переносится, чипы режутся многоточием',
+  plannerStyle.includes('.wp-board-task .wp-task-meta>span{max-width:100%;min-width:0;overflow:hidden;overflow-wrap:anywhere}') &&
+  plannerStyle.includes('.wp-board-task .wp-task-meta .wp-deadline{flex:0 1 auto;min-width:0;white-space:normal}') &&
+  plannerStyle.includes('.wp-board-task .wp-chip,.wp-board-task .wp-tag{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'));
 check('месячная сетка задач повторяет компактные метрики «Истории», без слоя диапазонов — только точки',
   plannerStyle.includes('min-height:84px;aspect-ratio:1.22;') &&
   !plannerStyle.includes('.wp-month-day{height:150px;') &&

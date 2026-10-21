@@ -261,7 +261,7 @@ globalThis.__api = {
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
-  wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate, wpCalendarScopeOptions, wpCalendarScopeSelect, wpSetCalendarScope, wpFilterByHome, wpHomeFilterOptions, wpWeekSummary,
+  wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate, wpCalendarScopeOptions, wpCalendarScopeSelect, wpSetCalendarScope, wpFilterByHome, wpHomeFilterOptions, wpWeekSummary, wpTaskCardModalHtml, wpOpenTaskCard,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpBoardScope, wpBoardCategoryMode, wpBoardCategoryColumns, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpMoveBoardStatusTo, wpStatusColor, wpValidStatusColor, wpStatusSwatches, wpStatusSwatchesHtml, wpIsSystemStatus, WP_SYSTEM_STATUS_KEYS, WP_STATUS_SWATCHES, WP_STATUS_SWATCHES_DEFAULT, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpScopeOf, wpStatusesFor, wpStatusArrayForScope, wpEnsureProjectStatuses, wpRemapStatusKey, wpStatusCategory, wpSetTaskHome, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpSetStatusRef, wpSetTaskStatus, wpRequestStatusChange, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson, wpBoardPersonIndexById, wpDeleteTaskContact, wpContactIdUsedAnywhere,
@@ -921,7 +921,7 @@ state.board.statuses = moveStatusesBefore; state.board.tasks = moveTasksBefore; 
 api.WP.query = moveQueryBefore; api.WP.boardFocus = moveFocusBefore; api.WP.boardShowCompleted = moveShowBefore; api.WP.boardMineOnly = moveMineBefore;
 api.WP.boardHomeFilter = moveHomeBefore; api.WP.boardAssigneeFilter = moveAssigneeBefore; api.WP.boardTagFilter = moveTagBefore; api.WP.boardMoveColumns = moveModeBefore;
 const dayCapsule = api.wpDayCapsule({ id: 'cap-1', title: 'Капсула', homeType: 'personal', statusKey: 'open', priorityKey: 'high', deadlineAt: '2026-10-15', tags: [] });
-assert(dayCapsule.includes('wp-day-capsule p-high') && dayCapsule.includes('data-task-id="cap-1"') && dayCapsule.includes('data-act="taskEdit"'), 'single-day tasks render as rich capsules that open the editor');
+assert(dayCapsule.includes('wp-day-capsule p-high') && dayCapsule.includes('data-task-id="cap-1"') && dayCapsule.includes('data-act="taskOpen"'), 'single-day tasks render as rich capsules that open the read-only card');
 const dayCapsuleMeta = api.wpDayCapsule({ id: 'cap-2', title: 'Мета', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', assignee: 'Владимир', deadlineAt: '2026-10-20', tags: [] });
 assert(dayCapsuleMeta.includes('<small class="wp-cap-top">Личные · Обычный</small>'), 'day capsules lead with the home list and priority');
 assert(dayCapsuleMeta.includes('<span>Мета</span>'), 'day capsules keep the title on its own line');
@@ -1144,6 +1144,36 @@ assert(stageBMonthSummary.includes('data-wp-calendar-filter="scope"'), 'the mont
 state.board = stageBBoardBefore; state.boards = stageBBoardsBefore; state.boardId = stageBIdBefore;
 api.WP.calendarScope = stageBWPBefore; api.WP._calendarScopeRestored = stageBRestoredBefore;
 if (stageBUiBefore === undefined) delete state.ui.plannerCalendarScope; else state.ui.plannerCalendarScope = stageBUiBefore;
+
+// Stage C: clicking a task opens a read-only card modal instead of the editor.
+const stageCBoardBefore = state.board, stageCBoardsBefore = state.boards, stageCIdBefore = state.boardId;
+const stageCBoard = api.wpNormalizeBoard({
+  id: 'stage-c', name: 'Stage C', code: 'STAGE-C', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }],
+  tasks: [
+    { id: 'card-task', title: 'Прочитать <b>документ</b>', homeType: 'personal', statusKey: 'waiting', priorityKey: 'high', assignee: 'me', scheduledDate: '2026-10-13', deadlineAt: '2026-10-20', description: 'Строка <script>alert(1)</script>', tags: ['чтение'], waitingReason: 'Жду <ответа>', durationEstimateMinutes: 90, order: 1 },
+    { id: 'card-sub', title: 'Подзадача', homeType: 'personal', statusKey: 'done', priorityKey: 'normal', parentTaskId: 'card-task', order: 2 }
+  ]
+});
+state.board = stageCBoard; state.boards = [stageCBoard]; state.boardId = 'stage-c';
+const stageCCardTask = state.board.tasks.find(task => task.id === 'card-task');
+assert.strictEqual(typeof api.actions.taskOpen, 'function', 'task clicks route through the card modal action');
+assert(planner.includes('taskOpen:el=>wpOpenTaskCard(wpRefFromElement(el))'), 'the card modal opens from the clicked element reference');
+assert.strictEqual((planner.match(/data-act="taskOpen"/g) || []).length, 3, 'card titles, calendar spans, and day capsules open the read-only card');
+assert(planner.includes('data-act="taskEdit" data-open-comments="1"'), 'the explicit comments shortcut still opens the editor');
+const stageCCard = api.wpTaskCard({ ...stageCCardTask, entityType: 'task', taskId: 'card-task' }, { compact: true });
+assert(stageCCard.includes('data-act="taskOpen"'), 'task cards open the read-only card on title click');
+const stageCModal = api.wpTaskCardModalHtml({ ...stageCCardTask, entityType: 'task', taskId: 'card-task' });
+assert(!stageCModal.includes('<script>') && planner.includes('<h3>${esc(title)}</h3>'), 'the modal escapes the title in its header');
+assert(stageCModal.includes('Ожидают') && stageCModal.includes('Жду &lt;ответа&gt;'), 'the modal shows the scoped status and the waiting reason');
+assert(stageCModal.includes('&lt;script&gt;alert(1)&lt;/script&gt;'), 'user text in the modal is escaped');
+assert(stageCModal.includes('#чтение') && stageCModal.includes('Подзадачи') && stageCModal.includes('Подзадача'), 'the modal lists tags and subtasks');
+assert(!/<select|<textarea|<input/.test(stageCModal), 'the card modal is read-only: no form controls');
+assert(planner.includes('data-wp-card="edit"') && planner.includes('closeModal(m); wpOpenEditor(ref);'), 'the modal offers an explicit edit entry into the editor');
+const stageCOccurrenceModal = api.wpTaskCardModalHtml({ ...stageCCardTask, entityType: 'occurrence', occurrenceId: 'card-task::2026-10-13', seriesTaskId: 'card-task', originalDate: '2026-10-13', taskId: 'card-task' });
+assert(stageCOccurrenceModal.includes('Экземпляр от'), 'occurrence cards name their instance date');
+state.board = stageCBoardBefore; state.boards = stageCBoardsBefore; state.boardId = stageCIdBefore;
 assert(planner.includes('laneCount*20+(laneCount-1)*6'), 'the span spacer reserves the uniform 6px rhythm');
 
 // Overdue is clock-driven: date-only lapses at midnight, timed lapses at the minute.

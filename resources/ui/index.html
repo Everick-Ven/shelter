@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-lMYiYCYloSubEfeJvn9e7kCW0AIYO+a7hbh2FjANRtU=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-UQmUaPzzvYfynX2pRXl5cGn+IB7B1TMhbHfdabEiLyE=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4233,6 +4233,16 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .wp-comment-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px}
 .wp-comment-footer small{color:var(--text-2);font-size:11.5px;line-height:1.4}
 .wp-comment-footer .btn{white-space:nowrap}
+.wp-card-modal>h4{margin:12px 0 6px;color:var(--text);font-size:12.5px;font-weight:650}
+.wp-card-rows{display:flex;flex-direction:column;gap:5px;margin:0}
+.wp-card-rows>div{display:flex;gap:10px;align-items:baseline}
+.wp-card-rows dt{flex:0 0 130px;margin:0;color:var(--text-2);font-size:12.5px}
+.wp-card-rows dd{margin:0;color:var(--text);font-size:13px;overflow-wrap:anywhere}
+.wp-card-desc{margin:0;color:var(--text);font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.wp-card-subs{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+.wp-card-subs>li{display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px}
+.wp-card-subs>li.is-done{color:var(--text-2);text-decoration:line-through}
+.wp-card-modal .wp-deadline.overdue{color:#e11d48;font-weight:650}
 .wp-task-meta .wp-deadline{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:.01em}
 @keyframes wpTaskTitleMarquee{0%,12%{transform:translateX(0)}88%,100%{transform:translateX(var(--wp-title-shift,0px))}}
 @media(prefers-reduced-motion:reduce){.wp-title-marquee-clip.is-title-overflowing:hover>.wp-title-marquee-text,.wp-title-marquee-clip.is-title-overflowing:focus-visible>.wp-title-marquee-text{width:100%;max-width:100%;overflow:hidden;text-overflow:ellipsis;animation:none;transform:none;will-change:auto}}
@@ -15743,6 +15753,49 @@ function wpSubtaskSummary(taskId) {
   const done=items.filter(t=>wpTaskDone(t)).length;
   return `${done}/${items.length} подзадач`;
 }
+/* Read-only карточка задачи: клик по задаче открывает просмотр, а не редактор. */
+function wpTaskCardModalHtml(ent) {
+  const task=wpIsObj(ent)?ent:{}, status=wpTaskStatus(task);
+  const isOccurrence=task.entityType==='occurrence';
+  const srcId=isOccurrence?task.seriesTaskId:(task.taskId||task.id);
+  const srcTask=(S.board.tasks||[]).find(t=>t&&t.id===srcId)||task;
+  const prio=wpPriority(task), prioLabel=WP_PRIORITY_RU[prio]||'Обычный', assignee=wpAssigneeLabel(task);
+  const homeType=wpTaskHomeType(task), homeLabel=wpHomeLabel(task);
+  const deadline=wpDeadlineText(task), overdue=wpDeadlineOverdue(task);
+  const ruleLabel=isOccurrence?`Экземпляр от ${wpFmtDate(task.originalDate)}`:wpRuleDescription(task);
+  const rows=[
+    ['Статус',`<span class="wp-chip ${status==='waiting'?'waiting':wpStatusDone(status,task)?'done':wpStatusOutdated(status,task)?'cancelled':'custom'}">${esc(wpStatusLabel(status,task))}</span>`],
+    [homeType==='project'?'Проект':'Список',esc(homeLabel||(homeType==='project'?'Проект':homeType==='inbox'?'Входящие':'Личные'))],
+    ['Исполнитель',esc(assignee||'Не назначено')],
+    ['Приоритет',esc(prioLabel)],
+  ];
+  if(task.scheduledDate) rows.push(['Начало',esc(wpFmtDate(task.scheduledDate,true))]);
+  if(deadline) rows.push(['Крайний срок',`<span class="${overdue?'wp-deadline overdue':''}">${esc(deadline)}</span>`]);
+  if(ruleLabel) rows.push(['Повторение',esc(ruleLabel)]);
+  if(task.durationEstimateMinutes) rows.push(['Оценка',esc(fmtDur(task.durationEstimateMinutes))]);
+  if(status==='waiting'&&task.waitingReason) rows.push(['Причина ожидания',esc(task.waitingReason)]);
+  const tags=Array.isArray(task.tags)?task.tags.filter(Boolean):[];
+  if(tags.length) rows.push(['Теги',tags.map(x=>`<span class="wp-tag">#${esc(x)}</span>`).join(' ')]);
+  const subs=wpSubtasks(srcId).map(s=>`<li class="${wpTaskDone(s)?'is-done':''}">${ico(wpTaskDone(s)?'check':'circle-dot')}<span>${esc(s.title||'Без названия')}</span></li>`).join('');
+  const comments=wpCanCommentTask(task)?wpTaskCommentList(task).map(c=>`<article class="wp-comment-item"><header><b>${esc(c.author||'Участник')}</b><time datetime="${esc(c.createdAt||'')}">${esc(wpCommentTimestamp(c.createdAt))}</time></header><p>${esc(c.body)}</p></article>`).join(''):null;
+  return `<div class="wp-card-modal">
+    <dl class="wp-card-rows">${rows.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join('')}</dl>
+    ${task.description?`<h4>Описание</h4><p class="wp-card-desc">${esc(task.description)}</p>`:''}
+    ${subs?`<h4>Подзадачи</h4><ul class="wp-card-subs">${subs}</ul>`:''}
+    ${comments!==null?`<h4>Комментарии</h4><div class="wp-comment-list">${comments||'<p class="wp-comment-empty">Пока нет комментариев.</p>'}</div>`:''}
+  </div>`;
+}
+function wpOpenTaskCard(ref) {
+  const ent=wpFindEntity(ref); if(!ent) return;
+  const title=ent.title||'Без названия';
+  const m=openModal({width:560,html:`<div class="modal-h"><div class="mi-ic">${ico('tasks')}</div><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-wp-card="close" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b">${wpTaskCardModalHtml(ent)}</div><div class="modal-f"><button type="button" class="btn ghost" data-wp-card="close">Закрыть</button><button type="button" class="btn primary" data-wp-card="edit">${ico('pencil')}Изменить</button></div>`});
+  const root=m.scrim;
+  root.addEventListener('click',e=>{
+    const b=e.target.closest('[data-wp-card]'); if(!b) return;
+    if(b.dataset.wpCard==='edit') { closeModal(m); wpOpenEditor(ref); return; }
+    closeModal(m);
+  });
+}
 function wpTaskCard(task, opts={}) {
   const status=wpTaskStatus(task), done=wpStatusDone(status,task), overdue=(wpDeadlineOverdue(task) || status==='overdue');
   const id=String(task.id||''), entityType=task.entityType || 'task';
@@ -15766,7 +15819,7 @@ function wpTaskCard(task, opts={}) {
   return `<article class="wp-task p-${esc(prio)} ${opts.board?'wp-board-task':''} ${done?'is-done':''} ${wpStatusOutdated(status,task)?'is-cancelled':''} ${overdue?'is-overdue':''} ${entityType==='occurrence'?'is-occurrence':''}" ${dataAttrs} data-task-id="${esc(task.taskId||task.id)}"${drag}>
     ${parentSeries?`<span class="wp-series-mark" aria-label="Серия повторяющейся задачи">${ico('ref')}</span>`:`<button type="button" class="wp-check ${done?'on':''}" data-act="taskToggle" ${dataAttrs} aria-label="${done||wpStatusOutdated(status,task)?'Вернуть задачу в работу':'Отметить выполненной'}">${ico('check')}</button>`}
     <div class="wp-task-copy">
-      <button type="button" class="wp-task-title wp-title-marquee-clip" data-act="taskEdit" ${dataAttrs} aria-label="${esc(task.title || 'Без названия')}"><span class="wp-title-marquee-text">${esc(task.title || 'Без названия')}</span></button>
+      <button type="button" class="wp-task-title wp-title-marquee-clip" data-act="taskOpen" ${dataAttrs} aria-label="${esc(task.title || 'Без названия')}"><span class="wp-title-marquee-text">${esc(task.title || 'Без названия')}</span></button>
       <div class="wp-task-meta">
         ${statusChip}
         ${showHome ? `<span class="wp-chip home" aria-label="${wpTaskHomeType(task)==='project'?'Проект':'Список'}: ${esc(homeLabel)}" title="${esc(homeLabel)}">${ico(wpTaskHomeType(task)==='project'?'folder':wpTaskHomeType(task)==='inbox'?'inbox':'user')}<span class="wp-home-label">${esc(homeLabel)}</span></span>` : ''}
@@ -15960,7 +16013,7 @@ function wpCalendarSpanEvent(segment,mode) {
   const aria=`${title} · ${fullRange}${wpStatusDone(status,task)?' · Статус: выполнена':''} · Приоритет: ${priorityLabel}`;
   const classes=['wp-calendar-span',`wp-calendar-span--${mode}`,`p-${priority}`,wpStatusDone(status,task)?'is-done':'',status==='waiting'?'is-waiting':'',segment.continuesBefore?'continues-before':'',segment.continuesAfter?'continues-after':''].filter(Boolean).join(' ');
   const style=`grid-column:${segment.startColumn+1}/${segment.endColumn+2};grid-row:${segment.lane+1}`;
-  return `<button type="button" class="${classes}" data-act="taskEdit" ${wpEntityDataAttrs(task)} draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}" style="${style}"><span>${esc(title)}</span><small>${esc(range)}</small></button>`;
+  return `<button type="button" class="${classes}" data-act="taskOpen" ${wpEntityDataAttrs(task)} draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}" style="${style}"><span>${esc(title)}</span><small>${esc(range)}</small></button>`;
 }
 function wpWeekCalendar(days,entities) {
   const layout=wpCalendarSpanLayout(days,entities);
@@ -15976,7 +16029,7 @@ function wpDayCapsule(task) {
   const bottom=[wpStatusLabel(status,task),tags].filter(Boolean).join(' · ');
   const aria=`${title} · ${top} · ${mid} · ${bottom}${done?' · Статус: выполнена':''}`;
   const classes=['wp-day-capsule',`p-${prio}`,done?'is-done':'',status==='waiting'?'is-waiting':'',overdue?'is-overdue':'',wpStatusOutdated(status,task)?'is-cancelled':''].filter(Boolean).join(' ');
-  return `<button type="button" class="${classes}" data-act="taskEdit" ${wpEntityDataAttrs(task)} data-task-id="${esc(task.taskId||task.id)}" draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}"><small class="wp-cap-top">${esc(top)}</small><span>${esc(title)}</span><small class="wp-cap-mid">${esc(mid)}</small><small class="wp-cap-bot">${esc(bottom)}</small></button>`;
+  return `<button type="button" class="${classes}" data-act="taskOpen" ${wpEntityDataAttrs(task)} data-task-id="${esc(task.taskId||task.id)}" draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}"><small class="wp-cap-top">${esc(top)}</small><span>${esc(title)}</span><small class="wp-cap-mid">${esc(mid)}</small><small class="wp-cap-bot">${esc(bottom)}</small></button>`;
 }
 function wpDayColumn(date,entities,{spanSpace=0,includeMultiDay=false}={}) {
   const covering=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date));
@@ -18022,6 +18075,7 @@ AFTER.tasks=wpAfterTaskPage;
 Object.assign(ACT,{
   taskNew:()=>wpOpenContextAdd(),
   taskEdit:el=>wpOpenEditor(wpRefFromElement(el),el.dataset.openComments==='1'?{focusComments:true}:{}),
+  taskOpen:el=>wpOpenTaskCard(wpRefFromElement(el)),
   taskToggle:el=>wpToggleTask(wpRefFromElement(el)),
   taskMenu:el=>wpTaskMenu(el),
   taskMore:el=>wpMoreMenu(el),

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-UQmUaPzzvYfynX2pRXl5cGn+IB7B1TMhbHfdabEiLyE=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-vL8QhVOG4rftkLnm0r0XbAB+wdikLueAabezvqHB6B4=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -12585,7 +12585,7 @@ function dtSubmitPrompt(text) {
     finishWith(dtBuildLocalReply(q));
   }, REDUCED() ? 60 : 340);
 }
-function dtNewThread(initialPrompt = '') {
+function dtNewThread(initialPrompt = '', opts = {}) {
   const st = dtState();
   const existingEmpty = (S.ui.dtThreads || []).find(t => !t.messages || !t.messages.length);
   if (existingEmpty && !initialPrompt) {
@@ -12603,6 +12603,8 @@ function dtNewThread(initialPrompt = '') {
   dtRefreshUI(true);
   if (initialPrompt) dtSubmitPrompt(initialPrompt);
   else { const inp = $('#dtInput'); if (inp) inp.focus(); }
+  const customTitle = opts && typeof opts.title === 'string' ? opts.title.trim().slice(0, 80) : '';
+  if (customTitle && th.title !== customTitle) { th.title = customTitle; persist(); dtRefreshUI(true); }
 }
 function dtThreadMenu(anchor) {
   const id = anchor.dataset.id;
@@ -16753,6 +16755,50 @@ function wpReviewMenu(anchor) {
     {label:'Отменить этот экземпляр',icon:'x',danger:true,run:()=>wpResolveRef(ref,'cancel')}
   ],{place:'bottom-end'});
 }
+/* Промпт разбора задачи Агентом: только человекочитаемые поля, без технических
+   идентификаторов. Жёсткий лимит ~4000 символов. */
+function buildTaskReviewPrompt(task) {
+  const t = wpIsObj(task) ? task : {};
+  const status = wpTaskStatus(t), homeType = wpTaskHomeType(t);
+  const lines = ['Разбери задачу и предложи конкретный план действий. Отвечай по-русски, коротко и по делу.', ''];
+  lines.push(`Название: ${t.title || 'Без названия'}`);
+  lines.push(`Статус: ${wpStatusLabel(status, t)}`);
+  lines.push(`${homeType === 'project' ? 'Проект' : 'Список'}: ${wpHomeLabel(t) || (homeType === 'inbox' ? 'Входящие' : 'Личные')}`);
+  if (wpAssigneeLabel(t)) lines.push(`Исполнитель: ${wpAssigneeLabel(t)}`);
+  lines.push(`Приоритет: ${WP_PRIORITY_RU[wpPriority(t)] || 'Обычный'}`);
+  if (t.scheduledDate) lines.push(`Начало: ${wpFmtDate(t.scheduledDate, true)}`);
+  if (wpDeadlineText(t)) lines.push(`Крайний срок: ${wpDeadlineText(t)}`);
+  const ruleLabel = t.entityType === 'occurrence' ? `Экземпляр от ${wpFmtDate(t.originalDate)}` : wpRuleDescription(t);
+  if (ruleLabel) lines.push(`Повторение: ${ruleLabel}`);
+  if (t.durationEstimateMinutes) lines.push(`Оценка: ${fmtDur(t.durationEstimateMinutes)}`);
+  if (status === 'waiting' && t.waitingReason) lines.push(`Причина ожидания: ${t.waitingReason}`);
+  const tags = Array.isArray(t.tags) ? t.tags.filter(Boolean) : [];
+  if (tags.length) lines.push(`Теги: ${tags.join(', ')}`);
+  if (t.description) lines.push('', `Описание: ${t.description}`);
+  const subs = wpSubtasks(t.taskId || t.id);
+  if (subs.length) {
+    lines.push('', `Подзадачи (${subs.filter(s => wpTaskDone(s)).length}/${subs.length}):`);
+    subs.slice(0, 20).forEach(s => lines.push(`- [${wpTaskDone(s) ? 'x' : ' '}] ${s.title || 'Без названия'}`));
+  }
+  const prompt = lines.join('\n');
+  return prompt.length > 4000 ? prompt.slice(0, 3999) + '…' : prompt;
+}
+async function wpReviewTaskWithAgent(ref) {
+  const ent = wpFindEntity(ref); if (!ent) return;
+  if (S.taskMigrationOK === false) { toast(S.taskMigrationError || 'Задачи доступны только для чтения.', { icon: 'ban' }); return; }
+  if (S.ai && S.ai.baseUrl) {
+    if (!T.dt) T.dt = {};
+    if (!T.dt.apiConsent) {
+      const yes = await confirmDlg({ title: 'Отправить задачу внешнему API?', text: 'Название, статус и описание задачи будут переданы подключённому внешнему API. Ключи хранятся на устройстве; согласие действует до конца сессии.', ok: 'Отправить', icon: 'sparkles' });
+      if (!yes) return;
+      T.dt.apiConsent = true;
+    }
+  }
+  const prompt = buildTaskReviewPrompt(ent);
+  const title = `Разбор: ${ent.title || 'задача'}`;
+  openPage('deepthink');
+  dtNewThread(prompt, { title });
+}
 function wpTaskMenu(anchor) {
   const ref=wpRefFromElement(anchor), task=wpFindEntity(ref); if(!task) return;
   const done=wpTaskDone(task), recurring=!!wpTaskRule(task), isOccurrence=task.entityType==='occurrence';
@@ -16761,6 +16807,7 @@ function wpTaskMenu(anchor) {
   if(isOccurrence || !recurring) items.push({label:done||wpTaskOutdated(task)?'Вернуть в работу':'Отметить выполненной',icon:'check',run:()=>wpToggleTask(ref)});
   items.push({label:moveLabel,icon:'folder',run:()=>wpMoveHomePicker(ref,recurring&&!isOccurrence?{scope:'series'}:{})});
   if(isOccurrence || !recurring) items.push({label:isOccurrence?'Изменить этот экземпляр':'Изменить',icon:'pencil',run:()=>wpOpenEditor(ref)});
+  if(isOccurrence || !recurring) items.push({label:'Разобрать с Агентом',icon:'sparkles',run:()=>wpReviewTaskWithAgent(ref)});
   if(isOccurrence) {
     items.push({label:'Перенести экземпляр…',icon:'calendar',run:()=>wpOpenDatePicker(ref,'schedule','Выбрать дату начала экземпляра')});
     items.push({label:'Снять дату начала',icon:'calendar',run:()=>wpRescheduleRef(ref,null)});

@@ -261,7 +261,7 @@ globalThis.__api = {
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
-  wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate, wpCalendarScopeOptions, wpCalendarScopeSelect, wpSetCalendarScope, wpFilterByHome, wpHomeFilterOptions, wpWeekSummary, wpTaskCardModalHtml, wpOpenTaskCard,
+  wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate, wpCalendarScopeOptions, wpCalendarScopeSelect, wpSetCalendarScope, wpFilterByHome, wpHomeFilterOptions, wpWeekSummary, wpTaskCardModalHtml, wpOpenTaskCard, buildTaskReviewPrompt,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpBoardScope, wpBoardCategoryMode, wpBoardCategoryColumns, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpMoveBoardStatusTo, wpStatusColor, wpValidStatusColor, wpStatusSwatches, wpStatusSwatchesHtml, wpIsSystemStatus, WP_SYSTEM_STATUS_KEYS, WP_STATUS_SWATCHES, WP_STATUS_SWATCHES_DEFAULT, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpScopeOf, wpStatusesFor, wpStatusArrayForScope, wpEnsureProjectStatuses, wpRemapStatusKey, wpStatusCategory, wpSetTaskHome, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpSetStatusRef, wpSetTaskStatus, wpRequestStatusChange, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson, wpBoardPersonIndexById, wpDeleteTaskContact, wpContactIdUsedAnywhere,
@@ -1174,6 +1174,33 @@ assert(planner.includes('data-wp-card="edit"') && planner.includes('closeModal(m
 const stageCOccurrenceModal = api.wpTaskCardModalHtml({ ...stageCCardTask, entityType: 'occurrence', occurrenceId: 'card-task::2026-10-13', seriesTaskId: 'card-task', originalDate: '2026-10-13', taskId: 'card-task' });
 assert(stageCOccurrenceModal.includes('Экземпляр от'), 'occurrence cards name their instance date');
 state.board = stageCBoardBefore; state.boards = stageCBoardsBefore; state.boardId = stageCIdBefore;
+
+// Stage D: task review with the Agent opens a titled deepthink thread.
+const stageDBoardBefore = state.board, stageDBoardsBefore = state.boards, stageDIdBefore = state.boardId;
+const stageDBoard = api.wpNormalizeBoard({
+  id: 'stage-d', name: 'Stage D', code: 'STAGE-D', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-d', name: 'Дельта', members: [] }], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'done', name: 'Готово' }],
+  tasks: [
+    { id: 'review-task', title: 'Запустить продажи', homeType: 'project', homeId: 'prj-d', projectId: 'prj-d', project: 'Дельта', statusKey: 'open', priorityKey: 'high', assignee: 'me', scheduledDate: '2026-10-13', deadlineAt: '2026-10-20', description: 'Подготовить скрипты и базу', tags: ['продажи'], order: 1 },
+    { id: 'review-sub', title: 'База клиентов', homeType: 'project', homeId: 'prj-d', projectId: 'prj-d', project: 'Дельта', statusKey: 'done', priorityKey: 'normal', parentTaskId: 'review-task', order: 2 }
+  ]
+});
+state.board = stageDBoard; state.boards = [stageDBoard]; state.boardId = 'stage-d';
+const stageDTask = { ...state.board.tasks.find(task => task.id === 'review-task'), entityType: 'task', taskId: 'review-task' };
+const stageDPrompt = api.buildTaskReviewPrompt(stageDTask);
+assert(stageDPrompt.includes('Запустить продажи') && stageDPrompt.includes('В работе') && stageDPrompt.includes('Дельта'), 'the review prompt carries the human-readable task context');
+assert(stageDPrompt.includes('Подготовить скрипты') && stageDPrompt.includes('База клиентов') && stageDPrompt.includes('продажи'), 'the review prompt carries the description, subtasks, and tags');
+assert(!stageDPrompt.includes('review-task') && !stageDPrompt.includes('prj-d') && !stageDPrompt.includes('stage-d'), 'the review prompt never leaks technical identifiers');
+assert(stageDPrompt.length <= 4000, 'the review prompt respects the length cap');
+const stageDLong = api.buildTaskReviewPrompt({ ...stageDTask, description: 'x'.repeat(5000) });
+assert.strictEqual(stageDLong.length, 4000, 'oversized prompts truncate to the cap');
+assert(html.includes('function dtNewThread(initialPrompt = \'\', opts = {})'), 'deepthink threads accept an explicit title');
+assert(html.includes('th.title = customTitle; persist(); dtRefreshUI(true);'), 'explicit thread titles survive the submit pipeline');
+assert(planner.includes("label:'Разобрать с Агентом'") && planner.includes('wpReviewTaskWithAgent(ref)'), 'the task menu offers an agent review');
+assert(planner.includes('T.dt.apiConsent') && planner.includes("title: 'Отправить задачу внешнему API?'"), 'external-API review asks for a once-per-session consent');
+assert(planner.includes("openPage('deepthink');") && planner.includes('dtNewThread(prompt, { title })'), 'the review opens a titled deepthink thread');
+state.board = stageDBoardBefore; state.boards = stageDBoardsBefore; state.boardId = stageDIdBefore;
 assert(planner.includes('laneCount*20+(laneCount-1)*6'), 'the span spacer reserves the uniform 6px rhythm');
 
 // Overdue is clock-driven: date-only lapses at midnight, timed lapses at the minute.

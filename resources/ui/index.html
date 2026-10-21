@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-UVAT6XoSMJEYqdMqHj99Kz5y7QnVLBfq78yiK2f/k8g=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-9SYckrbuUG9LQaZL7ic5Z/vdSfC2C3iG2RNwg1sTvtA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-/K91DtYtJR7859k6J9elB2ANE4Zx/kbSSYdChFJiMVk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-8Cpr5SJe69LRSJ9QrwCEfZDGMpdaIdDHKI27qy50Zr8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -5570,7 +5570,13 @@ function watchToastRootPosition() {
   viewport.addEventListener('transitionend', positionToastRoot);
 }
 watchToastRootPosition();
-const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
+const debounce = (f, ms) => {
+  let t = null;
+  const g = (...a) => { clearTimeout(t); t = setTimeout(() => { t = null; f(...a); }, ms); };
+  g.pending = () => t != null;
+  g.flush = (...a) => { if (t == null) return false; clearTimeout(t); t = null; f(...a); return true; };
+  return g;
+};
 const plural = (n, f) => { n = Math.abs(n) % 100; const n1 = n % 10; if (n > 10 && n < 20) return f[2]; if (n1 > 1 && n1 < 5) return f[1]; if (n1 === 1) return f[0]; return f[2]; };
 const fmtN = n => Math.round(n).toLocaleString('ru-RU');
 const rng = seed => { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
@@ -5666,11 +5672,31 @@ async function copySecret(txt) {
 /* хранилище — безопасно для sandbox-iframe (там localStorage недоступен) */
 const store = (() => {
   let ls = null; const mem = {};
+  // Последняя УСПЕШНО записанная строка по ключу: повтор saveNow с тем же
+  // содержимым не дёргает localStorage. Помечаем только после setItem —
+  // исключение (квота) не помечает, следующая запись повторится.
+  const written = {};
   try { ls = window.localStorage; ls.setItem('__sh', '1'); ls.removeItem('__sh'); } catch (e) { ls = null; }
   return {
     get(k) { try { return ls ? ls.getItem(k) : (k in mem ? mem[k] : null); } catch (e) { return null; } },
-    set(k, v) { try { if (ls) ls.setItem(k, String(v)); else mem[k] = String(v); } catch (e) {} },
-    del(k) { try { if (ls) ls.removeItem(k); else delete mem[k]; } catch (e) {} },
+    set(k, v) {
+      const s = String(v);
+      try {
+        if (ls) {
+          if (written[k] === s) return;
+          ls.setItem(k, s);
+          written[k] = s;
+        } else {
+          mem[k] = s;
+        }
+      } catch (e) {}
+    },
+    del(k) {
+      try {
+        if (ls) { ls.removeItem(k); delete written[k]; }
+        else delete mem[k];
+      } catch (e) {}
+    },
     json(k, d) { const v = this.get(k); if (v == null || v === '') return d; try { return JSON.parse(v); } catch (e) { return d; } },
     put(k, o) { this.set(k, JSON.stringify(o)); }
   };
@@ -6240,6 +6266,23 @@ function activeTabIdForStore() {
   }));
   return ghost ? '' : act;
 }
+/* Разбор shelter:lux держим в памяти: JSON.parse блоба на каждом saveNow
+   дёргал главный поток. Кэш сверяется с сырой строкой ключа — чужая запись
+   (другая вкладка/внешний сброс) инвалидирует его автоматически. */
+let _luxRaw = undefined, _luxParsed = null;
+function luxBase() {
+  const raw = store.get('shelter:lux');
+  if (_luxParsed && raw === _luxRaw) return _luxParsed;
+  _luxRaw = raw;
+  if (raw == null || raw === '') { _luxParsed = {}; return _luxParsed; }
+  try { _luxParsed = JSON.parse(raw) || {}; } catch (e) { _luxParsed = {}; }
+  return _luxParsed;
+}
+function luxCommit(obj) {
+  const s = JSON.stringify(obj);
+  store.set('shelter:lux', s);
+  _luxRaw = s; _luxParsed = obj;
+}
 function saveNow() {
   store.set('shelter:theme', S.theme);
   store.set('shelter:ghost', S.ghost ? '1' : '0');
@@ -6258,7 +6301,7 @@ function saveNow() {
   store.put('shelter:ext', S.ext);
   /* Загрузки приватной сессии («Призрак») на диск не пишутся — как список
      загрузок инкогнито в больших браузерах; сами файлы остаются в папке. */
-  const oldLux = store.json('shelter:lux', {}) || {};
+  const oldLux = luxBase();
   const nextLux = Object.assign({}, oldLux, { seeded: true, prefs: S.prefs, ui: S.ui, deep: S.deep, account: S.account, downloads: (S.downloads || []).filter(x => x && !x.ghost), blocks: S.blocks });
   const chats = blobToStore('__chatsBlob', S.chats);
   const messages = blobToStore('__messagesBlob', S.messages);
@@ -6266,7 +6309,7 @@ function saveNow() {
   if (chats !== undefined) nextLux.chats = chats;
   if (messages !== undefined) nextLux.messages = messages;
   if (passwords !== undefined) nextLux.passwords = passwords;
-  store.put('shelter:lux', nextLux);
+  luxCommit(nextLux);
   if (!S.ghost) {
     const now = Date.now();
     if (now - _visitsAt >= 4000) { flushVisits(); }
@@ -6277,8 +6320,8 @@ function saveNow() {
   }
   scheduleAchievementReconcile();
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) flushVisits(); });
-window.addEventListener('beforeunload', () => { try { flushVisits(); } catch (_) {} });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { try { persist.flush(); } catch (_) {} flushVisits(); } });
+window.addEventListener('beforeunload', () => { try { persist.flush(); } catch (_) {} try { flushVisits(); } catch (_) {} });
 const persist = debounce(saveNow, 160);
 
 /* =========================================================
@@ -7233,13 +7276,33 @@ function renderTabs() {
      заголовком остаётся в обоих случаях. */
   const mini = t => t.pinned && classic;
   const tabs = sp.tabs.filter(t => t.pinned).concat(sp.tabs.filter(t => !t.pinned));
-  $('#tabList').innerHTML = tabs.map(t => `<div class="tab${t.id === S.activeTabId ? ' active' : ''}${t.pinned ? ' pinned' : ''}${t.id === justAdded ? ' enter' : ''}" data-act="tab" data-tab="${t.id}" draggable="${S.prefs.dragTabs ? 'true' : 'false'}" data-tip="${esc(t.title)}">${favHtml(t)}${mini(t) ? '' : `<span class="t hc">${esc(t.title)}</span>`}${t.ghost ? `<span class="tg hc" data-tip="Открыто в режиме «Призрак»">${ico('ghost')}</span>` : ''}${t.pinned ? '' : `<button class="x hc" data-act="closeTab" data-id="${t.id}" aria-label="Закрыть вкладку">${ico('x')}</button>`}</div>`).join('')
+  const htmlOf = t => `<div class="tab${t.id === S.activeTabId ? ' active' : ''}${t.pinned ? ' pinned' : ''}${t.id === justAdded ? ' enter' : ''}" data-act="tab" data-tab="${t.id}" draggable="${S.prefs.dragTabs ? 'true' : 'false'}" data-tip="${esc(t.title)}">${favHtml(t)}${mini(t) ? '' : `<span class="t hc">${esc(t.title)}</span>`}${t.ghost ? `<span class="tg hc" data-tip="Открыто в режиме «Призрак»">${ico('ghost')}</span>` : ''}${t.pinned ? '' : `<button class="x hc" data-act="closeTab" data-id="${t.id}" aria-label="Закрыть вкладку">${ico('x')}</button>`}</div>`;
+  const htmls = tabs.map(htmlOf);
+  const tl = $('#tabList');
+  /* Точечный патч (P1-5): обновление заголовка/иконки/состояния одной вкладки
+     не пересобирает список. Полный рендер — для добавления/удаления/
+     перестановки (состав и порядок id не совпали) и для enter-анимации.
+     Разметка та же (общий htmlOf): DOM после патча идентичен полному рендеру. */
+  const tHtml = renderTabs._html || (renderTabs._html = new Map());
+  const nodes = tl ? Array.from(tl.querySelectorAll('.tab[data-tab]')) : [];
+  const sameList = !justAdded && nodes.length === tabs.length &&
+    tabs.every((t, i) => nodes[i].dataset.tab === t.id);
+  if (sameList) {
+    tabs.forEach((t, i) => {
+      if (tHtml.get(t.id) !== htmls[i]) {
+        nodes[i].outerHTML = htmls[i];
+        tHtml.set(t.id, htmls[i]);
+      }
+    });
+  } else {
+    tl.innerHTML = htmls.join('')
     + (classic
       ? ''
       : `<button class="tab new" data-act="newTab" data-tip="Новая вкладка  ⌘T"><span class="fav">${ico('plus')}</span><span class="t hc">Новая вкладка</span></button>`);
+    renderTabs._html = new Map(tabs.map((t, i) => [t.id, htmls[i]]));
+  }
   justAdded = null;
   document.querySelectorAll('.tab-mount > .tab-plus').forEach(el => el.remove());
-  const tl = $('#tabList');
   if (tl && classic) {
     const a = tl.querySelector('.tab.active');
     if (a) { const r = a.offsetLeft, rr = r + a.offsetWidth; if (rr > tl.scrollLeft + tl.clientWidth) tl.scrollLeft = Math.max(0, rr - tl.clientWidth); else if (r < tl.scrollLeft) tl.scrollLeft = r; }
@@ -7295,7 +7358,10 @@ function ensureTabPos() {
     if (bad) applyTabPos();
   } catch (e) {}
 }
-setInterval(ensureTabPos, 2500);
+/* Страховка раскладки вкладок: не чаще 2.5 с и только в видимом окне
+   (в фоне вкладка и так не рисуется; инвариант раскладки сохраняет
+   сама проверка, которая вызывает applyTabPos при расхождении). */
+setInterval(() => { if (!document.hidden) ensureTabPos(); }, 2500);
 function applyBmPos() {
   const pos = ['top', 'center', 'bottom'].includes(S.ui.bmPos) ? S.ui.bmPos : 'center';
   S.ui.bmPos = pos;
@@ -14001,9 +14067,20 @@ function init() {
      наблюдаем за добавлением бейджей и просим недостающие иконки вскоре после
      монтирования (см. ensureFavicons — там же разбор про букву-заглушку). */
   try {
+    let favsQueued = false;
     new MutationObserver(ms => {
       for (const m of ms) for (const n of m.addedNodes) {
-        if (n.nodeType === 1 && (n.classList.contains('fav') || n.querySelector('.fav[data-favhost]'))) { ensureFavicons(); return; }
+        if (n.nodeType !== 1) continue;
+        // Дёшево: сам узел — значок, глубже ищем только по живым потомкам;
+        // на каждую добавленную ноду поддерево не гоняем. ensureFavicons —
+        // один на кадр, а не на каждую мутацию.
+        if (n.matches('.fav') || (n.firstChild && n.querySelector('.fav[data-favhost]'))) {
+          if (!favsQueued) {
+            favsQueued = true;
+            requestAnimationFrame(() => { favsQueued = false; ensureFavicons(); });
+          }
+          return;
+        }
       }
     }).observe(document.body, { childList: true, subtree: true });
   } catch (_) {}
@@ -18637,287 +18714,24 @@ function restoreUpdateButton() {
     scheduled = true;
     requestAnimationFrame(() => { scheduled = false; patchAssistant(); });
   }
-  new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
+  // Не гоняем patchAssistant на каждую мутацию документа (длинный стрим ответа
+  // добавляет узлы каждое обновление): запускаем, только когда добавленное
+  // касается патченых узлов — сам .dt-app, его шапка/док или поле ввода.
+  const DT_PATCH_SEL = '.dt-app,.dt-topbar,.dt-top-actions,.dt-privacy-pill,.dt-new,.dt-omni,.omni-body,.omni-row,.send,textarea';
+  function needsAssistantPatch(n) {
+    if (n.nodeType !== 1) return false;
+    if (n.matches(DT_PATCH_SEL)) return true;
+    return !!n.firstChild && !!n.querySelector(DT_PATCH_SEL);
+  }
+  new MutationObserver(ms => {
+    for (const m of ms) for (const n of m.addedNodes) {
+      if (needsAssistantPatch(n)) { schedule(); return; }
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', patchAssistant);
   window.addEventListener('load', patchAssistant);
   patchAssistant();
 })();
 </script>
 </body>
-</html>
-ar + iMessage-док). Без переключателя вариантов — только Ambient • Thread. */
-(function () {
-  'use strict';
-  function patchAssistant() {
-    document.querySelectorAll('.dt-app').forEach(app => {
-      if (!app.hasAttribute('data-ux')) app.setAttribute('data-ux', 'ambient');
-      const bar = app.querySelector('.dt-topbar');
-      if (bar) {
-        // Статус «Приватный контур» — в левую часть nav bar (как iOS status).
-        const acts = bar.querySelector('.dt-top-actions');
-        const pill = acts && acts.querySelector('.dt-privacy-pill');
-        if (pill) bar.insertBefore(pill, bar.firstChild);
-        // «Новый чат» — из рейла в правую часть nav bar (compose-кнопка).
-        if (acts) {
-          const nw = app.querySelector('.dt-rail .dt-new');
-          if (nw) acts.insertBefore(nw, acts.firstChild);
-        }
-      }
-      // iMessage-док: кнопка отправки в строку с полем ввода.
-      app.querySelectorAll('.dt-omni .omni-body').forEach(body => {
-        const row = body.querySelector('.omni-row');
-        const send = row && row.querySelector('.send:not(.mac-send)');
-        if (send) {
-          send.classList.add('mac-send');
-          body.insertBefore(send, row);
-        }
-      });
-      // Авто-высота поля: плейсхолдер/текст никогда не обрезается половиной строки.
-      app.querySelectorAll('.dt-omni textarea').forEach(ta => {
-        if (ta.dataset.macGrow) return;
-        ta.dataset.macGrow = '1';
-        const grow = () => {
-          try {
-            if (typeof window.autoGrow === 'function') window.autoGrow(ta);
-            else { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 170) + 'px'; }
-          } catch (_) {}
-        };
-        grow();
-        new ResizeObserver(grow).observe(ta);
-      });
-    });
-  }
-  let scheduled = false;
-  function schedule() {
-    if (scheduled) return;
-    scheduled = true;
-    requestAnimationFrame(() => { scheduled = false; patchAssistant(); });
-  }
-  new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', patchAssistant);
-  window.addEventListener('load', patchAssistant);
-  patchAssistant();
-})();
-</script>
-</body>
-</html>
-ssistant);
-  patchAssistant();
-})();
-</script>
-</body>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
->
-</body>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
->
-</body>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
-tml>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
->
-</body>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
-ml>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
->
-</body>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
-ml>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
->
-</body>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
->
-ody>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
->
-</body>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
->
-</html>
-body>
-</html>
-ody>
-</html>
->
-</body>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
->
-ody>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
->
-</body>
-</html>
-ody>
-</html>
-body>
-</html>
-ody>
-</html>
-html>
-body>
-</html>
-ody>
-</html>
-html>
-ody>
 </html>

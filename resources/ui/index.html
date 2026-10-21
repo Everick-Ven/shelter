@@ -478,6 +478,13 @@ body.no-badges .badge{display:none!important}
 .app.collapsed .tab .x{display:none}
 .app.collapsed .tab.new .fav{border-style:solid}
 .app.collapsed .space-btn .space-ico{transform:translateX(0)}
+/* Свёрнутая левая панель: подложка hover кнопки пространства должна совпадать
+   с плиткой иконки. Иначе невидимые (opacity:0) имя/шеврон/замок и кнопка
+   новой вкладки занимают место, flex:1 сжимает фон до узкой полоски, а иконка
+   (flex:none) вылезает за него — «битое» выделение при наведении. */
+.app.collapsed .sb .space-row .hc{display:none}
+.app.collapsed .sb .space-row{justify-content:center;padding-left:0}
+.app.collapsed .sb .space-btn{flex:none;justify-content:center;padding:0 6px}
 
 /* ---------- Положение вкладок / закладок (1.0.81) ---------- */
 #dockLeft{display:contents}

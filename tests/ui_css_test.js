@@ -142,6 +142,11 @@ check('инструменты закреплены отдельно в нижн�
   css.includes('.sb-inner{position:relative;display:flex;flex:1 1 0%;flex-direction:column;min-height:0;overflow:hidden') &&
   css.includes('.sb-scroll{flex:0 1 auto;min-height:0;overflow-y:auto') &&
   css.includes('.sb-tools{flex:0 0 auto;margin:auto -12px 0'));
+check('в свёрнутой панели подложка выделения пространства совпадает с плиткой иконки',
+  css.includes('.app.collapsed .sb .space-row .hc{display:none}') &&
+  css.includes('.app.collapsed .sb .space-row{justify-content:center;padding-left:0}') &&
+  css.includes('.app.collapsed .sb .space-btn{flex:none;justify-content:center;padding:0 6px}') &&
+  css.includes('#tabRight.is-collapsed .space-btn .nm,#tabRight.is-collapsed .space-btn .chev,#tabRight.is-collapsed .space-row>.icon-btn{display:none}'));
 check('кнопки имеют центрированное содержимое, включая проверку кода импорта',
   /\.btn\{[^}]*text-align:center/.test(css) &&
   html.includes('.wp-import-password-submit-content{position:relative;display:block;width:100%;text-align:center') &&

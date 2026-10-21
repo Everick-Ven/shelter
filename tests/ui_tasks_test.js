@@ -226,6 +226,7 @@ const plural = (n, forms) => { const a = Math.abs(n) % 100, b = a % 10; return a
 const fmtDur = n => String(n);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ico = () => '';
+const segHtml = (name, opts, val, cls) => '<div class="seg ' + (cls || '') + '">' + opts.map(o => '<button data-seg="' + o[0] + '">' + o[1] + '</button>').join('') + '</div>';
 const toast = () => {};
 const downloadFile = () => {};
 const openMenu = () => {};
@@ -260,7 +261,7 @@ globalThis.__api = {
   wpDateKey, wpDeadlineBeforeStart, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
+  wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpDateControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate, wpCalendarScopeOptions, wpCalendarScopeSelect, wpSetCalendarScope, wpFilterByHome, wpHomeFilterOptions, wpWeekSummary, wpTaskCardModalHtml, wpOpenTaskCard, buildTaskReviewPrompt,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpBoardScope, wpBoardCategoryMode, wpBoardCategoryColumns, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpMoveBoardStatusTo, wpStatusColor, wpValidStatusColor, wpStatusSwatches, wpStatusSwatchesHtml, wpIsSystemStatus, WP_SYSTEM_STATUS_KEYS, WP_STATUS_SWATCHES, WP_STATUS_SWATCHES_DEFAULT, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpScopeOf, wpStatusesFor, wpStatusArrayForScope, wpEnsureProjectStatuses, wpRemapStatusKey, wpStatusCategory, wpSetTaskHome, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
@@ -1138,9 +1139,22 @@ assert.strictEqual(api.WP.calendarScope, 'project:prj-b', 'the calendar scope re
 api.WP.calendarScope = 'project:missing'; api.wpEnsureState();
 assert.strictEqual(api.WP.calendarScope, 'all', 'a deleted project cannot leave an invisible calendar scope active');
 const stageBWeekSummary = api.wpWeekSummary(Array.from(api.wpWeekEntities('2026-10-12')));
-assert(stageBWeekSummary.includes('data-wp-calendar-filter="scope"'), 'the week summary carries the calendar scope selector');
+assert(!stageBWeekSummary.includes('data-wp-calendar-filter="scope"'), 'the week summary no longer carries the calendar scope selector');
 const stageBMonthSummary = api.wpMonthSummary(Array.from(api.wpMonthEntities('2026-10-01')));
-assert(stageBMonthSummary.includes('data-wp-calendar-filter="scope"'), 'the month summary carries the calendar scope selector');
+assert(!stageBMonthSummary.includes('data-wp-calendar-filter="scope"'), 'the month summary no longer carries the calendar scope selector');
+const stageBViewBefore = api.WP.view, stageBModeBefore = api.WP.calendarMode;
+api.WP.view = 'week'; api.WP.calendarMode = 'week';
+const stageBWeekControls = api.wpDateControls();
+assert(stageBWeekControls.includes('data-wp-calendar-filter="scope"'), 'the date controls row carries the calendar scope selector');
+assert(!stageBWeekControls.match(/wp-filter-select[^>]*>\s*<span>/), 'the controls-row scope selector is bare, without a caption');
+assert(stageBWeekControls.includes('Мои задачи на неделю'), 'the week controls caption names my tasks');
+assert(!stageBWeekControls.includes('Неделя с понедельника'), 'the old week caption is gone');
+api.WP.calendarMode = 'month';
+const stageBMonthControls = api.wpDateControls();
+assert(stageBMonthControls.includes('data-wp-calendar-filter="scope"'), 'the scope selector stays in the controls row in month mode');
+assert(stageBMonthControls.includes('Мои задачи за месяц'), 'the month controls caption names my tasks');
+assert(!stageBMonthControls.replace('Мои задачи за месяц', '').includes('Задачи за месяц'), 'the old month caption is gone');
+api.WP.view = stageBViewBefore; api.WP.calendarMode = stageBModeBefore;
 state.board = stageBBoardBefore; state.boards = stageBBoardsBefore; state.boardId = stageBIdBefore;
 api.WP.calendarScope = stageBWPBefore; api.WP._calendarScopeRestored = stageBRestoredBefore;
 if (stageBUiBefore === undefined) delete state.ui.plannerCalendarScope; else state.ui.plannerCalendarScope = stageBUiBefore;

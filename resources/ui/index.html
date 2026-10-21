@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-vL8QhVOG4rftkLnm0r0XbAB+wdikLueAabezvqHB6B4=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-WA6rV03NBoVuFTD6GoEXqP+PYmtC4mBQtGYqkTHob4I=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -3846,6 +3846,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-all-toolbar{display:flex;flex-direction:column;gap:7px;margin:5px 0 10px;padding:9px 10px;border:1px solid var(--line);border-radius:calc(12px*var(--rs));background:color-mix(in srgb,var(--card-2) 62%,var(--card))}
 .wp-all-filter-row{display:flex;align-items:flex-end;flex-wrap:wrap;gap:7px}
 .wp-filter-select{display:flex;flex-direction:column;gap:3px;min-width:148px;color:var(--text-2);font-size:12px}
+.wp-filter-select.is-bare{min-width:0}
 .wp-filter-select .select{height:30px;min-width:0;padding:0 25px 0 8px;font-size:12px}
 .wp-filter-count{align-self:flex-end;color:var(--text-2);font-size:11.5px}
 .wp-filter-count b{color:var(--text-2);font-weight:650}
@@ -15416,7 +15417,7 @@ function wpHomeFilterOptions() {
 /* Область календаря: те же списки и проекты, что в фильтрах доски и задач. */
 function wpCalendarScopeOptions() { return wpHomeFilterOptions(); }
 function wpCalendarScopeSelect() {
-  return wpFilterSelect('calendar','scope','Список / проект','Фильтр календаря по списку и проекту',wpCalendarScopeOptions(),WP.calendarScope||'all','wp-filter-project');
+  return wpFilterSelect('calendar','scope','Список / проект','Фильтр календаря по списку и проекту',wpCalendarScopeOptions(),WP.calendarScope||'all','wp-filter-project',true);
 }
 function wpSetCalendarScope(value) {
   if(!wpIsObj(S.ui)) S.ui={};
@@ -15458,9 +15459,9 @@ function wpFiltersDirty(scope='all') {
   if(scope==='board') return query||WP.boardHomeFilter!=='all'||WP.boardAssigneeFilter!=='all'||WP.boardMineOnly||WP.boardFocus!=='all'||WP.boardTagFilter!=='all'||WP.boardShowCompleted===false||WP.boardSort!=='urgency'||WP.boardSortDir!=='desc';
   return query||WP.allFilter!=='active'||WP.allAssigneeFilter!=='all'||WP.allMineOnly||WP.allProjectFilter!=='all'||WP.allTagFilter!=='all'||WP.allSort!=='urgency'||WP.allSortDir!=='desc';
 }
-function wpFilterSelect(scope,field,label,aria,options,selected,cls='') {
+function wpFilterSelect(scope,field,label,aria,options,selected,cls='',bare=false) {
   const attribute=scope==='board'?'data-wp-board-filter':scope==='calendar'?'data-wp-calendar-filter':'data-wp-filter';
-  return `<label class="wp-filter-select ${cls}"><span>${esc(label)}</span><select class="select" ${attribute}="${field}" aria-label="${esc(aria)}">${options.map(([value,text])=>`<option value="${esc(value)}" ${selected===value?'selected':''}>${esc(text)}</option>`).join('')}</select></label>`;
+  return `<label class="wp-filter-select ${cls}${bare?' is-bare':''}">${bare?'':`<span>${esc(label)}</span>`}<select class="select" ${attribute}="${field}" aria-label="${esc(aria)}">${options.map(([value,text])=>`<option value="${esc(value)}" ${selected===value?'selected':''}>${esc(text)}</option>`).join('')}</select></label>`;
 }
 function wpSortControls(scope='all') {
   const {mode,direction,spec}=wpSortState(scope);
@@ -15957,7 +15958,7 @@ function wpDateControls() {
   const month=WP.calendarMode==='month', label=month?wpFmtMonth(WP.monthStart):wpFmtRange(WP.weekStart);
   const pickerValue=month?WP.monthStart.slice(0,7):WP.weekStart, pickerType=month?'month':'date';
   const unit=month?'месяц':'неделю', previous=month?'Предыдущий месяц':'Предыдущая неделя', next=month?'Следующий месяц':'Следующая неделя';
-  return `<div class="wp-week-controls"><div class="wp-calendar-controls-left"><div class="wp-calendar-label"><b>${esc(label)}</b><span>· ${month?'Задачи за месяц':'Неделя с понедельника'}</span></div><div class="wp-calendar-mode" role="group" aria-label="Период календаря">${segHtml('plannerCalendarMode',[['week','Неделя'],['month','Месяц']],WP.calendarMode,'sm')}</div></div><div class="wp-date-actions"><button type="button" class="wp-icon-btn" data-act="wpCalendarMove" data-delta="-1" aria-label="${previous}">${ico('chev-l')}</button><label class="wp-date-jump" title="Перейти на ${unit}"><span class="sr-only">Перейти на ${unit}</span><input type="${pickerType}" value="${esc(pickerValue)}" data-wp-calendar-picker="${WP.calendarMode}" aria-label="Выбрать ${unit}"></label><button type="button" class="wp-icon-btn" data-act="wpCalendarMove" data-delta="1" aria-label="${next}">${ico('chev-r')}</button><button type="button" class="btn sm ghost" data-act="wpWeekToday">Сегодня</button></div></div>`;
+  return `<div class="wp-week-controls"><div class="wp-calendar-controls-left"><div class="wp-calendar-label"><b>${esc(label)}</b><span>· ${month?'Мои задачи за месяц':'Мои задачи на неделю'}</span></div><div class="wp-calendar-mode" role="group" aria-label="Период календаря">${segHtml('plannerCalendarMode',[['week','Неделя'],['month','Месяц']],WP.calendarMode,'sm')}</div>${wpCalendarScopeSelect()}</div><div class="wp-date-actions"><button type="button" class="wp-icon-btn" data-act="wpCalendarMove" data-delta="-1" aria-label="${previous}">${ico('chev-l')}</button><label class="wp-date-jump" title="Перейти на ${unit}"><span class="sr-only">Перейти на ${unit}</span><input type="${pickerType}" value="${esc(pickerValue)}" data-wp-calendar-picker="${WP.calendarMode}" aria-label="Выбрать ${unit}"></label><button type="button" class="wp-icon-btn" data-act="wpCalendarMove" data-delta="1" aria-label="${next}">${ico('chev-r')}</button><button type="button" class="btn sm ghost" data-act="wpWeekToday">Сегодня</button></div></div>`;
 }
 function wpQuickGlobalArea() {
   return '';
@@ -16082,7 +16083,7 @@ function wpWeekSummary(entities) {
   const done=entities.filter(t=>wpTaskDone(t)).length;
   const overdue=entities.filter(wpDeadlineOverdue).length;
   const mins=entities.filter(t=>!wpTaskClosed(t)).reduce((s,t)=>s+(+t.durationEstimateMinutes||0),0);
-  return `<div class="wp-week-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${mins?`<span>${ico('timer')}~${esc(fmtDur(mins))} оценки</span>`:''}${wpCalendarScopeSelect()}${wpCalendarCompletedToggle()}</div>`;
+  return `<div class="wp-week-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${mins?`<span>${ico('timer')}~${esc(fmtDur(mins))} оценки</span>`:''}${wpCalendarCompletedToggle()}</div>`;
 }
 function wpMobileStrip() {
   return `<div class="wp-mobile-weekstrip" role="tablist" aria-label="День недели">${wpWeekKeys(WP.weekStart).map((date,i)=>`<button type="button" class="${WP.mobileDate===date?'active':''} ${wpDateKey(Date.now())===date?'today':''}" data-act="wpMobileDay" data-date="${date}" role="tab" aria-selected="${WP.mobileDate===date}"><small>${WP_WEEKDAYS[i]}</small><b>${wpDateParts(date).d}</b><i></i></button>`).join('')}</div>`;
@@ -16109,7 +16110,7 @@ function wpMonthWeek(days,entities) {
 }
 function wpMonthSummary(entities) {
   const active=entities.filter(t=>!wpTaskClosed(t)).length, done=entities.filter(t=>wpTaskDone(t)).length, overdue=entities.filter(wpDeadlineOverdue).length;
-  return `<div class="wp-month-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('layers')}<b>${active+done}</b> задач</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${wpCalendarScopeSelect()}${wpCalendarCompletedToggle()}${wpMonthMiniToggle()}</div>`;
+  return `<div class="wp-month-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('layers')}<b>${active+done}</b> задач</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${wpCalendarCompletedToggle()}${wpMonthMiniToggle()}</div>`;
 }
 function wpMonthMiniDay(date,entities) {
   const list=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date));

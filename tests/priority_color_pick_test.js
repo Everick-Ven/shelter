@@ -43,6 +43,18 @@ check('логика сохранения не менялась (checked -> то�
   /const pick = root\.querySelector\('\[data-wp-prio-pick\]:checked'\);/.test(dlgSrc) &&
   /color: pick \? wpValidPriorityColor\(pick\.value\) : colorInit/.test(dlgSrc));
 
+// ---- 1b. Отступы: блоки не слипаются, кольцо не наезжает на текст. ----
+check('диалог получил свой скоп wp-prio-form',
+  /class="modal-b wp-prio-form"/.test(dlgSrc));
+check('между блоками полей — воздух (12px)',
+  /\.wp-prio-form>\.field\+\.field\{margin-top:12px\}/.test(html));
+check('строка свотчей держит запас под кольцо is-on (6px сверху и снизу)',
+  /\.wp-prio-form \.wp-swatches\{padding:6px 0\}/.test(html));
+check('подсказка отстоит от цветов (8px)',
+  /\.wp-prio-form>\.wp-form-hint\{margin-top:8px\}/.test(html));
+check('запас совпадает с выносом кольца (2px+4px box-shadow у is-on)',
+  /\.wp-swatch\.is-on\{box-shadow:0 0 0 2px var\(--card\),0 0 0 4px var\(--sw,var\(--line-3\)\)\}/.test(html));
+
 // ---- 2. Пробник: открытие -> клик -> сохранение. ----
 function runDialog({ color }) {
   // Мини-DOM: разбираем свотчи из собранной разметки и храним состояние радио.

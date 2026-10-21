@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-ZyunNf7lnujf+Q9P21lJYRTCnAQ2Cvt7IaoaJNXoaxM=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-8Cpr5SJe69LRSJ9QrwCEfZDGMpdaIdDHKI27qy50Zr8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-7uiukNQzNInJKPdEIuhUPHmY3NiDScGjGYhK4Yx+gk4=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-8Cpr5SJe69LRSJ9QrwCEfZDGMpdaIdDHKI27qy50Zr8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -3958,6 +3958,11 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .wp-swatch.is-on{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--sw,var(--line-3))}
 .wp-swatch.is-none{display:grid;place-items:center;border:2px dashed var(--line-3);background:transparent;color:var(--text-3);font-size:12px;line-height:1}
 .wp-swatch:has(input:focus-visible){outline:2px solid rgb(var(--accent));outline-offset:2px}
+/* Диалог «Приоритет»: воздух между блоками и запас под обводку свотча
+   (кольцо is-on выходит на 6px за 20px-кружок и наезжало на текст). */
+.wp-prio-form>.field+.field{margin-top:12px}
+.wp-prio-form .wp-swatches{padding:6px 0}
+.wp-prio-form>.wp-form-hint{margin-top:8px}
 .wp-status-flag{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:calc(10px*var(--rs));cursor:pointer}
 .wp-status-flag+.wp-status-flag{margin-top:8px}
 .wp-status-flag input{width:16px;height:16px;margin-top:2px;flex:none;accent-color:rgb(var(--accent))}
@@ -10584,7 +10589,7 @@ function wpPriorityDlg({ title, name = '', color = '', nameError }) {
     const inPalette = WP_PRIORITY_SWATCHES.some(t => t.toLowerCase() === colorInit.toLowerCase());
     const m = openModal({ width: 440,
       html: `<div class="modal-h"><h3>${esc(title)}</h3></div>
-        <div class="modal-b">
+        <div class="modal-b wp-prio-form">
           <label class="field"><span>Название</span><input class="input" data-wp-name value="${esc(name)}" placeholder="Например: Блокер" autocomplete="off"></label>
           <div class="field"><span>Цвет</span><div class="wp-swatches" role="radiogroup" aria-label="Цвет приоритета">${inPalette ? '' : `<label class="wp-swatch is-on" style="--sw:${colorInit}" title="Текущий цвет"><input class="sr-only" type="radio" name="wpPrioColor" data-wp-prio-pick value="${colorInit}" checked></label>`}${WP_PRIORITY_SWATCHES.map(tone => `<label class="wp-swatch${tone.toLowerCase() === String(colorInit).toLowerCase() ? ' is-on' : ''}" style="--sw:${tone}" title="Выбрать цвет"><input class="sr-only" type="radio" name="wpPrioColor" data-wp-prio-pick value="${tone}"${tone.toLowerCase() === String(colorInit).toLowerCase() ? ' checked' : ''}></label>`).join('')}</div></div>
           <p class="wp-form-hint">Порядок в списке задаёт срочность: ниже в списке — срочнее.</p>

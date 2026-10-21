@@ -1,2 +1,0 @@
-#include <windows.h>
-IDI_SHELTER ICON "../../resources/icons/SHELTER.ico"

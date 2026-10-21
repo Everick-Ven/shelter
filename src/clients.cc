@@ -1,0 +1,1025 @@
+#include "src/clients.h"
+
+#include <algorithm>
+#include <filesystem>
+#include <string>
+#include <system_error>
+
+#include "include/cef_command_line.h"
+#include "include/cef_parser.h"
+#include "include/cef_urlrequest.h"
+#include "include/wrapper/cef_helpers.h"
+#include "src/blocker.h"
+#include "src/common.h"
+#include "src/favicon_hosts.h"
+#include "src/netguard.h"
+#include "src/path_utils.h"
+#include "src/platform.h"
+#include "src/shell.h"
+
+namespace shelter {
+
+namespace {
+
+// Лимит на иконку сайта: больше — это уже не favicon.
+constexpr size_t kMaxFaviconBytes = 256 * 1024;
+
+// Загрузка иконки сайта тем же контекстом, что и вкладка (cookies, прокси,
+// DoH-настройки), с жёстким лимитом размера. Данные никуда не отправляются:
+// результат уходит в UI-кэш.
+class FaviconRequest : public CefURLRequestClient {
+ public:
+  FaviconRequest(std::string tab_id, std::string host, std::string url)
+      : tab_id_(std::move(tab_id)), host_(std::move(host)), url_(std::move(url)) {}
+
+  void OnRequestComplete(CefRefPtr<CefURLRequest> request) override {
+    CefRefPtr<CefResponse> r = request->GetResponse();
+    const bool ok = request->GetRequestStatus() == UR_SUCCESS &&
+                    r && r->GetStatus() == 200 && !bytes_.empty();
+    if (ok) {
+      std::string mime = r->GetMimeType().ToString();
+      if (mime.rfind("image/", 0) != 0) mime = "image/png";
+      const std::string data =
+          "data:" + mime + ";base64," +
+          CefBase64Encode(bytes_.data(), bytes_.size()).ToString();
+      Shell::Get().OnFaviconReady(tab_id_, host_, url_, data);
+    } else {
+      Shell::Get().OnFaviconReady(tab_id_, host_, url_, std::string());
+    }
+  }
+  void OnUploadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+  void OnDownloadProgress(CefRefPtr<CefURLRequest> request, int64_t current,
+                          int64_t) override {
+    if (current > static_cast<int64_t>(kMaxFaviconBytes)) request->Cancel();
+  }
+  void OnDownloadData(CefRefPtr<CefURLRequest>, const void* data,
+                      size_t data_length) override {
+    if (bytes_.size() >= kMaxFaviconBytes) return;
+    bytes_.append(static_cast<const char*>(data),
+                  std::min(data_length, kMaxFaviconBytes - bytes_.size()));
+  }
+  bool GetAuthCredentials(bool, const CefString&, int, const CefString&,
+                          const CefString&,
+                          CefRefPtr<CefAuthCallback>) override {
+    return false;
+  }
+
+ private:
+  std::string tab_id_;
+  std::string host_;
+  std::string url_;
+  std::string bytes_;
+  IMPLEMENT_REFCOUNTING(FaviconRequest);
+  DISALLOW_COPY_AND_ASSIGN(FaviconRequest);
+};
+
+bool IsUiUrl(const std::string& url) {
+  return url.rfind(kUiOriginPrefix, 0) == 0;
+}
+
+std::string LowerAscii(std::string value) {
+  for (char& c : value) {
+    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+  }
+  return value;
+}
+
+bool IsShelterSchemeUrl(const std::string& url) {
+  CefURLParts parts;
+  if (CefParseURL(CefString(url), parts)) {
+    return LowerAscii(CefString(&parts.scheme).ToString()) == kUiScheme;
+  }
+  // Не пропускаем некорректный URL, если он явно заявляет внутреннюю схему.
+  const size_t colon = url.find(':');
+  return colon != std::string::npos && colon <= 16 &&
+         LowerAscii(url.substr(0, colon)) == kUiScheme;
+}
+
+bool IsBidiControl(const std::string& text, size_t offset, size_t* length) {
+  const auto byte = [&](size_t i) {
+    return static_cast<unsigned char>(text[i]);
+  };
+  if (offset + 1 < text.size() && byte(offset) == 0xD8 &&
+      byte(offset + 1) == 0x9C) {
+    *length = 2;  // U+061C — Arabic Letter Mark.
+    return true;
+  }
+  if (offset + 2 < text.size() && byte(offset) == 0xE2) {
+    if (byte(offset + 1) == 0x80 &&
+        (byte(offset + 2) == 0x8E || byte(offset + 2) == 0x8F ||
+         (byte(offset + 2) >= 0xAA && byte(offset + 2) <= 0xAE))) {
+      *length = 3;  // U+200E/F и U+202A–U+202E.
+      return true;
+    }
+    if (byte(offset + 1) == 0x81 && byte(offset + 2) >= 0xA6 &&
+        byte(offset + 2) <= 0xA9) {
+      *length = 3;  // U+2066–U+2069.
+      return true;
+    }
+  }
+  return false;
+}
+
+std::string SafePopupText(const std::string& text, size_t max_bytes) {
+  std::string safe;
+  safe.reserve(std::min(text.size(), max_bytes));
+  for (size_t i = 0; i < text.size();) {
+    size_t bidi_length = 0;
+    if (IsBidiControl(text, i, &bidi_length)) {
+      i += bidi_length;
+      continue;
+    }
+    const unsigned char first = static_cast<unsigned char>(text[i]);
+    if (first < 0x20 || first == 0x7F) {
+      if (!safe.empty() && safe.back() != ' ') safe.push_back(' ');
+      ++i;
+      continue;
+    }
+    size_t length = 1;
+    if ((first & 0xE0) == 0xC0) length = 2;
+    else if ((first & 0xF0) == 0xE0) length = 3;
+    else if ((first & 0xF8) == 0xF0) length = 4;
+    if (i + length > text.size()) length = 1;
+    if (safe.size() + length > max_bytes) break;
+    safe.append(text, i, length);
+    i += length;
+  }
+  while (!safe.empty() && safe.back() == ' ') safe.pop_back();
+  return safe;
+}
+
+std::string PopupOriginForDisplay(const std::string& url) {
+  if (url.empty()) return "about:blank";
+  CefURLParts parts;
+  if (!CefParseURL(CefString(url), parts)) return "адрес недоступен";
+  const std::string scheme = LowerAscii(CefString(&parts.scheme).ToString());
+  if (scheme == "about") {
+    const std::string display =
+        CefFormatUrlForSecurityDisplay(CefString(url)).ToString();
+    return display.empty() ? "about:blank" : SafePopupText(display, 96);
+  }
+  if (scheme == "file") return "file://";
+  if (scheme == "data" || scheme == "javascript") return scheme + ":";
+  if (!CefString(&parts.host).ToString().empty()) {
+    std::string display =
+        CefFormatUrlForSecurityDisplay(CefString(url)).ToString();
+    if (display.empty()) {
+      display = scheme + "://" + CefString(&parts.host).ToString();
+      const std::string port = CefString(&parts.port).ToString();
+      if (!port.empty()) display += ":" + port;
+    }
+    return SafePopupText(display, 120);
+  }
+  if (scheme.empty()) return "адрес недоступен";
+  return scheme + ":";
+}
+
+void UpdatePopupWindowTitle(CefRefPtr<CefBrowser> browser,
+                            const std::string& url,
+                            const std::string& page_title) {
+  if (auto view = CefBrowserView::GetForBrowser(browser)) {
+    if (auto window = view->GetWindow()) {
+      window->SetTitle(PopupWindowTitleForDisplay(url, page_title));
+    }
+  }
+}
+
+std::string HtmlEscape(const std::string& s) {
+  std::string r;
+  for (char c : s) {
+    switch (c) {
+      case '&': r += "&amp;"; break;
+      case '<': r += "&lt;"; break;
+      case '>': r += "&gt;"; break;
+      case '"': r += "&quot;"; break;
+      default: r += c;
+    }
+  }
+  return r;
+}
+
+std::string ErrorPageDataUrl(const std::string& url, const std::string& text) {
+  const std::string html =
+      "<!doctype html><html lang=ru><meta charset=utf-8>"
+      "<meta name=color-scheme content='dark light'>"
+      "<title>Не удалось открыть страницу</title><style>"
+      "html,body{height:100%;margin:0}"
+      "body{display:grid;place-items:center;background:#0E0F13;color:#EDEEF2;"
+      "font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}"
+      "main{max-width:520px;padding:32px}h1{font-size:22px;margin:0 0 8px;font-weight:650}"
+      "p{color:#A2A5AF;margin:6px 0}code{color:#EDEEF2;word-break:break-all}"
+      "a{display:inline-block;margin-top:18px;padding:10px 18px;border-radius:12px;"
+      "background:#1D1E25;color:#EDEEF2;text-decoration:none;border:1px solid #ffffff1a}"
+      "a:hover{background:#252630}</style><main>"
+      "<h1>Не удалось открыть страницу</h1>"
+      "<p><code>" + HtmlEscape(url) + "</code></p>"
+      "<p>" + HtmlEscape(text) + "</p>"
+      "<a href=\"" + HtmlEscape(url) + "\">Повторить</a></main>";
+  return "data:text/html;charset=utf-8;base64," +
+         CefURIEncode(CefBase64Encode(html.data(), html.size()), false)
+             .ToString();
+}
+
+// Интерстишиал HTTPS-only: сайт не ответил на поднятый до https:// запрос.
+// Даём осознанный выбор — вернуться или продолжить по незащищённому http://
+// (как «Always Use Secure Connections» в Chrome). Хост к этому моменту уже
+// внесен в исключения (netguard::TakeUpgradeFallback), поэтому переход по
+// ссылке не зациклится повторным апгрейдом.
+std::string HttpsOnlyInterstitialDataUrl(const std::string& http_url,
+                                         const std::string& https_url) {
+  const std::string html =
+      "<!doctype html><html lang=ru><meta charset=utf-8>"
+      "<meta name=color-scheme content='dark light'>"
+      "<title>Сайт не отвечает по HTTPS</title><style>"
+      "html,body{height:100%;margin:0}"
+      "body{display:grid;place-items:center;background:#0E0F13;color:#EDEEF2;"
+      "font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}"
+      "main{max-width:560px;padding:32px}"
+      ".ic{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;"
+      "background:#2A1D12;color:#FF9A4D;margin-bottom:18px}"
+      "h1{font-size:22px;margin:0 0 8px;font-weight:650}"
+      "p{color:#A2A5AF;margin:6px 0}code{color:#EDEEF2;word-break:break-all}"
+      ".row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}"
+      "a{display:inline-block;padding:10px 18px;border-radius:12px;text-decoration:none;"
+      "border:1px solid #ffffff1a}"
+      ".back{background:#1D1E25;color:#EDEEF2}.back:hover{background:#252630}"
+      ".go{background:#3A2415;color:#FFB066}.go:hover{background:#4A2E1B}"
+      ".note{font-size:13px;color:#7C808B;margin-top:14px}</style><main>"
+      "<div class=ic><svg width=28 height=28 viewBox='0 0 24 24' fill=none "
+      "stroke=currentColor stroke-width=1.7 stroke-linecap=round "
+      "stroke-linejoin=round><rect x=4 y=10.5 width=16 height=10 rx=2.5/>"
+      "<path d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/><path d='M12 14.5v2.5'/></svg></div>"
+      "<h1>Сайт не отвечает по HTTPS</h1>"
+      "<p>SHELTER открыл адрес по защищённому соединению, но сайт не поддержал "
+      "его:</p><p><code>" + HtmlEscape(https_url) + "</code></p>"
+      "<p>Можно вернуться назад или перейти по незащищённому адресу. В режиме "
+      "без шифрования содержимое страницы и введённые данные видны оператору "
+      "связи и владельцу сети.</p>"
+      "<div class=row>"
+      "<a class=back href=javascript:history.back()>Назад</a>"
+      "<a class=go href=\"" + HtmlEscape(http_url) + "\">Продолжить без "
+      "шифрования</a></div>"
+      "<p class=note>Для этого сайта незащищённое соединение разрешено до "
+      "перезапуска браузера. Отключить HTTPS-only можно в Настройках → "
+      "Приватность.</p></main>";
+  return "data:text/html;charset=utf-8;base64," +
+         CefURIEncode(CefBase64Encode(html.data(), html.size()), false)
+             .ToString();
+}
+
+}  // namespace
+
+std::string PopupWindowTitleForDisplay(const std::string& url,
+                                       const std::string& page_title) {
+  std::string safe_title = SafePopupText(page_title, 120);
+  if (safe_title.empty()) safe_title = "Страница";
+  return "SHELTER · " + PopupOriginForDisplay(url) + " — " + safe_title;
+}
+
+// Догрузка иконок по запросу UI. Callback моста нужно отпустить сразу, а
+// CefURLRequest живёт до завершения в карте Shell (favicon_requests_), поэтому
+// здесь только постановка запросов.
+void Shell::RequestFavicons(const std::string& hosts,
+                            CefRefPtr<CefBrowser> ui_browser) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!ui_browser || hosts.empty() || ui_favicon_hosts_.size() >= 200) return;
+  CefRefPtr<CefRequestContext> ctx =
+      ui_browser->GetHost()->GetRequestContext();
+  std::string host;
+  auto flush = [&]() {
+    if (host.empty()) return;
+    /* Хост пришёл из UI-страницы: в сеть уходит только корректное доменное
+       имя, всё остальное молча отбрасываем (см. src/favicon_hosts.h). */
+    if (!shelter::IsValidFaviconHost(host)) { host.clear(); return; }
+    if (ui_favicon_hosts_.size() < 200 && ui_favicon_hosts_.insert(host).second) {
+      const std::string url = shelter::FaviconUrlForHost(host);
+      CefRefPtr<CefRequest> req = CefRequest::Create();
+      req->SetURL(url);
+      req->SetMethod("GET");
+      CefRefPtr<CefURLRequest> r = CefURLRequest::Create(
+          req, new FaviconRequest("ui:fetch", host, url), ctx);
+      FaviconRequestStarted(url, r);
+    }
+    host.clear();
+  };
+  for (const char c : hosts) {
+    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { flush(); continue; }
+    if (host.size() < shelter::kMaxFaviconHostLength) host.push_back(c);
+  }
+  flush();
+}
+
+// ============================================================================
+// UiClient
+// ============================================================================
+
+class UiClient::BridgeHandler : public CefMessageRouterBrowserSide::Handler {
+ public:
+  bool OnQuery(CefRefPtr<CefBrowser> browser,
+               CefRefPtr<CefFrame> frame,
+               int64_t query_id,
+               const CefString& request,
+               bool persistent,
+               CefRefPtr<Callback> callback) override {
+    CEF_REQUIRE_UI_THREAD();
+    // Мост принимает вызовы только от UI-браузера и только со страницы UI.
+    if (!Shell::Get().IsUiBrowser(browser) || !frame ||
+        !IsUiUrl(frame->GetURL().ToString())) {
+      callback->Failure(403, "forbidden");
+      return true;
+    }
+    CefRefPtr<CefValue> v = ParseJson(request.ToString());
+    if (!v || v->GetType() != VTYPE_DICTIONARY) {
+      callback->Failure(400, "bad request");
+      return true;
+    }
+    CefRefPtr<CefDictionaryValue> d = v->GetDictionary();
+    // Легаси-протокол инлайн-моста index.html ({ns:'shelter', cmd:'...'}):
+    // host-bridge.js объявлен до первого <script>, поэтому большинство хуков
+    // UI уходит через view.*, но ui:ready / tab:reload / viewport:sync инлайн
+    // всё ещё шлёт напрямую. Переводим нужные команды и молча принимаем
+    // остальные (иначе наблюдатели дали бы поток 404-ошибок).
+    if (!d->HasKey("m")) {
+      const std::string cmd = d->GetString("cmd").ToString();
+      if (cmd == "ui:ready") {
+        Shell::Get().OnUiReady(d->GetString("version").ToString());
+      } else if (cmd == "tab:reload") {
+        Shell::Get().TabAction(d->GetString("tabId").ToString(), "reload", "");
+      } else if (cmd == "ai:test" || cmd == "ai:chat") {
+        // Запасной путь инлайн-адаптера: тот же нативный HTTPS, что у
+        // ai.test/ai.chat через host-bridge. Без этого ветка молча отвечала
+        // {"ok":true} — ложное «Подключено».
+        const std::string method = (cmd == "ai:test") ? "ai.test" : "ai.chat";
+        if (Shell::Get().HandleBridge(browser, method, d, callback))
+          return true;
+        callback->Failure(404, "unknown method: " + method);
+        return true;
+      }
+      callback->Success("{\"ok\":true}");
+      return true;
+    }
+    const std::string method = d->GetString("m").ToString();
+    CefRefPtr<CefDictionaryValue> args =
+        d->HasKey("a") && d->GetType("a") == VTYPE_DICTIONARY
+            ? d->GetDictionary("a")
+            : CefDictionaryValue::Create();
+    if (!Shell::Get().HandleBridge(browser, method, args, callback)) {
+      callback->Failure(404, "unknown method: " + method);
+    }
+    return true;
+  }
+};
+
+UiClient::UiClient() {
+  CefMessageRouterConfig config;
+  router_ = CefMessageRouterBrowserSide::Create(config);
+  bridge_ = std::make_unique<BridgeHandler>();
+  router_->AddHandler(bridge_.get(), false);
+}
+
+UiClient::~UiClient() {
+  if (router_ && bridge_) router_->RemoveHandler(bridge_.get());
+}
+
+bool UiClient::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
+                                        CefRefPtr<CefFrame> frame,
+                                        CefProcessId source_process,
+                                        CefRefPtr<CefProcessMessage> message) {
+  CEF_REQUIRE_UI_THREAD();
+  return router_->OnProcessMessageReceived(browser, frame, source_process,
+                                           message);
+}
+
+bool UiClient::OnBeforePopup(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, int,
+                             const CefString&, const CefString&,
+                             cef_window_open_disposition_t, bool,
+                             const CefPopupFeatures&, CefWindowInfo&,
+                             CefRefPtr<CefClient>&, CefBrowserSettings&,
+                             CefRefPtr<CefDictionaryValue>&, bool*) {
+  return true;  // UI не открывает окна
+}
+
+void UiClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnBrowserCreated();
+  Shell::Get().OnUiCreated(browser);
+}
+
+void UiClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
+  CEF_REQUIRE_UI_THREAD();
+  router_->OnBeforeClose(browser);
+  Shell::Get().OnUiClosed(browser);
+  Shell::Get().OnBrowserClosed();
+}
+
+bool UiClient::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
+                              CefRefPtr<CefFrame> frame,
+                              CefRefPtr<CefRequest> request,
+                              bool user_gesture,
+                              bool is_redirect) {
+  CEF_REQUIRE_UI_THREAD();
+  router_->OnBeforeBrowse(browser, frame);
+  // UI никогда не уходит со своей страницы (например, при drop ссылки на окно).
+  if (frame->IsMain()) {
+    const std::string url = request->GetURL().ToString();
+    if (!IsUiUrl(url)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void UiClient::OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+                                         TerminationStatus status, int,
+                                         const CefString&) {
+  CEF_REQUIRE_UI_THREAD();
+  router_->OnRenderProcessTerminated(browser);
+  if (!Shell::Get().closing()) {
+    browser->Reload();
+  }
+}
+
+void UiClient::OnDraggableRegionsChanged(
+    CefRefPtr<CefBrowser> browser,
+    CefRefPtr<CefFrame>,
+    const std::vector<CefDraggableRegion>& regions) {
+  CEF_REQUIRE_UI_THREAD();
+  if (Shell::Get().IsUiBrowser(browser)) {
+    Shell::Get().SetDraggableRegions(regions);
+  }
+}
+
+void UiClient::OnBeforeContextMenu(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
+                                   CefRefPtr<CefContextMenuParams>,
+                                   CefRefPtr<CefMenuModel> model) {
+  model->Clear();
+}
+
+bool UiClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
+                             const CefKeyEvent& event, CefEventHandle,
+                             bool*) {
+  if (event.type == KEYEVENT_RAWKEYDOWN && event.windows_key_code == 0x7B) {
+    static const bool enabled =
+        CefCommandLine::GetGlobalCommandLine()->HasSwitch("ui-devtools");
+    if (enabled) {
+      CefWindowInfo wi;
+      CefBrowserSettings bs;
+      browser->GetHost()->ShowDevTools(wi, nullptr, bs, CefPoint());
+      return true;
+    }
+  }
+  return false;
+}
+
+bool UiClient::OnBeforeDownload(
+    CefRefPtr<CefBrowser> browser, CefRefPtr<CefDownloadItem> item,
+    const CefString& suggested_name,
+    CefRefPtr<CefBeforeDownloadCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  CefRefPtr<CefFrame> frame = browser ? browser->GetMainFrame() : nullptr;
+  if (!Shell::Get().IsUiBrowser(browser) || !frame ||
+      !IsUiUrl(frame->GetURL().ToString()) || !callback) {
+    return false;
+  }
+
+  std::string filename = suggested_name.ToString();
+  if (filename.empty() && item) filename = item->GetSuggestedFileName().ToString();
+  const size_t separator = filename.find_last_of("/\\");
+  if (separator != std::string::npos) filename.erase(0, separator + 1);
+  if (filename.empty() || filename == "." || filename == "..") {
+    filename = "shelter-export.json";
+  }
+
+  std::string default_path = filename;
+  const std::string downloads = platform::DownloadsDir();
+  if (!downloads.empty()) {
+    const std::filesystem::path directory = path_utils::PathFromUtf8(downloads);
+    std::error_code error;
+    std::filesystem::create_directories(directory, error);
+    if (!error) {
+      default_path = path_utils::PathToUtf8(
+          directory / path_utils::PathFromUtf8(filename));
+    }
+  }
+
+  // UI-файл пока существует как Blob в renderer. CEF открывает системное
+  // «Сохранить как…» и сам записывает Blob в выбранный пользователем путь.
+  callback->Continue(default_path, true);
+  return true;
+}
+
+void UiClient::OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
+                                 CefRefPtr<CefDownloadItem> item,
+                                 CefRefPtr<CefDownloadItemCallback>) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!Shell::Get().IsUiBrowser(browser) || !item || !item->IsValid()) return;
+  if (!item->IsComplete() && !item->IsCanceled() && !item->IsInterrupted()) {
+    return;
+  }
+  const std::string url = item->GetURL().ToString();
+  if (url.rfind(std::string("blob:") + kUiOriginPrefix, 0) != 0) return;
+  CefRefPtr<CefFrame> frame = browser->GetMainFrame();
+  if (frame) {
+    frame->ExecuteJavaScript("try{URL.revokeObjectURL(" + JsString(url) +
+                                 ")}catch(_){}",
+                             kUiOriginPrefix, 0);
+  }
+}
+
+// ============================================================================
+// TabClient
+// ============================================================================
+
+bool TabClient::OnBeforeBrowse(CefRefPtr<CefBrowser>,
+                                CefRefPtr<CefFrame>,
+                                CefRefPtr<CefRequest> request,
+                                bool,
+                                bool) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!request) return true;
+  CefURLParts parts;
+  if (!CefParseURL(request->GetURL(), parts)) return false;
+  std::string scheme = CefString(&parts.scheme).ToString();
+  for (char& c : scheme) {
+    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+  }
+  // Never let a web tab load the privileged shelter:// UI origin.
+  return scheme == kUiScheme;
+}
+
+// ---- блокировка трекеров/рекламы -------------------------------------------
+
+namespace {
+
+// Отменяет сторонние запросы к доменам-трекерам и рекламные URL-шаблоны.
+// Пропускается только навигация верхнего уровня: сайт, открытый пользователем,
+// обязан загрузиться. Это именно тип запроса RT_MAIN_FRAME, а не «запрос из
+// главного фрейма»: рекламные скрипты, пиксели и баннеры, которые страница
+// подключает прямо из своего документа, приходят из главного фрейма и раньше
+// проходили фильтр насквозь — поэтому на реальных сайтах (например, с Yandex
+// Direct) реклама не блокировалась вовсе.
+cef_return_value_t BlockerCheck(CefRefPtr<CefBrowser> browser,
+                                CefRefPtr<CefFrame> frame,
+                                CefRefPtr<CefRequest> request) {
+  if (!request || !::shelter::blocker::Enabled()) return RV_CONTINUE;
+  const std::string url = request->GetURL().ToString();
+  if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0)
+    return RV_CONTINUE;
+  if (request->GetResourceType() == RT_MAIN_FRAME) return RV_CONTINUE;
+  char kind = 0;
+  const std::string page = frame ? frame->GetURL().ToString() : std::string();
+  if (!::shelter::blocker::ShouldBlock(url, page, &kind)) return RV_CONTINUE;
+  std::string host;
+  CefURLParts parts;
+  if (CefParseURL(CefString(url), parts))
+    host = CefString(&parts.host).ToString();
+  ::shelter::blocker::RecordBlock(host, kind,
+                                  browser ? browser->GetIdentifier() : 0);
+  return RV_CANCEL;
+}
+
+// HTTPS-only (стандарт октября 2026 — «Always Use Secure Connections»,
+// Chrome 154 включает его всем по умолчанию): навигации основного фрейма
+// поднимаются с http:// на https:// прямо в запросе. Если поднятый адрес не
+// откроется, OnLoadError покажет интерстишиал с переходом на исходный http://.
+void HttpsOnlyUpgrade(CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request) {
+  if (!request || !frame || !frame->IsMain()) return;
+  const std::string url = request->GetURL().ToString();
+  auto upgraded = ::shelter::netguard::TryUpgrade(url);
+  if (!upgraded) return;
+  ::shelter::netguard::RememberUpgrade(*upgraded, url);
+  request->SetURL(*upgraded);
+  std::string host;
+  CefURLParts parts;
+  if (CefParseURL(CefString(*upgraded), parts))
+    host = CefString(&parts.host).ToString();
+  ::shelter::netguard::RecordUpgrade(
+      host, frame && frame->GetBrowser() ? frame->GetBrowser()->GetIdentifier() : 0);
+}
+
+// Строгий режим: сторонние скрипты отменяются на сетевом уровне, пока сайт не
+// получит разрешение пользователя (модель Brave Shields / NoScript).
+bool StrictScriptCheck(CefRefPtr<CefBrowser> browser,
+                       CefRefPtr<CefRequest> request) {
+  if (!request || !::shelter::netguard::StrictEnabled()) return false;
+  if (request->GetResourceType() != RT_SCRIPT) return false;
+  const std::string url = request->GetURL().ToString();
+  std::string page;
+  if (browser) {
+    if (CefRefPtr<CefFrame> main = browser->GetMainFrame())
+      page = main->GetURL().ToString();
+  }
+  if (!::shelter::netguard::ShouldBlockScript(url, page)) return false;
+  CefURLParts parts;
+  std::string script_host, page_host;
+  if (CefParseURL(CefString(url), parts))
+    script_host = CefString(&parts.host).ToString();
+  if (CefParseURL(CefString(page), parts))
+    page_host = CefString(&parts.host).ToString();
+  ::shelter::netguard::RecordScriptBlock(
+      page_host, browser ? browser->GetIdentifier() : 0, script_host);
+  return true;
+}
+
+}  // namespace
+
+CefRefPtr<CefResourceRequestHandler> TabClient::GetResourceRequestHandler(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, CefRefPtr<CefRequest>, bool,
+    bool, const CefString&, bool&) {
+  return this;
+}
+
+cef_return_value_t TabClient::OnBeforeResourceLoad(
+    CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+    CefRefPtr<CefRequest> request, CefRefPtr<CefCallback>) {
+  if (StrictScriptCheck(browser, request)) return RV_CANCEL;
+  HttpsOnlyUpgrade(frame, request);
+  return BlockerCheck(browser, frame, request);
+}
+
+bool TabClient::OnBeforePopup(CefRefPtr<CefBrowser> browser,
+                              CefRefPtr<CefFrame>, int,
+                              const CefString& target_url,
+                              const CefString&,
+                              cef_window_open_disposition_t disposition,
+                              bool user_gesture, const CefPopupFeatures&,
+                              CefWindowInfo&, CefRefPtr<CefClient>& client,
+                              CefBrowserSettings&,
+                              CefRefPtr<CefDictionaryValue>&, bool*) {
+  CEF_REQUIRE_UI_THREAD();
+  const std::string url = target_url.ToString();
+  if (IsShelterSchemeUrl(url)) return true;
+  // window.open(..., 'features') по жесту пользователя — настоящее окно
+  // (нужно для OAuth/оплат, где важен window.opener). Всё остальное — вкладка.
+  if (disposition == CEF_WOD_NEW_POPUP && user_gesture) {
+    client = new PopupClient();
+    return false;
+  }
+  // Жест пробрасываем в событие: UI блокирует нежестовые открытия как попапы.
+  Shell::Get().OnTabNewWindow(browser, url, user_gesture);
+  return true;
+}
+
+bool TabClient::OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
+                                 CefRefPtr<CefFrame>, const CefString& url,
+                                 cef_window_open_disposition_t, bool) {
+  CEF_REQUIRE_UI_THREAD();
+  const std::string target = url.ToString();
+  if (IsShelterSchemeUrl(target)) return true;
+  // Открытие из вкладки (клик, средняя кнопка, меню) — всегда по воле
+  // пользователя, помечаем жестом, чтобы UI не принял его за попап.
+  Shell::Get().OnTabNewWindow(browser, target, true);
+  return true;
+}
+
+void TabClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnBrowserCreated();
+  Shell::Get().OnTabCreated(browser, tab_id_);
+}
+
+void TabClient::OnBeforeClose(CefRefPtr<CefBrowser>) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnBrowserClosed();
+}
+
+void TabClient::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
+                                     bool isLoading, bool, bool) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnTabLoading(browser, isLoading);
+}
+
+void TabClient::OnLoadError(CefRefPtr<CefBrowser> browser,
+                            CefRefPtr<CefFrame> frame, ErrorCode errorCode,
+                            const CefString& errorText,
+                            const CefString& failedUrl) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!frame->IsMain() || errorCode == ERR_ABORTED) return;
+  if (Tab* tab = Shell::Get().FindTabByBrowser(browser->GetIdentifier())) {
+    tab->error_url = failedUrl.ToString();
+  }
+  const std::string failed = failedUrl.ToString();
+  // Неудавшийся апгрейд HTTPS-only: вместо общей страницы ошибки показываем
+  // интерстишиал с осознанным переходом на исходный незащищённый адрес.
+  if (auto http_url = ::shelter::netguard::TakeUpgradeFallback(failed)) {
+    frame->LoadURL(HttpsOnlyInterstitialDataUrl(*http_url, failed));
+    return;
+  }
+  frame->LoadURL(ErrorPageDataUrl(failed, errorText.ToString()));
+}
+
+bool TabClient::OnCertificateError(CefRefPtr<CefBrowser> browser,
+                                   cef_errorcode_t cert_error,
+                                   const CefString& request_url,
+                                   CefRefPtr<CefSSLInfo> ssl_info,
+                                   CefRefPtr<CefCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  return Shell::Get().OnCertError(browser, cert_error,
+                                  request_url.ToString(), ssl_info, callback);
+}
+
+void TabClient::OnAddressChange(CefRefPtr<CefBrowser> browser,
+                                CefRefPtr<CefFrame> frame,
+                                const CefString& url) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!frame->IsMain()) return;
+  Shell::Get().OnTabAddress(browser, url.ToString());
+}
+
+void TabClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
+                              const CefString& title) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnTabTitle(browser, title.ToString());
+}
+
+void TabClient::OnFaviconURLChange(CefRefPtr<CefBrowser> browser,
+                                   const std::vector<CefString>& icon_urls) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!browser || icon_urls.empty()) return;
+  std::string icon;
+  for (const auto& u : icon_urls) {
+    const std::string s = u.ToString();
+    if (s.rfind("http://", 0) == 0 || s.rfind("https://", 0) == 0) {
+      icon = s;
+      break;
+    }
+  }
+  if (icon.empty()) return;
+  CefURLParts parts;
+  if (!CefParseURL(icon, parts)) return;
+  const std::string host = CefString(&parts.host).ToString();
+  if (host.empty()) return;
+  // Отсекаем повторы (хост уже спрашивали в этой сессии) и призрачные вкладки:
+  // приватная сессия не оставляет ни сети, ни кэша иконок.
+  if (!Shell::Get().FaviconNeeded(tab_id_, host)) return;
+  CefRefPtr<CefRequest> req = CefRequest::Create();
+  req->SetURL(icon);
+  req->SetMethod("GET");
+  CefRefPtr<CefURLRequest> r = CefURLRequest::Create(
+      req, new FaviconRequest(tab_id_, host, icon),
+      browser->GetHost()->GetRequestContext());
+  Shell::Get().FaviconRequestStarted(icon, r);
+}
+
+// ---- разрешения: отказ по умолчанию, событие в UI ---------------------------
+
+bool TabClient::OnRequestMediaAccessPermission(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, const CefString& origin,
+    uint32_t requested_permissions,
+    CefRefPtr<CefMediaAccessCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  // Биты cef_media_access_permission_types_t: 0 — звук, 1 — видео.
+  Shell::Get().NotePermissionRequest(origin.ToString(), requested_permissions,
+                                     true);
+  if (Shell::Get().SitePermissionsAllowed(origin.ToString(),
+                                          requested_permissions, true)) {
+    if (callback) callback->Continue(requested_permissions);
+    return true;
+  }
+  if (callback) callback->Cancel();  // явный отказ, без диалогов ОС
+  return true;
+}
+
+bool TabClient::OnShowPermissionPrompt(
+    CefRefPtr<CefBrowser>, uint64_t, const CefString& origin,
+    uint32_t requested_permissions,
+    CefRefPtr<CefPermissionPromptCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().NotePermissionRequest(origin.ToString(), requested_permissions,
+                                     false);
+  if (Shell::Get().SitePermissionsAllowed(origin.ToString(),
+                                          requested_permissions, false)) {
+    if (callback) callback->Continue(CEF_PERMISSION_RESULT_ACCEPT);
+    return true;
+  }
+  if (callback) callback->Continue(CEF_PERMISSION_RESULT_DENY);
+  return true;
+}
+
+void TabClient::OnLoadStart(CefRefPtr<CefBrowser> browser,
+                            CefRefPtr<CefFrame> frame,
+                            cef_transition_type_t) {
+  CEF_REQUIRE_UI_THREAD();
+  // До документа: процесс мог пережить переключение тумблера (spare/spare-сайт),
+  // и тогда его состояние защит устарело. Сообщение уходит раньше коммита
+  // навигации по тому же каналу, поэтому новая страница увидит уже свежие
+  // значения.
+  if (frame && frame->IsMain()) Shell::Get().PushProtections(frame);
+  Shell::Get().OnTabLoadStart(browser, frame);
+}
+
+void TabClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
+                          CefRefPtr<CefFrame> frame, int) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnTabLoadEnd(browser, frame);
+}
+
+// Контент вкладки запросил полноэкранный режим (видео, презентация, F11 на
+// странице). Сообщаем UI: он спрячет хром и растянет вкладку на всё окно,
+// после чего попросит оболочку перевести окно в immersive-fullscreen.
+void TabClient::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
+                                       bool fullscreen) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnTabFullscreen(browser, fullscreen);
+}
+
+bool TabClient::OnConsoleMessage(CefRefPtr<CefBrowser> browser,
+                                 cef_log_severity_t,
+                                 const CefString& message, const CefString&,
+                                 int) {
+  CEF_REQUIRE_UI_THREAD();
+  const std::string m = message.ToString();
+  // Маркер из внедрённого скрипта анти-отпечатка: считаем честно применённые
+  // защиты (canvas/webgl/audio) и не засоряем консоль маркером.
+  if (m.rfind("__SHELTER_FP__:", 0) == 0) {
+    const std::string id = browser ? Shell::Get().TabIdForBrowser(
+                                         browser->GetIdentifier())
+                                   : std::string();
+    Shell::Get().UiEvent("blocked", "{\"f\":1,\"id\":" + JsString(id) + "}");
+    return true;
+  }
+  return false;
+}
+
+bool TabClient::RunContextMenu(CefRefPtr<CefBrowser> browser,
+                               CefRefPtr<CefFrame> frame,
+                               CefRefPtr<CefContextMenuParams> params,
+                               CefRefPtr<CefMenuModel>,
+                               CefRefPtr<CefRunContextMenuCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  callback->Cancel();  // меню рисует UI (window.shelterCtxMenu)
+  Shell::Get().OnTabContextMenu(browser, frame, params);
+  return true;
+}
+
+bool TabClient::OnBeforeDownload(
+    CefRefPtr<CefBrowser> browser, CefRefPtr<CefDownloadItem> item,
+    const CefString& suggested_name,
+    CefRefPtr<CefBeforeDownloadCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnTabDownloadBefore(browser, item, suggested_name.ToString(),
+                                   callback);
+  return true;  // решение придёт из UI (dl.decision)
+}
+
+void TabClient::OnDownloadUpdated(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefDownloadItem> item,
+    CefRefPtr<CefDownloadItemCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnTabDownloadUpdated(item, callback);
+}
+
+void TabClient::OnFindResult(CefRefPtr<CefBrowser> browser, int, int count,
+                             const CefRect&, int activeMatchOrdinal,
+                             bool finalUpdate) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnTabFindResult(browser, count, activeMatchOrdinal, finalUpdate);
+}
+
+bool TabClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
+                              const CefKeyEvent& event, CefEventHandle,
+                              bool*) {
+  CEF_REQUIRE_UI_THREAD();
+  if (event.type != KEYEVENT_RAWKEYDOWN) return false;
+  return Shell::Get().OnTabKey(browser, event);
+}
+
+// ============================================================================
+// PopupClient
+// ============================================================================
+
+void PopupClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnBrowserCreated();
+  if (!browser) return;
+  Shell::Get().PushProtections(browser->GetMainFrame());
+  CefRefPtr<CefFrame> frame = browser->GetMainFrame();
+  const std::string url = frame ? frame->GetURL().ToString() : "";
+  current_origin_ = PopupOriginForDisplay(url);
+  UpdatePopupWindowTitle(browser, url, page_title_);
+}
+
+void PopupClient::OnBeforeClose(CefRefPtr<CefBrowser>) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().OnBrowserClosed();
+}
+
+bool PopupClient::OnBeforePopup(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, int, const CefString&,
+    const CefString&, cef_window_open_disposition_t, bool,
+    const CefPopupFeatures&, CefWindowInfo&, CefRefPtr<CefClient>&,
+    CefBrowserSettings&, CefRefPtr<CefDictionaryValue>&, bool*) {
+  CEF_REQUIRE_UI_THREAD();
+  // В отдельном окне ссылки с target=_blank и повторные window.open запрещены.
+  return true;
+}
+
+void PopupClient::OnAddressChange(CefRefPtr<CefBrowser> browser,
+                                 CefRefPtr<CefFrame> frame,
+                                 const CefString& url) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!browser || !frame || !frame->IsMain()) return;
+  const std::string current_url = url.ToString();
+  const std::string origin = PopupOriginForDisplay(current_url);
+  if (origin != current_origin_) {
+    current_origin_ = origin;
+    page_title_.clear();
+  }
+  UpdatePopupWindowTitle(browser, current_url, page_title_);
+}
+
+void PopupClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
+                                const CefString& title) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!browser) return;
+  page_title_ = SafePopupText(title.ToString(), 120);
+  CefRefPtr<CefFrame> frame = browser->GetMainFrame();
+  UpdatePopupWindowTitle(browser, frame ? frame->GetURL().ToString() : "",
+                         page_title_);
+}
+
+// Полноэкранный режим контента (видео «во весь экран») в отдельном окне.
+void PopupClient::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
+                                         bool fullscreen) {
+  CEF_REQUIRE_UI_THREAD();
+  if (auto view = CefBrowserView::GetForBrowser(browser)) {
+    if (auto window = view->GetWindow()) window->SetFullscreen(fullscreen);
+  }
+}
+
+bool PopupClient::OnRequestMediaAccessPermission(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, const CefString& origin,
+    uint32_t requested_permissions,
+    CefRefPtr<CefMediaAccessCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().NotePermissionRequest(origin.ToString(), requested_permissions,
+                                     true);
+  if (callback) callback->Cancel();
+  return true;
+}
+
+bool PopupClient::OnShowPermissionPrompt(
+    CefRefPtr<CefBrowser>, uint64_t, const CefString& origin,
+    uint32_t requested_permissions,
+    CefRefPtr<CefPermissionPromptCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  Shell::Get().NotePermissionRequest(origin.ToString(), requested_permissions,
+                                     false);
+  if (callback) callback->Continue(CEF_PERMISSION_RESULT_DENY);
+  return true;
+}
+
+bool PopupClient::CanDownload(CefRefPtr<CefBrowser>, const CefString&,
+                              const CefString&) {
+  CEF_REQUIRE_UI_THREAD();
+  return false;  // Отказываем до начала пользовательской загрузки.
+}
+
+bool PopupClient::OnBeforeDownload(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefDownloadItem>, const CefString&,
+    CefRefPtr<CefBeforeDownloadCallback>) {
+  CEF_REQUIRE_UI_THREAD();
+  // В стиле Alloy рантайм отменяет загрузку, если обработчик возвращает false.
+  return false;
+}
+
+void PopupClient::OnDownloadUpdated(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefDownloadItem> item,
+    CefRefPtr<CefDownloadItemCallback> callback) {
+  CEF_REQUIRE_UI_THREAD();
+  if (item && item->IsInProgress() && callback) callback->Cancel();
+}
+
+bool PopupClient::OnBeforeBrowse(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
+                                 CefRefPtr<CefRequest> request, bool, bool) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!request) return true;
+  return IsShelterSchemeUrl(request->GetURL().ToString());
+}
+
+bool PopupClient::OnOpenURLFromTab(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
+                                   const CefString&,
+                                   cef_window_open_disposition_t, bool) {
+  CEF_REQUIRE_UI_THREAD();
+  // Для popup нет целевой вкладки; не создаём внешние окна из него.
+  return true;
+}
+
+// Всплывающие окна — тоже веб-контент: сохраняем фильтры вкладки.
+CefRefPtr<CefResourceRequestHandler> PopupClient::GetResourceRequestHandler(
+    CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, CefRefPtr<CefRequest>, bool,
+    bool, const CefString&, bool&) {
+  return this;
+}
+
+cef_return_value_t PopupClient::OnBeforeResourceLoad(
+    CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+    CefRefPtr<CefRequest> request, CefRefPtr<CefCallback>) {
+  if (!request || IsShelterSchemeUrl(request->GetURL().ToString()))
+    return RV_CANCEL;
+  if (StrictScriptCheck(browser, request)) return RV_CANCEL;
+  HttpsOnlyUpgrade(frame, request);
+  return BlockerCheck(browser, frame, request);
+}
+
+}  // namespace shelter

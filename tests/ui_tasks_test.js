@@ -1201,6 +1201,57 @@ assert(planner.includes("label:'Разобрать с Агентом'") && plann
 assert(planner.includes('T.dt.apiConsent') && planner.includes("title: 'Отправить задачу внешнему API?'"), 'external-API review asks for a once-per-session consent');
 assert(planner.includes("openPage('deepthink');") && planner.includes('dtNewThread(prompt, { title })'), 'the review opens a titled deepthink thread');
 state.board = stageDBoardBefore; state.boards = stageDBoardsBefore; state.boardId = stageDIdBefore;
+
+// Stage E: nine-point acceptance across stages A–D.
+const stageEBoardBefore = state.board, stageEBoardsBefore = state.boards, stageEIdBefore = state.boardId;
+const stageEOkBefore = state.taskMigrationOK, stageEHomeFilterBefore = api.WP.boardHomeFilter;
+const stageEBoard = api.wpNormalizeBoard({
+  id: 'stage-e', name: 'Stage E', code: 'STAGE-E', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-e', name: 'Этап', members: [] }, { id: 'prj-xss', name: 'Вредный <img src=x>', members: [] }],
+  people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'done', name: 'Готово' }],
+  tasks: [
+    { id: 'accept-task', title: 'Приёмочный <b>кейс</b>', homeType: 'project', homeId: 'prj-e', projectId: 'prj-e', project: 'Этап', statusKey: 'open', priorityKey: 'normal', assignee: 'me', order: 1 }
+  ]
+});
+state.board = stageEBoard; state.boards = [stageEBoard]; state.boardId = 'stage-e';
+const stageEDoneKey = api.wpMakeBoardStatus('Принято', { done: true }, 'prj-e').key;
+api.wpStatusArrayForScope('prj-e').push(api.wpMakeBoardStatus('Принято', { done: true }, 'prj-e', stageEDoneKey));
+assert(!state.board.statuses.some(s => s.key === stageEDoneKey), 'E1: project status sets stay independent from the board set');
+const stageETask = { homeType: 'project', homeId: 'prj-e', projectId: 'prj-e', statusKey: stageEDoneKey };
+assert.strictEqual(api.wpTaskDone(stageETask), true, 'E2: task logic resolves through the scope of its own home');
+assert.strictEqual(api.wpTaskDone({ homeType: 'personal', statusKey: stageEDoneKey }), false);
+const stageEMover = state.board.tasks.find(task => task.id === 'accept-task');
+stageEMover.statusKey = stageEDoneKey; stageEMover.status = 'Принято';
+assert.strictEqual(api.wpApplyEntityHome({ id: 'accept-task', entityType: 'task' }, 'personal'), true);
+assert.strictEqual(stageEMover.statusKey, 'done', 'E3: moving a task remaps foreign keys into the target set');
+assert(planner.includes('shelter:planner:migration-backup:v6') && !planner.includes('migration-backup:v7') && !planner.includes('migration-backup:v8'), 'E4: the migration backup key stays on v6');
+state.taskMigrationOK = false;
+const stageEStoreBefore = new Map(data);
+assert.strictEqual(api.wpPersistBoard(), false, 'E4: locked storage is never overwritten');
+assert.strictEqual(api.wpCommit('stage-e', () => { state.board.tasks.push({ id: 'must-not-persist' }); }), false);
+assert(!state.board.tasks.some(task => task.id === 'must-not-persist') && data.size === stageEStoreBefore.size, 'E4: locked commits mutate nothing');
+state.taskMigrationOK = stageEOkBefore;
+const stageEExport = api.wpExportPayload('all');
+const stageEExportedProject = stageEExport.boards.find(board => board.id === 'stage-e').projects.find(project => project.id === 'prj-e');
+assert(stageEExportedProject.statuses.some(s => s.key === stageEDoneKey), 'E5: exported projects carry their own status sets');
+api.WP.boardHomeFilter = 'project:prj-e';
+assert(api.wpBoardColumns([], 'prj-e').some(col => col[0] === stageEDoneKey), 'E6: single-scope boards use the scope dictionary');
+api.WP.boardHomeFilter = 'all';
+assert.strictEqual(api.wpBoardCategoryMode(), true, 'E6: mixed boards collapse into fixed categories');
+assert.deepStrictEqual([...api.wpBoardCategoryColumns()].map(col => col[0]), ['open', 'waiting', 'done', 'overdue', 'cancelled']);
+api.WP.boardHomeFilter = stageEHomeFilterBefore;
+api.wpOpenTaskCard({ id: 'accept-task', entityType: 'task' });
+const stageEModal = context.__lastModalHtml || '';
+assert(stageEModal.includes('Приёмочный &lt;b&gt;кейс&lt;/b&gt;') && stageEModal.includes('Готово'), 'E7: clicking a task opens its read-only card');
+assert(stageEModal.includes('data-wp-card="edit"') && stageEModal.includes('data-wp-card="close"') && !/<select|<textarea|<input/.test(stageEModal), 'E7: the card offers an explicit edit entry and no form controls');
+const stageEScopeSelect = api.wpCalendarScopeSelect();
+assert(stageEScopeSelect.includes('Вредный &lt;img src=x&gt;') && !stageEScopeSelect.includes('<img src=x>'), 'E8: scope selectors escape project names');
+assert(planner.includes('if (!T.dt.apiConsent)') && planner.includes('T.dt.apiConsent = true'), 'E9: external-API consent is asked once per session');
+const stageEOccPrompt = api.buildTaskReviewPrompt({ ...stageETask, entityType: 'occurrence', occurrenceId: 'x::2026-10-13', seriesTaskId: 'x', originalDate: '2026-10-13', title: 'Экземпляр' });
+assert(stageEOccPrompt.length <= 4000 && !stageEOccPrompt.includes('prj-e'), 'E9: instance reviews stay within the cap without identifiers');
+assert(!legacyTaskSource.includes('wpScopeOf') && !legacyTaskSource.includes('taskOpen') && !legacyTaskSource.includes('statusScope'), 'the legacy task layer stays untouched by scoped statuses');
+state.board = stageEBoardBefore; state.boards = stageEBoardsBefore; state.boardId = stageEIdBefore;
 assert(planner.includes('laneCount*20+(laneCount-1)*6'), 'the span spacer reserves the uniform 6px rhythm');
 
 // Overdue is clock-driven: date-only lapses at midnight, timed lapses at the minute.

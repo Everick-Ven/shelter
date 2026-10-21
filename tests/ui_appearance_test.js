@@ -199,7 +199,7 @@ const taskExportDialog = section('function wpOpenTaskExportDialog() {', 'functio
 assert(taskExportDialog.includes('wpTaskExportTarget') && taskExportDialog.includes('wpTaskExportContact') && taskExportDialog.includes('wpTaskExportSelfId'), 'the export dialog offers self/executor branches with invite-id contacts');
 const boardColumns = section('function wpBoardView() {', 'function wpProjectCard(project) {');
 assert(!boardColumns.includes('wpBoardSummary(') && boardColumns.includes('${wpBoardToolbar(items)}${empty}${hint}<div class="wp-board-lanes"'), 'the board drops the KPI strip: every lane carries its own header with name and count');
-assert(boardColumns.includes('wpBoardLaneHeader(status,label,lane.length,canMove,laneIdx,columns.length,wpStatusColor(status,categoryMode?\'\':scope))'), 'every lane header resolves its lane color');
+assert(boardColumns.includes('wpBoardLaneHeader(status,label,lane.length,canMove,laneIdx,columns.length,wpStatusColor(status,scope))'), 'every lane header resolves its lane color');
 assert(html.includes('function wpBoardLaneHeader(') && html.includes('wp-lane-dot') && html.includes('wp-lane-grip') && html.includes('wp-lanes-hint'), 'lane headers carry color dots, drag grips, and a move-mode hint');
 assert(html.includes('data-ws-swatch-pick') && html.includes('data-ws-swatch=') && html.includes('function wpStatusColorDot('), 'lane colors are assigned in the status editor and previewed in the dictionary');
 const quickAddRoute = section('function wpQuickAddOpen(date=null, projectId=null, assignee=wpCurrentAssignee(), context', 'function wpCreateTask(');

@@ -29,7 +29,8 @@ std::mutex g_mu;
 std::set<std::string> g_domains;     // регистрируемые домены (lowercase)
 std::vector<std::string> g_patterns; // подстроки URL (lowercase)
 std::string g_cosmetic;              // cosmetic.css
-std::atomic<bool> g_enabled{false};
+std::atomic<bool> g_enabled{true};  // по умолчанию включена: правила
+                                       // работают до прихода UI-настройки
 std::atomic<bool> g_loaded{false};
 
 std::string Lower(std::string s) {
@@ -136,6 +137,7 @@ bool Enabled() { return g_enabled.load(); }
 bool ShouldBlock(const std::string& url, const std::string& page_url,
                  char* kind) {
   if (!g_enabled.load(std::memory_order_relaxed)) return false;
+  if (!g_loaded.load(std::memory_order_relaxed)) LoadRules();
   const std::string lower = Lower(url);
 
   std::lock_guard<std::mutex> lk(g_mu);
@@ -185,6 +187,7 @@ void RecordBlock(const std::string& host, char kind, int browser_id) {
 }
 
 const std::string& CosmeticCss() {
+  if (!g_loaded.load(std::memory_order_relaxed)) LoadRules();
   std::lock_guard<std::mutex> lk(g_mu);
   return g_cosmetic;
 }

@@ -2954,8 +2954,10 @@ void Shell::ResolveExtensionInstall(const std::string& token, bool install) {
 // Инъекция идемпотентна (проверка по атрибуту) и ставится и на старт, и на
 // конец загрузки: на старте контекст может уже существовать (SPA-переходы),
 // на конце — гарантированно закрывает страницы с поздним контекстом.
+// Во все фреймы, не только главный: реклама живёт и внутри iframe, а их
+// документы приходят с собственным DOM, куда стиль главного кадра не проникает.
 static void InjectBlockerCss(CefRefPtr<CefFrame> frame) {
-  if (!frame || !frame->IsValid() || !frame->IsMain()) return;
+  if (!frame || !frame->IsValid()) return;
   const std::string& css = blocker::CosmeticCss();
   if (css.empty()) return;
   const std::string js =

@@ -58,7 +58,19 @@ iframe[src*="doubleclick.net"],
 #popunder,
 #banner-top,
 #banner-bottom,
-#skyscraper {
+#skyscraper,
+#rek,
+.rek,
+#reklama,
+.reklama,
+.popup-ad,
+.popup-ad-overlay,
+.ad-overlay,
+.clickunder-layer,
+iframe[src*="popcash"],
+iframe[src*="hybrid.ai"],
+iframe[src*="aniview"],
+iframe[src*="tsyndicate"] {
   display: none !important;
   visibility: hidden !important;
   height: 0 !important;

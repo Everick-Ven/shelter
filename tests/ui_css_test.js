@@ -183,9 +183,11 @@ check('доска задач вмещается в ширину экрана б�
   plannerStyle.includes('.wp-board-task-status .select{width:auto;min-width:min(115px,100%)') &&
   plannerStyle.includes('.wp-board-column>header b{font-size:13px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'));
 check('задачи дня и многодневные ряды держат одинаковые отступы от краёв и друг от друга',
-  plannerStyle.includes('.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0;padding:5px 10px;') &&
+  plannerStyle.includes('.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -6px;padding:5px 10px;') &&
   plannerStyle.includes('padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));') &&
   plannerStyle.includes('.wp-calendar-span{display:flex;align-items:center;gap:8px;min-width:0;min-height:20px;margin:0 8px;padding:1px 8px;') &&
+  plannerStyle.includes('.wp-calendar-span--week{height:20px;margin:0 2px;') &&
+  plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin:0 -7px}') &&
   !plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin-left:-9px') &&
   plannerStyle.includes('.wp-day-items>.wp-done-fold>div{gap:6px}') &&
   plannerStyle.includes('.wp-week-grid.has-spans .wp-day-items{margin-top:6px}'));

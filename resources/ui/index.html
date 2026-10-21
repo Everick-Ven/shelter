@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-3Nh/dYjLxGstk6LOz501U99t/X5ZtO3fWr3jlqMN/dk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-9SYckrbuUG9LQaZL7ic5Z/vdSfC2C3iG2RNwg1sTvtA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-N619pvrqchBs4QhCx+UpT+tR9WKBNJbtDJE8W2Su3H0=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-9SYckrbuUG9LQaZL7ic5Z/vdSfC2C3iG2RNwg1sTvtA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4252,7 +4252,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 
 /* Multi-day tasks stay as date-only rows spanning their deadline range; tint follows urgency. */
 .wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(var(--wp-span-lanes),20px);column-gap:10px;row-gap:6px;pointer-events:none;z-index:3}
-.wp-calendar-span{display:flex;align-items:center;gap:8px;min-width:0;min-height:20px;padding:1px 8px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:99px;background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.15 var(--font);text-align:left;white-space:nowrap;overflow:hidden;cursor:pointer;pointer-events:auto;transition:filter .14s,box-shadow .14s,opacity .14s,transform .14s,border-color .14s}
+.wp-calendar-span{display:flex;align-items:center;gap:8px;min-width:0;min-height:20px;margin:0 8px;padding:1px 8px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:99px;background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.15 var(--font);text-align:left;white-space:nowrap;overflow:hidden;cursor:pointer;pointer-events:auto;transition:filter .14s,box-shadow .14s,opacity .14s,transform .14s,border-color .14s}
 .wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}
 .wp-calendar-span:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:1px}
 .wp-calendar-span>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -4264,7 +4264,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .wp-calendar-span.p-none{border-color:var(--line);background:var(--card-2)}
 .wp-calendar-span.p-tint{border-color:color-mix(in srgb,var(--wp-prio) 30%,var(--line));background:color-mix(in srgb,var(--wp-prio) 13%,var(--card-2))}
 .wp-calendar-span.is-done{opacity:1;border-color:color-mix(in srgb,rgb(var(--ok)) 42%,var(--line));background:color-mix(in srgb,rgb(var(--ok)) 14%,var(--card-2));color:rgb(var(--ok))}.wp-calendar-span.is-done>span{color:rgb(var(--ok));text-decoration:line-through}.wp-calendar-span.is-done>small{color:color-mix(in srgb,rgb(var(--ok)) 72%,var(--text-3))}
-.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -8px;padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.35 var(--font);text-align:left;overflow:hidden;cursor:pointer;transition:filter .14s,box-shadow .14s,transform .14s,border-color .14s,background .14s}
+.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0;padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.35 var(--font);text-align:left;overflow:hidden;cursor:pointer;transition:filter .14s,box-shadow .14s,transform .14s,border-color .14s,background .14s}
 .wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}
 .wp-day-capsule:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:1px}
 .wp-day-capsule>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:12.5px;font-weight:600}
@@ -4275,7 +4275,6 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .wp-day-capsule.p-normal{border-color:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 24%,var(--line));background:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 10%,var(--card-2))}
 .wp-day-capsule.p-none{border-color:var(--line);background:var(--card-2)}
 .wp-day-capsule.p-tint{border-color:color-mix(in srgb,var(--wp-prio) 30%,var(--line));background:color-mix(in srgb,var(--wp-prio) 13%,var(--card-2))}
-.wp-week-mobile .wp-day-capsule{margin-left:-9px;margin-right:-9px}
 .wp-day-capsule.is-done{opacity:1;border-color:color-mix(in srgb,rgb(var(--ok)) 42%,var(--line));background:color-mix(in srgb,rgb(var(--ok)) 14%,var(--card-2));color:rgb(var(--ok))}
 .wp-day-capsule.is-done>span{color:rgb(var(--ok));text-decoration:line-through}
 .wp-day-capsule.is-done>small{color:color-mix(in srgb,rgb(var(--ok)) 72%,var(--text-3))}
@@ -4292,6 +4291,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 /* Calendar week mirrors the history week: separate day cards in a seven-column grid, with the multi-day span layer overlaid across the same tracks. */
 .wp-week-grid.is-all-day .wp-day-span-spacer{flex:none;height:var(--wp-day-span-space,0px)}
 .wp-week-grid.has-spans .wp-day-items{margin-top:6px}
+.wp-day-items>.wp-done-fold>div{gap:6px}
 /* Priority tint on task cards is independent from their Matrix classification. */
 .wp-task.p-critical{border-color:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 30%,var(--line));border-left:3px solid var(--wp-prio-critical,rgb(var(--danger)));background:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 11%,var(--card))}
 .wp-task.p-high{border-color:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 30%,var(--line));border-left:3px solid var(--wp-prio-high,rgb(var(--warn)));background:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 10%,var(--card))}
@@ -10493,7 +10493,7 @@ function wpPriorityDlg({ title, name = '', color = '', nameError }) {
       html: `<div class="modal-h"><h3>${esc(title)}</h3></div>
         <div class="modal-b">
           <label class="field"><span>Название</span><input class="input" data-wp-name value="${esc(name)}" placeholder="Например: Блокер" autocomplete="off"></label>
-          <label class="field"><span>Цвет</span><span class="wp-color-row is-dot"><input type="color" data-wp-prio-pick value="${esc(colorInit)}" aria-label="Цвет приоритета"></span></label>
+          <div class="field"><span>Цвет</span><div class="wp-swatches" role="radiogroup" aria-label="Цвет приоритета">${WP_PRIORITY_SWATCHES.map(tone => `<label class="wp-swatch${tone.toLowerCase() === String(colorInit).toLowerCase() ? ' is-on' : ''}" style="--sw:${tone}" title="Выбрать цвет"><input class="sr-only" type="radio" name="wpPrioColor" data-wp-prio-pick value="${tone}"${tone.toLowerCase() === String(colorInit).toLowerCase() ? ' checked' : ''}></label>`).join('')}</div></div>
           <p class="wp-form-hint">Порядок в списке задаёт срочность: ниже в списке — срочнее.</p>
         </div>
         <div class="modal-f"><button class="btn ghost" data-r="0">Отмена</button><button class="btn primary" data-r="1">Сохранить</button></div>`,
@@ -10503,8 +10503,8 @@ function wpPriorityDlg({ title, name = '', color = '', nameError }) {
     const save = () => {
       const v = nameEl.value.trim(); if (!v) { nameEl.focus(); return; }
       if (nameError) { const err = nameError(v); if (err) { toast(err, { icon: 'info' }); nameEl.focus(); nameEl.select(); return; } }
-      const pick = root.querySelector('[data-wp-prio-pick]');
-      finish({ name: v, color: pick ? wpValidPriorityColor(pick.value) : '' });
+      const pick = root.querySelector('[data-wp-prio-pick]:checked');
+      finish({ name: v, color: pick ? wpValidPriorityColor(pick.value) : colorInit });
     };
     root.addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; if (b.dataset.r === '1') save(); else finish(null); });
     nameEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
@@ -10579,6 +10579,12 @@ function taskDicts(opts = {}) {
     if (el.dataset.dk) { cur = el.dataset.dk; re(); return; }
     if (el.dataset.prioReset) { S.board.priorityColors = {}; prioArr().forEach(s => { if (s && typeof s === 'object') delete s.color; }); persist(); wpApplyBoardPriorityVars(); re(); return; }
     if (el.dataset.wsSwatch) { const st = (cur === 'statuses' ? statusArr() : (S.board.statuses || [])).find(s => s && s.key === el.dataset.wsSwatch); if (st) { const tone = wpValidStatusColor(el.dataset.wsTone); if (tone && wpValidStatusColor(st.color).toLowerCase() !== tone.toLowerCase()) st.color = tone; else delete st.color; persist(); re(); } return; }
+    if (el.dataset.dpMove && cur === 'prios') {
+      const parts = String(el.dataset.dpMove).split(':'), dir = +parts[0] < 0 ? -1 : 1, i = +parts[1];
+      const key = arr[i] && arr[i].key;
+      if (key && wpMoveBoardPriority(key, dir, prioScope)) { persist(); re(); }
+      return;
+    }
     if (el.dataset.inv) { const p = arr[+el.dataset.inv]; if (p && p.id) projectInvite(p.id); return; }
     if (el.dataset.da) {
       if (cur === 'statuses') {
@@ -10588,7 +10594,7 @@ function taskDicts(opts = {}) {
         persist(); re(); return;
       }
       if (cur === 'prios') {
-        const r = await wpPriorityDlg({ title: 'Новый приоритет', color: WP_STATUS_SWATCHES_DEFAULT[arr.length % WP_STATUS_SWATCHES_DEFAULT.length], nameError: v => arr.some(s => String((s && s.name) || s || '').trim().toLowerCase() === v.toLowerCase()) ? 'Такой приоритет уже есть' : '' });
+        const r = await wpPriorityDlg({ title: 'Новый приоритет', color: WP_PRIORITY_SWATCHES[arr.length % WP_PRIORITY_SWATCHES.length], nameError: v => arr.some(s => String((s && s.name) || s || '').trim().toLowerCase() === v.toLowerCase()) ? 'Такой приоритет уже есть' : '' });
         if (!r) return;
         arr.push(wpMakeBoardPriority(r.name, prioScope, '', r.color));
         persist(); re(); return;
@@ -13998,13 +14004,15 @@ const WP_STATUS_SWATCHES = {
   open: ['#3b82f6', '#0ea5e9', '#6366f1', '#8b5cf6', '#14b8a6', '#64748b'],
   waiting: ['#eab308', '#f59e0b', '#f97316', '#d9a441', '#dd8f1b', '#fa7a5c'],
   done: ['#22c55e', '#10b981', '#6ee7b7', '#a3e635', '#88a33d', '#0f766e'],
-  overdue: ['#ef4444', '#f43f5e', '#db2777', '#ec4899', '#9f1239', '#c2522c']
+  overdue: ['#ef4444', '#f43f5e', '#db2777', '#ec4899', '#9f1239', '#c2522c'],
+  cancelled: ['#9ca3af', '#6b7280', '#78716c', '#a8a29e', '#94a3b8', '#64748b']
 };
 const WP_STATUS_SWATCHES_DEFAULT = ['#3b82f6', '#22c55e', '#eab308', '#ef4444', '#8b5cf6', '#9ca3af'];
+const WP_PRIORITY_SWATCHES = ['#9ca3af', '#3b82f6', '#8b5cf6', '#eab308', '#f97316', '#ef4444'];
 function wpStatusSwatches(key) { return WP_STATUS_SWATCHES[key] || WP_STATUS_SWATCHES_DEFAULT; }
-const WP_SYSTEM_STATUS_KEYS = ['open', 'waiting', 'done', 'overdue'];
+const WP_SYSTEM_STATUS_KEYS = ['open', 'waiting', 'done', 'overdue', 'cancelled'];
 function wpIsSystemStatus(key) { return WP_SYSTEM_STATUS_KEYS.includes(key); }
-const wpDefaultStatuses = () => [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }, { key: 'overdue', name: 'Просрочено' }];
+const wpDefaultStatuses = () => [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }, { key: 'overdue', name: 'Просрочено' }, { key: 'cancelled', name: 'Отменена' }];
 function wpStatusKeyForName(name) { const n = String(name || '').trim(); if (WP_STATUS_BY_LABEL[n]) return WP_STATUS_BY_LABEL[n]; const slug = n.toLowerCase().replace(/[\s_]+/g, '-').replace(/["'<>&\\]+/g, '').replace(/^-+|-+$/g, ''); return n ? ('st-' + (slug || 'x')) : ''; }
 function wpIsOldDefaultStatuses(raw) { return Array.isArray(raw) && raw.length === 3 && raw[0] === 'В работе' && raw[1] === 'Пауза' && raw[2] === 'Готово'; }
 function wpNormalizeStatusFlags(raw) {
@@ -14110,18 +14118,20 @@ function wpMakeBoardStatus(name, flags, scope = '', keepKey = '', color = '', bo
   return entry;
 }
 /* Сырой изменяемый массив набора области (для справочника и перестановки
-   колонок). Неизвестный проект — отвязанный пустой массив: мутации молча
-   ни на что не влияют. */
+   колонок). Пустой набор досеивается из действующего (шаблон/дефолты):
+   иначе колонки на экране есть, а двигать нечего — стрелки и drag молча
+   ничего не делают. Неизвестный проект — отвязанный пустой массив:
+   мутации молча ни на что не влияют. */
 function wpStatusArrayForScope(scope = '', board) {
   const b = wpIsObj(board) ? board : wpEnsureBoardShape();
   const projectId = wpIsObj(scope) ? wpScopeOf(scope) : String(scope || '').trim();
   if (projectId) {
     const pr = (Array.isArray(b.projects) ? b.projects : []).find(p => p && p.id === projectId);
     if (!pr) return [];
-    if (!Array.isArray(pr.statuses)) pr.statuses = [];
+    if (!Array.isArray(pr.statuses) || !pr.statuses.length) pr.statuses = wpClone(wpStatusesFor(projectId, b));
     return pr.statuses;
   }
-  if (!Array.isArray(b.statuses)) b.statuses = [];
+  if (!Array.isArray(b.statuses) || !b.statuses.length) b.statuses = wpClone(wpStatusesFor('', b));
   return b.statuses;
 }
 function wpMoveBoardStatus(key, dir, scope = '') {
@@ -14310,6 +14320,8 @@ function wpMakeBoardPriority(name, scope = '', keepKey = '', color = '', board) 
   return entry;
 }
 /* Сырой изменяемый массив набора области (для справочника и перестановки).
+   Пустой набор досеивается из действующего (шаблон/дефолты): иначе строки
+   на экране есть, а двигать нечего — стрелки молча ничего не делают.
    Неизвестный проект — отвязанный пустой массив. */
 function wpPriorityArrayForScope(scope = '', board) {
   const b = wpIsObj(board) ? board : wpEnsureBoardShape();
@@ -14317,10 +14329,10 @@ function wpPriorityArrayForScope(scope = '', board) {
   if (projectId) {
     const pr = (Array.isArray(b.projects) ? b.projects : []).find(p => p && p.id === projectId);
     if (!pr) return [];
-    if (!Array.isArray(pr.priorities)) pr.priorities = [];
+    if (!Array.isArray(pr.priorities) || !pr.priorities.length) pr.priorities = wpClone(wpPrioritiesFor(projectId, b));
     return pr.priorities;
   }
-  if (!Array.isArray(b.priorities)) b.priorities = [];
+  if (!Array.isArray(b.priorities) || !b.priorities.length) b.priorities = wpClone(wpPrioritiesFor('', b));
   return b.priorities;
 }
 function wpMoveBoardPriority(key, dir, scope = '') {
@@ -16608,7 +16620,9 @@ function wpSetTaskStatus(task,key) {
   if(prev!==key) wpSyncTaskAliases(task);
 }
 /* Ручная смена статуса с правилами «Просрочено»: туда — только через подтверждение,
-   оттуда в работу — только с новым сроком. Серии и экземпляры идут прежним путём. */
+   оттуда в работу — только с новым сроком, а в закрывающие (Готово, Отменена,
+   неактуальные) — сразу: отменённой задаче новый срок не нужен, она уже не
+   участвует в разборах. Серии и экземпляры идут прежним путём. */
 async function wpRequestStatusChange(ref, toKey) {
   const ent=wpFindEntity(ref); if(!ent) return false;
   const key=wpValidStatusKey(toKey,ent); if(!key) return false;
@@ -16624,7 +16638,7 @@ async function wpRequestStatusChange(ref, toKey) {
     return wpCommit(`Статус изменён · ${wpStatusLabel(key,task)}`,()=>{ task.previous_status=from; wpSetTaskStatus(task,key); });
   }
   if(from==='overdue') {
-    if(!wpStatusDone(key,task) && lapsed) {
+    if(!wpStatusClosed(key,task) && lapsed) {
       const nd=await wpOverdueDeadlineDlg(task);
       if(!nd) { wpRenderView(); return false; }
       return wpCommit(`Статус изменён · ${wpStatusLabel(key,task)}`,()=>{ task.deadlineAt=nd.deadlineAt; task.deadlineTime=nd.deadlineTime||null; wpSetTaskStatus(task,key); });
@@ -16645,7 +16659,7 @@ async function wpGuardEditorStatus(task, v) {
     if(!yes) return null;
     return {statusKey:to,deadlineAt:v.deadlineAt||null,deadlineTime:v.deadlineTime||null,previous_status:from};
   }
-  if(from==='overdue' && !wpStatusDone(to,targetScope) && lapsed) {
+  if(from==='overdue' && !wpStatusClosed(to,targetScope) && lapsed) {
     const nd=await wpOverdueDeadlineDlg(task);
     if(!nd) return null;
     return {statusKey:to,deadlineAt:nd.deadlineAt,deadlineTime:nd.deadlineTime||null};

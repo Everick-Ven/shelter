@@ -261,7 +261,7 @@ globalThis.__api = {
   wpDateKey, wpDeadlineBeforeStart, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpDateControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
+  wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpDateControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpPriority, wpPrioritiesFor, wpPriorityKeys, wpPriorityLabel, wpPriorityKeyByName, wpPriorityKeyForName, wpPriorityKeyForNewName, wpValidPriorityKey, wpDefaultPriorityKey, wpPriorityRank, wpPriorityUrgent, wpTopPriorityKey, wpNormalizePrioritiesArray, wpDefaultPriorities, wpMakeBoardPriority, wpPriorityArrayForScope, wpMoveBoardPriority, wpEnsureProjectPriorities, wpRemapPriorityKey, wpPriorityOptions, wpPriorityColor, wpPriorityTint, WP_PRIORITY_KEYS, WP_PRIORITY_BY_LABEL, wpApplyEntityHome,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate, wpCalendarScopeOptions, wpCalendarScopeSelect, wpSetCalendarScope, wpFilterByHome, wpHomeFilterOptions, wpWeekSummary, wpTaskCardModalHtml, wpOpenTaskCard, buildTaskReviewPrompt,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpBoardScope, wpBoardCategoryMode, wpBoardCategoryColumns, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpMoveBoardStatusTo, wpStatusColor, wpValidStatusColor, wpStatusSwatches, wpStatusSwatchesHtml, wpIsSystemStatus, WP_SYSTEM_STATUS_KEYS, WP_STATUS_SWATCHES, WP_STATUS_SWATCHES_DEFAULT, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpScopeOf, wpStatusesFor, wpStatusArrayForScope, wpEnsureProjectStatuses, wpRemapStatusKey, wpStatusCategory, wpSetTaskHome, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
@@ -1544,6 +1544,102 @@ assert(!createForm.includes('wpPriorityColor'), 'the task editor no longer expos
 const noColor = { id: 'no-color-save', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [] };
 api.wpApplyTaskForm(noColor, { ...formValues, title: 'Без цвета', kind: 'personal', projectId: '', statusKey: 'open' }, { newTask: true });
 assert.strictEqual(noColor.priorityColor, undefined, 'saving the editor does not persist a per-task color');
+
+// Custom per-project priority sets: every priority is editable, and rank drives urgency.
+const prioBoardBefore = state.board, prioBoardsBefore = state.boards, prioIdBefore = state.boardId;
+const prioWPBefore = { boardHomeFilter: api.WP.boardHomeFilter, boardAssigneeFilter: api.WP.boardAssigneeFilter, boardMineOnly: api.WP.boardMineOnly, boardFocus: api.WP.boardFocus, boardTagFilter: api.WP.boardTagFilter, boardShowCompleted: api.WP.boardShowCompleted };
+const prioBoard = api.wpNormalizeBoard({
+  id: 'prio-board', name: 'Приоритеты', code: 'PRIO', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-p', name: 'Проект', members: [] }], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  tasks: []
+});
+state.board = prioBoard; state.boards = [prioBoard]; state.boardId = 'prio-board';
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpNormalizePrioritiesArray('nope'))).map(s => s.key), ['none', 'normal', 'high', 'critical'], 'missing sets fall back to the four defaults');
+const prioNorm = JSON.parse(JSON.stringify(api.wpNormalizePrioritiesArray([' Блокер ', { key: 'low', name: 'Низкий', color: 'red' }, { key: 'low', name: 'Дубль' }, { name: '' }, 'Блокер'])));
+assert.deepStrictEqual(prioNorm.map(s => s.key), ['pr-блокер', 'low'], 'strings gain slugs while dupes and empties drop out');
+assert.deepStrictEqual(prioNorm.map(s => s.color || ''), ['', ''], 'invalid entry colors are dropped');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpNormalizePrioritiesArray([{ key: 'solo', name: 'Один' }]))).map(s => s.key), ['solo'], 'no system keys are forced back: every priority stays deletable');
+assert.strictEqual(api.wpPriorityKeyForNewName('Срочный', '', { projects: [], priorities: [{ key: 'low', name: 'Низкий' }] }), 'high', 'known names claim their canonical key');
+assert.strictEqual(/^pr[-_]/.test(api.wpPriorityKeyForNewName('Блокер', '')), true, 'new names gain a stable unique key');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(prioBoard.projects[0].priorities)).map(s => s.key), ['none', 'normal', 'high', 'critical'], 'upgraded projects gain a copy of the board priority template');
+assert.notStrictEqual(prioBoard.projects[0].priorities, prioBoard.priorities, 'project priority sets never share the template array');
+const blockerKey = api.wpMakeBoardPriority('Блокер', 'prj-p').key;
+api.wpPriorityArrayForScope('prj-p').push(api.wpMakeBoardPriority('Блокер', 'prj-p', blockerKey, '#ff0000'));
+const boardBlocker = api.wpMakeBoardPriority('Блокер', '', '', '#00aa00');
+api.wpPriorityArrayForScope('').push(boardBlocker);
+const loneKey = api.wpMakeBoardPriority('Одинокий', 'prj-p').key;
+api.wpPriorityArrayForScope('prj-p').push(api.wpMakeBoardPriority('Одинокий', 'prj-p', loneKey));
+assert.strictEqual(api.wpPriorityLabel(blockerKey, 'prj-p'), 'Блокер');
+assert.strictEqual(api.wpPriorityLabel(blockerKey, ''), blockerKey, 'project customs do not leak into the personal set');
+assert.strictEqual(api.wpPriorityLabel('high', 'prj-p'), 'Срочный');
+assert.strictEqual(api.wpPriority({ homeType: 'project', homeId: 'prj-p', projectId: 'prj-p', priorityKey: blockerKey }), blockerKey);
+assert.strictEqual(api.wpPriority({ homeType: 'personal', priorityKey: blockerKey }), 'normal', 'foreign customs fall back to the scope default');
+assert.strictEqual(api.wpPriority({ homeType: 'personal', prio: 'Срочно' }), 'high', 'legacy prio names still resolve');
+assert.strictEqual(api.wpPriority({ homeType: 'personal', prio: 'Выполнено', prevPrio: 'Критично' }), 'critical');
+assert.strictEqual(api.wpPriority({ homeType: 'personal', prio: 'Выполнено' }), 'normal');
+assert.strictEqual(api.wpPriority({ homeType: 'project', homeId: 'prj-p', prio: 'Блокер' }), blockerKey, 'prio aliases match their scope set by name');
+assert.strictEqual(api.wpPriorityRank('critical', ''), 3);
+assert.strictEqual(api.wpPriorityRank('none', ''), null);
+assert.strictEqual(api.wpPriorityRank('nope', ''), null);
+assert.strictEqual(api.wpPriorityRank(blockerKey, 'prj-p'), 4);
+assert.strictEqual(api.wpPriorityUrgent('high', ''), false, 'a longer personal set narrows the urgent half');
+assert.strictEqual(api.wpPriorityUrgent('critical', ''), true);
+assert.strictEqual(api.wpPriorityUrgent('normal', ''), false);
+assert.strictEqual(api.wpPriorityUrgent('none', ''), false);
+assert.strictEqual(api.wpPriorityUrgent('high', 'prj-p'), false, 'urgency is the upper half of each scope set');
+assert.strictEqual(api.wpPriorityUrgent('critical', 'prj-p'), true);
+assert.strictEqual(api.wpPriorityUrgent(blockerKey, 'prj-p'), true, 'appended customs land at the urgent end of their set');
+assert.strictEqual(api.wpTopPriorityKey(''), boardBlocker.key);
+assert.strictEqual(api.wpTopPriorityKey('prj-p'), loneKey);
+assert.strictEqual(api.wpDefaultPriorityKey(''), 'normal');
+const soloBoard = { projects: [], priorities: [{ key: 'low', name: 'Низкий' }] };
+assert.strictEqual(api.wpDefaultPriorityKey('', soloBoard), 'low', 'sets without normal fall back to their first entry');
+assert.strictEqual(api.wpPriorityUrgent('low', '', soloBoard), false, 'a single priority never counts as urgent');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapPriorityKey('high', '', 'prj-p'))), { key: 'high', changed: false });
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapPriorityKey('nope', 'prj-p', ''))), { key: 'normal', changed: true }, 'unknown keys fall back to the target default');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapPriorityKey(blockerKey, 'prj-p', ''))), { key: boardBlocker.key, changed: true }, 'remap prefers the same name in the target set');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapPriorityKey(loneKey, 'prj-p', ''))), { key: boardBlocker.key, changed: true }, 'customs without a name match carry their rank');
+assert.strictEqual(api.wpMoveBoardPriority(blockerKey, -1, 'prj-p'), true);
+assert.strictEqual(api.wpPriorityRank(blockerKey, 'prj-p'), 3);
+assert.strictEqual(api.wpMoveBoardPriority('none', -1, ''), false, 'reorder stops at the set edges');
+assert.strictEqual(api.wpPriorityUrgent(blockerKey, 'prj-p'), true);
+assert.strictEqual(api.wpPriorityColor('high', ''), '', 'canonical keys without entry colors or presets resolve to the theme');
+prioBoard.priorityColors = { high: '#12ab34' };
+assert.strictEqual(api.wpPriorityColor('high', ''), '#12ab34', 'legacy board presets still tint their canonical keys');
+api.wpPriorityArrayForScope('').find(s => s.key === 'high').color = '#654321';
+assert.strictEqual(api.wpPriorityColor('high', ''), '#654321', 'entry colors win over the legacy presets');
+assert.strictEqual(api.wpPriorityColor(blockerKey, 'prj-p'), '#ff0000');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpPriorityTint({ homeType: 'personal', priorityKey: 'normal' }))), { key: 'normal', cls: '', attr: '' });
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpPriorityTint({ homeType: 'personal', priorityKey: 'high' }))), { key: 'high', cls: ' p-tint', attr: ' style="--wp-prio:#654321"' }, 'entry colors ship as an inline variable with the marker class');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpPriorityTint({ homeType: 'project', homeId: 'prj-p', priorityKey: blockerKey }))), { key: blockerKey, cls: ' p-tint', attr: ' style="--wp-prio:#ff0000"' });
+const prioOpts = api.wpPriorityOptions('normal', 'prj-p');
+assert(prioOpts.includes('<option value="normal" selected>Обычный</option>') && prioOpts.includes(`<option value="${blockerKey}" >Блокер</option>`), 'the priority select lists the scope set');
+assert(api.wpPriorityOptions('pr-gone', '').includes('<option value="pr-gone" selected>pr-gone</option>'), 'a missing key in use stays selectable');
+const prioEditor = api.wpEditorBodyHtml(null, 'series', true, { ...formValues, kind: 'project', projectId: 'prj-p', priorityKey: blockerKey }, false, null);
+assert(prioEditor.includes('data-priority-scope="prj-p"') && prioEditor.includes(`<option value="${blockerKey}" selected>Блокер</option>`), 'the task editor follows the project priority set');
+const customCard = api.wpTaskCard({ id: 'custom-prio', title: 'Кастом', homeType: 'project', homeId: 'prj-p', projectId: 'prj-p', project: 'Проект', assignee: 'Alex', statusKey: 'open', priorityKey: blockerKey, tags: [] }, { compact: true });
+assert(customCard.includes(`p-${blockerKey}`) && customCard.includes('p-tint') && customCard.includes('--wp-prio:#ff0000') && customCard.includes('Блокер'), 'cards expose custom priorities with their own tint');
+assert.strictEqual(api.wpMonthDots([{ homeType: 'project', homeId: 'prj-p', priorityKey: blockerKey }]), `<span class="wp-month-dots"><i class="p-${blockerKey} p-tint" style="--wp-prio:#ff0000"></i></span>`);
+const customCapsule = api.wpDayCapsule({ id: 'cap-custom', title: 'Капсула', homeType: 'project', homeId: 'prj-p', projectId: 'prj-p', project: 'Проект', statusKey: 'open', priorityKey: blockerKey, tags: [] });
+assert(customCapsule.includes('Блокер') && customCapsule.includes('p-tint'), 'day capsules lead with the custom priority name');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpSortEntities([
+  { id: 'r-low', title: 'b', homeType: 'personal', priorityKey: 'normal', statusKey: 'open' },
+  { id: 'r-top', title: 'a', homeType: 'personal', priorityKey: 'critical', statusKey: 'open' },
+  { id: 'r-none', title: 'c', homeType: 'personal', priorityKey: 'none', statusKey: 'open' }
+], 'urgency', 'desc').map(t => t.id))), ['r-top', 'r-low', 'r-none'], 'urgency ranks follow the set order with no-priority last');
+prioBoard.tasks = [
+  { id: 'urg-keep', title: 'Держим', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'critical', order: 1 },
+  { id: 'urg-mid', title: 'Граница', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'high', order: 2 },
+  { id: 'urg-drop', title: 'Падает', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'normal', order: 3 }
+];
+api.WP.boardHomeFilter = 'all'; api.WP.boardAssigneeFilter = 'all'; api.WP.boardMineOnly = false; api.WP.boardFocus = 'urgent'; api.WP.boardTagFilter = 'all'; api.WP.boardShowCompleted = true;
+assert.deepStrictEqual(Array.from(api.wpBoardEntities(), task => task.id), ['urg-keep'], 'the urgent focus keeps the upper half of the set');
+state.board = prioBoardBefore; state.boards = prioBoardsBefore; state.boardId = prioIdBefore;
+api.WP.boardHomeFilter = prioWPBefore.boardHomeFilter; api.WP.boardAssigneeFilter = prioWPBefore.boardAssigneeFilter; api.WP.boardMineOnly = prioWPBefore.boardMineOnly; api.WP.boardFocus = prioWPBefore.boardFocus; api.WP.boardTagFilter = prioWPBefore.boardTagFilter; api.WP.boardShowCompleted = prioWPBefore.boardShowCompleted;
+assert(html.includes('function wpPriorityDlg(') && html.includes('data-wp-prio-pick') && html.includes('Новый приоритет'), 'priorities gain a dictionary editor with a color picker');
+assert(html.includes('id="dPrioScope"') && html.includes('Набор приоритетов'), 'the priority tab switches between personal and project sets');
+assert(html.includes('data-dp-move') && html.includes('ниже в списке — срочнее'), 'priority rows reorder the urgency scale');
+assert(html.includes('wpPriorityDeleteTargetDlg') && html.includes('Удалить приоритет'), 'deleting a busy priority moves its tasks');
 const startDateMarkup = api.wpTaskCard({ id: 'start-date-task', title: 'Дата старта', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true });
 assert(startDateMarkup.includes('Начало ·') && !startDateMarkup.includes('План ·'), 'task cards use the renamed start-date label');
 const compactDateMarkup = api.wpTaskCard({ id: 'week-date-task', title: 'Короткая карточка', homeType: 'personal', assignee: 'Alex', deadlineAt: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true, inDay: true });

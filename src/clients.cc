@@ -345,6 +345,15 @@ class UiClient::BridgeHandler : public CefMessageRouterBrowserSide::Handler {
         Shell::Get().OnUiReady(d->GetString("version").ToString());
       } else if (cmd == "tab:reload") {
         Shell::Get().TabAction(d->GetString("tabId").ToString(), "reload", "");
+      } else if (cmd == "ai:test" || cmd == "ai:chat") {
+        // Запасной путь инлайн-адаптера: тот же нативный HTTPS, что у
+        // ai.test/ai.chat через host-bridge. Без этого ветка молча отвечала
+        // {"ok":true} — ложное «Подключено».
+        const std::string method = (cmd == "ai:test") ? "ai.test" : "ai.chat";
+        if (Shell::Get().HandleBridge(browser, method, d, callback))
+          return true;
+        callback->Failure(404, "unknown method: " + method);
+        return true;
       }
       callback->Success("{\"ok\":true}");
       return true;

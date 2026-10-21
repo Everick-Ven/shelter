@@ -33,6 +33,8 @@ assert(state.includes('window-state-v2') && state.includes('SHELTER_WINDOW_STATE
 assert(state.includes('GetAllDisplays') && state.includes('GetWorkArea'), 'сохранённые границы проверяются по существующим мониторам');
 assert(state.includes('GetBoundsInScreen'), 'в обычном режиме сохраняются экранные границы окна');
 assert(source.includes('SaveMainWindowMode(window_);'), 'последний режим сохраняется также при закрытии главного окна');
+assert(delegate.includes('Shell::Get().closing()'), 'переходы при уничтожении окна не затирают сохранённый режим');
+assert(source.includes('teardown_left_fullscreen') && source.includes('saved_at_close.mode == MainWindowMode::kFullscreen'), 'закрытие из полноэкранного режима не понижает его до обычного');
 assert(delegate.includes('WithStandardWindowButtons') && delegate.includes('#if defined(OS_MAC)'), 'нативные кнопки окна остаются только на macOS, на Windows их рисует вёрстка');
 
 console.log('Проверка исходника восстановления режима окна прошла');

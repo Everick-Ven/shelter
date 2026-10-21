@@ -508,7 +508,10 @@ class ShellWindowDelegate : public CefWindowDelegate {
   // Сохраняем режим только после того, как окно достигло запрошенного при
   // старте; до этого события размеров относятся к построению окна.
   void TrackWindowMode(CefRefPtr<CefWindow> window) {
-    if (!window) return;
+    // Во время закрытия CEF выходит из fullscreen в процессе teardown: переходы
+    // и изменения границ тогда относятся к уничтожению окна, а не к выбору
+    // пользователя, и не должны затирать сохранённый режим.
+    if (!window || Shell::Get().closing()) return;
     if (!tracking_) {
       if (window->IsMinimized()) return;
       MainWindowMode now = MainWindowMode::kNormal;
@@ -1407,7 +1410,16 @@ bool Shell::CanCloseWindow() {
 void Shell::OnWindowDestroyed() {
   CEF_REQUIRE_UI_THREAD();
   if (window_) {
-    SaveMainWindowMode(window_);
+    // К моменту уничтожения окно уже вышло из fullscreen (см. TrackWindowMode):
+    // слепое сохранение понизило бы "fullscreen" до обычного режима, и следующий
+    // запуск открылся бы в окне вместо полного экрана. Такой даунгрейд запрещён.
+    const MainWindowState saved_at_close = ReadMainWindowState();
+    const bool teardown_left_fullscreen =
+        saved_at_close.mode == MainWindowMode::kFullscreen &&
+        !window_->IsFullscreen();
+    if (!teardown_left_fullscreen) {
+      SaveMainWindowMode(window_);
+    }
     platform::UnwatchMainWindow(reinterpret_cast<void*>(window_->GetWindowHandle()));
   }
   window_ = nullptr;

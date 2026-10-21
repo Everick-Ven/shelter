@@ -261,7 +261,7 @@ globalThis.__api = {
   wpDateKey, wpDeadlineBeforeStart, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpDateControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
+  wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpDateControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
   wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate, wpCalendarScopeOptions, wpCalendarScopeSelect, wpSetCalendarScope, wpFilterByHome, wpHomeFilterOptions, wpWeekSummary, wpTaskCardModalHtml, wpOpenTaskCard, buildTaskReviewPrompt,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpBoardScope, wpBoardCategoryMode, wpBoardCategoryColumns, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpMoveBoardStatusTo, wpStatusColor, wpValidStatusColor, wpStatusSwatches, wpStatusSwatchesHtml, wpIsSystemStatus, WP_SYSTEM_STATUS_KEYS, WP_STATUS_SWATCHES, WP_STATUS_SWATCHES_DEFAULT, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpScopeOf, wpStatusesFor, wpStatusArrayForScope, wpEnsureProjectStatuses, wpRemapStatusKey, wpStatusCategory, wpSetTaskHome, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
@@ -456,41 +456,42 @@ assert(monthWeekMarkup.includes('<i class="p-critical"></i>') && monthWeekMarkup
 const singleDayCell = api.wpMonthDay('2026-10-15', rangeTasks);
 assert(singleDayCell.includes('<span class="wp-month-dots"><i class="p-critical"></i><i class="p-none"></i><i class="p-normal"></i></span>'), 'one-day and multi-day tasks share the priority dots of their date cell');
 assert(singleDayCell.includes('<span class="wp-month-count">3</span>'), 'the month count covers every task on the date');
-const weekLayout = api.wpCalendarSpanLayout(weekDays, rangeTasks);
-assert.strictEqual(weekLayout.laneCount, 2, 'overlapping all-day ranges occupy separate horizontal lanes');
-assert.strictEqual(weekLayout.segments.length, 3, 'only tasks with a date range become horizontal spans');
-assert(weekLayout.segments.find(segment => segment.task.id === 'week-span').continuesBefore, 'week range rows clip cleanly at the week boundary');
+assert(!planner.includes('function wpCalendarSpanLayout(') && !planner.includes('function wpCalendarSpanEvent('), 'week mode renders no horizontal span layer: ranges are per-day capsules');
 const crowdedSpans = [0, 1, 2].map(i => ({ id: `crowd-${i}`, title: `Перекрытие ${i}`, homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-13', deadlineAt: '2026-10-15', statusKey: 'open', priorityKey: 'normal', order: 30 + i, tags: [] }));
-const crowdedLayout = api.wpCalendarSpanLayout(weekDays, crowdedSpans, 2);
-assert.strictEqual(crowdedLayout.laneCount, 2, 'month weeks cap horizontal lanes so tiles stay compact');
-assert.strictEqual(crowdedLayout.segments.filter(segment => segment.lane < 0).length, 1, 'ranges beyond the lane cap are marked as overflow');
 const crowdedMarkup = api.wpMonthWeek(weekDays, crowdedSpans);
 assert.strictEqual(countId(crowdedMarkup, 'crowd-0'), 0);
 assert.strictEqual(countId(crowdedMarkup, 'crowd-1'), 0);
 assert.strictEqual(countId(crowdedMarkup, 'crowd-2'), 0, 'overlapping ranges render no rows in the month week');
 assert(crowdedMarkup.includes('<span class="wp-month-dots"><i class="p-normal"></i><i class="p-normal"></i><i class="p-normal"></i></span>'), 'overlapping ranges share the day dots instead of vanishing');
 const rangeWeekCards = api.wpWeekCalendar(weekDays, rangeTasks);
-assert(rangeWeekCards.includes('wp-calendar-span-layer wp-week-span-layer'), 'week mode restores its horizontal multi-day layer');
-assert.strictEqual(countId(rangeWeekCards, 'week-span'), 1, 'the week view renders each spanning task once, not as a card in each covered day');
-assert.strictEqual(countId(rangeWeekCards, 'month-span-a'), 1);
-assert.strictEqual(countId(rangeWeekCards, 'month-span-b'), 1);
+assert(!rangeWeekCards.includes('wp-calendar-span-layer') && !rangeWeekCards.includes('wp-week-span-layer'), 'week mode renders no horizontal multi-day layer');
+assert(!rangeWeekCards.includes('wp-day-span-spacer') && !rangeWeekCards.includes('has-spans'), 'week days keep no spacer for the removed span layer');
+assert.strictEqual(countId(rangeWeekCards, 'week-span', 'data-task-id'), 2, 'a range clipped by the week renders one capsule per covered day');
+assert.strictEqual(countId(rangeWeekCards, 'month-span-a', 'data-task-id'), 3);
+assert.strictEqual(countId(rangeWeekCards, 'month-span-b', 'data-task-id'), 4);
 assert.strictEqual(countId(rangeWeekCards, 'single-day-task', 'data-task-id'), 1, 'single-day tasks remain capsules in their own week cell');
-assert(rangeWeekCards.includes('wp-day-capsule p-normal') && rangeWeekCards.includes('Однодневная задача'), 'week day cells render thin capsules like the multi-day rows');
+assert(rangeWeekCards.includes('wp-day-capsule p-normal') && rangeWeekCards.includes('Однодневная задача'), 'week day cells render thin capsules for every task');
 assert(!rangeWeekCards.includes('<article class="wp-task'), 'week day cells no longer duplicate full task cards');
-assert(rangeWeekCards.includes('wp-calendar-span wp-calendar-span--week p-high'), 'week span color follows urgency');
-assert(rangeWeekCards.includes('Приоритет: Критичный') && rangeWeekCards.includes('Приоритет: Без приоритета'), 'week range labels expose the priority');
-assert(rangeWeekCards.includes('wp-day-span-spacer'), 'week days reserve room for the horizontal range lanes');
+assert(rangeWeekCards.includes('wp-day-capsule p-high') && rangeWeekCards.includes('wp-day-capsule p-critical'), 'capsule color follows urgency for ranges and single days alike');
+assert(rangeWeekCards.includes('Личные · Критичный · 14–16 окт.') && rangeWeekCards.includes('Личные · Без приоритета · 14–17 окт.'), 'range capsules expose the duration next to home and priority');
+assert(rangeWeekCards.includes('10–13 окт.'), 'clipped ranges keep their full duration label');
+assert(planner.includes("closest('.wp-task[draggable=\"true\"],.wp-day-capsule[draggable=\"true\"]')"), 'day capsules start the same task drag as cards');
+assert(planner.includes("closest('.wp-task,.wp-day-capsule,.wp-board-column')"), 'capsules clear the dragging mark on release');
+assert(plannerStyle[1].includes('.wp-day-capsule.dragging{opacity:.45}'), 'capsules share the drag fade effect');
 const desktopDay = api.wpDayColumn('2026-10-15', rangeTasks);
 assert(desktopDay.includes('data-act="wpCalendarSelectDate" data-date="2026-10-15"'), 'clicking the whole week day selects it, not just its date label');
-assert.strictEqual(countId(desktopDay, 'month-span-a'), 0, 'desktop date cells do not duplicate a range that is shown in the span layer');
+assert.strictEqual(countId(desktopDay, 'month-span-a', 'data-task-id'), 1, 'desktop date cells render ranges as capsules like single-day tasks');
+assert.strictEqual(countId(desktopDay, 'month-span-b', 'data-task-id'), 1);
+assert.strictEqual(countId(desktopDay, 'week-span', 'data-task-id'), 0, 'ranges outside the day leave no capsules');
 assert.strictEqual(countId(desktopDay, 'single-day-task', 'data-task-id'), 1);
+assert(desktopDay.includes('14–16 окт.'), 'range capsules carry the duration label');
 assert(desktopDay.includes('wp-day-capsule') && !desktopDay.includes('<article class="wp-task'), 'desktop date cells render capsules instead of cards');
 const desktopDayHead = desktopDay.slice(desktopDay.indexOf('<header class="wp-day-head">'), desktopDay.indexOf('</header>'));
 assert(/<div><b>\d+<\/b><span>/.test(desktopDayHead) && !desktopDayHead.includes('<small>'), 'week day headers mirror history: number first, then the weekday, no month label');
 const monthDayCell = api.wpMonthDay('2026-10-15', rangeTasks);
 assert(monthDayCell.includes('data-act="wpCalendarSelectDate" data-date="2026-10-15"'), 'clicking anywhere in a month day cell selects its date');
-const selectedMobileDay = api.wpDayColumn('2026-10-15', rangeTasks, { includeMultiDay: true });
-assert.strictEqual(countId(selectedMobileDay, 'month-span-a', 'data-task-id'), 1, 'the selected/mobile day list may keep capsules for multi-day tasks');
+const selectedMobileDay = api.wpDayColumn('2026-10-15', rangeTasks);
+assert.strictEqual(countId(selectedMobileDay, 'month-span-a', 'data-task-id'), 1, 'the selected/mobile day lists ranges as capsules');
 state.ui = { plannerShowCompletedTasks: true };
 api.WP._completedVisibilityRestored = false;
 api.wpEnsureState();
@@ -501,8 +502,8 @@ const completedCalendarTasks = [
   { id: 'done-single', title: 'Завершённый день', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-15', deadlineAt: null, statusKey: 'done', priorityKey: 'normal', matrixQuadrant: 2, order: 26, tags: [] }
 ];
 const completedWeekMarkup = api.wpWeekCalendar(weekDays, completedCalendarTasks);
-assert(completedWeekMarkup.includes('wp-calendar-span wp-calendar-span--week p-high is-done'), 'completed multi-day tasks keep their horizontal rows');
-assert.strictEqual(countId(completedWeekMarkup, 'done-span'), 1);
+assert(completedWeekMarkup.includes('wp-day-capsule p-high is-done'), 'completed multi-day tasks keep done capsules in each covered day');
+assert.strictEqual(countId(completedWeekMarkup, 'done-span', 'data-task-id'), 3);
 assert.strictEqual(countId(completedWeekMarkup, 'done-single', 'data-task-id'), 1, 'completed single-day tasks remain in their date cell');
 assert(completedWeekMarkup.includes('<details class="wp-done-fold" open>'), 'visible completed single-day tasks are expanded in the week calendar');
 const completedMonthMarkup = api.wpMonthWeek(octoberGrid.slice(14, 21), completedCalendarTasks);
@@ -514,7 +515,7 @@ assert(api.wpCalendarCompletedToggle('board').includes('data-scope="board"') && 
 api.WP.calendarShowCompleted = false;
 const hiddenCompletedWeek = api.wpWeekCalendar(weekDays, completedCalendarTasks);
 const hiddenCompletedMonth = api.wpMonthWeek(octoberGrid.slice(14, 21), completedCalendarTasks);
-const hiddenCompletedMobile = api.wpDayColumn('2026-10-15', completedCalendarTasks, { includeMultiDay: true });
+const hiddenCompletedMobile = api.wpDayColumn('2026-10-15', completedCalendarTasks);
 assert(!hiddenCompletedWeek.includes('done-span') && !hiddenCompletedWeek.includes('done-single'), 'the calendar toggle hides completed week rows and capsules');
 assert(!hiddenCompletedMonth.includes('done-span') && !hiddenCompletedMonth.includes('done-single'), 'the calendar toggle hides completed month dots and events');
 assert(!hiddenCompletedMobile.includes('done-span') && !hiddenCompletedMobile.includes('done-single'), 'the calendar toggle also applies to the selected mobile day');
@@ -593,7 +594,7 @@ assert(!probeMarkup.includes('wp-board-summary'), 'no KPI strip duplicates the l
 state.board = keepBoard; state.boards = keepBoards; state.boardId = keepId;
 api.WP.allFilter = keepAllFilter; api.WP.boardShowCompleted = keepShow; api.WP.boardFocus = keepFocus; api.WP.boardHomeFilter = keepHomeFilter;
 assert(html.includes('width: 520, onClose: () => tasksRerender(true), html:'), 'closing the dictionaries modal always re-renders the board, even via Escape or backdrop click');
-assert(planner.includes("is-all-day${layout.segments.length?' has-spans':''}") && plannerStyle[1].includes('.wp-week-grid.has-spans .wp-day-items{margin-top:6px}'), 'span weeks keep the uniform 6px gap between multi-day rows and capsules');
+assert(planner.includes("<div class=\"wp-week-grid is-all-day\"><div") && !plannerStyle[1].includes('has-spans') && plannerStyle[1].includes('.wp-day-items{display:flex;flex:1;flex-direction:column;gap:6px;'), 'week days stack uniform capsules with a 6px rhythm and no span layer');
 assert(api.WP.calendarShowCompleted, 'the board toolbar keeps the completed calendar filter untouched');
 api.actions.wpBoardFocus({dataset:{filter:'urgent'}});
 assert.deepStrictEqual(Array.from(api.wpBoardEntities(),task=>task.id).sort(),['board-other','board-urgent'],'Urgent means high or critical priority on the board');
@@ -1174,7 +1175,7 @@ state.board = stageCBoard; state.boards = [stageCBoard]; state.boardId = 'stage-
 const stageCCardTask = state.board.tasks.find(task => task.id === 'card-task');
 assert.strictEqual(typeof api.actions.taskOpen, 'function', 'task clicks route through the card modal action');
 assert(planner.includes('taskOpen:el=>wpOpenTaskCard(wpRefFromElement(el))'), 'the card modal opens from the clicked element reference');
-assert.strictEqual((planner.match(/data-act="taskOpen"/g) || []).length, 3, 'card titles, calendar spans, and day capsules open the read-only card');
+assert.strictEqual((planner.match(/data-act="taskOpen"/g) || []).length, 2, 'card titles and day capsules open the read-only card');
 assert(planner.includes('data-act="taskEdit" data-open-comments="1"'), 'the explicit comments shortcut still opens the editor');
 const stageCCard = api.wpTaskCard({ ...stageCCardTask, entityType: 'task', taskId: 'card-task' }, { compact: true });
 assert(stageCCard.includes('data-act="taskOpen"'), 'task cards open the read-only card on title click');
@@ -1266,7 +1267,7 @@ const stageEOccPrompt = api.buildTaskReviewPrompt({ ...stageETask, entityType: '
 assert(stageEOccPrompt.length <= 4000 && !stageEOccPrompt.includes('prj-e'), 'E9: instance reviews stay within the cap without identifiers');
 assert(!legacyTaskSource.includes('wpScopeOf') && !legacyTaskSource.includes('taskOpen') && !legacyTaskSource.includes('statusScope'), 'the legacy task layer stays untouched by scoped statuses');
 state.board = stageEBoardBefore; state.boards = stageEBoardsBefore; state.boardId = stageEIdBefore;
-assert(planner.includes('laneCount*20+(laneCount-1)*6'), 'the span spacer reserves the uniform 6px rhythm');
+assert(!planner.includes('laneCount') && planner.includes('const covering=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date));'), 'week days stack every covered task as a uniform capsule');
 
 // Overdue is clock-driven: date-only lapses at midnight, timed lapses at the minute.
 assert.strictEqual(api.wpValidDeadlineTime('14:30'), '14:30');
@@ -1370,7 +1371,7 @@ assert(rangeMonthWeek.includes('wp-month-dots'), 'covered month cells keep prior
 assert(monthView.includes('wp-month-selected'), 'the month keeps its selected-day panel next to the dot grid');
 api.WP.weekStart = '2026-10-12'; api.WP.mobileDate = '2026-10-15'; api.WP.calendarMode = 'week';
 const rangeWeekMarkup = api.wpViewHtml();
-assert(rangeWeekMarkup.includes('wp-week-grid is-all-day') && rangeWeekMarkup.includes('wp-week-span-layer'));
+assert(rangeWeekMarkup.includes('wp-week-grid is-all-day') && !rangeWeekMarkup.includes('wp-week-span-layer'), 'the week grid stacks day capsules without a span layer');
 assert(!rangeWeekMarkup.includes('Входящие без плана') && !rangeWeekMarkup.includes('wp-inbox-shelf'), 'the week view replaces the unplanned inbox shelf');
 const weekSelectedAt = rangeWeekMarkup.indexOf('<section class="wp-week-selected"');
 assert(weekSelectedAt >= 0, 'the week view shows a selected-day list below the calendar');
@@ -1378,10 +1379,10 @@ const weekSelectedPanel = rangeWeekMarkup.slice(weekSelectedAt, rangeWeekMarkup.
 assert(weekSelectedPanel.includes('month-span-a') && weekSelectedPanel.includes('month-span-b') && weekSelectedPanel.includes('single-day-task'), 'the week selected-day list includes every task covering that date, including multi-day tasks');
 assert(rangeWeekMarkup.includes('Однодневная задача') && rangeWeekMarkup.includes('Задача на несколько дней'));
 const desktopWeekGrid = rangeWeekMarkup.slice(rangeWeekMarkup.indexOf('<div class="wp-week-grid is-all-day'), weekSelectedAt);
-assert.strictEqual(countId(desktopWeekGrid, 'week-span'), 1, 'the desktop week grid displays a range as one horizontal row');
-assert.strictEqual(countId(desktopWeekGrid, 'month-span-a'), 1);
+assert.strictEqual(countId(desktopWeekGrid, 'week-span', 'data-task-id'), 2, 'the desktop week grid displays a range as one capsule per covered day');
+assert.strictEqual(countId(desktopWeekGrid, 'month-span-a', 'data-task-id'), 3);
 assert.strictEqual(countId(desktopWeekGrid, 'single-day-task', 'data-task-id'), 1);
-assert(rangeWeekMarkup.includes('Многодневные задачи на весь день'), 'multi-day tasks remain date-only and use no invented time slots');
+assert(!rangeWeekMarkup.includes('Многодневные задачи на весь день'), 'the span-layer label is gone with the layer');
 assert(rangeWeekMarkup.includes('data-act="wpCalendarToggleCompleted"') && rangeWeekMarkup.includes('Скрыть выполненные задачи'), 'week calendar offers the completed-task visibility toggle');
 api.wpSelectCalendarDate('2026-10-16');
 assert.strictEqual(api.WP.mobileDate, '2026-10-16', 'selecting a day updates the week’s bottom list target');

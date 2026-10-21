@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-geT5UbaUT4UiA1T/jIINWFx9jzCcPwp/zoOLfqflgOQ=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-lMYiYCYloSubEfeJvn9e7kCW0AIYO+a7hbh2FjANRtU=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -14051,7 +14051,7 @@ function init() {
    ========================================================= */
 const WP_SCHEMA = 8;
 const WP = {
-  view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', calendarShowCompleted: true, boardShowCompleted: true, monthMini: false,
+  view: 'week', calendarMode: 'week', weekStart: '', monthStart: '', mobileDate: '', query: '', projectId: '', calendarScope: 'all', calendarShowCompleted: true, boardShowCompleted: true, monthMini: false,
   sidebarCollapsed: false, railOpen: false, allFilter: 'active', allAssigneeFilter: 'all', allMineOnly: false, allProjectFilter: 'all', allSort: 'urgency', allSortDir: 'desc', allTagFilter: 'all', quick: null, reviewSelected: [],
   boardHomeFilter: 'all', boardAssigneeFilter: 'all', boardMineOnly: false, boardFocus: 'all', boardTagFilter: 'all', boardSort: 'urgency', boardSortDir: 'desc', boardMoveColumns: false,
   _sortRestored: false, _searchTimer: 0, _calendarModeRestored: false, _completedVisibilityRestored: false, _sidebarRestored: false, _monthMiniRestored: false, _touchX: null, _undoToken: 0
@@ -15080,6 +15080,10 @@ function wpEnsureState() {
     WP.boardShowCompleted=typeof S.ui.plannerBoardShowCompletedTasks==='boolean' ? S.ui.plannerBoardShowCompletedTasks : legacy;
     WP._completedVisibilityRestored=true;
   }
+  if(!WP._calendarScopeRestored) {
+    WP.calendarScope=typeof S.ui.plannerCalendarScope==='string'&&S.ui.plannerCalendarScope?S.ui.plannerCalendarScope:'all';
+    WP._calendarScopeRestored=true;
+  }
   if(!WP._sidebarRestored) {
     WP.sidebarCollapsed=S.ui.plannerSidebarCollapsed===true;
     WP._sidebarRestored=true;
@@ -15117,6 +15121,8 @@ function wpEnsureState() {
     if(!['asc','desc'].includes(WP[scope+'SortDir']))WP[scope+'SortDir']=spec.initial;
   });
   if(!WP_BOARD_FOCUS.some(([key])=>key===WP.boardFocus))WP.boardFocus='all';
+  const calendarScope=String(WP.calendarScope||'all');
+  if(!['all','personal','inbox'].includes(calendarScope)&&!visibleProjects().some(project=>'project:'+project.id===calendarScope))WP.calendarScope='all';
   if(!Array.isArray(WP.reviewSelected)) WP.reviewSelected=[];
 }
 function wpTaskRule(task) { return task && task.recurrenceRuleId ? (S.board.recurrenceRules||[]).find(r=>r && r.id===task.recurrenceRuleId) || null : null; }
@@ -15395,6 +15401,17 @@ function wpHomeFilterOptions() {
   const projects=visibleProjects().slice().sort((a,b)=>wpCompareText(a.name,b.name));
   return [['all','Все списки'],['inbox','Входящие'],['personal','Личные'],...projects.map(project=>['project:'+project.id,project.name])];
 }
+/* Область календаря: те же списки и проекты, что в фильтрах доски и задач. */
+function wpCalendarScopeOptions() { return wpHomeFilterOptions(); }
+function wpCalendarScopeSelect() {
+  return wpFilterSelect('calendar','scope','Список / проект','Фильтр календаря по списку и проекту',wpCalendarScopeOptions(),WP.calendarScope||'all','wp-filter-project');
+}
+function wpSetCalendarScope(value) {
+  if(!wpIsObj(S.ui)) S.ui={};
+  WP.calendarScope=wpCalendarScopeOptions().some(([key])=>key===value)?value:'all';
+  S.ui.plannerCalendarScope=WP.calendarScope;
+  persist(); wpRenderView();
+}
 function wpCanonicalFilter(value,options) {
   const key=wpTextKey(value), match=options.find(([candidate])=>wpTextKey(candidate)===key);
   return match?match[0]:'all';
@@ -15430,7 +15447,7 @@ function wpFiltersDirty(scope='all') {
   return query||WP.allFilter!=='active'||WP.allAssigneeFilter!=='all'||WP.allMineOnly||WP.allProjectFilter!=='all'||WP.allTagFilter!=='all'||WP.allSort!=='urgency'||WP.allSortDir!=='desc';
 }
 function wpFilterSelect(scope,field,label,aria,options,selected,cls='') {
-  const attribute=scope==='board'?'data-wp-board-filter':'data-wp-filter';
+  const attribute=scope==='board'?'data-wp-board-filter':scope==='calendar'?'data-wp-calendar-filter':'data-wp-filter';
   return `<label class="wp-filter-select ${cls}"><span>${esc(label)}</span><select class="select" ${attribute}="${field}" aria-label="${esc(aria)}">${options.map(([value,text])=>`<option value="${esc(value)}" ${selected===value?'selected':''}>${esc(text)}</option>`).join('')}</select></label>`;
 }
 function wpSortControls(scope='all') {
@@ -15466,7 +15483,7 @@ function wpTaskMenuOwned(menu=OV.menu) {
 function wpRestoreSelectFocus(select) {
   let next=select.isConnected?select:null;
   if(!next) {
-    const fields=['wpFilter','wpBoardFilter','wpQuickHome','wpQuickQuadrant','act','id','entityType','seriesId','originalDate'];
+    const fields=['wpFilter','wpBoardFilter','wpCalendarFilter','wpQuickHome','wpQuickQuadrant','act','id','entityType','seriesId','originalDate'];
     const attrs=fields.filter(key=>select.dataset[key]!=null).map(key=>[key,select.dataset[key]]);
     next=select.id?document.getElementById(select.id):attrs.length?Array.from(document.querySelectorAll('.planner-page select.select')).find(el=>attrs.every(([key,value])=>el.dataset[key]===value)):null;
   }
@@ -15621,8 +15638,8 @@ function wpRangeEntities(start,end) {
   return wpSortEntities(out.filter(wpSearchMatch));
 }
 function wpCalendarEntities(start,end) {
-  // The calendar is project-agnostic: range over all visible projects on the active board, then keep the browser user's tasks.
-  return wpRangeEntities(start,end).filter(wpIsMine);
+  // Range over the selected calendar scope, then keep the browser user's tasks.
+  return wpFilterByHome(wpRangeEntities(start,end),WP.calendarScope||'all').filter(wpIsMine);
 }
 function wpCalendarShownEntities(entities) {
   const rows=Array.isArray(entities) ? entities : [];
@@ -16010,7 +16027,7 @@ function wpWeekSummary(entities) {
   const done=entities.filter(t=>wpTaskDone(t)).length;
   const overdue=entities.filter(wpDeadlineOverdue).length;
   const mins=entities.filter(t=>!wpTaskClosed(t)).reduce((s,t)=>s+(+t.durationEstimateMinutes||0),0);
-  return `<div class="wp-week-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${mins?`<span>${ico('timer')}~${esc(fmtDur(mins))} оценки</span>`:''}${wpCalendarCompletedToggle()}</div>`;
+  return `<div class="wp-week-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${mins?`<span>${ico('timer')}~${esc(fmtDur(mins))} оценки</span>`:''}${wpCalendarScopeSelect()}${wpCalendarCompletedToggle()}</div>`;
 }
 function wpMobileStrip() {
   return `<div class="wp-mobile-weekstrip" role="tablist" aria-label="День недели">${wpWeekKeys(WP.weekStart).map((date,i)=>`<button type="button" class="${WP.mobileDate===date?'active':''} ${wpDateKey(Date.now())===date?'today':''}" data-act="wpMobileDay" data-date="${date}" role="tab" aria-selected="${WP.mobileDate===date}"><small>${WP_WEEKDAYS[i]}</small><b>${wpDateParts(date).d}</b><i></i></button>`).join('')}</div>`;
@@ -16037,7 +16054,7 @@ function wpMonthWeek(days,entities) {
 }
 function wpMonthSummary(entities) {
   const active=entities.filter(t=>!wpTaskClosed(t)).length, done=entities.filter(t=>wpTaskDone(t)).length, overdue=entities.filter(wpDeadlineOverdue).length;
-  return `<div class="wp-month-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('layers')}<b>${active+done}</b> задач</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${wpCalendarCompletedToggle()}${wpMonthMiniToggle()}</div>`;
+  return `<div class="wp-month-summary"><span>${ico('list')}<b>${active}</b> активных</span><span>${ico('layers')}<b>${active+done}</b> задач</span><span>${ico('check')}<b>${done}</b> выполнено</span><span class="${overdue?'danger':''}">${ico('clock')}<b>${overdue}</b> просроченных сроков</span>${wpCalendarScopeSelect()}${wpCalendarCompletedToggle()}${wpMonthMiniToggle()}</div>`;
 }
 function wpMonthMiniDay(date,entities) {
   const list=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date));
@@ -16205,7 +16222,7 @@ function wpRenderView() {
   const draft=root&&root.querySelector('[data-wp-quick-input]');if(WP.quick&&draft)WP.quick.value=draft.value;
   if(wpTaskMenuOwned())closeMenu();
   const focused=document.activeElement;
-  const focusAttrs=['act','scope','view','filter','id','entityType','seriesId','originalDate','date','wpFilter','wpBoardFilter','wpCalendarPicker','wpQuickInput','wpQuickQuadrant','wpQuickHome','wpQuickPriority'];
+  const focusAttrs=['act','scope','view','filter','id','entityType','seriesId','originalDate','date','wpFilter','wpBoardFilter','wpCalendarFilter','wpCalendarPicker','wpQuickInput','wpQuickQuadrant','wpQuickHome','wpQuickPriority'];
   const focusInfo=page&&focused&&page.contains(focused)?{id:focused.id||'',attrs:Object.fromEntries(focusAttrs.filter(key=>focused.dataset&&focused.dataset[key]!=null).map(key=>[key,focused.dataset[key]])),value:typeof focused.value==='string'?focused.value:null,start:Number.isInteger(focused.selectionStart)?focused.selectionStart:null,end:Number.isInteger(focused.selectionEnd)?focused.selectionEnd:null}:null;
   const focusState=focusInfo&&(focusInfo.id||Object.keys(focusInfo.attrs).length)?focusInfo:null;
   const pageScroll=page?{top:page.scrollTop,left:page.scrollLeft}:null;
@@ -16286,6 +16303,8 @@ function wpAfterTaskPage() {
     if(quickQuadrant && WP.quick) { WP.quick.quadrant=wpValidQuadrant(quickQuadrant.value); return; }
     const quickHome=e.target.closest('[data-wp-quick-home]');
     if(quickHome && WP.quick) { const input=root.querySelector('[data-wp-quick-input]'); WP.quick.value=input?input.value:WP.quick.value||''; const parts=quickHome.value.split(':'); WP.quick.homeType=parts[0]; WP.quick.projectId=parts[0]==='project'?parts.slice(1).join(':'):null; wpRenderView(); const restored=root.querySelector('[data-wp-quick-input]'); if(restored){restored.focus();restored.setSelectionRange(restored.value.length,restored.value.length);} return; }
+    const calendarFilter=e.target.closest('[data-wp-calendar-filter]');
+    if(calendarFilter) { wpSetCalendarScope(calendarFilter.value); return; }
     const filter=e.target.closest('[data-wp-filter]');
     if(filter) { wpSetAllViewFilter(filter.dataset.wpFilter,filter.value); return; }
     const cb=e.target.closest('[data-act="wpReviewSelect"]');

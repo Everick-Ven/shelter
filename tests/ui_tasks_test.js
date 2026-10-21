@@ -261,7 +261,7 @@ globalThis.__api = {
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
   wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
-  wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
+  wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate, wpCalendarScopeOptions, wpCalendarScopeSelect, wpSetCalendarScope, wpFilterByHome, wpHomeFilterOptions, wpWeekSummary,
   wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpBoardScope, wpBoardCategoryMode, wpBoardCategoryColumns, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpMoveBoardStatusTo, wpStatusColor, wpValidStatusColor, wpStatusSwatches, wpStatusSwatchesHtml, wpIsSystemStatus, WP_SYSTEM_STATUS_KEYS, WP_STATUS_SWATCHES, WP_STATUS_SWATCHES_DEFAULT, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpScopeOf, wpStatusesFor, wpStatusArrayForScope, wpEnsureProjectStatuses, wpRemapStatusKey, wpStatusCategory, wpSetTaskHome, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpSetStatusRef, wpSetTaskStatus, wpRequestStatusChange, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson, wpBoardPersonIndexById, wpDeleteTaskContact, wpContactIdUsedAnywhere,
@@ -1099,6 +1099,51 @@ assert(stageAMergedBoard.projects.find(project => project.id === 'prj-a').status
 assert(stageAMergedBoard.projects.find(project => project.id === 'prj-new').statuses.some(s => s.key === 'st-file'), 'new projects arrive with their own status set');
 state.board = stageABoardBefore; state.boards = stageABoardsBefore; state.boardId = stageAIdBefore;
 Object.assign(api.WP, stageAWPBefore);
+
+// Stage B: the calendar filters by list/project scope with a persisted preference.
+const stageBBoardBefore = state.board, stageBBoardsBefore = state.boards, stageBIdBefore = state.boardId;
+const stageBUiBefore = state.ui.plannerCalendarScope, stageBWPBefore = api.WP.calendarScope, stageBRestoredBefore = api.WP._calendarScopeRestored;
+const stageBBoard = api.wpNormalizeBoard({
+  id: 'stage-b', name: 'Stage B', code: 'STAGE-B', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-b', name: 'Бета', members: [] }], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'done', name: 'Готово' }],
+  tasks: [
+    { id: 'cal-personal', title: 'Личная', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', assignee: 'me', scheduledDate: '2026-10-13', order: 1 },
+    { id: 'cal-project', title: 'Проектная', homeType: 'project', homeId: 'prj-b', projectId: 'prj-b', project: 'Бета', statusKey: 'open', priorityKey: 'normal', assignee: 'me', scheduledDate: '2026-10-13', order: 2 },
+    { id: 'cal-alien', title: 'Чужая', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', assignee: 'Анна', scheduledDate: '2026-10-13', order: 3 }
+  ]
+});
+state.board = stageBBoard; state.boards = [stageBBoard]; state.boardId = 'stage-b';
+assert(planner.includes('function wpCalendarScopeOptions() { return wpHomeFilterOptions(); }'), 'calendar scopes reuse the home filter options');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpCalendarScopeOptions())), JSON.parse(JSON.stringify(api.wpHomeFilterOptions())));
+assert.deepStrictEqual([...api.wpCalendarScopeOptions()].map(option => option[0]), ['all', 'inbox', 'personal', 'project:prj-b'], 'calendar scopes list every list and project');
+api.WP.calendarScope = 'all';
+assert.deepStrictEqual(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id).sort(), ['cal-personal', 'cal-project'], 'the calendar keeps its all-lists default and still excludes foreign assignees');
+api.WP.calendarScope = 'personal';
+assert.deepStrictEqual(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id), ['cal-personal']);
+api.WP.calendarScope = 'project:prj-b';
+assert.deepStrictEqual(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id), ['cal-project']);
+assert.deepStrictEqual(Array.from(api.wpMonthEntities('2026-10-01'), task => task.id), ['cal-project'], 'month cells follow the same calendar scope');
+api.WP.calendarScope = 'inbox';
+assert.deepStrictEqual(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id), []);
+api.wpSetCalendarScope('personal');
+assert.strictEqual(api.WP.calendarScope, 'personal');
+assert.strictEqual(state.ui.plannerCalendarScope, 'personal', 'the calendar scope persists into the UI preferences');
+api.wpSetCalendarScope('project:missing');
+assert.strictEqual(api.WP.calendarScope, 'all', 'unknown scopes reset to all lists');
+assert.strictEqual(state.ui.plannerCalendarScope, 'all');
+assert(planner.includes("if(calendarFilter) { wpSetCalendarScope(calendarFilter.value); return; }"), 'calendar scope changes route through the persisted setter');
+api.WP._calendarScopeRestored = false; state.ui.plannerCalendarScope = 'project:prj-b'; api.wpEnsureState();
+assert.strictEqual(api.WP.calendarScope, 'project:prj-b', 'the calendar scope restores from preferences');
+api.WP.calendarScope = 'project:missing'; api.wpEnsureState();
+assert.strictEqual(api.WP.calendarScope, 'all', 'a deleted project cannot leave an invisible calendar scope active');
+const stageBWeekSummary = api.wpWeekSummary(Array.from(api.wpWeekEntities('2026-10-12')));
+assert(stageBWeekSummary.includes('data-wp-calendar-filter="scope"'), 'the week summary carries the calendar scope selector');
+const stageBMonthSummary = api.wpMonthSummary(Array.from(api.wpMonthEntities('2026-10-01')));
+assert(stageBMonthSummary.includes('data-wp-calendar-filter="scope"'), 'the month summary carries the calendar scope selector');
+state.board = stageBBoardBefore; state.boards = stageBBoardsBefore; state.boardId = stageBIdBefore;
+api.WP.calendarScope = stageBWPBefore; api.WP._calendarScopeRestored = stageBRestoredBefore;
+if (stageBUiBefore === undefined) delete state.ui.plannerCalendarScope; else state.ui.plannerCalendarScope = stageBUiBefore;
 assert(planner.includes('laneCount*20+(laneCount-1)*6'), 'the span spacer reserves the uniform 6px rhythm');
 
 // Overdue is clock-driven: date-only lapses at midnight, timed lapses at the minute.

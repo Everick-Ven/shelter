@@ -1070,16 +1070,17 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         /* Карточки и капсулы ассистента: у каждой все четыре угла скруглены
            одинаково. Панели .dt-rail/.dt-main сюда не входят: в текущем
            макете это macOS Split View — панели стыкуются встык и разделены
-           волосяной линией, их проверяет блок ниже. */
-        const surfaces = ['.dt-new', '.dt-thread-search', '.dt-kpis',
+           волосяной линией, их проверяет блок ниже. KPI-группы .dt-kpis
+           здесь тоже нет: чистый профиль открывается пустым диалогом без
+           сообщений, поэтому её скругление меряется пробой ниже. */
+        const surfaces = ['.dt-new', '.dt-thread-search',
                           '.dt-welcome-mark', '.omni.dt-omni', '.dt-privacy-pill',
                           '.dt-private'];
         const report = {};
         /* Приветственный экран живёт только в пустом диалоге: на чистом
-           профиле Открыт ознакомительный диалог с сообщениями. Открываем
-           новый диалог штатной кнопкой, измеряем экран, затем возвращаемся
-           в прежний — иначе проба проверяла бы поверхность, которой в этом
-           состоянии просто нет. */
+           профиле Открыт пустой «Новый диалог», и экран уже на месте.
+           Если его нет (профиль с историей), открываем новый диалог
+           штатной кнопкой, измеряем экран, затем возвращаемся в прежний. */
         const restoreThread =
           (app.querySelector('.dt-thread.active') || {}).dataset;
         const welcomeHome = app.querySelector('[data-act="dtNew"]');
@@ -1119,9 +1120,11 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         app.appendChild(holder);
         /* .dt-kpi — не карточка, а ячейка внутри скруглённой группы .dt-kpis
            (волосяные разделители внутри, прямые углы), поэтому в списке её
-           нет: скругление проверяется у самой группы. */
+           нет: скругление проверяется у самой группы. Сама группа тоже
+           меряется здесь, а не в DOM: в пустом диалоге чистого профиля
+           сообщений с KPI-блоками нет. */
         const messageSurface = ['.dt-user-bubble', '.dt-answer', '.dt-answer-tools',
-                                '.bub', '.bub.me'];
+                                '.dt-kpis', '.bub', '.bub.me'];
         try {
           for (const selector of messageSurface) {
             const probe = document.createElement('div');
@@ -1196,6 +1199,7 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         for selector in (
             ".dt-user-bubble",
             ".dt-answer",
+            ".dt-kpis",
             ".bub.me",
         )
         if selector not in data.get("surfaces", {})

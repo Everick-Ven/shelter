@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-N619pvrqchBs4QhCx+UpT+tR9WKBNJbtDJE8W2Su3H0=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-9SYckrbuUG9LQaZL7ic5Z/vdSfC2C3iG2RNwg1sTvtA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-A+N/ICCZXbzlBBE1jCpE2GBAS0LV4uo5aCIdqh3ZyJc=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-9SYckrbuUG9LQaZL7ic5Z/vdSfC2C3iG2RNwg1sTvtA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -10427,6 +10427,8 @@ function wpStatusDlg({ title, name = '', flags = null, statusKey = '', nameError
     let done = false;
     const f = flags && typeof flags === 'object' ? flags : {};
     const checked = k => f[k] === true ? ' checked' : '';
+    const askAutoClosed = statusKey === 'done' || statusKey === 'cancelled' || f.done === true || f.outdated === true;
+    const askChecked = (f.askDate === true || (f.askDate !== false && !askAutoClosed)) ? ' checked' : '';
     const colorInit = wpValidStatusColor(color);
     const m = openModal({ width: 440,
       html: `<div class="modal-h"><h3>${esc(title)}</h3></div>
@@ -10436,6 +10438,7 @@ function wpStatusDlg({ title, name = '', flags = null, statusKey = '', nameError
             <label class="wp-status-flag"><input type="checkbox" data-ws-flag="done"${checked('done')}><span><b>Считать выполненной</b><small>Задачи засчитываются как готовые: статистика, фильтры, зачёркивание.</small></span></label>
             <label class="wp-status-flag"><input type="checkbox" data-ws-flag="noRemind"${checked('noRemind')}><span><b>Не напоминать</b><small>Без просрочки и разборов: тихий, но активный статус.</small></span></label>
             <label class="wp-status-flag"><input type="checkbox" data-ws-flag="outdated"${checked('outdated')}><span><b>Неактуальна</b><small>Скрывать из активных списков и календаря, приглушать.</small></span></label>
+            <label class="wp-status-flag"><input type="checkbox" data-ws-flag="askDate"${askChecked}><span><b>Запрашивать изменение даты при переносе из «Просрочено»</b><small>Если выключено — задача переносится со старым сроком без вопросов.</small></span></label>
           </div>
           <div class="field"><span>Цвет шапки колонки</span><div class="wp-swatches" role="radiogroup" aria-label="Цвет шапки колонки"><label class="wp-swatch is-none${colorInit ? '' : ' is-on'}" title="Без цвета"><input class="sr-only" type="radio" name="wsColor" data-ws-swatch-pick value=""${colorInit ? '' : ' checked'}><span aria-hidden="true">∅</span></label>${wpStatusSwatches(statusKey).map(tone => `<label class="wp-swatch${tone.toLowerCase() === String(colorInit).toLowerCase() ? ' is-on' : ''}" style="--sw:${tone}" title="Выбрать цвет"><input class="sr-only" type="radio" name="wsColor" data-ws-swatch-pick value="${tone}"${tone.toLowerCase() === String(colorInit).toLowerCase() ? ' checked' : ''}></label>`).join('')}</div></div>${statusKey === 'cancelled' ? '<p class="wp-form-hint">«Отменена» уже не напоминает и не считается активной.</p>' : ''}</div>
         <div class="modal-f"><button class="btn ghost" data-r="0">Отмена</button><button class="btn primary" data-r="1">Сохранить</button></div>`,
@@ -10538,7 +10541,7 @@ function taskDicts(opts = {}) {
   let cur = D.some(d => d[0] === opts.tab) ? opts.tab : 'projects';
   let statusScope = typeof opts.scope === 'string' && opts.scope && (S.board.projects || []).some(p => p && p.id === opts.scope) ? opts.scope : '';
   if (statusScope) { const pr = (S.board.projects || []).find(p => p && p.id === statusScope); if (pr && wpEnsureProjectStatuses(pr)) persist(); }
-  const statusArr = () => wpStatusArrayForScope(statusScope);
+  const statusArr = () => { if (wpHealScopeStatuses(statusScope)) persist(); return wpStatusArrayForScope(statusScope); };
   const statusScopeSelect = () => `<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center"><label class="field" style="flex:1;margin:0"><span>Набор статусов</span><select class="select" id="dStatusScope">${[['', 'Личные'], ...visibleProjects().map(p => [p.id, p.name])].map(([v, l]) => `<option value="${esc(v)}" ${statusScope === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label></div>`;
   let prioScope = typeof opts.scope === 'string' && opts.scope && (S.board.projects || []).some(p => p && p.id === opts.scope) ? opts.scope : '';
   if (prioScope) { const pr = (S.board.projects || []).find(p => p && p.id === prioScope); if (pr && wpEnsureProjectPriorities(pr)) persist(); }
@@ -14010,15 +14013,21 @@ const WP_STATUS_SWATCHES = {
 const WP_STATUS_SWATCHES_DEFAULT = ['#3b82f6', '#22c55e', '#eab308', '#ef4444', '#8b5cf6', '#9ca3af'];
 const WP_PRIORITY_SWATCHES = ['#9ca3af', '#3b82f6', '#8b5cf6', '#eab308', '#f97316', '#ef4444'];
 function wpStatusSwatches(key) { return WP_STATUS_SWATCHES[key] || WP_STATUS_SWATCHES_DEFAULT; }
-const WP_SYSTEM_STATUS_KEYS = ['open', 'waiting', 'done', 'overdue', 'cancelled'];
+const WP_SYSTEM_STATUS_KEYS = ['open', 'waiting', 'done', 'overdue'];
 function wpIsSystemStatus(key) { return WP_SYSTEM_STATUS_KEYS.includes(key); }
-const wpDefaultStatuses = () => [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }, { key: 'overdue', name: 'Просрочено' }, { key: 'cancelled', name: 'Отменена' }];
+const wpDefaultStatuses = () => [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }, { key: 'overdue', name: 'Просрочено' }];
 function wpStatusKeyForName(name) { const n = String(name || '').trim(); if (WP_STATUS_BY_LABEL[n]) return WP_STATUS_BY_LABEL[n]; const slug = n.toLowerCase().replace(/[\s_]+/g, '-').replace(/["'<>&\\]+/g, '').replace(/^-+|-+$/g, ''); return n ? ('st-' + (slug || 'x')) : ''; }
 function wpIsOldDefaultStatuses(raw) { return Array.isArray(raw) && raw.length === 3 && raw[0] === 'В работе' && raw[1] === 'Пауза' && raw[2] === 'Готово'; }
+/* Флаг askDate трёхсостоянен: true/false — явная галочка «Запрашивать
+   изменение даты при переносе из „Просрочено"», отсутствие — авто
+   (спрашивают только активные, закрывающие молчат). Явное false обязано
+   переживать нормализацию, иначе «не спрашивать» не сохранить. */
 function wpNormalizeStatusFlags(raw) {
   const f = wpIsObj(raw) ? raw : {};
   const clean = { done: f.done === true, noRemind: f.noRemind === true, outdated: f.outdated === true };
-  return (clean.done || clean.noRemind || clean.outdated) ? clean : null;
+  if (f.askDate === true) clean.askDate = true;
+  else if (f.askDate === false) clean.askDate = false;
+  return (clean.done || clean.noRemind || clean.outdated || 'askDate' in clean) ? clean : null;
 }
 function wpNormalizeStatusesArray(raw) {
   const out = [], seen = new Set();
@@ -14094,6 +14103,14 @@ const wpStatusDone = (key, scope = '', board) => key === 'done' || wpStatusFlags
 const wpStatusOutdated = (key, scope = '', board) => key === 'cancelled' || wpStatusFlags(key, scope, board).outdated;
 const wpStatusQuiet = (key, scope = '', board) => key === 'done' || key === 'cancelled' || wpStatusFlags(key, scope, board).done || wpStatusFlags(key, scope, board).outdated || wpStatusFlags(key, scope, board).noRemind;
 const wpStatusClosed = (key, scope = '', board) => key === 'done' || key === 'cancelled' || wpStatusFlags(key, scope, board).done || wpStatusFlags(key, scope, board).outdated;
+/* Нужен ли новый срок при переносе в статус из «Просрочено»: явная галочка
+   статуса, иначе авто — спрашивают только активные, закрывающие молчат. */
+function wpStatusAskDate(key, scope = '', board) {
+  const flags = wpStatusFlags(key, scope, board);
+  if (flags.askDate === true) return true;
+  if (flags.askDate === false) return false;
+  return !wpStatusClosed(key, scope, board);
+}
 const wpTaskDone = t => wpStatusDone(wpTaskStatus(t), t);
 const wpTaskOutdated = t => wpStatusOutdated(wpTaskStatus(t), t);
 const wpTaskQuiet = t => wpStatusQuiet(wpTaskStatus(t), t);
@@ -14147,6 +14164,27 @@ function wpMoveBoardStatusTo(key, toIndex, scope = '') {
   const to = Math.max(0, Math.min(arr.length - 1, Math.round(+toIndex) || 0));
   if (from === to) return false;
   arr.splice(to, 0, arr.splice(from, 1)[0]); return true;
+}
+/* Связка «статус = колонка»: ключи, которые несут задачи области, но которых
+   нет в её наборе, дописываются в набор — колонка без статуса невозможна.
+   Канонические ключи забирают каноническое имя, свои — подпись с задачи.
+   Возвращает число дописанных. */
+function wpHealScopeStatuses(scope = '', board) {
+  const b = wpIsObj(board) ? board : wpEnsureBoardShape();
+  const projectId = wpIsObj(scope) ? wpScopeOf(scope) : String(scope || '').trim();
+  if (projectId && !(Array.isArray(b.projects) && b.projects.some(p => p && p.id === projectId))) return 0;
+  const arr = wpStatusArrayForScope(projectId, b);
+  const have = new Set(arr.map(s => s && s.key));
+  let added = 0;
+  (Array.isArray(b.tasks) ? b.tasks : []).forEach(t => {
+    if (!wpIsObj(t) || wpScopeOf(t) !== projectId) return;
+    const key = wpTaskStatus(t);
+    if (typeof key !== 'string' || !key || have.has(key)) return;
+    have.add(key);
+    arr.push({ key, name: WP_STATUS[key] || String(t.status || '').trim() || key });
+    added++;
+  });
+  return added;
 }
 /* Новый проект стартует с копии набора-шаблона (по умолчанию — «Личные»,
    board.statuses). Массив свой на проект, общие ссылки запрещены. */
@@ -16282,6 +16320,7 @@ function wpBoardScope() {
 function wpBoardCategoryMode() { return String(WP.boardHomeFilter||'all')==='all'; }
 function wpBoardView() {
   const items=wpBoardEntities(),categoryMode=wpBoardCategoryMode(),scope=wpBoardScope(),moveMode=WP.boardMoveColumns===true;
+  if(!categoryMode&&wpHealScopeStatuses(scope)) persist();
   const columns=categoryMode?wpBoardCategoryColumns():wpBoardColumns(items,scope);
   const dictKeys=new Set(categoryMode?[]:wpBoardStatuses(scope).map(s=>s.key));
   const empty=!items.length&&wpFiltersDirty('board')?'<div class="wp-board-no-results"><span>Нет задач по выбранным условиям.</span><button type="button" class="btn sm ghost" data-act="wpBoardReset">Сбросить фильтры</button></div>':'';
@@ -16620,9 +16659,9 @@ function wpSetTaskStatus(task,key) {
   if(prev!==key) wpSyncTaskAliases(task);
 }
 /* Ручная смена статуса с правилами «Просрочено»: туда — только через подтверждение,
-   оттуда в работу — только с новым сроком, а в закрывающие (Готово, Отменена,
-   неактуальные) — сразу: отменённой задаче новый срок не нужен, она уже не
-   участвует в разборах. Серии и экземпляры идут прежним путём. */
+   оттуда новый срок спрашивается, только если целевой статус так настроен
+   (галочка «Запрашивать изменение даты…», по умолчанию — лишь активные).
+   Серии и экземпляры идут прежним путём. */
 async function wpRequestStatusChange(ref, toKey) {
   const ent=wpFindEntity(ref); if(!ent) return false;
   const key=wpValidStatusKey(toKey,ent); if(!key) return false;
@@ -16638,7 +16677,7 @@ async function wpRequestStatusChange(ref, toKey) {
     return wpCommit(`Статус изменён · ${wpStatusLabel(key,task)}`,()=>{ task.previous_status=from; wpSetTaskStatus(task,key); });
   }
   if(from==='overdue') {
-    if(!wpStatusClosed(key,task) && lapsed) {
+    if(wpStatusAskDate(key,task) && lapsed) {
       const nd=await wpOverdueDeadlineDlg(task);
       if(!nd) { wpRenderView(); return false; }
       return wpCommit(`Статус изменён · ${wpStatusLabel(key,task)}`,()=>{ task.deadlineAt=nd.deadlineAt; task.deadlineTime=nd.deadlineTime||null; wpSetTaskStatus(task,key); });
@@ -16659,7 +16698,7 @@ async function wpGuardEditorStatus(task, v) {
     if(!yes) return null;
     return {statusKey:to,deadlineAt:v.deadlineAt||null,deadlineTime:v.deadlineTime||null,previous_status:from};
   }
-  if(from==='overdue' && !wpStatusClosed(to,targetScope) && lapsed) {
+  if(from==='overdue' && wpStatusAskDate(to,targetScope) && lapsed) {
     const nd=await wpOverdueDeadlineDlg(task);
     if(!nd) return null;
     return {statusKey:to,deadlineAt:nd.deadlineAt,deadlineTime:nd.deadlineTime||null};

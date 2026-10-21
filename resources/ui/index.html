@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-WA6rV03NBoVuFTD6GoEXqP+PYmtC4mBQtGYqkTHob4I=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-J5WeXuXpY4iH2C5/a0hEPw02akWGrp6vFbF6gZv1Dtk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-9SYckrbuUG9LQaZL7ic5Z/vdSfC2C3iG2RNwg1sTvtA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -2702,7 +2702,9 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 .dt-eyebrow{color:var(--text-3);font-size:10px;font-weight:700;letter-spacing:.16em}
 .dt-welcome h1{margin-top:11px;font:500 clamp(25px,3vw,36px)/1.14 var(--font-d);letter-spacing:-.035em;background:linear-gradient(100deg,var(--text),rgb(var(--gc)),rgb(var(--gb)));background-clip:text;-webkit-background-clip:text;color:transparent}
 .dt-welcome>p{margin-top:7px;color:var(--text-3);font-size:13px}
-.dt-user-row{display:flex;justify-content:flex-end}
+.dt-user-row{display:flex;justify-content:flex-end;align-items:flex-end;gap:6px}
+.dt-user-copy{opacity:.55}
+.dt-user-copy:hover{opacity:1}
 .dt-user-bubble{max-width:min(580px,85%);padding:11px 15px;border-radius:calc(17px*var(--rs));background:linear-gradient(130deg,rgb(var(--accent)/.14),rgb(var(--gc)/.09));border:1px solid rgb(var(--accent)/.16);color:var(--text);font-size:var(--dt-fs);line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 .dt-answer{padding:15px 17px 13px;border-radius:calc(17px*var(--rs));background:linear-gradient(145deg,var(--card),color-mix(in srgb,var(--card-2) 48%,var(--card)));border:1px solid var(--line);box-shadow:var(--hi);min-width:0}
 .dt-answer-head{height:30px;display:flex;align-items:center;gap:7px;color:var(--text-3)}
@@ -2749,7 +2751,6 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 .dt-omni .opill .i{width:13px;height:13px}
 .dt-omni .send{width:32px;height:32px}
 .dt-omni .send .i{width:14px;height:14px}
-.dt-local-label{padding:4px 8px;border-radius:99px;border:1px solid rgb(var(--ok)/.18);color:rgb(var(--ok));font-size:10px;font-weight:700;letter-spacing:.06em}
 .dt-composer-foot{display:flex;justify-content:space-between;gap:10px;margin:8px 5px 0;color:var(--text-3);font-size:10.5px}
 .dt-composer-foot span{display:flex;align-items:center;gap:5px}
 .dt-composer-foot .i{width:11px;height:11px;color:rgb(var(--ok))}
@@ -3234,7 +3235,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .dt-top-title small{margin-top:1px}
 .dt-topbar>.dt-top-actions{grid-column:3;grid-row:1;justify-self:end;gap:6px}
 
-/* Кнопка «Новый диалог» переезжает из сайдбара в nav bar —
+/* Кнопка «Новый чат» переезжает из сайдбара в nav bar —
    становится круглой compose-кнопкой, как в Notes/Сообщениях. */
 .dt-top-actions .dt-new{width:30px;height:30px;padding:0;justify-content:center;gap:0;
   border-radius:50%;border:0;background:var(--card-2)}
@@ -3303,10 +3304,9 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
                   min-height:34px;max-height:120px;padding:5px 4px}
 .dt-omni .mac-send{flex:none;width:34px;height:34px;margin:0}
 .dt-omni .mac-send .i{width:15px;height:15px}
-/* Аксессуарная строка: инструменты слева, статус контура (LOCAL SHIELD) справа. */
+/* Аксессуарная строка композера: инструменты слева, отправка справа. */
 .dt-omni .omni-row{flex:1 1 100%;order:20;margin-top:6px;gap:8px}
 .dt-omni .omni-row>.sp{display:none}
-.dt-omni .dt-local-label{margin-left:auto}
 /* Одна строка микрокопи вместо двух разнесённых подписей. */
 .dt-composer-foot{justify-content:center;gap:10px;margin-top:9px;
                   flex-wrap:nowrap;white-space:nowrap;overflow:hidden;min-height:16px}
@@ -12140,64 +12140,25 @@ RENDER.search = (m, t) => { const E = ENGINES[m.engine]; return `<div class="sit
 function DT_CLEANUP() {
   if (T.dt && T.dt.timer) { clearTimeout(T.dt.timer); T.dt.timer = 0; }
 }
-const DT_SUGGESTIONS = [
-  { icon: 'shield-check', title: 'Сводка по защите и вкладкам', sub: 'Сколько трекеров заблокировано сегодня и что открыто в пространствах', q: 'Сделай сводку по защите браузера и моим открытым вкладкам' },
-  { icon: 'tasks', title: 'Разбор моих задач', sub: 'Приоритеты, дедлайны и план действий по текущей доске', q: 'Проанализируй мои открытые задачи и предложи план на сегодня' },
-  { icon: 'key', title: 'Аудит паролей и приватности', sub: 'Проверка включённых щитов и надёжности сохранённых паролей', q: 'Проверь состояние моей приватности и надёжность паролей' },
-  { icon: 'sparkles', title: 'Глубокий разбор вопроса', sub: 'Структурированный ответ с шагами рассуждений и выводами', q: 'Как организовать идеальное рабочее пространство в приватном браузере?' }
-];
-function dtSeedThreads() {
-  const now = Date.now();
-  return [
-    {
-      id: 'dt-welcome',
-      title: 'Обзор возможностей SHELTER AI',
-      pinned: true,
-      at: now - 1800000,
-      messages: [
-        {
-          id: 'm1',
-          role: 'user',
-          text: 'Что умеет встроенный Ассистент SHELTER?',
-          at: now - 1800000
-        },
-        {
-          id: 'm2',
-          role: 'assistant',
-          mode: 'SHELTER Local AI',
-          at: now - 1795000,
-          steps: [
-            'Проверяю локальный контур приватности и доступные модули браузера',
-            'Сопоставляю контекст пространств, задач, закладок и защиты от трекеров',
-            'Формирую краткую памятку без отправки данных во внешние облака'
-          ],
-          paragraphs: [
-            'Я работаю прямо внутри SHELTER: помогаю разбирать задачи на доске, анализировать статистику блокировок, проверять гигиену паролей и быстро находить ответы по вашим рабочим материалам.',
-            'Вы можете общаться со мной в локальном режиме (0 байт уходит в сеть) или подключить собственный совместимый API-ключ (OpenAI / OpenRouter / локальная Ollama) через кнопку «Подключить API».'
-          ],
-          kpis: [
-            { label: 'Приватность', val: '100% Local', sub: 'Ключи и чаты на устройстве' },
-            { label: 'Контекст', val: 'Вкладки + Задачи', sub: 'Понимает состояние браузера' },
-            { label: 'Режимы', val: 'Local / API', sub: 'Гибкое подключение моделей' }
-          ],
-          actions: [
-            { label: 'Открыть Задачи', icon: 'tasks', act: 'page', page: 'tasks' },
-            { label: 'Дашборд защиты', icon: 'grid', act: 'page', page: 'dashboard' },
-            { label: 'Подключить свой API', icon: 'sparkles', act: 'agentApi' }
-          ],
-          follow: [
-            'Сделай сводку по защите браузера и моим открытым вкладкам',
-            'Проанализируй мои открытые задачи и предложи план на сегодня',
-            'Проверь состояние моей приватности и надёжность паролей'
-          ]
-        }
-      ]
-    }
-  ];
+/* Пустой диалог вместо затравки «Обзор возможностей»: при удалении всех
+   диалогов остаётся одно окно «Новый диалог». */
+function dtBlankThread() {
+  return { id: uid('dt'), title: 'Новый диалог', pinned: false, at: Date.now(), messages: [] };
+}
+/* Локального движка ответов больше нет: при отсутствии связи — только ошибка
+   с просьбой попробовать ещё раз или позже. Повтор — кнопкой «Сгенерировать заново». */
+function dtOfflineReply() {
+  return {
+    mode: 'Нет связи',
+    paragraphs: ['Ассистент недоступен в данный момент: нет связи с моделью. Попробуйте ещё раз или чуть позже.']
+  };
 }
 function dtState() {
+  if (Array.isArray(S.ui.dtThreads)) {
+    S.ui.dtThreads = S.ui.dtThreads.filter(th => !(th && th.id === 'dt-welcome' && (th.messages || []).length <= 2));
+  }
   if (!Array.isArray(S.ui.dtThreads) || !S.ui.dtThreads.length) {
-    S.ui.dtThreads = dtSeedThreads();
+    S.ui.dtThreads = [dtBlankThread()];
   }
   if (!T.dt) {
     T.dt = {
@@ -12219,133 +12180,6 @@ function dtState() {
 function dtActiveThread() {
   const st = dtState();
   return (S.ui.dtThreads || []).find(x => x.id === st.activeId) || null;
-}
-function dtBuildLocalReply(promptText) {
-  const q = String(promptText || '').trim();
-  const ql = q.toLowerCase();
-  ensureBoard();
-  const openTasks = workTasks().filter(t => wpTaskStatus(t) !== 'done');
-  const urgentTasks = openTasks.filter(t => t.prio === 'Критично' || t.prio === 'Срочно');
-  const blockedToday = todayBlocked();
-  const totalTabs = Object.values(S.spaces || {}).reduce((acc, sp) => acc + ((sp.tabs || []).length), 0);
-  const weakPw = (S.passwords || []).filter(p => p.strength < 2).length;
-  const shieldsOn = PROFILE_PRIVACY_PROTECTIONS.filter(p => S.prefs[p.key] === true).length;
-
-  if (/задач|план|дедлайн|проект|todo/i.test(ql)) {
-    const topList = openTasks.slice(0, 4).map(t => `• «${t.title}» (${t.project || 'Личное'}, приоритет: ${t.prio.toLowerCase()}, срок: ${t.deadline || 'без срока'})`).join('\n');
-    return {
-      mode: T.dt && T.dt.deepMode ? 'Глубокий разбор · Local' : 'Быстрый ответ · Local',
-      steps: [
-        `Загружаю активную доску «${(S.board && S.board.name) || 'Моя доска'}»`,
-        `Найдено открытых задач: ${openTasks.length} (из них приоритетных: ${urgentTasks.length})`,
-        'Ранжирую задачи по срочности и формирую сфокусированный план'
-      ],
-      paragraphs: [
-        openTasks.length
-          ? `Сейчас у вас в работе ${openTasks.length} ${plural(openTasks.length, ['задача', 'задачи', 'задач'])}, из них ${urgentTasks.length} требуют приоритетного внимания.`
-          : 'Все задачи на текущей доске закрыты — отличный темп! Вы можете добавить новую задачу или разобрать входящие.',
-        topList ? `Рекомендую начать со следующих пунктов:\n${topList}` : 'Совет: начните с 25-минутной фокус-сессии Помодоро в разделе «Виджеты».'
-      ],
-      kpis: [
-        { label: wpStatusLabel('open'), val: String(openTasks.length), sub: 'Активных задач на доске' },
-        { label: 'Приоритетных', val: String(urgentTasks.length), sub: 'Критично и срочно' },
-        { label: 'Выполнено', val: String(workTasks().length - openTasks.length), sub: 'Закрыто на доске' }
-      ],
-      actions: [
-        { label: 'Открыть доску задач', icon: 'tasks', act: 'page', page: 'tasks' },
-        { label: 'Запустить Помодоро', icon: 'timer', act: 'page', page: 'widgets' }
-      ],
-      follow: [
-        'Сделай сводку по защите браузера и моим открытым вкладкам',
-        'Проверь состояние моей приватности и надёжности паролей'
-      ]
-    };
-  }
-
-  if (/парол|приватн|щит|безопасн|утеч|cookie|трекер|защит/i.test(ql) && !/вкладк/i.test(ql)) {
-    return {
-      mode: T.dt && T.dt.deepMode ? 'Аудит защиты · Local' : 'Быстрый ответ · Local',
-      steps: [
-        'Проверяю активные контуры защиты SHELTER (трекеры, HTTPS, анти-отпечаток, строгий режим)',
-        `Анализирую хранилище паролей (${S.passwords.length} записей) на предмет слабых комбинаций`,
-        'Формирую рекомендации по усилению безопасности'
-      ],
-      paragraphs: [
-        `Контур приватности активен на ${shieldsOn} из ${PROFILE_PRIVACY_PROTECTIONS.length} щитов. Сегодня заблокировано ${fmtN(blockedToday)} рекламных и трекинговых запросов, DNS работает ${dnsOn() ? 'через шифрованный канал (' + dnsLabel() + ')' : 'через системный резолвер (без шифрования)'}.`,
-        weakPw > 0
-          ? `В менеджере паролей обнаружено ${weakPw} ${plural(weakPw, ['слабый пароль', 'слабых пароля', 'слабых паролей'])}. Рекомендую перейти в «Пароли» и нажать «Усилить», чтобы заменить их криптостойкими ключами.`
-          : `Все ${S.passwords.length} сохранённых паролей имеют высокую криптостойкость — уязвимых записей не найдено.`
-      ],
-      kpis: [
-        { label: 'Щиты приватности', val: `${shieldsOn}/${PROFILE_PRIVACY_PROTECTIONS.length}`, sub: S.ghost ? 'Режим «Призрак» включён' : 'Стандартный контур' },
-        { label: 'Блокировок сегодня', val: fmtN(blockedToday), sub: 'Трекеры и фингерпринтинг' },
-        { label: 'Слабые пароли', val: String(weakPw), sub: `Из ${S.passwords.length} сохранённых` }
-      ],
-      actions: [
-        { label: 'Открыть Пароли', icon: 'key', act: 'page', page: 'passwords' },
-        { label: 'Сертификаты РФ', icon: 'award', act: 'page', page: 'certs' }
-      ],
-      follow: [
-        'Проанализируй мои открытые задачи и предложи план на сегодня',
-        'Сделай сводку по защите браузера и моим открытым вкладкам'
-      ]
-    };
-  }
-
-  if (/сводк|браузер|вкладк|пространств|статистик/i.test(ql)) {
-    const spNames = Object.values(S.spaces || {}).map(s => `${s.name} (${(s.tabs || []).length})`).join(', ');
-    return {
-      mode: T.dt && T.dt.deepMode ? 'Глубокий разбор · Local' : 'Быстрый ответ · Local',
-      steps: [
-        'Собираю статистику по открытым пространствам и вкладкам',
-        'Сверяю дневной журнал блокировок трекеров и телеметрии',
-        'Подготавливаю сводную панель состояния браузера'
-      ],
-      paragraphs: [
-        `Сейчас в SHELTER открыто ${totalTabs} ${plural(totalTabs, ['вкладка', 'вкладки', 'вкладок'])} в пространствах: ${spNames}. Активное пространство — «${curSpace().name}».`,
-        `За сегодняшний день фильтр отсёк ${fmtN(blockedToday)} трекеров. В закладках сохранено ${S.bookmarks.length} быстрых переходов, а в задачах открыто ${openTasks.length} ${plural(openTasks.length, ['пункт', 'пункта', 'пунктов'])}.`
-      ],
-      kpis: [
-        { label: 'Открыто вкладок', val: String(totalTabs), sub: `Пространство «${curSpace().name}»` },
-        { label: 'Отражено трекеров', val: fmtN(blockedToday), sub: 'За сегодняшний день' },
-        { label: 'Закладки', val: String(S.bookmarks.length), sub: 'В коллекции SHELTER' }
-      ],
-      actions: [
-        { label: 'Открыть Дашборд', icon: 'grid', act: 'page', page: 'dashboard' },
-        { label: 'Все вкладки', icon: 'layers', act: 'page', page: 'tabs' }
-      ],
-      follow: [
-        'Проанализируй мои открытые задачи и предложи план на сегодня',
-        'Проверь состояние моей приватности и надёжности паролей'
-      ]
-    };
-  }
-
-  return {
-    mode: T.dt && T.dt.deepMode ? 'Глубокий разбор · Local' : 'Быстрый ответ · Local',
-    steps: [
-      `Анализирую запрос «${q.slice(0, 70)}${q.length > 70 ? '…' : ''}»`,
-      'Проверяю локальный контекст браузера (вкладки, закладки, история, задачи)',
-      'Формулирую структурированный ответ и быстрые действия'
-    ],
-    paragraphs: [
-      `По вашему запросу «${q}»: в локальном контуре SHELTER я подготовил ключевую выжимку и сопоставил её с вашим текущим рабочим окружением (${totalTabs} открытых вкладок, ${openTasks.length} активных задач в работе).`,
-      `Если вам нужен живой веб-поиск без трекеров — нажмите кнопку поиска в ${ENGINES[S.engine].name} ниже, либо подключите внешний LLM API (OpenAI, Claude, DeepSeek или локальную модель Ollama) кнопкой «Подключить API» для генерации развёрнутых ответов по любым внешним знаниям.`
-    ],
-    kpis: [
-      { label: 'Режим ответа', val: S.ai && S.ai.baseUrl ? (S.ai.model || 'API') : 'Local AI', sub: 'Нулевая телеметрия' },
-      { label: 'Контекст сессии', val: `${totalTabs} вкл.`, sub: `Пространство «${curSpace().name}»` },
-      { label: 'Поисковый шлюз', val: ENGINES[S.engine].name, sub: 'Без cookies и отпечатка' }
-    ],
-    actions: [
-      { label: 'Искать в ' + ENGINES[S.engine].name, icon: 'search', act: 'searchIn', engine: S.engine, q },
-      { label: 'Подключить API', icon: 'sparkles', act: 'agentApi' }
-    ],
-    follow: [
-      'Сделай сводку по защите браузера и моим открытым вкладкам',
-      'Проанализируй мои открытые задачи и предложи план на сегодня'
-    ]
-  };
 }
 function dtThreadItemHtml(th, activeId) {
   const act = th.id === activeId;
@@ -12384,7 +12218,7 @@ function dtThreadsHtml() {
 }
 function dtMessageHtml(msg) {
   if (msg.role === 'user') {
-    return `<div class="dt-user-row"><div class="dt-user-bubble">${esc(msg.text)}</div></div>`;
+    return `<div class="dt-user-row"><button type="button" class="dt-mini dt-user-copy" data-act="dtCopy" data-text="${esc(msg.text)}" data-toast="Сообщение скопировано" data-tip="Скопировать сообщение" aria-label="Скопировать сообщение">${ico('copy')}</button><div class="dt-user-bubble">${esc(msg.text)}</div></div>`;
   }
   if (msg.thinking) {
     return `<div class="dt-answer rise">
@@ -12420,7 +12254,6 @@ function dtMessageHtml(msg) {
     <div class="dt-answer-tools">
       <button type="button" class="dt-mini" data-act="dtCopy" data-text="${esc(copyPayload)}" data-tip="Скопировать ответ" aria-label="Скопировать ответ">${ico('copy')}</button>
       <button type="button" class="dt-mini" data-act="dtRetry" data-id="${esc(msg.id)}" data-tip="Сгенерировать заново" aria-label="Сгенерировать заново">${ico('ref')}</button>
-      <button type="button" class="dt-mini" data-act="searchIn" data-engine="${S.engine}" data-q="${esc(msg.prompt || paras[0] || '')}" data-tip="Искать в ${esc(ENGINES[S.engine].name)}" aria-label="Искать в поисковике">${ico('search')}</button>
     </div>
   </div>`;
 }
@@ -12431,7 +12264,6 @@ function dtConversationHtml() {
       <div class="dt-welcome-mark">${ico('sparkles')}</div>
       <div class="dt-eyebrow">SHELTER INTELLIGENCE</div>
       <h1>Чем помочь сегодня?</h1>
-      <p>Локальный AI-ассистент браузера: разбирает задачи, вкладки и защиту без передачи данных на внешние серверы.</p>
     </div>`;
   }
   return `<div class="dt-message-list" id="dtMsgList">${th.messages.map(dtMessageHtml).join('')}</div>`;
@@ -12453,9 +12285,9 @@ RENDER.deepthink = m => {
           <span class="rn-max">${ico('sidebar')}</span>
         </button>
       </div>
-      <button type="button" class="dt-new" data-act="dtNew" data-tip="Новый диалог">
+      <button type="button" class="dt-new" data-act="dtNew" data-tip="Новый чат">
         ${ico('plus')}
-        <span>Новый диалог</span>
+        <span>Новый чат</span>
         <span class="kbd">${kb('⌘N')}</span>
       </button>
       <label class="dt-thread-search">
@@ -12496,7 +12328,6 @@ RENDER.deepthink = m => {
                 <div class="omni-row">
                   <button type="button" class="opill ${st.deepMode ? 'lit' : ''}" id="dtModeBtn" data-act="dtModePill">${ico('bulb')}<span class="lb">${st.deepMode ? 'Глубокий разбор' : 'Быстрый ответ'}</span></button>
                   <button type="button" class="opill ${apiConnected ? 'lit' : ''}" data-act="agentApi">${ico('sparkles')}<span class="lb">${esc(apiConnected ? (S.ai.model || 'API подключён') : 'SHELTER Local AI')}</span>${ico('chev', 'chev')}</button>
-                  <span class="dt-local-label">LOCAL SHIELD</span>
                   <span class="sp"></span>
                   <button type="button" class="send" data-act="dtSend" aria-label="Отправить">${ico('send')}</button>
                 </div>
@@ -12566,24 +12397,20 @@ function dtSubmitPrompt(text) {
       if (r && r.ok && r.text) {
         finishWith({
           mode: S.ai.model || 'API',
-          paragraphs: String(r.text).split(/\n{2,}/).filter(Boolean),
-          actions: [{ label: 'Искать в ' + ENGINES[S.engine].name, icon: 'search', act: 'searchIn', engine: S.engine, q }]
+          paragraphs: String(r.text).split(/\n{2,}/).filter(Boolean)
         });
       } else {
-        const local = dtBuildLocalReply(q);
-        local.paragraphs.unshift('Внешний API вернул ошибку (' + ((r && r.error) || 'нет ответа') + '), поэтому ответ сформирован локальным движком SHELTER AI:');
-        finishWith(local);
+        finishWith(dtOfflineReply());
       }
     }).catch(() => {
-      const local = dtBuildLocalReply(q);
-      finishWith(local);
+      finishWith(dtOfflineReply());
     });
     return;
   }
 
   st.timer = setTimeout(() => {
     st.timer = 0;
-    finishWith(dtBuildLocalReply(q));
+    finishWith(dtOfflineReply());
   }, REDUCED() ? 60 : 340);
 }
 function dtNewThread(initialPrompt = '', opts = {}) {
@@ -12621,7 +12448,7 @@ function dtThreadMenu(anchor) {
     '-',
     { label: 'Удалить диалог', icon: 'trash', danger: true, run: () => {
       S.ui.dtThreads = (S.ui.dtThreads || []).filter(x => x.id !== id);
-      if (!S.ui.dtThreads.length) S.ui.dtThreads = dtSeedThreads();
+      if (!S.ui.dtThreads.length) S.ui.dtThreads = [dtBlankThread()];
       const st = dtState();
       if (st.activeId === id) st.activeId = S.ui.dtThreads[0].id;
       persist();
@@ -13726,7 +13553,7 @@ const ACT = {
   dtRailClose: () => { const st = dtState(); st.railOpen = false; dtRefreshUI(false); },
   dtFontSize: () => { const st = dtState(); const order = ['s', 'm', 'l']; st.fs = order[(order.indexOf(st.fs || 'm') + 1) % order.length]; S.ui.dtFs = st.fs; persist(); dtRefreshUI(false); toast('Размер текста: ' + ({ s: 'компактный', m: 'стандартный', l: 'крупный' })[st.fs], { icon: 'sliders' }); },
   dtModePill: () => { const st = dtState(); st.deepMode = !st.deepMode; const btn = $('#dtModeBtn'); if (btn) { btn.classList.toggle('lit', st.deepMode); btn.innerHTML = `${ico('bulb')}<span class="lb">${st.deepMode ? 'Глубокий разбор' : 'Быстрый ответ'}</span>`; } },
-  dtCopy: el => { copyText(el.dataset.text || ''); toast('Ответ скопирован', { icon: 'copy' }); },
+  dtCopy: el => { copyText(el.dataset.text || ''); toast(el.dataset.toast || 'Ответ скопирован', { icon: 'copy' }); },
   dtRetry: el => { const th = dtActiveThread(); if (!th) return; const msg = (th.messages || []).find(x => x.id === el.dataset.id); const q = msg && msg.prompt; if (q) { th.messages = th.messages.filter(x => x.id !== el.dataset.id); dtSubmitPrompt(q); } },
   rngM: el => shelterStepRange(el, -1),
   rngP: el => shelterStepRange(el, 1),
@@ -18279,7 +18106,7 @@ function restoreUpdateButton() {
         const acts = bar.querySelector('.dt-top-actions');
         const pill = acts && acts.querySelector('.dt-privacy-pill');
         if (pill) bar.insertBefore(pill, bar.firstChild);
-        // «Новый диалог» — из рейла в правую часть nav bar (compose-кнопка).
+        // «Новый чат» — из рейла в правую часть nav bar (compose-кнопка).
         if (acts) {
           const nw = app.querySelector('.dt-rail .dt-new');
           if (nw) acts.insertBefore(nw, acts.firstChild);
@@ -18335,7 +18162,7 @@ ar + iMessage-док). Без переключателя вариантов — 
         const acts = bar.querySelector('.dt-top-actions');
         const pill = acts && acts.querySelector('.dt-privacy-pill');
         if (pill) bar.insertBefore(pill, bar.firstChild);
-        // «Новый диалог» — из рейла в правую часть nav bar (compose-кнопка).
+        // «Новый чат» — из рейла в правую часть nav bar (compose-кнопка).
         if (acts) {
           const nw = app.querySelector('.dt-rail .dt-new');
           if (nw) acts.insertBefore(nw, acts.firstChild);

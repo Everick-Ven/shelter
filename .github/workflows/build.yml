@@ -446,6 +446,8 @@ jobs:
         run: node tests/bridge_authorization_test.js
       - name: AI agent bridge regression test
         run: node tests/ai_bridge_test.js
+      - name: Assistant tab cleanup regression test
+        run: node tests/ui_assistant_test.js
       - name: Single-source version propagation regression test
         run: node tests/app_version_source_test.js
       - name: Security hardening source anchors regression test

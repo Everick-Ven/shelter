@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-/K91DtYtJR7859k6J9elB2ANE4Zx/kbSSYdChFJiMVk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-8Cpr5SJe69LRSJ9QrwCEfZDGMpdaIdDHKI27qy50Zr8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-ZyunNf7lnujf+Q9P21lJYRTCnAQ2Cvt7IaoaJNXoaxM=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-8Cpr5SJe69LRSJ9QrwCEfZDGMpdaIdDHKI27qy50Zr8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -10581,11 +10581,12 @@ function wpPriorityDlg({ title, name = '', color = '', nameError }) {
   return new Promise(res => {
     let done = false;
     const colorInit = wpValidPriorityColor(color) || '#8b5cf6';
+    const inPalette = WP_PRIORITY_SWATCHES.some(t => t.toLowerCase() === colorInit.toLowerCase());
     const m = openModal({ width: 440,
       html: `<div class="modal-h"><h3>${esc(title)}</h3></div>
         <div class="modal-b">
           <label class="field"><span>Название</span><input class="input" data-wp-name value="${esc(name)}" placeholder="Например: Блокер" autocomplete="off"></label>
-          <div class="field"><span>Цвет</span><div class="wp-swatches" role="radiogroup" aria-label="Цвет приоритета">${WP_PRIORITY_SWATCHES.map(tone => `<label class="wp-swatch${tone.toLowerCase() === String(colorInit).toLowerCase() ? ' is-on' : ''}" style="--sw:${tone}" title="Выбрать цвет"><input class="sr-only" type="radio" name="wpPrioColor" data-wp-prio-pick value="${tone}"${tone.toLowerCase() === String(colorInit).toLowerCase() ? ' checked' : ''}></label>`).join('')}</div></div>
+          <div class="field"><span>Цвет</span><div class="wp-swatches" role="radiogroup" aria-label="Цвет приоритета">${inPalette ? '' : `<label class="wp-swatch is-on" style="--sw:${colorInit}" title="Текущий цвет"><input class="sr-only" type="radio" name="wpPrioColor" data-wp-prio-pick value="${colorInit}" checked></label>`}${WP_PRIORITY_SWATCHES.map(tone => `<label class="wp-swatch${tone.toLowerCase() === String(colorInit).toLowerCase() ? ' is-on' : ''}" style="--sw:${tone}" title="Выбрать цвет"><input class="sr-only" type="radio" name="wpPrioColor" data-wp-prio-pick value="${tone}"${tone.toLowerCase() === String(colorInit).toLowerCase() ? ' checked' : ''}></label>`).join('')}</div></div>
           <p class="wp-form-hint">Порядок в списке задаёт срочность: ниже в списке — срочнее.</p>
         </div>
         <div class="modal-f"><button class="btn ghost" data-r="0">Отмена</button><button class="btn primary" data-r="1">Сохранить</button></div>`,
@@ -10599,6 +10600,7 @@ function wpPriorityDlg({ title, name = '', color = '', nameError }) {
       finish({ name: v, color: pick ? wpValidPriorityColor(pick.value) : colorInit });
     };
     root.addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; if (b.dataset.r === '1') save(); else finish(null); });
+    root.addEventListener('change', e => { if (!e.target.closest('[data-wp-prio-pick]')) return; root.querySelectorAll('[data-wp-prio-pick]').forEach(el => el.closest('.wp-swatch').classList.toggle('is-on', el.checked)); });
     nameEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
     setTimeout(() => { nameEl.focus(); nameEl.select(); }, 50);
   });

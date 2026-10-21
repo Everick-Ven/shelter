@@ -13,8 +13,9 @@
 //      шапка/док или поле ввода), а не на каждое сообщение стрима;
 //   3) поведение не меняется: pill/«Новый чат»/mac-send/macGrow (авто-высота
 //      поля) по-прежнему патчатся — сигнатуры и точки входа на месте;
-//   4) замер до/после: код наблюдателей из HEAD (до оптимизации) и из
-//      рабочей копии гоняется в одном пробнике на одинаковом потоке мутаций.
+//   4) замер до/после: код наблюдателей до оптимизации (замороженный baseline
+//      из коммита b5347e1) и из рабочей копии гоняется в одном пробнике на
+//      одинаковом потоке мутаций.
 //
 // Тест читает resources/ui/index.html как текст и исполняет только блоки
 // наблюдателей: без браузера, без зависимостей.
@@ -22,7 +23,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
 
 const results = [];
 const check = (name, ok, detail) => {
@@ -32,8 +32,14 @@ const check = (name, ok, detail) => {
 
 const file = process.env.SHELTER_UI_FILE || path.join(__dirname, '..', 'resources', 'ui', 'index.html');
 const html = fs.readFileSync(file, 'utf8');
-const htmlHead = execFileSync('git', ['show', 'HEAD:resources/ui/index.html'],
-  { cwd: path.join(__dirname, '..'), encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+// Замороженный baseline «до оптимизации» (коммит b5347e1): сравниваем с ним,
+// а не с git HEAD — после закрепления оптимизации в истории контекст не тает.
+const BASELINE_FAVICON_OBSERVER = `new MutationObserver(ms => {
+      for (const m of ms) for (const n of m.addedNodes) {
+        if (n.nodeType === 1 && (n.classList.contains('fav') || n.querySelector('.fav[data-favhost]'))) { ensureFavicons(); return; }
+      }
+    }).observe(document.body, { childList: true, subtree: true });`;
+const BASELINE_ASSISTANT_OBSERVER = 'new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });';
 
 // ---- 1. Статистические пины: дешёвые ворота и группировка на кадр. ----
 check('favicon: узел-значок распознаётся по .fav', /n\.matches\('\.fav'\)/.test(html));
@@ -167,7 +173,7 @@ const favs40 = Array.from({ length: 40 }, favBadge);
 const leaves60 = Array.from({ length: 60 }, textLeaf);
 
 const favNew = runFaviconProbe(extractFaviconObserver(html), stream120.concat(favs40, leaves60));
-const favOld = runFaviconProbe(extractFaviconObserver(htmlHead), stream120.concat(favs40, leaves60));
+const favOld = runFaviconProbe(BASELINE_FAVICON_OBSERVER, stream120.concat(favs40, leaves60));
 check('замер favicon: ensureFavicons на 120 сообщениях + 40 значках упал',
   favNew.ensure < favOld.ensure && favNew.ensure <= 2,
   `было ${favOld.ensure} -> стало ${favNew.ensure} (полных сканирований ${favOld.docScan} -> ${favNew.docScan})`);
@@ -175,7 +181,7 @@ check('замер favicon: полные сканирования DOM не рас
   favNew.docScan <= 2, `${favOld.docScan} -> ${favNew.docScan}`);
 
 const asstNew = runAssistantProbe(extractAssistantObserver(html), stream120.concat([topbar()]));
-const asstOld = runAssistantProbe(extractAssistantObserver(htmlHead), stream120.concat([topbar()]));
+const asstOld = runAssistantProbe(BASELINE_ASSISTANT_OBSERVER, stream120.concat([topbar()]));
 check('замер помощника: запуски патча на 120 сообщениях стрима упали',
   asstNew.schedule < asstOld.schedule && asstNew.schedule === 1,
   `было ${asstOld.schedule} запусков -> стало ${asstNew.schedule} (и 1 на шапку помощника)`);

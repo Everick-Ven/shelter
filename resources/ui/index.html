@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-68sTiGU9eWP3hGxjjIhbWo/FcifL5lYQAROqAJm6w9s=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-9SYckrbuUG9LQaZL7ic5Z/vdSfC2C3iG2RNwg1sTvtA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-3Nh/dYjLxGstk6LOz501U99t/X5ZtO3fWr3jlqMN/dk=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-9SYckrbuUG9LQaZL7ic5Z/vdSfC2C3iG2RNwg1sTvtA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4250,6 +4250,20 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 @keyframes wpTaskTitleMarquee{0%,12%{transform:translateX(0)}88%,100%{transform:translateX(var(--wp-title-shift,0px))}}
 @media(prefers-reduced-motion:reduce){.wp-title-marquee-clip.is-title-overflowing:hover>.wp-title-marquee-text,.wp-title-marquee-clip.is-title-overflowing:focus-visible>.wp-title-marquee-text{width:100%;max-width:100%;overflow:hidden;text-overflow:ellipsis;animation:none;transform:none;will-change:auto}}
 
+/* Multi-day tasks stay as date-only rows spanning their deadline range; tint follows urgency. */
+.wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(var(--wp-span-lanes),20px);column-gap:10px;row-gap:6px;pointer-events:none;z-index:3}
+.wp-calendar-span{display:flex;align-items:center;gap:8px;min-width:0;min-height:20px;padding:1px 8px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:99px;background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.15 var(--font);text-align:left;white-space:nowrap;overflow:hidden;cursor:pointer;pointer-events:auto;transition:filter .14s,box-shadow .14s,opacity .14s,transform .14s,border-color .14s}
+.wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}
+.wp-calendar-span:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:1px}
+.wp-calendar-span>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wp-calendar-span>small{flex:none;margin-left:auto;color:var(--text-2);font-size:11.5px;font-variant-numeric:tabular-nums}
+.wp-calendar-span.is-waiting{background:color-mix(in srgb,rgb(var(--warn)) 16%,var(--card-2))}
+.wp-calendar-span.p-critical{border-color:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 30%,var(--line));background:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 13%,var(--card-2))}
+.wp-calendar-span.p-high{border-color:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 30%,var(--line));background:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 13%,var(--card-2))}
+.wp-calendar-span.p-normal{border-color:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 24%,var(--line));background:color-mix(in srgb,var(--wp-prio-normal,rgb(var(--accent))) 10%,var(--card-2))}
+.wp-calendar-span.p-none{border-color:var(--line);background:var(--card-2)}
+.wp-calendar-span.p-tint{border-color:color-mix(in srgb,var(--wp-prio) 30%,var(--line));background:color-mix(in srgb,var(--wp-prio) 13%,var(--card-2))}
+.wp-calendar-span.is-done{opacity:1;border-color:color-mix(in srgb,rgb(var(--ok)) 42%,var(--line));background:color-mix(in srgb,rgb(var(--ok)) 14%,var(--card-2));color:rgb(var(--ok))}.wp-calendar-span.is-done>span{color:rgb(var(--ok));text-decoration:line-through}.wp-calendar-span.is-done>small{color:color-mix(in srgb,rgb(var(--ok)) 72%,var(--text-3))}
 .wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -8px;padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));background:color-mix(in srgb,rgb(var(--accent)) 11%,var(--card-2));box-shadow:0 1px 3px rgb(0 0 0/.06);color:var(--text-2);font:550 11.5px/1.35 var(--font);text-align:left;overflow:hidden;cursor:pointer;transition:filter .14s,box-shadow .14s,transform .14s,border-color .14s,background .14s}
 .wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}
 .wp-day-capsule:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:1px}
@@ -4269,9 +4283,15 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .wp-day-capsule.is-overdue>.wp-cap-mid{color:rgb(var(--danger));font-weight:650}
 .wp-day-capsule.is-cancelled{opacity:.6}
 .wp-day-capsule.is-cancelled>span{text-decoration:line-through}
+.wp-calendar-span.continues-before{border-top-left-radius:5px;border-bottom-left-radius:5px}
+.wp-calendar-span.continues-after{border-top-right-radius:5px;border-bottom-right-radius:5px}
+.wp-calendar-span.dragging{opacity:.45}
 .wp-day-capsule.dragging{opacity:.45}
 .wp-week-grid.is-all-day{position:relative;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;min-width:0;overflow:visible;padding:0 0 7px;border:0;background:transparent;box-shadow:none;isolation:isolate}
 .wp-week-grid.is-all-day .wp-week-days{display:contents}
+/* Calendar week mirrors the history week: separate day cards in a seven-column grid, with the multi-day span layer overlaid across the same tracks. */
+.wp-week-grid.is-all-day .wp-day-span-spacer{flex:none;height:var(--wp-day-span-space,0px)}
+.wp-week-grid.has-spans .wp-day-items{margin-top:6px}
 /* Priority tint on task cards is independent from their Matrix classification. */
 .wp-task.p-critical{border-color:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 30%,var(--line));border-left:3px solid var(--wp-prio-critical,rgb(var(--danger)));background:color-mix(in srgb,var(--wp-prio-critical,rgb(var(--danger))) 11%,var(--card))}
 .wp-task.p-high{border-color:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 30%,var(--line));border-left:3px solid var(--wp-prio-high,rgb(var(--warn)));background:color-mix(in srgb,var(--wp-prio-high,rgb(var(--warn))) 10%,var(--card))}
@@ -4281,6 +4301,10 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .wp-task.is-overdue{border-left-color:rgb(var(--danger))}
 .wp-task.is-done{border-color:color-mix(in srgb,rgb(var(--ok)) 36%,var(--line));background:color-mix(in srgb,rgb(var(--ok)) 10%,var(--card));opacity:.92}
 .wp-task.is-done .wp-task-title{color:rgb(var(--ok));text-decoration:line-through}
+/* 56px = day-card top padding (10) + day-head (40) + column gap (6): span lanes overlay the reserved spacer. */
+.wp-week-span-layer{top:56px;left:0;right:0}
+.wp-calendar-span--week{height:20px;margin:0 2px;border-radius:calc(7px*var(--rs));font-size:12px;padding:1px 5px;z-index:1}
+.wp-calendar-span--week>small{font-size:12px}
 .wp-calendar-completed-toggle{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:27px;margin-left:auto;white-space:nowrap}
 .wp-calendar-completed-toggle .i{width:13px;height:13px}
 @container shelter (max-width:620px){
@@ -16027,8 +16051,47 @@ function wpEntityDataAttrs(task) {
   if(task.entityType==='occurrence') { data.seriesId=task.seriesTaskId; data.originalDate=task.originalDate; }
   return Object.entries(data).map(([k,v])=>`data-${k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())}="${esc(v)}"`).join(' ');
 }
+function wpCalendarSpanLayout(days,entities,maxLanes) {
+  if(!days || !days.length) return {segments:[],laneCount:0,space:0};
+  const first=days[0], last=days[days.length-1], segments=[];
+  wpCalendarShownEntities(entities).forEach(task=>{
+    if(!wpTaskHasDateSpan(task)) return;
+    const start=wpTaskScheduleStart(task), end=wpTaskScheduleEnd(task);
+    if(end<first || start>last) return;
+    const clippedStart=start<first?first:start, clippedEnd=end>last?last:end;
+    const startColumn=wpDayDiff(first,clippedStart), endColumn=wpDayDiff(first,clippedEnd);
+    if(startColumn<0 || endColumn>=days.length || endColumn<startColumn) return;
+    segments.push({task,start,end,startColumn,endColumn,continuesBefore:start<first,continuesAfter:end>last,lane:0});
+  });
+  segments.sort((a,b)=>a.startColumn-b.startColumn || b.endColumn-a.endColumn || (+a.task.order||0)-(+b.task.order||0) || String(a.task.title||'').localeCompare(String(b.task.title||''),'ru'));
+  const laneEnds=[], laneCap=(+maxLanes>0)?Math.floor(maxLanes):Infinity;
+  segments.forEach(segment=>{
+    let lane=laneEnds.findIndex(endColumn=>endColumn<segment.startColumn);
+    if(lane<0) {
+      if(laneEnds.length>=laneCap) { segment.lane=-1; return; }
+      lane=laneEnds.length; laneEnds.push(segment.endColumn);
+    }
+    else laneEnds[lane]=segment.endColumn;
+    segment.lane=lane;
+  });
+  const laneCount=laneEnds.length;
+  return {segments,laneCount,space:laneCount ? laneCount*20+(laneCount-1)*6 : 0};
+}
+function wpCalendarSpanEvent(segment,mode) {
+  const task=segment.task, status=wpTaskStatus(task), priority=wpPriority(task), title=task.title||'Без названия';
+  const start=wpTaskScheduleStart(task), end=wpTaskScheduleEnd(task), range=wpSpanDateLabel(start,end);
+  const fullRange=`${wpFmtDate(start,true)} — ${wpFmtDate(end,true)}`;
+  const priorityLabel=wpPriorityLabel(priority,task) || 'Обычный';
+  const tintColor=wpPriorityColor(priority,task);
+  const aria=`${title} · ${fullRange}${wpStatusDone(status,task)?' · Статус: выполнена':''} · Приоритет: ${priorityLabel}`;
+  const classes=['wp-calendar-span',`wp-calendar-span--${mode}`,`p-${esc(priority)}`,wpStatusDone(status,task)?'is-done':'',status==='waiting'?'is-waiting':'',segment.continuesBefore?'continues-before':'',segment.continuesAfter?'continues-after':'',tintColor?'p-tint':''].filter(Boolean).join(' ');
+  const style=`grid-column:${segment.startColumn+1}/${segment.endColumn+2};grid-row:${segment.lane+1}${tintColor?`;--wp-prio:${tintColor}`:''}`;
+  return `<button type="button" class="${classes}" data-act="taskOpen" ${wpEntityDataAttrs(task)} draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}" style="${style}"><span>${esc(title)}</span><small>${esc(range)}</small></button>`;
+}
 function wpWeekCalendar(days,entities) {
-  return `<div class="wp-week-grid is-all-day"><div class="wp-week-days">${days.map(date=>wpDayColumn(date,entities)).join('')}</div></div>`;
+  const layout=wpCalendarSpanLayout(days,entities);
+  const spans=layout.segments.length ? `<div class="wp-calendar-span-layer wp-week-span-layer" style="--wp-span-lanes:${layout.laneCount}" aria-label="Многодневные задачи на весь день">${layout.segments.map(segment=>wpCalendarSpanEvent(segment,'week')).join('')}</div>` : '';
+  return `<div class="wp-week-grid is-all-day${layout.segments.length?' has-spans':''}"><div class="wp-week-days">${days.map(date=>wpDayColumn(date,entities,{spanSpace:layout.space})).join('')}</div>${spans}</div>`;
 }
 function wpDayCapsule(task) {
   const status=wpTaskStatus(task), prio=wpPriority(task), title=task.title||'Без названия';
@@ -16042,13 +16105,15 @@ function wpDayCapsule(task) {
   const tint=wpPriorityTint(task), classes=['wp-day-capsule',`p-${esc(prio)}`,done?'is-done':'',status==='waiting'?'is-waiting':'',overdue?'is-overdue':'',wpStatusOutdated(status,task)?'is-cancelled':''].filter(Boolean).join(' ')+tint.cls;
   return `<button type="button" class="${classes}" data-act="taskOpen"${tint.attr} ${wpEntityDataAttrs(task)} data-task-id="${esc(task.taskId||task.id)}" draggable="true" title="${esc(aria)}" aria-label="${esc(aria)}"><small class="wp-cap-top">${esc(top)}</small><span>${esc(title)}</span><small class="wp-cap-mid">${esc(mid)}</small><small class="wp-cap-bot">${esc(bottom)}</small></button>`;
 }
-function wpDayColumn(date,entities) {
+function wpDayColumn(date,entities,{spanSpace=0,includeMultiDay=false}={}) {
   const covering=wpCalendarShownEntities(entities).filter(t=>wpTaskCoversDate(t,date));
-  const open=covering.filter(t=>!wpTaskDone(t)), done=covering.filter(t=>wpTaskDone(t));
+  const all=includeMultiDay?covering:covering.filter(t=>!wpTaskHasDateSpan(t));
+  const open=all.filter(t=>!wpTaskDone(t)), done=all.filter(t=>wpTaskDone(t));
   const activeCount=covering.filter(t=>!wpTaskClosed(t)).length;
   const keyToday=wpDateKey(Date.now()), d=wpDateObj(date), idx=d ? (d.getDay()+6)%7 : 0;
   return `<section class="wp-day ${date===keyToday?'is-today':''} ${date===WP.mobileDate?'is-selected':''}" data-drop-date="${date}" data-act="wpCalendarSelectDate" data-date="${date}" aria-label="${WP_WEEKDAYS[idx]} ${wpFmtDate(date,true)}, ${covering.length} задач">
     <header class="wp-day-head"><div><b>${wpDateParts(date).d}</b><span>${WP_WEEKDAYS[idx]}</span></div><span class="wp-day-count" aria-label="${activeCount} незавершённых">${activeCount||''}</span></header>
+    <div class="wp-day-span-spacer" aria-hidden="true" style="--wp-day-span-space:${spanSpace}px"></div>
     <div class="wp-day-items">${open.map(t=>wpDayCapsule(t)).join('')}${!open.length&&!done.length&&!covering.length?`<p class="wp-day-empty">Пока свободно</p>`:''}${done.length?`<details class="wp-done-fold" ${WP.calendarShowCompleted!==false?'open':''}><summary>Готово · ${done.length}</summary><div>${done.map(t=>wpDayCapsule(t)).join('')}</div></details>`:''}</div>
     <button type="button" class="btn sm wp-add-day" data-act="wpQuickDay" data-date="${date}">${ico('plus')} Добавить</button>
   </section>`;
@@ -16096,7 +16161,7 @@ function wpMobileStrip() {
 }
 function wpWeekView() {
   const ents=wpWeekEntities(WP.weekStart), days=wpWeekKeys(WP.weekStart);
-  return `${wpWeekSummary(ents)}${wpDecisionPanel()}${wpQuickGlobalArea()}${wpMobileStrip()}<div class="wp-week-mobile" aria-live="polite">${wpDayColumn(WP.mobileDate,ents)}</div>${wpWeekCalendar(days,ents)}${wpSelectedDayPanel(WP.mobileDate,ents,'week')}`;
+  return `${wpWeekSummary(ents)}${wpDecisionPanel()}${wpQuickGlobalArea()}${wpMobileStrip()}<div class="wp-week-mobile" aria-live="polite">${wpDayColumn(WP.mobileDate,ents,{includeMultiDay:true})}</div>${wpWeekCalendar(days,ents)}${wpSelectedDayPanel(WP.mobileDate,ents,'week')}`;
 }
 function wpMonthDots(tasks,extraHidden=0) {
   const dots=tasks.slice(0,3), more=tasks.length-dots.length+(+extraHidden||0);
@@ -16373,7 +16438,7 @@ function wpAfterTaskPage() {
     if(cb) { const id=cb.dataset.id; if(cb.checked && !WP.reviewSelected.includes(id)) WP.reviewSelected.push(id); else WP.reviewSelected=WP.reviewSelected.filter(x=>x!==id); wpRenderView(); return; }
   });
   root.addEventListener('dragstart',e=>{
-    const card=e.target.closest('.wp-task[draggable="true"],.wp-day-capsule[draggable="true"]');
+    const card=e.target.closest('.wp-task[draggable="true"],.wp-calendar-span[draggable="true"],.wp-day-capsule[draggable="true"]');
     if(card) {
       if(S.taskMigrationOK===false) { e.preventDefault(); return; }
       const payload={id:card.dataset.id,entityType:card.dataset.entityType||'task',seriesTaskId:card.dataset.seriesId||'',originalDate:card.dataset.originalDate||''};
@@ -16386,7 +16451,7 @@ function wpAfterTaskPage() {
     try { e.dataTransfer.setData('application/x-shelter-lane',WP._colDrag); e.dataTransfer.effectAllowed='move'; } catch(_){}
     lane.classList.add('dragging');
   });
-  root.addEventListener('dragend',e=>{const card=e.target.closest('.wp-task,.wp-day-capsule,.wp-board-column'); if(card) card.classList.remove('dragging'); WP._colDrag=null; root.querySelectorAll('.drop-active,.wp-board-column.drop-before,.wp-board-column.drop-after').forEach(x=>x.classList.remove('drop-active','drop-before','drop-after'));});
+  root.addEventListener('dragend',e=>{const card=e.target.closest('.wp-task,.wp-calendar-span,.wp-day-capsule,.wp-board-column'); if(card) card.classList.remove('dragging'); WP._colDrag=null; root.querySelectorAll('.drop-active,.wp-board-column.drop-before,.wp-board-column.drop-after').forEach(x=>x.classList.remove('drop-active','drop-before','drop-after'));});
   root.addEventListener('dragover',e=>{if(WP._colDrag){const lane=e.target.closest('.wp-board-column[data-lane]');root.querySelectorAll('.wp-board-column.drop-before,.wp-board-column.drop-after').forEach(x=>x.classList.remove('drop-before','drop-after'));if(!lane||lane.dataset.lane===WP._colDrag)return;e.preventDefault();const r=lane.getBoundingClientRect();lane.classList.add((e.clientX-r.left)>r.width/2?'drop-after':'drop-before');return;}const zone=e.target.closest('[data-drop-date],[data-drop-inbox],[data-drop-status]'); if(!zone) return; e.preventDefault(); zone.classList.add('drop-active');});
   root.addEventListener('dragleave',e=>{const lane=e.target.closest('.wp-board-column[data-lane]'); if(lane&&!lane.contains(e.relatedTarget))lane.classList.remove('drop-before','drop-after');const zone=e.target.closest('[data-drop-date],[data-drop-inbox],[data-drop-status]'); if(zone && !zone.contains(e.relatedTarget)) zone.classList.remove('drop-active');});
   root.addEventListener('drop',e=>{

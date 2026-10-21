@@ -182,16 +182,18 @@ check('доска задач вмещается в ширину экрана б�
   !/\.wp-board-lanes\{[^}]*scroll-snap/.test(plannerStyle) &&
   plannerStyle.includes('.wp-board-task-status .select{width:auto;min-width:min(115px,100%)') &&
   plannerStyle.includes('.wp-board-column>header b{font-size:13px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'));
-check('капсулы дня раскрыты на всю ширину столбца с одинаковыми отступами слева и справа',
+check('капсулы дня раскрыты на всю ширину столбца и отделены от многодневных рядов',
   plannerStyle.includes('.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -8px;') &&
   plannerStyle.includes('padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));') &&
   plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin-left:-9px;margin-right:-9px}') &&
-  !plannerStyle.includes('wp-calendar-span') &&
-  !plannerStyle.includes('has-spans'));
-check('задачи недели держат единый ритм: зазоры 6px и одинаковый ховер у всех капсул',
+  plannerStyle.includes('.wp-week-grid.has-spans .wp-day-items{margin-top:6px}'));
+check('задачи недели держат единый ритм: зазоры 6px и одинаковый ховер у рядов и капсул',
+  plannerStyle.includes('.wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(var(--wp-span-lanes),20px);column-gap:10px;row-gap:6px;') &&
   plannerStyle.includes('.wp-day-items{display:flex;flex:1;flex-direction:column;gap:6px;') &&
+  plannerStyle.includes('.wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}') &&
   plannerStyle.includes('.wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}') &&
-  plannerStyle.includes('.wp-day-capsule.dragging{opacity:.45}'));
+  plannerStyle.includes('.wp-day-capsule.dragging{opacity:.45}') &&
+  plannerStyle.includes('.wp-calendar-span.dragging{opacity:.45}'));
 check('кастомные строки меню держат метрики пунктов: равные отступы сверху и снизу',
   css.includes('.mrow{display:flex;align-items:center;gap:8px;min-height:34px;padding:0 6px 0 10px;'));
 check('карточки доски не рвут верстку в узких колонках: мета переносится, чипы режутся многоточием',

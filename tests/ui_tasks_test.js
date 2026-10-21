@@ -2053,6 +2053,9 @@ api.WP.view = stageFWPBefore.view; api.WP.boardHomeFilter = stageFWPBefore.board
   assert.strictEqual(api.wpBoardAddPerson(personBoard, 'Иван', 'SH-AAAA-BBBB'), false, 're-adding the same assignee is a no-op');
   assert.strictEqual(api.wpBoardPersonIndex(personBoard, 'АННА'), 1, 'assignee lookup ignores case');
   assert(html.includes('id="dAddId"'), 'the board settings assignee tab has an invite-id field');
+  assert(html.includes('function wpHealPersonalPeople(') && html.includes('wpHealPersonalPeople(S.board)'), 'personal assignees heal to self plus invitees when settings open');
+  assert(html.includes('<span class="chip">это вы</span>'), 'the personal self row is pinned instead of editable');
+  assert(html.includes('укажите ID для приглашений'), 'personal adds without an invite id are refused');
   assert(html.includes('function personDlg('), 'editing an assignee uses a single name+id dialog');
   assert(html.includes('data-pp-name') && html.includes('data-pp-id'), 'the assignee dialog has both fields');
   assert(html.includes("personDlg({ title: 'Исполнитель'"), 'the board settings edit flow opens the assignee dialog');

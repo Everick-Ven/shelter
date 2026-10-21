@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-+uCdaMElNSgY3sxhnc9lz8FzaL6PMiqhkcW2UEsHqKU=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-9SYckrbuUG9LQaZL7ic5Z/vdSfC2C3iG2RNwg1sTvtA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-UVAT6XoSMJEYqdMqHj99Kz5y7QnVLBfq78yiK2f/k8g=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-9SYckrbuUG9LQaZL7ic5Z/vdSfC2C3iG2RNwg1sTvtA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -10556,7 +10556,8 @@ function taskDicts(opts = {}) {
   const ensureScope = () => { if (!scope) return false; const pr = (S.board.projects || []).find(p => p && p.id === scope); if (!pr) return false; let touched = false; if (wpEnsureProjectStatuses(pr)) touched = true; if (wpEnsureProjectPriorities(pr)) touched = true; if (wpEnsureProjectPeople(pr)) touched = true; return touched; };
   let codeTouched = false;
   (S.board.projects || []).forEach(p => { if (p && typeof p === 'object' && !p.code) { p.code = boardCode(); codeTouched = true; } });
-  if (ensureScope() || codeTouched) persist();
+  const peopleTouched = wpHealPersonalPeople(S.board);
+  if (ensureScope() || codeTouched || peopleTouched) persist();
   const statusArr = () => { if (wpHealScopeStatuses(scope)) persist(); return wpStatusArrayForScope(scope); };
   const prioArr = () => wpPriorityArrayForScope(scope);
   const peopleArr = () => wpPeopleArrayForScope(scope);
@@ -10564,13 +10565,14 @@ function taskDicts(opts = {}) {
   const scopeSelect = (title) => `<div class="set-card" style="margin-bottom:12px"><div style="padding:9px 12px"><label class="field" style="margin:0"><span>${esc(title)}</span><select class="select" id="dScope">${scopeOptions.map(([v, l]) => `<option value="${esc(v)}" ${scope === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label></div></div>`;
   const label = v => typeof v === 'string' ? v : ((v && v.name) || '');
   const secTitle = t => `<div class="wp-dict-sec">${esc(t)}</div>`;
-  const peopleRows = () => peopleArr().map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b>${wpPersonContactId(v) ? `<span>ID ${esc(wpPersonContactId(v))}</span>` : ''}</div><button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button></div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>';
+  const peopleRows = () => peopleArr().map((v, i) => { const lockedSelf = !scope && wpIsSelfPerson(v);
+    return `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b>${wpPersonContactId(v) ? `<span>ID ${esc(wpPersonContactId(v))}</span>` : ''}</div>${lockedSelf ? '<span class="chip">это вы</span>' : `<button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button>`}</div>`; }).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>';
   const statusRows = () => statusArr().map((v, i) => `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(label(v))}</b>${wpStatusColorDot(v)}${wpStatusFlagChips(v)}</div>${wpStatusRowActions(v, i)}</div>`).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>';
   const prioRows = () => { const arr = prioArr(), presets = wpBoardPriorityColors(S.board), defaults = wpDefaultPriorityColors();
     return arr.map((v, i) => { const key = (v && v.key) || '', name = (v && v.name) || '', resolved = (v && wpValidPriorityColor(v.color)) || presets[key] || defaults[key] || '#8b5cf6';
       return `<div class="set-row" style="padding:9px 12px"><div class="tx"><b>${esc(name)}</b></div><span class="wp-color-row is-dot"><input type="color" data-prio-color="${esc(key)}" value="${esc(resolved)}" aria-label="Цвет приоритета «${esc(name)}»"></span><button class="icon-btn" data-dp-move="-1:${i}" aria-label="Выше" title="Выше — менее срочно"${i <= 0 ? ' disabled' : ''}>${ico('chev-up')}</button><button class="icon-btn" data-dp-move="1:${i}" aria-label="Ниже" title="Ниже — более срочно"${i >= arr.length - 1 ? ' disabled' : ''}><span style="display:inline-flex;transform:rotate(180deg)">${ico('chev-up')}</span></button><button class="icon-btn" data-dr="${i}" aria-label="Переименовать">${ico('pencil')}</button><button class="icon-btn" data-dd="${i}" aria-label="Удалить">${ico('x')}</button></div>`; }).join('') || '<div class="muted" style="padding:12px">Пока пусто</div>'; };
   const body = () => boardCard(scope) + scopeSelect('Пространство')
-    + `<div id="dSec-people">${secTitle('Исполнители')}<div class="set-card" data-dsec="people">${peopleRows()}</div><div data-dsec="people" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><input class="input" id="dAdd" placeholder="Имя исполнителя" style="flex:1;min-width:130px"><input class="input" id="dAddId" placeholder="ID для приглашений" style="flex:1;min-width:130px" autocomplete="off" spellcheck="false"><button class="btn" data-da="1">${ico('plus')}Добавить</button></div></div>`
+    + `<div id="dSec-people">${secTitle('Исполнители')}<div class="set-card" data-dsec="people">${peopleRows()}</div><div data-dsec="people" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><input class="input" id="dAdd" placeholder="Имя исполнителя" style="flex:1;min-width:130px"><input class="input" id="dAddId" placeholder="ID для приглашений" style="flex:1;min-width:130px" autocomplete="off" spellcheck="false"><button class="btn" data-da="1">${ico('plus')}Добавить</button></div>${!scope ? '<div class="muted" style="margin-top:8px;font-size:12px">Личное пространство: задачи назначаются вам. Других исполнителей добавляют приглашения на всю доску.</div>' : ''}</div>`
     + `<div id="dSec-prios">${secTitle('Приоритеты')}<div data-dsec="prios"><div class="set-card">${prioRows()}</div><button class="btn" data-da="1" style="width:100%;margin-top:12px">${ico('plus')}Новый приоритет</button><div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap"><button class="btn ghost sm" data-prio-reset="1">Сбросить к цветам темы</button><span class="muted" style="font-size:12px">Порядок задаёт срочность: ниже в списке — срочнее</span></div></div></div>`
     + `<div id="dSec-statuses">${secTitle('Статусы')}<div data-dsec="statuses"><div class="set-card">${statusRows()}</div><button class="btn" data-da="1" style="width:100%;margin-top:12px">${ico('plus')}Новый статус</button></div></div>`;
   const m = openModal({ width: 520, onClose: () => tasksRerender(true), html: `<div class="modal-h"><div class="mi-ic">${ico('sliders')}</div><h3>Настройки проекта</h3><button class="icon-btn" data-close="1" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b" id="dictB">${body()}</div>` });
@@ -10632,6 +10634,7 @@ function taskDicts(opts = {}) {
       if (wpPersonIndexIn(arr, v) >= 0) { toast('Исполнитель с таким именем уже есть — добавьте фамилию или иное уникальное обозначение', { icon: 'info' }); return; }
       const idEl = $('#dAddId', root);
       const cid = idEl ? idEl.value.trim().toUpperCase() : '';
+      if (!scope && !cid && !wpIsSelfPersonName(v)) { toast('В личном пространстве — только вы и приглашённые: укажите ID для приглашений', { icon: 'info' }); return; }
       if (cid && wpPersonIdTaken(cid, scope, -1)) { toast('Этот ID уже привязан к исполнителю «' + wpPersonNameById(cid) + '»', { icon: 'info' }); return; }
       arr.push(wpMakePerson(v, cid));
       if (cid) wpSaveTaskContact(cid, v);
@@ -10640,6 +10643,7 @@ function taskDicts(opts = {}) {
     if (el.dataset.dd) {
       const i = +el.dataset.dd;
       if (arr.length <= 1) { toast('Нужно хотя бы одно значение', { icon: 'info' }); return; }
+      if (sec === 'people' && !scope && wpIsSelfPerson(arr[i])) { toast('Это вы — исполнитель личного пространства', { icon: 'info' }); return; }
       if (sec === 'statuses') {
         const gone = arr[i], doomedKey = gone && gone.key;
         if (wpIsSystemStatus(doomedKey)) { toast('Системный статус нельзя удалить', { icon: 'info' }); return; }
@@ -10681,6 +10685,7 @@ function taskDicts(opts = {}) {
     }
     if (el.dataset.dr) {
       const i = +el.dataset.dr, old = label(arr[i]);
+      if (sec === 'people' && !scope && wpIsSelfPerson(arr[i])) { toast('Это вы — исполнитель личного пространства', { icon: 'info' }); return; }
       if (sec === 'people') {
         const cidOld = wpPersonContactId(arr[i]);
         const r = await personDlg({ title: 'Исполнитель', name: old, contactId: cidOld,
@@ -15514,6 +15519,53 @@ function wpPeopleArrayAddPerson(list,name,contactId) {
 }
 function wpScopeAddPerson(scope,name,contactId) {
   return wpPeopleArrayAddPerson(wpPeopleArrayForScope(scope),name,contactId);
+}
+/* «Я» в наборах исполнителей: display-имя профиля, короткие формы вы/я и
+   каноническая метка storage-слоя — всё, что нормализуется в текущего. */
+function wpIsSelfPersonName(name) {
+  const raw = name != null && typeof name === 'object' ? (name.name || name.nick || '') : name;
+  const text = String(raw || '').trim();
+  if (!text) return false;
+  return wpTextKey(wpNormalizeAssignee(text)) === wpTextKey(wpCurrentAssignee());
+}
+function wpIsSelfPerson(person) { return wpIsSelfPersonName(wpPersonName(person)); }
+/* Имена участников всей доски (активные приглашения + распределённые
+   членства scope 'all'): только они помимо пользователя живут в личном. */
+function wpBoardWideInviteeKeys(board) {
+  const out = new Set(), b = wpIsObj(board) ? board : S.board;
+  if (!wpIsObj(b)) return out;
+  (Array.isArray(b.invites) ? b.invites : []).forEach(inv => {
+    if (!wpIsObj(inv) || inv.status === 'declined') return;
+    if (String(inv.projectId || '') !== '*' && String(inv.scope || '') !== 'all') return;
+    const key = wpTextKey(String(inv.name || '').trim());
+    if (key) out.add(key);
+  });
+  (Array.isArray(b.projects) ? b.projects : []).forEach(pr => {
+    (pr && Array.isArray(pr.members) ? pr.members : []).forEach(m => {
+      if (!wpIsObj(m) || m.status === 'declined' || String(m.scope || '') !== 'all') return;
+      const key = wpTextKey(String(m.name || '').trim());
+      if (key) out.add(key);
+    });
+  });
+  return out;
+}
+/* Личный набор: пользователь всегда на месте, остальные — только
+   приглашённые (ID приглашений или активное приглашение на всю доску).
+   Возвращает true, если набор изменился. */
+function wpHealPersonalPeople(board) {
+  const b = wpIsObj(board) ? board : S.board;
+  if (!wpIsObj(b)) return false;
+  if (!Array.isArray(b.people)) b.people = [];
+  let touched = false;
+  if (!b.people.some(wpIsSelfPerson)) { b.people.unshift('Вы'); touched = true; }
+  const invitees = wpBoardWideInviteeKeys(b);
+  const next = b.people.filter(person => {
+    if (wpIsSelfPerson(person)) return true;
+    if (wpPersonContactId(person)) return true;
+    return invitees.has(wpTextKey(wpPersonName(person)));
+  });
+  if (next.length !== b.people.length) { b.people = next; touched = true; }
+  return touched;
 }
 /* ID приглашений — глобальное тождество: занятость ID проверяется во всех
    наборах доски, кроме указанной записи (переименование не конфликтует

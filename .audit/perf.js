@@ -9,8 +9,9 @@ const ROOT = path.join(__dirname, '..', 'resources', 'ui');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png' };
 
 (async () => {
-  const puppeteer = require('/home/user/.audit-tools/node_modules/puppeteer-core');
-  const chromium = require('/home/user/.audit-tools/node_modules/@sparticuz/chromium');
+  const auditTools = process.env.SHELTER_AUDIT_TOOLS || '/home/user/.audit-tools/node_modules';
+  const puppeteer = require(path.join(auditTools, 'puppeteer-core'));
+  const chromium = require(path.join(auditTools, '@sparticuz/chromium'));
   const srv = http.createServer((q, r) => {
     let p = q.url.split('?')[0]; if (p === '/') p = '/index.html';
     const fp = path.join(ROOT, p);
@@ -70,37 +71,60 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
   await step('page: settings', () => document.querySelector('[data-act="settings"]').click());
   await step('page: assistant', () => { document.querySelector('[data-act="page"][data-page="deepthink"]'); const el = document.querySelector('[data-act="page"][data-page="deepthink"]'); if (el) el.click(); });
 
-  // reduced-motion: имена UI-анимаций/fade остаются; промежуточный transform удалён.
+  // reduced-motion: имена UI-анимаций/fade остаются; transform удалён.
+  // Проверяем цикл beauty -> balance -> perf -> beauty, как CI popup acceptance:
+  // при возврате из perf фон/тень должны обновляться сразу, без незавершённого transition.
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
   await page.evaluate(() => {
     document.querySelector('[data-act="page"][data-page="start"]')?.click();
-    document.body.dataset.gfx = 'beauty';
     document.body.classList.add('native-content-visible');
     document.querySelector('[data-act="more"]')?.click();
   });
-  await new Promise(r => setTimeout(r, 80));
-  const rm = await page.evaluate(() => {
-    const menu = document.querySelector('.menu:not(.closing)');
-    const m = menu ? getComputedStyle(menu) : null;
-    const ambient = document.querySelector('.ambient i');
-    const a = ambient ? getComputedStyle(ambient) : null;
-    const icon = document.querySelector('.icon-btn') || document.body;
-    return {
-      mediaMatches: matchMedia('(prefers-reduced-motion: reduce)').matches,
-      menuAnimationName: m ? m.animationName : 'missing',
-      menuAnimationDuration: m ? m.animationDuration : 'missing',
-      menuTransform: m ? m.transform : 'missing',
-      ambientAnimationName: a ? a.animationName : 'missing',
-      ambientPlayState: a ? a.animationPlayState : 'missing',
-      transitionProperty: getComputedStyle(icon).transitionProperty,
-    };
-  });
-  if (!rm.mediaMatches || rm.menuAnimationName === 'none' || rm.menuAnimationDuration === '0s' || rm.menuTransform !== 'none' || rm.ambientPlayState !== 'paused') {
-    throw new Error('reduced-motion regression: ' + JSON.stringify(rm));
+  const modeSnapshots = [];
+  for (const mode of ['beauty', 'balance', 'perf', 'beauty']) {
+    await page.evaluate(mode => {
+      if (window.shelterTest && window.shelterTest.setGfxMode) window.shelterTest.setGfxMode(mode, { persist: false, notify: false });
+      else if (window.setGfxMode) window.setGfxMode(mode, { persist: false, notify: false });
+      else document.body.dataset.gfx = mode;
+    }, mode);
+    await page.evaluate(() => new Promise(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+      setTimeout(resolve, 300);
+    }));
+    modeSnapshots.push(await page.evaluate(mode => {
+      const menu = document.querySelector('.menu:not(.closing)');
+      const m = menu ? getComputedStyle(menu) : null;
+      const ambient = document.querySelector('.ambient i');
+      const a = ambient ? getComputedStyle(ambient) : null;
+      const bg = m ? m.backgroundColor : '';
+      const slashAlpha = bg.match(/\/\s*([0-9.]+)(%)?\s*\)$/);
+      const rgba = bg.match(/^rgba?\([^)]*,\s*([0-9.]+)\s*\)$/i);
+      const alpha = slashAlpha ? (slashAlpha[2] ? Number(slashAlpha[1]) / 100 : Number(slashAlpha[1])) : (rgba ? Number(rgba[1]) : 1);
+      const shadow = m ? m.boxShadow : 'missing';
+      return {
+        mode,
+        menuAnimationName: m ? m.animationName : 'missing',
+        menuAnimationDuration: m ? m.animationDuration : 'missing',
+        menuTransform: m ? m.transform : 'missing',
+        backgroundColor: bg,
+        backgroundAlpha: alpha,
+        boxShadow: shadow,
+        shadowVisible: shadow !== 'none' && !/^rgba?\(0, 0, 0, 0\)/.test(shadow),
+        ambientAnimationName: a ? a.animationName : 'missing',
+        ambientPlayState: a ? a.animationPlayState : 'missing',
+        transitionProperty: getComputedStyle(menu || document.body).transitionProperty,
+        mediaMatches: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      };
+    }, mode));
   }
-  console.log('reduced-motion:', JSON.stringify(rm));
+  const rm = modeSnapshots[3];
+  if (!rm.mediaMatches || rm.menuAnimationName === 'none' || rm.menuAnimationDuration === '0s' || rm.menuTransform !== 'none' || rm.ambientPlayState !== 'paused' || Math.abs(rm.backgroundAlpha - 0.82) > 0.015 || !rm.shadowVisible || /background-color|box-shadow/.test(rm.transitionProperty)) {
+    throw new Error('reduced-motion/native-popup mode-cycle regression: ' + JSON.stringify(modeSnapshots));
+  }
+  console.log('reduced-motion/native-popup mode cycle:', JSON.stringify(modeSnapshots));
   await page.keyboard.press('Escape');
   await page.evaluate(() => document.body.classList.remove('native-content-visible'));
+  fs.mkdirSync(path.join(__dirname, 'tmp1024'), { recursive: true });
   await page.screenshot({ path: path.join(__dirname, 'tmp1024', 'reduced-motion-hero.png') });
 
   // perf-режим (S.prefs.gfx='perf') — контроль: что отключает

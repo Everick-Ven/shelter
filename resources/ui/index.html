@@ -4790,7 +4790,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
    но убираем перемещения/масштабирование из keyframes. Переходы оставляем
    только по opacity/цвету; бесконечный ambient ставим на паузу. */
 @media(prefers-reduced-motion:reduce){
-  *{transition-property:opacity,color,background-color,border-color,box-shadow,outline-color!important;transition-duration:.15s!important}
+  *{transition-property:opacity,color,border-color,outline-color!important;transition-duration:.15s!important}
   @keyframes amb1{to{transform:none}}
   @keyframes amb2{to{transform:none}}
   @keyframes tabIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}

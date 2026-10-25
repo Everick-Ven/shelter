@@ -103,7 +103,7 @@ hero-focus-computed.json`, одинаково и в «после»). Пиксе�
 | палитра Ctrl+K (вход `modalIn`) | `animation:none` | горячий клавиатурный путь — без анимации (критерий 5) |
 | переключение вкладок / панель поиска | без анимации (подтверждено кодом: `tabIn` только у `.tab.enter` — появление новой; `.findbar` без анимаций) | критерий 5 |
 | нажатие: `scale(.97)` только на `.btn` | +`.icon-btn/.opill/.seg button/.qlink` | отклик нажатия (у `.icon-btn`/`.btn` transform-transition уже был; у прочих — мгновенный отклик) |
-| `prefers-reduced-motion`: 4 узких блока | +1 общий: `animation:none`, переходы только opacity/color/… `.15s` | критерий 3: без перемещений/масштаба, состояния читаются; проверено эмуляцией `reduce` (анимации `none`, `.audit/report-shots/reduced-motion-hero.png`) |
+| `prefers-reduced-motion`: 4 узких блока | +1 общий: keyframes сохраняют fade/имена, transform/scale удалены; transition-property только opacity/color/border/outline `.15s` (не background/box-shadow) | критерий 3: без перемещений/масштаба, состояния читаются; эмуляция `reduce` + CI-цикл beauty→balance→perf→beauty: в последнем beauty alpha .82 и тень восстановлены сразу |
 | keyframes тоста/типа | не тронуто | прерываемость не подтверждена — отложено с причиной (§2) |
 
 ### 3.6 Замеры производительности (`.audit/perf.js`, CDP)
@@ -184,7 +184,8 @@ CPU-сторона чистая — правок по цифрам не потр
 | `1b5f880` | индикатор фокуса 2px ≥3:1, снятие гашений |
 | `c800104` | мелкий читаемый текст → 12px |
 | `5b6d496` | движение: длительности, нажатие, общий reduced-motion, палитра без анимации |
-| pending | CI fix: reduced-motion сохраняет fade popup и имена анимаций для acceptance, убирает движения |
+| `d9869e2` | CI fix: reduced-motion сохраняет имена/fade popup, убирает перемещения |
+| текущий follow-up | CI fix: reduced-motion не анимирует фон/тень при возврате perf→beauty; проверен весь цикл режимов |
 
 Артефакты: `.audit/analyze.js` (контраст/метрики), `.audit/shot.js`
 (скриншоты), `.audit/perf.js` (замеры), `.audit/before|after/metrics.txt`,
@@ -192,7 +193,24 @@ CPU-сторона чистая — правок по цифрам не потр
 полные наборы скриншотов `.audit/before/shots`, `.audit/after/shots`
 (52+52, в рабочем дереве).
 
-## 8. Критерии приёмки — сверка
+## 8. CI follow-up: два дефекта в reduced-motion переходе режимов
+
+- Run `40199844148`: Windows/macOS CI-hook runtime acceptance сообщил
+  `.menu animationName:none, animationDuration:0s` в Visual/Balance. Причина —
+  широкий `animation:none!important` в `prefers-reduced-motion`; исправлено
+  в `d9869e2` — keyframes сохраняют имена/fade, из них убран transform.
+- Run `40201618994`: анимационный assertion прошёл, но оба раннера сообщили
+  последний режим `beauty` с фоном alpha 1.0 вместо 0.82 и прозрачной тенью.
+  Это был **переходный кадр**: цикл beauty→balance→perf→beauty снимается через
+  два `requestAnimationFrame`; общий reduced-motion блок разрешал переходы
+  `background-color` и `box-shadow` на 150ms, поэтому после perf возвращались
+  не успевшие перейти фон/тень. Исправление: в системном reduced-motion
+  разрешены только transition opacity/color/border-color/outline-color;
+  фон и тень переключаются сразу. Локальный CDP-прогон тем же 4-режимным
+  циклом теперь фиксирует финальный beauty: `color(srgb … / 0.82)`, штатная
+  тень; `.menu` сохраняет `menuIn/.2s`, transform остаётся `none`.
+
+## 9. Критерии приёмки — сверка
 
 | № | Критерий | Статус |
 |---|---|---|

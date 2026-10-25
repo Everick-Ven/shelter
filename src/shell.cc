@@ -508,7 +508,10 @@ class ShellWindowDelegate : public CefWindowDelegate {
   // Сохраняем режим только после того, как окно достигло запрошенного при
   // старте; до этого события размеров относятся к построению окна.
   void TrackWindowMode(CefRefPtr<CefWindow> window) {
-    if (!window) return;
+    // Во время закрытия CEF выходит из fullscreen в процессе teardown: переходы
+    // и изменения границ тогда относятся к уничтожению окна, а не к выбору
+    // пользователя, и не должны затирать сохранённый режим.
+    if (!window || Shell::Get().closing()) return;
     if (!tracking_) {
       if (window->IsMinimized()) return;
       MainWindowMode now = MainWindowMode::kNormal;
@@ -1407,7 +1410,16 @@ bool Shell::CanCloseWindow() {
 void Shell::OnWindowDestroyed() {
   CEF_REQUIRE_UI_THREAD();
   if (window_) {
-    SaveMainWindowMode(window_);
+    // К моменту уничтожения окно уже вышло из fullscreen (см. TrackWindowMode):
+    // слепое сохранение понизило бы "fullscreen" до обычного режима, и следующий
+    // запуск открылся бы в окне вместо полного экрана. Такой даунгрейд запрещён.
+    const MainWindowState saved_at_close = ReadMainWindowState();
+    const bool teardown_left_fullscreen =
+        saved_at_close.mode == MainWindowMode::kFullscreen &&
+        !window_->IsFullscreen();
+    if (!teardown_left_fullscreen) {
+      SaveMainWindowMode(window_);
+    }
     platform::UnwatchMainWindow(reinterpret_cast<void*>(window_->GetWindowHandle()));
   }
   window_ = nullptr;
@@ -2942,8 +2954,10 @@ void Shell::ResolveExtensionInstall(const std::string& token, bool install) {
 // Инъекция идемпотентна (проверка по атрибуту) и ставится и на старт, и на
 // конец загрузки: на старте контекст может уже существовать (SPA-переходы),
 // на конце — гарантированно закрывает страницы с поздним контекстом.
+// Во все фреймы, не только главный: реклама живёт и внутри iframe, а их
+// документы приходят с собственным DOM, куда стиль главного кадра не проникает.
 static void InjectBlockerCss(CefRefPtr<CefFrame> frame) {
-  if (!frame || !frame->IsValid() || !frame->IsMain()) return;
+  if (!frame || !frame->IsValid()) return;
   const std::string& css = blocker::CosmeticCss();
   if (css.empty()) return;
   const std::string js =

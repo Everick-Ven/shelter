@@ -7,9 +7,9 @@ const vm = require('vm');
 const { webcrypto } = require('crypto');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'resources', 'ui', 'index.html'), 'utf8');
-const marker = '/* =========================================================\n   SHELTER · Планировщик задач (v7 · дедлайн завершает диапазон)';
+const marker = '/* =========================================================\n   SHELTER · Планировщик задач (v8 · дедлайн завершает диапазон)';
 const start = html.indexOf(marker);
-assert(start >= 0, 'the v7 planner module must be installed in the active UI');
+assert(start >= 0, 'the v8 planner module must be installed in the active UI');
 const end = html.indexOf('\ninit();\n', start);
 assert(end > start, 'the planner module must load before the application initializes');
 const planner = html.slice(start, end);
@@ -166,6 +166,9 @@ assert(html.includes('Дата начала не может быть позже 
 assert(!html.includes("downloadFile('shelter-tasks.json'"), 'the legacy task export path does not generate plaintext JSON');
 assert(html.includes("'shelter-tasks-backup-'+wpDateKey(Date.now())+'.shelter'"), 'task exports share the .shelter extension with browser backups');
 assert(!html.includes("downloadFile('shelter-planner-migration-backup.shelter',raw)"), 'the technical migration snapshot is password-protected too');
+const loadStart=html.indexOf('function load() {'),loadEnd=html.indexOf('\nlet _visitsAt',loadStart),loadSource=html.slice(loadStart,loadEnd);
+assert(loadSource.includes('const encrypted = wpStoreEncrypt(payload)') && !loadSource.includes('store.set(copyKey, payload)'), 'unreadable-store snapshots use the protected store and have no plaintext fallback');
+assert(html.includes('const encrypted=wpStoreEncrypt(text)') && !html.includes('store.set(backupKey,payload)'), 'new migration and pre-import backups are encrypted; index failures do not write raw JSON fallbacks');
 const taskImportFn = html.slice(html.indexOf('function wpImportFile()'), html.indexOf('function wpReviewSelect('));
 assert(taskImportFn.includes("input.type='file'") && !taskImportFn.includes('input.accept'), 'the task picker stays unfiltered so .shelter files remain selectable');
 const downloadFileSource = html.slice(html.indexOf('function downloadFile('), html.indexOf('\n/* =========================================================\n   ДАШБОРД', html.indexOf('function downloadFile(')));
@@ -226,6 +229,7 @@ const plural = (n, forms) => { const a = Math.abs(n) % 100, b = a % 10; return a
 const fmtDur = n => String(n);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ico = () => '';
+const segHtml = (name, opts, val, cls) => '<div class="seg ' + (cls || '') + '">' + opts.map(o => '<button data-seg="' + o[0] + '">' + o[1] + '</button>').join('') + '</div>';
 const toast = () => {};
 const downloadFile = () => {};
 const openMenu = () => {};
@@ -260,13 +264,13 @@ globalThis.__api = {
   wpDateKey, wpDeadlineBeforeStart, wpWeekStart, wpAddDays, wpMonthStart, wpMonthKeys, wpFmtMonth, wpMatchRuleDate,
   wpTaskHomeType, wpIsMine, wpAssigneeLabel, wpAssigneeChoices, wpCanonicalAssignee, wpRenameSelfAssignee, WP_SELF_ASSIGNEE, wpCurrentAssignee, wpCanCommentTask, wpTaskCommentList, wpAddTaskComment, wpCommentThreadHtml, wpCalendarEntities, wpWeekEntities, wpMonthEntities, wpRangeEntities, wpCreateTask, wpQuickSubmit, wpContextAddTarget, wpApplyTaskForm,
   wpTaskScheduleStart, wpTaskScheduleEnd, wpTaskScheduleOffset, wpTaskCoversDate, wpTaskHasDateSpan, wpEffectiveOccurrence, wpApplySchedule, wpCalendarShownEntities, wpToggleCalendarCompleted,
-  wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpApplyEntityHome,
-  wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate,
-  wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpMoveBoardStatusTo, wpStatusColor, wpValidStatusColor, wpStatusSwatches, wpStatusSwatchesHtml, wpIsSystemStatus, WP_SYSTEM_STATUS_KEYS, WP_STATUS_SWATCHES, WP_STATUS_SWATCHES_DEFAULT, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
+  wpDeadlineText, wpDeadlineOverdue, wpValidDeadlineTime, wpTaskOverdueAt, wpOverdueSettleTask, wpOverdueSweep, wpOverdueSettleRef, wpOverdueSweepCommit, wpTaskCard, wpDayColumn, wpDayCapsule, wpCalendarSpanLayout, wpCalendarSpanEvent, wpWeekCalendar, wpMonthDots, wpMonthDay, wpMonthWeek, wpMonthSummary, wpMonthMini, wpMonthMiniDay, wpMonthMiniToggle, wpToggleMonthMini, wpSelectedDayPanel, wpSetupTaskTitleMarquee, wpDateFieldHtml, wpEditorProjectOptions, wpEditorBaseValues, wpEditorBodyHtml, wpHeaderControls, wpDateControls, wpNavHtml, wpViewHtml, wpValidPriorityColor, wpBoardPriorityColors, wpPriorityVarsStyle, wpPriorityVarsAttr, wpDefaultPriorityColors, wpPriority, wpPrioritiesFor, wpPriorityKeys, wpPriorityLabel, wpPriorityKeyByName, wpPriorityKeyForName, wpPriorityKeyForNewName, wpValidPriorityKey, wpDefaultPriorityKey, wpPriorityRank, wpPriorityUrgent, wpTopPriorityKey, wpNormalizePrioritiesArray, wpDefaultPriorities, wpMakeBoardPriority, wpPriorityArrayForScope, wpMoveBoardPriority, wpEnsureProjectPriorities, wpRemapPriorityKey, wpPriorityOptions, wpPriorityColor, wpPriorityTint, WP_PRIORITY_KEYS, WP_PRIORITY_BY_LABEL, wpApplyEntityHome,
+  wpEnsureState, wpSetCalendarMode, wpCalendarMove, wpToggleSidebar, wpCalendarCompletedToggle, wpSelectCalendarDate, wpCalendarScopeOptions, wpCalendarScopeSelect, wpSetCalendarScope, wpFilterByHome, wpHomeFilterOptions, wpWeekSummary, wpTaskCardModalHtml, wpOpenTaskCard, buildTaskReviewPrompt,
+  wpBoardEntities, wpBoardSummary, wpBoardToolbar, wpBoardView, wpBoardColumns, wpBoardLaneHeader, wpBoardScope, wpBoardHomeFilterOptions, wpActiveSettingsScope, wpTaskStatus, wpStatusLabel, wpStatusKeys, wpStatusOptions, wpDefaultStatusKey, wpValidStatusKey, wpNormalizeStatusesArray, wpNormalizeStatusFlags, wpStatusKeyForName, wpStatusKeyForNewName, wpMakeBoardStatus, wpMoveBoardStatus, wpMoveBoardStatusTo, wpStatusColor, wpValidStatusColor, wpStatusSwatches, wpStatusSwatchesHtml, wpIsSystemStatus, WP_SYSTEM_STATUS_KEYS, WP_STATUS_SWATCHES, WP_STATUS_SWATCHES_DEFAULT, wpStatusFlags, wpStatusDone, wpStatusOutdated, wpStatusQuiet, wpStatusClosed, wpStatusAskDate, wpTaskDone, wpTaskOutdated, wpTaskQuiet, wpTaskClosed, wpScopeOf, wpStatusesFor, wpStatusArrayForScope, wpEnsureProjectStatuses, wpHealScopeStatuses, wpRemapStatusKey, wpSetTaskHome, wpSetBoardFilter, wpSetBoardFocus, wpToggleBoardMine, wpResetBoardFilters, wpAllEntities, wpSortEntities, wpAllTagChoices, wpBaseTasks, wpSetAllViewFilter, wpResetAllFilters, wpAllFilterToolbar, wpCaptureTaskEntities, wpRestoreTaskEntities, wpPersistBoard, wpCommit, wpRenderTaskPageFull, wpRenderView,
   wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
-  wpSetStatusRef, wpSetTaskStatus, wpRequestStatusChange, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson, wpBoardPersonIndexById, wpDeleteTaskContact, wpContactIdUsedAnywhere,
+  wpSetStatusRef, wpSetTaskStatus, wpRequestStatusChange, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson, wpBoardPersonIndexById, wpDeleteTaskContact, wpContactIdUsedAnywhere, wpPeopleFor, wpPeopleArrayForScope, wpNormalizePeopleArray, wpEnsureProjectPeople, wpPersonIndexIn, wpPersonIndexByIdIn, wpPeopleArrayAddPerson, wpScopeAddPerson, wpPersonIdTaken, wpPersonNameById, wpAssigneeOptions,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects, wpMergeImportedTaskData, wpApplyImportedTaskData,
-  wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
+  wpCreatePreImportBackup, wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
 };`, context, { timeout: 5000 });
 const api = context.__api;
 
@@ -479,6 +483,9 @@ assert(!rangeWeekCards.includes('<article class="wp-task'), 'week day cells no l
 assert(rangeWeekCards.includes('wp-calendar-span wp-calendar-span--week p-high'), 'week span color follows urgency');
 assert(rangeWeekCards.includes('Приоритет: Критичный') && rangeWeekCards.includes('Приоритет: Без приоритета'), 'week range labels expose the priority');
 assert(rangeWeekCards.includes('wp-day-span-spacer'), 'week days reserve room for the horizontal range lanes');
+assert(planner.includes("closest('.wp-task[draggable=\"true\"],.wp-calendar-span[draggable=\"true\"],.wp-day-capsule[draggable=\"true\"]')"), 'spans and day capsules start the same task drag as cards');
+assert(planner.includes("closest('.wp-task,.wp-calendar-span,.wp-day-capsule,.wp-board-column')"), 'spans and capsules clear the dragging mark on release');
+assert(plannerStyle[1].includes('.wp-day-capsule.dragging{opacity:.45}') && plannerStyle[1].includes('.wp-calendar-span.dragging{opacity:.45}'), 'spans and capsules share the drag fade effect');
 const desktopDay = api.wpDayColumn('2026-10-15', rangeTasks);
 assert(desktopDay.includes('data-act="wpCalendarSelectDate" data-date="2026-10-15"'), 'clicking the whole week day selects it, not just its date label');
 assert.strictEqual(countId(desktopDay, 'month-span-a'), 0, 'desktop date cells do not duplicate a range that is shown in the span layer');
@@ -490,6 +497,7 @@ const monthDayCell = api.wpMonthDay('2026-10-15', rangeTasks);
 assert(monthDayCell.includes('data-act="wpCalendarSelectDate" data-date="2026-10-15"'), 'clicking anywhere in a month day cell selects its date');
 const selectedMobileDay = api.wpDayColumn('2026-10-15', rangeTasks, { includeMultiDay: true });
 assert.strictEqual(countId(selectedMobileDay, 'month-span-a', 'data-task-id'), 1, 'the selected/mobile day list may keep capsules for multi-day tasks');
+assert(selectedMobileDay.includes('14–16 окт.'), 'range capsules carry the duration label');
 state.ui = { plannerShowCompletedTasks: true };
 api.WP._completedVisibilityRestored = false;
 api.wpEnsureState();
@@ -559,7 +567,7 @@ state.board.tasks=[
   { id:'board-overdue',title:'Просроченная',homeType:'personal',assignee:'Alex',statusKey:'open',priorityKey:'normal',deadlineAt:'2000-01-01',order:5 },
   { id:'board-other',title:'Чужая срочная',homeType:'personal',assignee:'Morgan',statusKey:'open',priorityKey:'critical',order:6 }
 ];
-state.board.occurrences=[]; api.WP.query=''; api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardMineOnly=false; api.WP.boardFocus='all';
+state.board.occurrences=[]; api.WP.query=''; api.WP.boardHomeFilter='personal'; api.WP.boardAssigneeFilter='all'; api.WP.boardMineOnly=false; api.WP.boardFocus='all';
 api.WP.allFilter='cancelled'; api.WP.calendarShowCompleted=true; api.WP.boardShowCompleted=true;
 let boardIds=api.wpBoardEntities().map(task=>task.id);
 assert(boardIds.includes('board-done') && boardIds.includes('board-cancelled'), 'the board shows completed and cancelled tasks when its own toggle is on');
@@ -580,9 +588,9 @@ const probeBoard = { id: 'probe-5', name: 'Probe', code: 'P', taskSchemaVersion:
   statuses: [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }, { key: 'overdue', name: 'Просрочено' }, { key: 'st_probe_1', name: 'Новый' }],
   tasks: [{ id: 'pt1', title: 'T', homeType: 'personal', statusKey: 'st_probe_1', priorityKey: 'normal', order: 1 }] };
 const keepBoard = state.board, keepBoards = state.boards, keepId = state.boardId;
-const keepShow = api.WP.boardShowCompleted, keepFocus = api.WP.boardFocus, keepAllFilter = api.WP.allFilter;
+const keepShow = api.WP.boardShowCompleted, keepFocus = api.WP.boardFocus, keepAllFilter = api.WP.allFilter, keepHomeFilter = api.WP.boardHomeFilter;
 state.board = probeBoard; state.boards = [probeBoard]; state.boardId = probeBoard.id;
-api.WP.allFilter = 'all'; api.WP.boardShowCompleted = true; api.WP.boardFocus = 'all';
+api.WP.allFilter = 'all'; api.WP.boardShowCompleted = true; api.WP.boardFocus = 'all'; api.WP.boardHomeFilter = 'personal';
 const probeMarkup = api.wpBoardView();
 assert.strictEqual((probeMarkup.match(/wp-board-column/g) || []).length, 5, 'a dictionary status always adds a board lane');
 assert(probeMarkup.includes('--wp-lanes:5'), 'board lanes share one row sized by the live status count');
@@ -590,7 +598,7 @@ assert(probeMarkup.includes('<b>Новый</b>'), 'a custom status lane carries 
 assert.strictEqual((probeMarkup.match(/<header[\s>]/g) || []).length, 5, 'every lane carries its own header with name and count');
 assert(!probeMarkup.includes('wp-board-summary'), 'no KPI strip duplicates the lane headers');
 state.board = keepBoard; state.boards = keepBoards; state.boardId = keepId;
-api.WP.allFilter = keepAllFilter; api.WP.boardShowCompleted = keepShow; api.WP.boardFocus = keepFocus;
+api.WP.allFilter = keepAllFilter; api.WP.boardShowCompleted = keepShow; api.WP.boardFocus = keepFocus; api.WP.boardHomeFilter = keepHomeFilter;
 assert(html.includes('width: 520, onClose: () => tasksRerender(true), html:'), 'closing the dictionaries modal always re-renders the board, even via Escape or backdrop click');
 assert(planner.includes("is-all-day${layout.segments.length?' has-spans':''}") && plannerStyle[1].includes('.wp-week-grid.has-spans .wp-day-items{margin-top:6px}'), 'span weeks keep the uniform 6px gap between multi-day rows and capsules');
 assert(api.WP.calendarShowCompleted, 'the board toolbar keeps the completed calendar filter untouched');
@@ -634,7 +642,7 @@ state.boardId='sort-board';
 const ensureCountBeforeTaskQuery=api.ensureBoardCount(); api.wpBaseTasks();
 assert.strictEqual(api.ensureBoardCount(),ensureCountBeforeTaskQuery,'valid task boards skip the full normalization pass during ordinary list/calendar queries');
 api.WP.query=''; api.WP.allFilter='all'; api.WP.allAssigneeFilter='all'; api.WP.allMineOnly=false; api.WP.allProjectFilter='all'; api.WP.allSort='urgency'; api.WP.allSortDir='desc'; api.WP.allTagFilter='all';
-api.WP.boardHomeFilter='all'; api.WP.boardAssigneeFilter='all'; api.WP.boardMineOnly=false; api.WP.boardFocus='all'; api.WP.boardTagFilter='all'; api.WP.boardSort='urgency'; api.WP.boardSortDir='desc'; api.WP.boardShowCompleted=true;
+api.WP.boardHomeFilter='personal'; api.WP.boardAssigneeFilter='all'; api.WP.boardMineOnly=false; api.WP.boardFocus='all'; api.WP.boardTagFilter='all'; api.WP.boardSort='urgency'; api.WP.boardSortDir='desc'; api.WP.boardShowCompleted=true;
 const sortIds=(mode,dir)=>{api.wpSetAllViewFilter('sort',mode); if(dir) api.wpSetAllViewFilter('direction',dir); return Array.from(api.wpAllEntities(),task=>task.id);};
 const urgencyDescOrder=['sort-done-critical','sort-critical','sort-high','sort-normal-late','sort-normal-early','sort-normal-no-deadline'];
 assert.deepStrictEqual(sortIds('urgency','desc'),urgencyDescOrder,'the default sort orders by urgency without hidden status groups (reference behavior)');
@@ -724,7 +732,7 @@ api.WP.boardAssigneeFilter='mine'; api.WP.boardMineOnly=false; api.wpEnsureState
 assert.strictEqual(api.WP.boardAssigneeFilter,'all'); assert.strictEqual(api.WP.boardMineOnly,true,'legacy board My Tasks state migrates independently');
 api.WP.allProjectFilter='project:missing'; api.WP.boardHomeFilter='project:missing'; api.WP.boardAssigneeFilter='person:missing'; api.WP.boardFocus='unknown'; api.wpEnsureState();
 assert.strictEqual(api.WP.allProjectFilter,'all','a removed or inaccessible project cannot leave an invisible task-list filter active');
-assert.strictEqual(api.WP.boardHomeFilter,'all','a deleted project cannot leave an invisible board filter active');
+assert.strictEqual(api.WP.boardHomeFilter,'personal','a deleted project cannot leave an invisible board filter active');
 assert.strictEqual(api.WP.boardAssigneeFilter,'all','a removed person cannot leave an invisible board filter active');
 assert.strictEqual(api.WP.boardFocus,'all','invalid board focus values return to the visible All state');
 api.WP.allFilter='done'; api.WP.allAssigneeFilter='person:Анна'; api.WP.allMineOnly=true; api.WP.allProjectFilter='personal'; api.WP.allSort='tag'; api.WP.allSortDir='asc'; api.WP.allTagFilter='tag:Альфа'; api.WP.query='поиск';
@@ -805,19 +813,22 @@ assert.strictEqual(api.wpStatusLabel('st-review'), 'Review');
 assert.strictEqual(api.wpDefaultStatusKey(), 'open');
 const dictOptions = api.wpStatusOptions('open');
 assert(dictOptions.includes('<option value="open" selected>Active</option>') && dictOptions.includes('<option value="st-review" >Review</option>'), 'the task status select follows the board dictionary');
-assert(api.wpStatusOptions('cancelled').includes('<option value="cancelled" selected>Отменена</option>'), 'a legacy status in use stays selectable through the fallback label');
+assert(api.wpStatusOptions('cancelled').includes('<option value="cancelled" selected>Отменена</option>'), 'an out-of-set status in use stays selectable through the fallback label');
 assert.deepStrictEqual([...api.wpBoardColumns(customStatusTasks)].map(c => c[0]), ['open', 'st-review', 'done', 'waiting', 'overdue', 'cancelled'], 'board columns follow the dictionary, restore missing system lanes, and keep a lane for legacy statuses in use');
 assert.strictEqual([...api.wpBoardColumns(customStatusTasks)][5][1], 'Отменена');
 state.board.statuses = [{ key: 'st-only', name: 'Solo' }, { key: 'done', name: 'Done' }];
 assert.strictEqual(api.wpDefaultStatusKey(), 'open', 'new tasks always start in open since the system lanes cannot be gone');
 state.board.statuses = dictStatusesBefore;
-assert(html.includes("arr.push(wpMakeBoardStatus(r.name, r.flags, S.board, '', r.color));"), 'board settings add statuses through the shared status factory');
-assert(html.includes('function wpStatusDlg(') && html.includes('data-ws-flag="done"') && html.includes('data-ws-flag="noRemind"') && html.includes('data-ws-flag="outdated"'), 'statuses gain an editor with the behavior catalog');
+assert(html.includes("arr.push(wpMakeBoardStatus(r.name, r.flags, scope, '', r.color));"), 'board settings add statuses through the shared status factory');
+assert(html.includes('function wpStatusDlg(') && html.includes('data-ws-flag="done"') && html.includes('data-ws-flag="noRemind"') && html.includes('data-ws-flag="outdated"') && html.includes('data-ws-flag="askDate"'), 'statuses gain an editor with the behavior catalog');
+assert(html.includes('Запрашивать изменение даты при переносе из «Просрочено»'), 'the status editor asks whether leaving overdue needs a new date');
+assert(planner.includes('wpStatusAskDate(key,task)') && planner.includes('wpStatusAskDate(to,targetScope)'), 'the overdue exit asks for a new date only when the target status says so');
 assert(html.includes('data-act="wpBoardMoveToggle"') && html.includes('data-act="wpBoardColMove"'), 'board lanes reorder through an explicit move mode');
-assert(planner.includes("next=wpStatusClosed(current)?wpDefaultStatusKey():'done'"), 'toggling a closed-by-logic task returns it to work');
+assert(planner.includes("next=wpStatusClosed(current,ent)?wpDefaultStatusKey(ent):'done'"), 'toggling a closed-by-logic task returns it to work');
 assert(planner.includes("if(!t || wpTaskQuiet(t) || !t.deadlineAt) return false;"), 'quiet statuses never go overdue');
 assert(html.includes('disabled title="Системный статус"'), 'system lanes render delete as disabled');
-assert(planner.includes('columns=wpBoardColumns(items)'), 'the board renders its lanes from the shared dictionary');
+assert(planner.includes('const columns=wpBoardColumns(items,scope);'), 'the board renders lanes from the scope dictionary');
+assert(!planner.includes('wpBoardCategoryColumns') && !planner.includes('wpBoardCategoryMode') && !planner.includes('wpStatusCategory'), 'the mixed-category board mode is gone');
 
 // New statuses adopt canonical keys and fill their own lane instead of duplicating the edge fallback lane.
 const adoptBefore = state.board.statuses;
@@ -858,6 +869,20 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpStatusFlags('st-shipped')
 assert.strictEqual(api.wpStatusDone('st-shipped'), true);
 assert.strictEqual(api.wpStatusDone('done'), true, 'the structural done status keeps its implicit logic');
 assert.strictEqual(api.wpStatusOutdated('cancelled'), true, 'the legacy cancelled status keeps its implicit logic');
+// The overdue date prompt follows the target status checkbox, defaulting to active-only.
+const askNorm = JSON.parse(JSON.stringify([...api.wpNormalizeStatusesArray([{ key: 'st-a', name: 'A', flags: { askDate: false } }, { key: 'st-b', name: 'B', flags: { askDate: true } }, { key: 'st-c', name: 'C' }])]));
+assert.strictEqual(askNorm[0].flags.askDate, false, 'an explicit opt-out survives normalization');
+assert.strictEqual(askNorm[1].flags.askDate, true);
+assert.strictEqual('flags' in askNorm[2], false, 'untouched statuses stay on auto');
+const askStatusesBefore = state.board.statuses;
+state.board.statuses = [{ key: 'open', name: 'В работе' }, { key: 'st-out', name: 'Архив', flags: { outdated: true } }, { key: 'st-ask', name: 'Спрашивать', flags: { askDate: true } }, { key: 'st-skip', name: 'Без вопросов', flags: { askDate: false } }];
+assert.strictEqual(api.wpStatusAskDate('open'), true, 'active lanes ask by default');
+assert.strictEqual(api.wpStatusAskDate('done'), false, 'closed lanes stay silent by default');
+assert.strictEqual(api.wpStatusAskDate('cancelled'), false, 'cancelled never asks unless told to');
+assert.strictEqual(api.wpStatusAskDate('st-out'), false, 'outdated customs stay silent by default');
+assert.strictEqual(api.wpStatusAskDate('st-ask'), true);
+assert.strictEqual(api.wpStatusAskDate('st-skip'), false, 'the checkbox overrides the auto behavior both ways');
+state.board.statuses = askStatusesBefore;
 assert.strictEqual(api.wpStatusQuiet('st-idle'), true);
 assert.strictEqual(api.wpStatusClosed('st-junk'), true);
 assert.strictEqual(api.wpTaskDone({ statusKey: 'st-shipped' }), true);
@@ -905,7 +930,7 @@ const moveHomeBefore = api.WP.boardHomeFilter, moveAssigneeBefore = api.WP.board
 state.board.statuses = [{ key: 'open', name: 'В работе' }, { key: 'st-x', name: 'Своя' }, { key: 'done', name: 'Готово' }];
 state.board.tasks = []; state.board.occurrences = [];
 api.WP.query = ''; api.WP.boardFocus = 'all'; api.WP.boardShowCompleted = true; api.WP.boardMineOnly = false;
-api.WP.boardHomeFilter = 'all'; api.WP.boardAssigneeFilter = 'all'; api.WP.boardTagFilter = 'all';
+api.WP.boardHomeFilter = 'personal'; api.WP.boardAssigneeFilter = 'all'; api.WP.boardTagFilter = 'all';
 api.WP.boardMoveColumns = true;
 const moveMarkup = api.wpBoardView();
 assert.strictEqual((moveMarkup.match(/data-act="wpBoardColMove"/g) || []).length, 10, 'every dictionary lane offers both move buttons in move mode');
@@ -921,7 +946,7 @@ state.board.statuses = moveStatusesBefore; state.board.tasks = moveTasksBefore; 
 api.WP.query = moveQueryBefore; api.WP.boardFocus = moveFocusBefore; api.WP.boardShowCompleted = moveShowBefore; api.WP.boardMineOnly = moveMineBefore;
 api.WP.boardHomeFilter = moveHomeBefore; api.WP.boardAssigneeFilter = moveAssigneeBefore; api.WP.boardTagFilter = moveTagBefore; api.WP.boardMoveColumns = moveModeBefore;
 const dayCapsule = api.wpDayCapsule({ id: 'cap-1', title: 'Капсула', homeType: 'personal', statusKey: 'open', priorityKey: 'high', deadlineAt: '2026-10-15', tags: [] });
-assert(dayCapsule.includes('wp-day-capsule p-high') && dayCapsule.includes('data-task-id="cap-1"') && dayCapsule.includes('data-act="taskEdit"'), 'single-day tasks render as rich capsules that open the editor');
+assert(dayCapsule.includes('wp-day-capsule p-high') && dayCapsule.includes('data-task-id="cap-1"') && dayCapsule.includes('data-act="taskOpen"'), 'single-day tasks render as rich capsules that open the read-only card');
 const dayCapsuleMeta = api.wpDayCapsule({ id: 'cap-2', title: 'Мета', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', assignee: 'Владимир', deadlineAt: '2026-10-20', tags: [] });
 assert(dayCapsuleMeta.includes('<small class="wp-cap-top">Личные · Обычный</small>'), 'day capsules lead with the home list and priority');
 assert(dayCapsuleMeta.includes('<span>Мета</span>'), 'day capsules keep the title on its own line');
@@ -965,17 +990,43 @@ assert.strictEqual(api.wpMoveBoardStatusTo('missing', 0), false);
 assert.strictEqual(api.wpMoveBoardStatusTo('b', 99), true, 'out-of-range drops pin the lane at the edge');
 assert.strictEqual(state.board.statuses[state.board.statuses.length - 1].key, 'b');
 state.board.statuses = toStatusesBefore;
-assert(planner.includes("data-lane=\"${esc(status)}\"") && planner.includes('application/x-shelter-lane') && planner.includes('wpMoveBoardStatusTo(key,to)'), 'lanes drag by header and persist through the shared mover');
+assert(planner.includes("data-lane=\"${esc(status)}\"") && planner.includes('application/x-shelter-lane') && planner.includes('wpMoveBoardStatusTo(key,to,wpBoardScope())'), 'lanes drag by header and persist through the shared mover');
 assert(html.includes('wp-lanes-hint'), 'move mode explains itself with a hint bar');
+
+// Empty scope sets seed from the live dictionary before any reorder, so lanes never go dead.
+const seedBoard = { projects: [{ id: 'seed-prj', name: 'Seed', members: [] }] };
+assert.deepStrictEqual([...api.wpStatusArrayForScope('', seedBoard)].map(s => s.key), ['open', 'waiting', 'done', 'overdue'], 'the personal set seeds from the defaults');
+assert.deepStrictEqual([...api.wpStatusArrayForScope('seed-prj', seedBoard)].map(s => s.key), ['open', 'waiting', 'done', 'overdue'], 'projects seed from the board template');
+assert.deepStrictEqual([...api.wpPriorityArrayForScope('', seedBoard)].map(s => s.key), ['none', 'normal', 'high', 'critical'], 'priority sets seed the same way');
+assert.deepStrictEqual([...api.wpStatusArrayForScope('ghost', seedBoard)], [], 'unknown projects keep the detached empty array');
+const seedStatusesBefore = state.board.statuses;
+state.board.statuses = [];
+assert.strictEqual(api.wpMoveBoardStatus('waiting', -1), true, 'lanes reorder even when the stored set went missing');
+assert.deepStrictEqual([...state.board.statuses].map(s => s.key), ['waiting', 'open', 'done', 'overdue']);
+state.board.statuses = seedStatusesBefore;
+// A column never outlives its status: task keys missing from the set heal the set.
+const healStatusesBefore = state.board.statuses, healTasksBefore = state.board.tasks;
+state.board.statuses = [{ key: 'open', name: 'В работе' }];
+state.board.tasks = [{ id: 'heal-1', title: 'H', homeType: 'personal', statusKey: 'cancelled', status: 'Отменена', priorityKey: 'normal' }];
+assert.strictEqual(api.wpHealScopeStatuses(''), 1, 'a column without a status heals the set instead');
+assert.deepStrictEqual([...state.board.statuses].map(s => s.key), ['open', 'cancelled']);
+assert.strictEqual(state.board.statuses[1].name, 'Отменена', 'canonical keys heal with their canonical name');
+assert.strictEqual(api.wpHealScopeStatuses(''), 0, 'healing is idempotent');
+assert.deepStrictEqual([...api.wpBoardColumns(state.board.tasks)].map(c => c[0]), ['open', 'cancelled', 'waiting', 'done', 'overdue'], 'columns match the healed set exactly');
+assert(planner.includes('if(wpHealScopeStatuses(scope)) persist();'), 'the board heals its scope before rendering lanes');
+assert(html.includes('if (wpHealScopeStatuses(scope)) persist();'), 'the status dictionary opens on the healed set');
+state.board.statuses = healStatusesBefore; state.board.tasks = healTasksBefore;
 
 // Statuses stay neutral until painted: six swatches per status, the system four always present.
 assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpStatusSwatches('open'))), ['#3b82f6', '#0ea5e9', '#6366f1', '#8b5cf6', '#14b8a6', '#64748b']);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpStatusSwatches('waiting'))), ['#eab308', '#f59e0b', '#f97316', '#d9a441', '#dd8f1b', '#fa7a5c']);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpStatusSwatches('done'))), ['#22c55e', '#10b981', '#6ee7b7', '#a3e635', '#88a33d', '#0f766e']);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpStatusSwatches('overdue'))), ['#ef4444', '#f43f5e', '#db2777', '#ec4899', '#9f1239', '#c2522c']);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpStatusSwatches('cancelled'))), ['#9ca3af', '#6b7280', '#78716c', '#a8a29e', '#94a3b8', '#64748b']);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpStatusSwatches('st-custom'))), ['#3b82f6', '#22c55e', '#eab308', '#ef4444', '#8b5cf6', '#9ca3af']);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(api.WP_SYSTEM_STATUS_KEYS)), ['open', 'waiting', 'done', 'overdue']);
 assert.strictEqual(api.wpIsSystemStatus('overdue'), true);
+assert.strictEqual(api.wpIsSystemStatus('cancelled'), false, 'cancelled stays a regular dictionary entry');
 assert.strictEqual(api.wpIsSystemStatus('st-custom'), false);
 const neutralBefore = state.board.statuses;
 state.board.statuses = [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают', color: 'red' }, { key: 'st-x', name: 'Своя' }];
@@ -988,6 +1039,287 @@ const swatchHtml = api.wpStatusSwatchesHtml('open', '#6366f1');
 assert.strictEqual((swatchHtml.match(/data-ws-tone="/g) || []).length, 6, 'every lane offers six swatches');
 assert(swatchHtml.includes('data-ws-tone="#6366f1"') && swatchHtml.includes('wp-swatch is-on') && swatchHtml.includes('Убрать цвет'), 'the active swatch resets the lane');
 state.board.statuses = neutralBefore;
+
+// Stage A: every project owns its status set; helpers resolve through the task scope.
+const stageALegacyBoard = {
+  id: 'legacy-7', name: 'Доска v7', code: 'LEGACY-7', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-old', name: 'Старый проект', members: [] }], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: ['В работе', 'Пауза', 'Готово'],
+  tasks: [{ id: 'legacy-task', title: 'Старая задача', homeType: 'project', homeId: 'prj-old', projectId: 'prj-old', project: 'Старый проект', status: 'Пауза' }]
+};
+const stageANorm = api.wpNormalizeBoard(stageALegacyBoard);
+assert.strictEqual(stageANorm.taskSchemaVersion, 8);
+assert.deepStrictEqual(stageANorm.projects[0].statuses.map(s => s.key), stageANorm.statuses.map(s => s.key), 'v7 projects gain a copy of the board status set on upgrade');
+assert.notStrictEqual(stageANorm.projects[0].statuses, stageANorm.statuses, 'project sets never share the template array');
+assert.strictEqual(stageANorm.tasks[0].statusKey, 'waiting', 'legacy project tasks resolve against their own new set');
+const stageANormAgain = api.wpNormalizeBoard(JSON.parse(JSON.stringify(stageANorm)));
+assert.deepStrictEqual(JSON.parse(JSON.stringify(stageANormAgain.projects[0].statuses)), JSON.parse(JSON.stringify(stageANorm.projects[0].statuses)), 'v8 normalization keeps project sets untouched');
+const stageAEnsureBoard = { id: 'ensure-board', projects: [{ id: 'prj-bare', name: 'Без набора', members: [] }], statuses: [{ key: 'open', name: 'В работе' }] };
+assert.strictEqual(api.wpEnsureProjectStatuses(stageAEnsureBoard.projects[0], stageAEnsureBoard), true);
+assert.deepStrictEqual([...stageAEnsureBoard.projects[0].statuses.map(s => s.key)], ['open', 'waiting', 'done', 'overdue'], 'fresh project sets clone the normalized board template');
+assert.strictEqual(api.wpEnsureProjectStatuses(stageAEnsureBoard.projects[0], stageAEnsureBoard), false, 'existing project sets are never overwritten');
+
+const stageABoardBefore = state.board, stageABoardsBefore = state.boards, stageAIdBefore = state.boardId;
+const stageAWPBefore = { boardHomeFilter: api.WP.boardHomeFilter, boardAssigneeFilter: api.WP.boardAssigneeFilter, boardMineOnly: api.WP.boardMineOnly, boardFocus: api.WP.boardFocus, boardTagFilter: api.WP.boardTagFilter, boardShowCompleted: api.WP.boardShowCompleted, boardSort: api.WP.boardSort, boardSortDir: api.WP.boardSortDir, boardMoveColumns: api.WP.boardMoveColumns, query: api.WP.query };
+const stageABoard = api.wpNormalizeBoard({
+  id: 'stage-a', name: 'Stage A', code: 'STAGE-A', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-a', name: 'Альфа', members: [] }], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }],
+  tasks: [{ id: 'series-1', title: 'Серия', homeType: 'project', homeId: 'prj-a', projectId: 'prj-a', project: 'Альфа', statusKey: 'open' }]
+});
+state.board = stageABoard; state.boards = [stageABoard]; state.boardId = 'stage-a';
+assert.strictEqual(api.wpScopeOf({ homeType: 'personal' }), '');
+assert.strictEqual(api.wpScopeOf({ homeType: 'inbox' }), '');
+assert.strictEqual(api.wpScopeOf({ homeType: 'project', homeId: 'prj-a' }), 'prj-a');
+assert.strictEqual(api.wpScopeOf({ kind: 'project', projectId: 'prj-a' }), 'prj-a');
+assert.strictEqual(api.wpScopeOf({ id: 'occ-1', seriesTaskId: 'series-1' }), 'prj-a', 'occurrences resolve through their series scope');
+assert.strictEqual(api.wpScopeOf({ id: 'occ-orphan', seriesTaskId: 'missing-series', homeType: 'personal' }), '', 'orphan occurrences fall back to their own home');
+const shippedKey = api.wpMakeBoardStatus('Отгружено', { done: true }, 'prj-a').key;
+api.wpStatusArrayForScope('prj-a').push(api.wpMakeBoardStatus('Отгружено', { done: true }, 'prj-a', shippedKey));
+const stageAProjectTask = { homeType: 'project', homeId: 'prj-a', projectId: 'prj-a', statusKey: shippedKey };
+assert.strictEqual(api.wpTaskDone(stageAProjectTask), true, 'done-like project customs complete their own tasks');
+assert.strictEqual(api.wpTaskDone({ homeType: 'personal', statusKey: shippedKey }), false, 'project customs do not leak into the personal set');
+assert.strictEqual(api.wpStatusLabel(shippedKey, 'prj-a'), 'Отгружено');
+assert.strictEqual(api.wpStatusLabel(shippedKey, ''), shippedKey, 'unknown keys fall back to the raw key outside their scope');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapStatusKey('open', '', 'prj-a'))), { key: 'open', changed: false });
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapStatusKey('cancelled', 'prj-a', ''))), { key: 'cancelled', changed: false }, 'system keys travel between sets untouched');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapStatusKey(shippedKey, 'prj-a', ''))), { key: 'done', changed: true }, 'done-like customs remap into the done lane of the target set');
+state.board.statuses.push({ key: 'st-board-ship', name: 'Отгружено' });
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapStatusKey(shippedKey, 'prj-a', ''))), { key: 'st-board-ship', changed: true }, 'remap prefers the same name in the target set');
+state.board.statuses.pop();
+const moverTask = { id: 'mover-1', title: 'Перенос', homeType: 'project', homeId: 'prj-a', projectId: 'prj-a', project: 'Альфа', kind: 'project', statusKey: shippedKey, status: 'Отгружено' };
+state.board.tasks.push(moverTask);
+assert.strictEqual(api.wpSetTaskHome(moverTask, 'personal'), true);
+assert.strictEqual(moverTask.statusKey, 'done', 'moving a task remaps foreign customs into the target set');
+assert.strictEqual(moverTask.status, 'Готово');
+state.board.tasks = state.board.tasks.filter(task => task.id !== 'mover-1');
+const ghostCols = api.wpBoardColumns([{ homeType: 'project', homeId: 'prj-a', projectId: 'prj-a', statusKey: shippedKey }], '');
+const ghostLane = ghostCols.find(col => col[0] === shippedKey);
+assert(ghostLane && ghostLane[1] === 'Отгружено · статус не из набора проекта', 'foreign customs keep a marked lane instead of vanishing');
+assert.strictEqual(api.wpBoardColumns([{ homeType: 'personal', statusKey: 'cancelled' }], '').find(col => col[0] === 'cancelled')[1], 'Отменена', 'out-of-set canonical keys keep their plain fallback label');
+const boardKeysBefore = state.board.statuses.map(s => s.key);
+assert.strictEqual(api.wpMoveBoardStatusTo(shippedKey, 0, 'prj-a'), true);
+assert.strictEqual(api.wpStatusArrayForScope('prj-a')[0].key, shippedKey);
+assert.deepStrictEqual(state.board.statuses.map(s => s.key), boardKeysBefore, 'project lane moves never touch the board set');
+api.WP.query = ''; api.WP.boardAssigneeFilter = 'all'; api.WP.boardMineOnly = false; api.WP.boardFocus = 'all';
+api.WP.boardTagFilter = 'all'; api.WP.boardShowCompleted = true; api.WP.boardSort = 'urgency'; api.WP.boardSortDir = 'desc';
+api.WP.boardHomeFilter = 'project:prj-a';
+assert.strictEqual(api.wpBoardScope(), 'prj-a');
+api.WP.boardHomeFilter = 'personal';
+assert.strictEqual(api.wpBoardScope(), '');
+assert(!api.wpBoardHomeFilterOptions().some(([key]) => key === 'all'), 'the board filter offers a single scope, never the mixed view');
+api.WP.boardHomeFilter = 'all';
+api.wpEnsureState();
+assert.strictEqual(api.WP.boardHomeFilter, 'personal', 'a stale mixed filter heals into the personal scope');
+state.board.tasks = [
+  { id: 'cat-open', title: 'Обычная', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', order: 1 },
+  { id: 'cat-ship', title: 'Отгружена', homeType: 'project', homeId: 'prj-a', projectId: 'prj-a', project: 'Альфа', statusKey: shippedKey, priorityKey: 'normal', order: 2 }
+];
+state.board.occurrences = [];
+api.WP.boardMoveColumns = true;
+api.WP.boardHomeFilter = 'personal';
+const personalMarkup = api.wpBoardView();
+assert(personalMarkup.includes('data-lane="open"'), 'single-scope boards offer column moves');
+assert(personalMarkup.includes('data-task-id="cat-open"') && !personalMarkup.includes('data-task-id="cat-ship"'), 'personal boards show only their own tasks');
+api.WP.boardMoveColumns = false;
+api.WP.boardHomeFilter = 'project:prj-a';
+const prjMarkup = api.wpBoardView();
+assert(prjMarkup.includes('<b>Отгружено</b>'), 'project boards carry the project dictionary lanes');
+assert(prjMarkup.includes('data-task-id="cat-ship"') && !prjMarkup.includes('data-task-id="cat-open"'), 'project boards show only their own tasks');
+const stageAFormValues = { title: '', kind: 'project', projectId: 'prj-a', assignee: '', scheduledDate: null, deadlineAt: null, deadlineTime: '', statusKey: 'open', priorityKey: 'normal', description: '', tags: '', durationEstimateMinutes: '', waitingReason: '', reviewAt: '', frequency: 'none', interval: 1, intervalDays: 1, weekdays: [1], mode: 'calendar', endDate: '' };
+const stageAProjectForm = api.wpEditorBodyHtml(null, 'series', true, stageAFormValues, false, null);
+assert(stageAProjectForm.includes('data-status-scope="prj-a"') && stageAProjectForm.includes('>Отгружено</option>'), 'the editor offers the destination project statuses');
+const stageAPersonalForm = api.wpEditorBodyHtml(null, 'series', true, { ...stageAFormValues, kind: 'personal', projectId: '' }, false, null);
+assert(!stageAPersonalForm.includes('>Отгружено</option>'), 'the personal editor hides project-only statuses');
+const stageAMergeLocal = api.wpNormalizeBoard(JSON.parse(JSON.stringify({ ...stageABoard, tasks: [], occurrences: [] })));
+const stageAMergeFile = {
+  id: 'stage-a', name: 'Доска из файла', code: 'FILE-A', taskSchemaVersion: 7, ownerEmail: '', people: [], invites: [], occurrences: [], recurrenceRules: [],
+  projects: [
+    { id: 'prj-a', name: 'Чужое имя', members: [], statuses: [{ key: 'open', name: 'Remote Open' }] },
+    { id: 'prj-new', name: 'Новый из файла', members: [], statuses: [{ key: 'st-file', name: 'Файловый', flags: { done: true } }, { key: 'open', name: 'В работе' }] }
+  ],
+  tasks: [], statuses: [{ key: 'open', name: 'В работе' }],
+  priorities: [{ key: 'prio-file', name: 'Файловый' }, { key: 'normal', name: 'Чужой Обычный' }]
+};
+const stageAMerge = api.wpMergeImportedTaskData([stageAMergeLocal], [stageAMergeFile], 'stage-a', 'stage-a');
+assert.strictEqual(stageAMerge.ok, true);
+const stageAMergedBoard = stageAMerge.boards.find(board => board.id === 'stage-a');
+assert(stageAMergedBoard.projects.find(project => project.id === 'prj-a').statuses.some(s => s.key === shippedKey), 'same-id projects keep their local status set on import');
+assert(stageAMergedBoard.projects.find(project => project.id === 'prj-new').statuses.some(s => s.key === 'st-file'), 'new projects arrive with their own status set');
+assert(stageAMergedBoard.priorities.some(s => s.key === 'prio-file'), 'imported board priorities merge into the board set');
+assert.strictEqual(stageAMergedBoard.priorities.filter(s => s.key === 'normal').length, 1, 'imported priorities merge by key without duplicating the local set');
+state.board = stageABoardBefore; state.boards = stageABoardsBefore; state.boardId = stageAIdBefore;
+Object.assign(api.WP, stageAWPBefore);
+
+// Stage B: the calendar filters by list/project scope with a persisted preference.
+const stageBBoardBefore = state.board, stageBBoardsBefore = state.boards, stageBIdBefore = state.boardId;
+const stageBUiBefore = state.ui.plannerCalendarScope, stageBWPBefore = api.WP.calendarScope, stageBRestoredBefore = api.WP._calendarScopeRestored;
+const stageBBoard = api.wpNormalizeBoard({
+  id: 'stage-b', name: 'Stage B', code: 'STAGE-B', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-b', name: 'Бета', members: [] }], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'done', name: 'Готово' }],
+  tasks: [
+    { id: 'cal-personal', title: 'Личная', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', assignee: 'me', scheduledDate: '2026-10-13', order: 1 },
+    { id: 'cal-project', title: 'Проектная', homeType: 'project', homeId: 'prj-b', projectId: 'prj-b', project: 'Бета', statusKey: 'open', priorityKey: 'normal', assignee: 'me', scheduledDate: '2026-10-13', order: 2 },
+    { id: 'cal-alien', title: 'Чужая', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', assignee: 'Анна', scheduledDate: '2026-10-13', order: 3 }
+  ]
+});
+state.board = stageBBoard; state.boards = [stageBBoard]; state.boardId = 'stage-b';
+assert(planner.includes('function wpCalendarScopeOptions() { return wpHomeFilterOptions(); }'), 'calendar scopes reuse the home filter options');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpCalendarScopeOptions())), JSON.parse(JSON.stringify(api.wpHomeFilterOptions())));
+assert.deepStrictEqual([...api.wpCalendarScopeOptions()].map(option => option[0]), ['all', 'inbox', 'personal', 'project:prj-b'], 'calendar scopes list every list and project');
+api.WP.calendarScope = 'all';
+assert.deepStrictEqual(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id).sort(), ['cal-personal', 'cal-project'], 'the calendar keeps its all-lists default and still excludes foreign assignees');
+api.WP.calendarScope = 'personal';
+assert.deepStrictEqual(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id), ['cal-personal']);
+api.WP.calendarScope = 'project:prj-b';
+assert.deepStrictEqual(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id), ['cal-project']);
+assert.deepStrictEqual(Array.from(api.wpMonthEntities('2026-10-01'), task => task.id), ['cal-project'], 'month cells follow the same calendar scope');
+api.WP.calendarScope = 'inbox';
+assert.deepStrictEqual(Array.from(api.wpWeekEntities('2026-10-12'), task => task.id), []);
+api.wpSetCalendarScope('personal');
+assert.strictEqual(api.WP.calendarScope, 'personal');
+assert.strictEqual(state.ui.plannerCalendarScope, 'personal', 'the calendar scope persists into the UI preferences');
+api.wpSetCalendarScope('project:missing');
+assert.strictEqual(api.WP.calendarScope, 'all', 'unknown scopes reset to all lists');
+assert.strictEqual(state.ui.plannerCalendarScope, 'all');
+assert(planner.includes("if(calendarFilter) { wpSetCalendarScope(calendarFilter.value); return; }"), 'calendar scope changes route through the persisted setter');
+api.WP._calendarScopeRestored = false; state.ui.plannerCalendarScope = 'project:prj-b'; api.wpEnsureState();
+assert.strictEqual(api.WP.calendarScope, 'project:prj-b', 'the calendar scope restores from preferences');
+api.WP.calendarScope = 'project:missing'; api.wpEnsureState();
+assert.strictEqual(api.WP.calendarScope, 'all', 'a deleted project cannot leave an invisible calendar scope active');
+const stageBWeekSummary = api.wpWeekSummary(Array.from(api.wpWeekEntities('2026-10-12')));
+assert(!stageBWeekSummary.includes('data-wp-calendar-filter="scope"'), 'the week summary no longer carries the calendar scope selector');
+const stageBMonthSummary = api.wpMonthSummary(Array.from(api.wpMonthEntities('2026-10-01')));
+assert(!stageBMonthSummary.includes('data-wp-calendar-filter="scope"'), 'the month summary no longer carries the calendar scope selector');
+const stageBViewBefore = api.WP.view, stageBModeBefore = api.WP.calendarMode;
+api.WP.view = 'week'; api.WP.calendarMode = 'week';
+const stageBWeekControls = api.wpDateControls();
+assert(stageBWeekControls.includes('data-wp-calendar-filter="scope"'), 'the date controls row carries the calendar scope selector');
+assert(!stageBWeekControls.match(/wp-filter-select[^>]*>\s*<span>/), 'the controls-row scope selector is bare, without a caption');
+assert(stageBWeekControls.includes('Мои задачи на неделю'), 'the week controls caption names my tasks');
+assert(!stageBWeekControls.includes('Неделя с понедельника'), 'the old week caption is gone');
+api.WP.calendarMode = 'month';
+const stageBMonthControls = api.wpDateControls();
+assert(stageBMonthControls.includes('data-wp-calendar-filter="scope"'), 'the scope selector stays in the controls row in month mode');
+assert(stageBMonthControls.includes('Мои задачи за месяц'), 'the month controls caption names my tasks');
+assert(!stageBMonthControls.replace('Мои задачи за месяц', '').includes('Задачи за месяц'), 'the old month caption is gone');
+api.WP.view = stageBViewBefore; api.WP.calendarMode = stageBModeBefore;
+state.board = stageBBoardBefore; state.boards = stageBBoardsBefore; state.boardId = stageBIdBefore;
+api.WP.calendarScope = stageBWPBefore; api.WP._calendarScopeRestored = stageBRestoredBefore;
+if (stageBUiBefore === undefined) delete state.ui.plannerCalendarScope; else state.ui.plannerCalendarScope = stageBUiBefore;
+
+// Stage C: clicking a task opens a read-only card modal instead of the editor.
+const stageCBoardBefore = state.board, stageCBoardsBefore = state.boards, stageCIdBefore = state.boardId;
+const stageCBoard = api.wpNormalizeBoard({
+  id: 'stage-c', name: 'Stage C', code: 'STAGE-C', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'waiting', name: 'Ожидают' }, { key: 'done', name: 'Готово' }],
+  tasks: [
+    { id: 'card-task', title: 'Прочитать <b>документ</b>', homeType: 'personal', statusKey: 'waiting', priorityKey: 'high', assignee: 'me', scheduledDate: '2026-10-13', deadlineAt: '2026-10-20', description: 'Строка <script>alert(1)</script>', tags: ['чтение'], waitingReason: 'Жду <ответа>', durationEstimateMinutes: 90, order: 1 },
+    { id: 'card-sub', title: 'Подзадача', homeType: 'personal', statusKey: 'done', priorityKey: 'normal', parentTaskId: 'card-task', order: 2 }
+  ]
+});
+state.board = stageCBoard; state.boards = [stageCBoard]; state.boardId = 'stage-c';
+const stageCCardTask = state.board.tasks.find(task => task.id === 'card-task');
+assert.strictEqual(typeof api.actions.taskOpen, 'function', 'task clicks route through the card modal action');
+assert(planner.includes('taskOpen:el=>wpOpenTaskCard(wpRefFromElement(el))'), 'the card modal opens from the clicked element reference');
+assert.strictEqual((planner.match(/data-act="taskOpen"/g) || []).length, 3, 'card titles, calendar spans, and day capsules open the read-only card');
+assert(planner.includes('data-act="taskEdit" data-open-comments="1"'), 'the explicit comments shortcut still opens the editor');
+const stageCCard = api.wpTaskCard({ ...stageCCardTask, entityType: 'task', taskId: 'card-task' }, { compact: true });
+assert(stageCCard.includes('data-act="taskOpen"'), 'task cards open the read-only card on title click');
+const stageCModal = api.wpTaskCardModalHtml({ ...stageCCardTask, entityType: 'task', taskId: 'card-task' });
+assert(!stageCModal.includes('<script>') && planner.includes('<h3>${esc(title)}</h3>'), 'the modal escapes the title in its header');
+assert(stageCModal.includes('Ожидают') && stageCModal.includes('Жду &lt;ответа&gt;'), 'the modal shows the scoped status and the waiting reason');
+assert(stageCModal.includes('&lt;script&gt;alert(1)&lt;/script&gt;'), 'user text in the modal is escaped');
+assert(stageCModal.includes('#чтение') && stageCModal.includes('Подзадачи') && stageCModal.includes('Подзадача'), 'the modal lists tags and subtasks');
+assert(!/<select|<textarea|<input/.test(stageCModal), 'the card modal is read-only: no form controls');
+assert(planner.includes('data-wp-card="edit"') && planner.includes('closeModal(m); wpOpenEditor(ref);'), 'the modal offers an explicit edit entry into the editor');
+const stageCOccurrenceModal = api.wpTaskCardModalHtml({ ...stageCCardTask, entityType: 'occurrence', occurrenceId: 'card-task::2026-10-13', seriesTaskId: 'card-task', originalDate: '2026-10-13', taskId: 'card-task' });
+assert(stageCOccurrenceModal.includes('Экземпляр от'), 'occurrence cards name their instance date');
+state.board = stageCBoardBefore; state.boards = stageCBoardsBefore; state.boardId = stageCIdBefore;
+
+// Stage D: task review with the Agent opens a titled deepthink thread.
+const stageDBoardBefore = state.board, stageDBoardsBefore = state.boards, stageDIdBefore = state.boardId;
+const stageDBoard = api.wpNormalizeBoard({
+  id: 'stage-d', name: 'Stage D', code: 'STAGE-D', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-d', name: 'Дельта', members: [] }], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'done', name: 'Готово' }],
+  tasks: [
+    { id: 'review-task', title: 'Запустить продажи', homeType: 'project', homeId: 'prj-d', projectId: 'prj-d', project: 'Дельта', statusKey: 'open', priorityKey: 'high', assignee: 'me', scheduledDate: '2026-10-13', deadlineAt: '2026-10-20', description: 'Подготовить скрипты и базу', tags: ['продажи'], order: 1 },
+    { id: 'review-sub', title: 'База клиентов', homeType: 'project', homeId: 'prj-d', projectId: 'prj-d', project: 'Дельта', statusKey: 'done', priorityKey: 'normal', parentTaskId: 'review-task', order: 2 }
+  ]
+});
+state.board = stageDBoard; state.boards = [stageDBoard]; state.boardId = 'stage-d';
+const stageDTask = { ...state.board.tasks.find(task => task.id === 'review-task'), entityType: 'task', taskId: 'review-task' };
+const stageDPrompt = api.buildTaskReviewPrompt(stageDTask);
+assert(stageDPrompt.includes('Запустить продажи') && stageDPrompt.includes('В работе') && stageDPrompt.includes('Дельта'), 'the review prompt carries the human-readable task context');
+assert(stageDPrompt.includes('Подготовить скрипты') && stageDPrompt.includes('База клиентов') && stageDPrompt.includes('продажи'), 'the review prompt carries the description, subtasks, and tags');
+assert(!stageDPrompt.includes('review-task') && !stageDPrompt.includes('prj-d') && !stageDPrompt.includes('stage-d'), 'the review prompt never leaks technical identifiers');
+assert(stageDPrompt.length <= 4000, 'the review prompt respects the length cap');
+const stageDLong = api.buildTaskReviewPrompt({ ...stageDTask, description: 'x'.repeat(5000) });
+assert.strictEqual(stageDLong.length, 4000, 'oversized prompts truncate to the cap');
+assert(html.includes('function dtNewThread(initialPrompt = \'\', opts = {})'), 'deepthink threads accept an explicit title');
+assert(html.includes('th.title = customTitle; persist(); dtRefreshUI(true);'), 'explicit thread titles survive the submit pipeline');
+assert(planner.includes("label:'Разобрать с Агентом'") && planner.includes('wpReviewTaskWithAgent(ref)'), 'the task menu offers an agent review');
+assert(planner.includes('T.dt.apiConsent') && planner.includes("title: 'Отправить задачу внешнему API?'"), 'external-API review asks for a once-per-session consent');
+assert(planner.includes("openPage('deepthink');") && planner.includes('dtNewThread(prompt, { title })'), 'the review opens a titled deepthink thread');
+state.board = stageDBoardBefore; state.boards = stageDBoardsBefore; state.boardId = stageDIdBefore;
+
+// Stage E: nine-point acceptance across stages A–D.
+const stageEBoardBefore = state.board, stageEBoardsBefore = state.boards, stageEIdBefore = state.boardId;
+const stageEOkBefore = state.taskMigrationOK, stageEHomeFilterBefore = api.WP.boardHomeFilter;
+const stageEBoard = api.wpNormalizeBoard({
+  id: 'stage-e', name: 'Stage E', code: 'STAGE-E', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-e', name: 'Этап', members: [] }, { id: 'prj-xss', name: 'Вредный <img src=x>', members: [] }],
+  people: [], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'done', name: 'Готово' }],
+  tasks: [
+    { id: 'accept-task', title: 'Приёмочный <b>кейс</b>', homeType: 'project', homeId: 'prj-e', projectId: 'prj-e', project: 'Этап', statusKey: 'open', priorityKey: 'normal', assignee: 'me', order: 1 }
+  ]
+});
+state.board = stageEBoard; state.boards = [stageEBoard]; state.boardId = 'stage-e';
+const stageEDoneKey = api.wpMakeBoardStatus('Принято', { done: true }, 'prj-e').key;
+api.wpStatusArrayForScope('prj-e').push(api.wpMakeBoardStatus('Принято', { done: true }, 'prj-e', stageEDoneKey));
+assert(!state.board.statuses.some(s => s.key === stageEDoneKey), 'E1: project status sets stay independent from the board set');
+const stageETask = { homeType: 'project', homeId: 'prj-e', projectId: 'prj-e', statusKey: stageEDoneKey };
+assert.strictEqual(api.wpTaskDone(stageETask), true, 'E2: task logic resolves through the scope of its own home');
+assert.strictEqual(api.wpTaskDone({ homeType: 'personal', statusKey: stageEDoneKey }), false);
+const stageEMover = state.board.tasks.find(task => task.id === 'accept-task');
+stageEMover.statusKey = stageEDoneKey; stageEMover.status = 'Принято';
+assert.strictEqual(api.wpApplyEntityHome({ id: 'accept-task', entityType: 'task' }, 'personal'), true);
+assert.strictEqual(stageEMover.statusKey, 'done', 'E3: moving a task remaps foreign keys into the target set');
+assert(planner.includes('shelter:planner:migration-backup:v6') && !planner.includes('migration-backup:v7') && !planner.includes('migration-backup:v8'), 'E4: the migration backup key stays on v6');
+state.taskMigrationOK = false;
+const stageEStoreBefore = new Map(data);
+assert.strictEqual(api.wpPersistBoard(), false, 'E4: locked storage is never overwritten');
+assert.strictEqual(api.wpCommit('stage-e', () => { state.board.tasks.push({ id: 'must-not-persist' }); }), false);
+assert(!state.board.tasks.some(task => task.id === 'must-not-persist') && data.size === stageEStoreBefore.size, 'E4: locked commits mutate nothing');
+state.taskMigrationOK = stageEOkBefore;
+api.wpPeopleArrayForScope('prj-e').push('Экспортный исполнитель');
+const stageEExport = api.wpExportPayload('all');
+const stageEExportBoard = stageEExport.boards.find(board => board.id === 'stage-e');
+const stageEExportedProject = stageEExportBoard.projects.find(project => project.id === 'prj-e');
+assert(stageEExportedProject.statuses.some(s => s.key === stageEDoneKey), 'E5: exported projects carry their own status sets');
+assert(Array.isArray(stageEExportBoard.priorities) && stageEExportBoard.priorities.length > 0, 'E5: full exports carry the board priority set');
+assert(stageEExportedProject.people.map(person => api.wpPersonName(person)).includes('Экспортный исполнитель'), 'E5: exported projects carry their own people sets');
+api.WP.boardHomeFilter = 'project:prj-e';
+assert(api.wpBoardColumns([], 'prj-e').some(col => col[0] === stageEDoneKey), 'E6: single-scope boards use the scope dictionary');
+api.WP.boardHomeFilter = 'all';
+api.wpEnsureState();
+assert.strictEqual(api.WP.boardHomeFilter, 'personal', 'E6: a stale mixed filter heals into the personal scope');
+api.WP.boardHomeFilter = stageEHomeFilterBefore;
+api.wpOpenTaskCard({ id: 'accept-task', entityType: 'task' });
+const stageEModal = context.__lastModalHtml || '';
+assert(stageEModal.includes('Приёмочный &lt;b&gt;кейс&lt;/b&gt;') && stageEModal.includes('Готово'), 'E7: clicking a task opens its read-only card');
+assert(stageEModal.includes('data-wp-card="edit"') && stageEModal.includes('data-wp-card="close"') && !/<select|<textarea|<input/.test(stageEModal), 'E7: the card offers an explicit edit entry and no form controls');
+const stageEScopeSelect = api.wpCalendarScopeSelect();
+assert(stageEScopeSelect.includes('Вредный &lt;img src=x&gt;') && !stageEScopeSelect.includes('<img src=x>'), 'E8: scope selectors escape project names');
+assert(planner.includes('if (!T.dt.apiConsent)') && planner.includes('T.dt.apiConsent = true'), 'E9: external-API consent is asked once per session');
+const stageEOccPrompt = api.buildTaskReviewPrompt({ ...stageETask, entityType: 'occurrence', occurrenceId: 'x::2026-10-13', seriesTaskId: 'x', originalDate: '2026-10-13', title: 'Экземпляр' });
+assert(stageEOccPrompt.length <= 4000 && !stageEOccPrompt.includes('prj-e'), 'E9: instance reviews stay within the cap without identifiers');
+assert(!legacyTaskSource.includes('wpScopeOf') && !legacyTaskSource.includes('taskOpen') && !legacyTaskSource.includes('statusScope'), 'the legacy task layer stays untouched by scoped statuses');
+state.board = stageEBoardBefore; state.boards = stageEBoardsBefore; state.boardId = stageEIdBefore;
 assert(planner.includes('laneCount*20+(laneCount-1)*6'), 'the span spacer reserves the uniform 6px rhythm');
 
 // Overdue is clock-driven: date-only lapses at midnight, timed lapses at the minute.
@@ -1265,6 +1597,109 @@ assert(!createForm.includes('wpPriorityColor'), 'the task editor no longer expos
 const noColor = { id: 'no-color-save', homeType: 'personal', statusKey: 'open', priorityKey: 'normal', tags: [] };
 api.wpApplyTaskForm(noColor, { ...formValues, title: 'Без цвета', kind: 'personal', projectId: '', statusKey: 'open' }, { newTask: true });
 assert.strictEqual(noColor.priorityColor, undefined, 'saving the editor does not persist a per-task color');
+
+// Custom per-project priority sets: every priority is editable, and rank drives urgency.
+const prioBoardBefore = state.board, prioBoardsBefore = state.boards, prioIdBefore = state.boardId;
+const prioWPBefore = { boardHomeFilter: api.WP.boardHomeFilter, boardAssigneeFilter: api.WP.boardAssigneeFilter, boardMineOnly: api.WP.boardMineOnly, boardFocus: api.WP.boardFocus, boardTagFilter: api.WP.boardTagFilter, boardShowCompleted: api.WP.boardShowCompleted };
+const prioBoard = api.wpNormalizeBoard({
+  id: 'prio-board', name: 'Приоритеты', code: 'PRIO', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-p', name: 'Проект', members: [] }], people: [], invites: [], occurrences: [], recurrenceRules: [],
+  tasks: []
+});
+state.board = prioBoard; state.boards = [prioBoard]; state.boardId = 'prio-board';
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpNormalizePrioritiesArray('nope'))).map(s => s.key), ['none', 'normal', 'high', 'critical'], 'missing sets fall back to the four defaults');
+const prioNorm = JSON.parse(JSON.stringify(api.wpNormalizePrioritiesArray([' Блокер ', { key: 'low', name: 'Низкий', color: 'red' }, { key: 'low', name: 'Дубль' }, { name: '' }, 'Блокер'])));
+assert.deepStrictEqual(prioNorm.map(s => s.key), ['pr-блокер', 'low'], 'strings gain slugs while dupes and empties drop out');
+assert.deepStrictEqual(prioNorm.map(s => s.color || ''), ['', ''], 'invalid entry colors are dropped');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpNormalizePrioritiesArray([{ key: 'solo', name: 'Один' }]))).map(s => s.key), ['solo'], 'no system keys are forced back: every priority stays deletable');
+assert.strictEqual(api.wpPriorityKeyForNewName('Срочный', '', { projects: [], priorities: [{ key: 'low', name: 'Низкий' }] }), 'high', 'known names claim their canonical key');
+assert.strictEqual(/^pr[-_]/.test(api.wpPriorityKeyForNewName('Блокер', '')), true, 'new names gain a stable unique key');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(prioBoard.projects[0].priorities)).map(s => s.key), ['none', 'normal', 'high', 'critical'], 'upgraded projects gain a copy of the board priority template');
+assert.notStrictEqual(prioBoard.projects[0].priorities, prioBoard.priorities, 'project priority sets never share the template array');
+const blockerKey = api.wpMakeBoardPriority('Блокер', 'prj-p').key;
+api.wpPriorityArrayForScope('prj-p').push(api.wpMakeBoardPriority('Блокер', 'prj-p', blockerKey, '#ff0000'));
+const boardBlocker = api.wpMakeBoardPriority('Блокер', '', '', '#00aa00');
+api.wpPriorityArrayForScope('').push(boardBlocker);
+const loneKey = api.wpMakeBoardPriority('Одинокий', 'prj-p').key;
+api.wpPriorityArrayForScope('prj-p').push(api.wpMakeBoardPriority('Одинокий', 'prj-p', loneKey));
+assert.strictEqual(api.wpPriorityLabel(blockerKey, 'prj-p'), 'Блокер');
+assert.strictEqual(api.wpPriorityLabel(blockerKey, ''), blockerKey, 'project customs do not leak into the personal set');
+assert.strictEqual(api.wpPriorityLabel('high', 'prj-p'), 'Срочный');
+assert.strictEqual(api.wpPriority({ homeType: 'project', homeId: 'prj-p', projectId: 'prj-p', priorityKey: blockerKey }), blockerKey);
+assert.strictEqual(api.wpPriority({ homeType: 'personal', priorityKey: blockerKey }), 'normal', 'foreign customs fall back to the scope default');
+assert.strictEqual(api.wpPriority({ homeType: 'personal', prio: 'Срочно' }), 'high', 'legacy prio names still resolve');
+assert.strictEqual(api.wpPriority({ homeType: 'personal', prio: 'Выполнено', prevPrio: 'Критично' }), 'critical');
+assert.strictEqual(api.wpPriority({ homeType: 'personal', prio: 'Выполнено' }), 'normal');
+assert.strictEqual(api.wpPriority({ homeType: 'project', homeId: 'prj-p', prio: 'Блокер' }), blockerKey, 'prio aliases match their scope set by name');
+assert.strictEqual(api.wpPriorityRank('critical', ''), 3);
+assert.strictEqual(api.wpPriorityRank('none', ''), null);
+assert.strictEqual(api.wpPriorityRank('nope', ''), null);
+assert.strictEqual(api.wpPriorityRank(blockerKey, 'prj-p'), 4);
+assert.strictEqual(api.wpPriorityUrgent('high', ''), false, 'a longer personal set narrows the urgent half');
+assert.strictEqual(api.wpPriorityUrgent('critical', ''), true);
+assert.strictEqual(api.wpPriorityUrgent('normal', ''), false);
+assert.strictEqual(api.wpPriorityUrgent('none', ''), false);
+assert.strictEqual(api.wpPriorityUrgent('high', 'prj-p'), false, 'urgency is the upper half of each scope set');
+assert.strictEqual(api.wpPriorityUrgent('critical', 'prj-p'), true);
+assert.strictEqual(api.wpPriorityUrgent(blockerKey, 'prj-p'), true, 'appended customs land at the urgent end of their set');
+assert.strictEqual(api.wpTopPriorityKey(''), boardBlocker.key);
+assert.strictEqual(api.wpTopPriorityKey('prj-p'), loneKey);
+assert.strictEqual(api.wpDefaultPriorityKey(''), 'normal');
+const soloBoard = { projects: [], priorities: [{ key: 'low', name: 'Низкий' }] };
+assert.strictEqual(api.wpDefaultPriorityKey('', soloBoard), 'low', 'sets without normal fall back to their first entry');
+assert.strictEqual(api.wpPriorityUrgent('low', '', soloBoard), false, 'a single priority never counts as urgent');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapPriorityKey('high', '', 'prj-p'))), { key: 'high', changed: false });
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapPriorityKey('nope', 'prj-p', ''))), { key: 'normal', changed: true }, 'unknown keys fall back to the target default');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapPriorityKey(blockerKey, 'prj-p', ''))), { key: boardBlocker.key, changed: true }, 'remap prefers the same name in the target set');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpRemapPriorityKey(loneKey, 'prj-p', ''))), { key: boardBlocker.key, changed: true }, 'customs without a name match carry their rank');
+assert.strictEqual(api.wpMoveBoardPriority(blockerKey, -1, 'prj-p'), true);
+assert.strictEqual(api.wpPriorityRank(blockerKey, 'prj-p'), 3);
+assert.strictEqual(api.wpMoveBoardPriority('none', -1, ''), false, 'reorder stops at the set edges');
+assert.strictEqual(api.wpPriorityUrgent(blockerKey, 'prj-p'), true);
+assert.strictEqual(api.wpPriorityColor('high', ''), '', 'canonical keys without entry colors or presets resolve to the theme');
+prioBoard.priorityColors = { high: '#12ab34' };
+assert.strictEqual(api.wpPriorityColor('high', ''), '#12ab34', 'legacy board presets still tint their canonical keys');
+api.wpPriorityArrayForScope('').find(s => s.key === 'high').color = '#654321';
+assert.strictEqual(api.wpPriorityColor('high', ''), '#654321', 'entry colors win over the legacy presets');
+assert.strictEqual(api.wpPriorityColor(blockerKey, 'prj-p'), '#ff0000');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpPriorityTint({ homeType: 'personal', priorityKey: 'normal' }))), { key: 'normal', cls: '', attr: '' });
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpPriorityTint({ homeType: 'personal', priorityKey: 'high' }))), { key: 'high', cls: ' p-tint', attr: ' style="--wp-prio:#654321"' }, 'entry colors ship as an inline variable with the marker class');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpPriorityTint({ homeType: 'project', homeId: 'prj-p', priorityKey: blockerKey }))), { key: blockerKey, cls: ' p-tint', attr: ' style="--wp-prio:#ff0000"' });
+const prioOpts = api.wpPriorityOptions('normal', 'prj-p');
+assert(prioOpts.includes('<option value="normal" selected>Обычный</option>') && prioOpts.includes(`<option value="${blockerKey}" >Блокер</option>`), 'the priority select lists the scope set');
+assert(api.wpPriorityOptions('pr-gone', '').includes('<option value="pr-gone" selected>pr-gone</option>'), 'a missing key in use stays selectable');
+const prioEditor = api.wpEditorBodyHtml(null, 'series', true, { ...formValues, kind: 'project', projectId: 'prj-p', priorityKey: blockerKey }, false, null);
+assert(prioEditor.includes('data-priority-scope="prj-p"') && prioEditor.includes(`<option value="${blockerKey}" selected>Блокер</option>`), 'the task editor follows the project priority set');
+const customCard = api.wpTaskCard({ id: 'custom-prio', title: 'Кастом', homeType: 'project', homeId: 'prj-p', projectId: 'prj-p', project: 'Проект', assignee: 'Alex', statusKey: 'open', priorityKey: blockerKey, tags: [] }, { compact: true });
+assert(customCard.includes(`p-${blockerKey}`) && customCard.includes('p-tint') && customCard.includes('--wp-prio:#ff0000') && customCard.includes('Блокер'), 'cards expose custom priorities with their own tint');
+assert.strictEqual(api.wpMonthDots([{ homeType: 'project', homeId: 'prj-p', priorityKey: blockerKey }]), `<span class="wp-month-dots"><i class="p-${blockerKey} p-tint" style="--wp-prio:#ff0000"></i></span>`);
+const customCapsule = api.wpDayCapsule({ id: 'cap-custom', title: 'Капсула', homeType: 'project', homeId: 'prj-p', projectId: 'prj-p', project: 'Проект', statusKey: 'open', priorityKey: blockerKey, tags: [] });
+assert(customCapsule.includes('Блокер') && customCapsule.includes('p-tint'), 'day capsules lead with the custom priority name');
+const spanTintTask = { id: 'span-tint', title: 'Длинная', homeType: 'project', homeId: 'prj-p', projectId: 'prj-p', project: 'Проект', assignee: 'Alex', scheduledDate: '2026-10-14', deadlineAt: '2026-10-16', statusKey: 'open', priorityKey: blockerKey, order: 1, tags: [] };
+const spanTintLayout = api.wpCalendarSpanLayout(weekDays, [spanTintTask]);
+assert.strictEqual(spanTintLayout.segments.length, 1);
+const spanTintHtml = api.wpCalendarSpanEvent(spanTintLayout.segments[0], 'week');
+assert(spanTintHtml.includes('p-tint') && spanTintHtml.includes('--wp-prio:#ff0000') && spanTintHtml.includes('Приоритет: Блокер'), 'week spans tint through the custom priority color');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpSortEntities([
+  { id: 'r-low', title: 'b', homeType: 'personal', priorityKey: 'normal', statusKey: 'open' },
+  { id: 'r-top', title: 'a', homeType: 'personal', priorityKey: 'critical', statusKey: 'open' },
+  { id: 'r-none', title: 'c', homeType: 'personal', priorityKey: 'none', statusKey: 'open' }
+], 'urgency', 'desc').map(t => t.id))), ['r-top', 'r-low', 'r-none'], 'urgency ranks follow the set order with no-priority last');
+prioBoard.tasks = [
+  { id: 'urg-keep', title: 'Держим', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'critical', order: 1 },
+  { id: 'urg-mid', title: 'Граница', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'high', order: 2 },
+  { id: 'urg-drop', title: 'Падает', homeType: 'personal', assignee: 'Alex', statusKey: 'open', priorityKey: 'normal', order: 3 }
+];
+api.WP.boardHomeFilter = 'personal'; api.WP.boardAssigneeFilter = 'all'; api.WP.boardMineOnly = false; api.WP.boardFocus = 'urgent'; api.WP.boardTagFilter = 'all'; api.WP.boardShowCompleted = true;
+assert.deepStrictEqual(Array.from(api.wpBoardEntities(), task => task.id), ['urg-keep'], 'the urgent focus keeps the upper half of the set');
+state.board = prioBoardBefore; state.boards = prioBoardsBefore; state.boardId = prioIdBefore;
+api.WP.boardHomeFilter = prioWPBefore.boardHomeFilter; api.WP.boardAssigneeFilter = prioWPBefore.boardAssigneeFilter; api.WP.boardMineOnly = prioWPBefore.boardMineOnly; api.WP.boardFocus = prioWPBefore.boardFocus; api.WP.boardTagFilter = prioWPBefore.boardTagFilter; api.WP.boardShowCompleted = prioWPBefore.boardShowCompleted;
+assert(html.includes('function wpPriorityDlg(') && html.includes('data-wp-prio-pick') && html.includes('Новый приоритет'), 'priorities gain a dictionary editor with a color picker');
+assert(html.includes('WP_PRIORITY_SWATCHES') && html.includes('name="wpPrioColor"') && html.includes("querySelector('[data-wp-prio-pick]:checked')"), 'the priority editor offers six preset colors like statuses');
+assert(html.includes('el.dataset.dpMove') && html.includes('wpMoveBoardPriority(key, dir, scope)'), 'priority arrows reorder the set instead of sitting dead');
+assert(html.includes('id="dScope"') && html.includes('<span>Пространство</span>'), 'project settings switch personal and project sets through one shared space selector');
+assert(html.includes('data-dp-move') && html.includes('ниже в списке — срочнее'), 'priority rows reorder the urgency scale');
+assert(html.includes('wpPriorityDeleteTargetDlg') && html.includes('Удалить приоритет'), 'deleting a busy priority moves its tasks');
 const startDateMarkup = api.wpTaskCard({ id: 'start-date-task', title: 'Дата старта', homeType: 'personal', assignee: 'Alex', scheduledDate: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true });
 assert(startDateMarkup.includes('Начало ·') && !startDateMarkup.includes('План ·'), 'task cards use the renamed start-date label');
 const compactDateMarkup = api.wpTaskCard({ id: 'week-date-task', title: 'Короткая карточка', homeType: 'personal', assignee: 'Alex', deadlineAt: '2026-10-19', statusKey: 'open', priorityKey: 'normal', tags: [], matrixQuadrant: null }, { compact: true, inDay: true });
@@ -1373,15 +1808,28 @@ assert.strictEqual(tasks.find(t => t.id === 'deadline-wins').deadlineAt, '2026-1
 assert(!Object.prototype.hasOwnProperty.call(tasks.find(t => t.id === 'deadline-wins'), 'scheduledEndDate'));
 assert.strictEqual(api.wpTaskHomeType(tasks.find(t => t.id === 'matrix-task')), 'personal', 'imported Eisenhower tasks land in personal tasks');
 assert.strictEqual(api.wpTaskHomeType(tasks.find(t => t.id === 'loose-matrix-task')), 'personal');
-assert.strictEqual(state.board.taskSchemaVersion, 7);
+assert.strictEqual(state.board.taskSchemaVersion, 8);
 
 assert.strictEqual(api.wpFinalizeTaskMigration(), true);
 assert.strictEqual(state.taskMigrationOK, true);
 assert.strictEqual(state.taskMigrationPending, false);
-assert.strictEqual(JSON.parse(api.wpStoreDecrypt(data.get('shelter:board'))).taskSchemaVersion, 7);
+assert.strictEqual(JSON.parse(api.wpStoreDecrypt(data.get('shelter:board'))).taskSchemaVersion, 8);
 assert.strictEqual(JSON.parse(api.wpStoreDecrypt(data.get('shelter:boards'))).customRegistryField, 'preserve');
-assert.strictEqual(data.has('shelter:eisenTasks'), false, 'legacy standalone matrix data is removed only after verified v7 persistence');
+assert.strictEqual(data.has('shelter:eisenTasks'), false, 'legacy standalone matrix data is removed only after verified v8 persistence');
 assert(data.has(backupKey), 'the original migration backup remains available after migration');
+
+// A matching legacy plaintext checkpoint is re-encrypted without changing its saved raw values.
+data.clear();
+const legacyCheckpointRaw = { 'shelter:board': rawBoard, 'shelter:boards': rawRegistry, 'shelter:eisenTasks': JSON.stringify([{ id: 'loose-matrix-task', title: 'Отдельный список', qm: 2 }]), eisenTasks: null };
+const legacyCheckpointText = JSON.stringify({ kind: 'SHELTER_PLANNER_MIGRATION_BACKUP', schemaVersion: 8, createdAt: '2026-10-01T00:00:00.000Z', raw: legacyCheckpointRaw });
+data.set('shelter:board', rawBoard);
+data.set('shelter:boards', rawRegistry);
+data.set('shelter:eisenTasks', legacyCheckpointRaw['shelter:eisenTasks']);
+data.set('shelter:planner:migration-backup:v6', legacyCheckpointText);
+Object.assign(state, { board: JSON.parse(rawBoard), boards: [JSON.parse(rawBoard)], boardsMeta: {}, boardId: 'board-1', taskMigrationOK: true, taskMigrationPending: false, taskMigrationPendingKeys: [], taskMigrationBackupKey: '' });
+assert.strictEqual(api.wpMigrateTaskStores(registry), true);
+assert(data.get('shelter:planner:migration-backup:v6').startsWith('ss1:'), 'a validated legacy plaintext migration checkpoint is encrypted before migration proceeds');
+assert.strictEqual(api.wpStoreDecrypt(data.get('shelter:planner:migration-backup:v6')), legacyCheckpointText, 'checkpoint contents remain readable and unchanged after encryption');
 
 // Schema v6 data is migrated with a verified backup, folding task and occurrence calendar ends into deadlines.
 const v6Board = {
@@ -1408,7 +1856,7 @@ Object.assign(state, {
 assert.strictEqual(api.wpMigrateTaskStores(registryV6), true);
 assert.strictEqual(state.taskMigrationPending, true, 'v6 data awaits explicit confirmation before storage is rewritten');
 assert.strictEqual(data.get('shelter:board'), rawV6Board, 'the v6 source board stays unchanged until confirmation');
-assert.strictEqual(state.board.taskSchemaVersion, 7);
+assert.strictEqual(state.board.taskSchemaVersion, 8);
 const migratedV6Task = state.board.tasks.find(task => task.id === 'v6-task');
 assert.strictEqual(migratedV6Task.deadlineAt, '2026-10-12');
 assert(!Object.prototype.hasOwnProperty.call(migratedV6Task, 'scheduledEndDate'));
@@ -1419,9 +1867,9 @@ const migratedV6Override = state.board.occurrences.find(occurrence => occurrence
 assert.strictEqual(migratedV6Override.overrides.deadlineAt, '2026-10-13');
 assert(!Object.prototype.hasOwnProperty.call(migratedV6Override.overrides, 'scheduledEndDate'));
 assert.strictEqual(api.wpFinalizeTaskMigration(), true);
-const savedV7Board = JSON.parse(api.wpStoreDecrypt(data.get('shelter:board')));
-assert.strictEqual(savedV7Board.taskSchemaVersion, 7);
-assert(!Object.prototype.hasOwnProperty.call(savedV7Board.tasks[0], 'scheduledEndDate'));
+const savedV8Board = JSON.parse(api.wpStoreDecrypt(data.get('shelter:board')));
+assert.strictEqual(savedV8Board.taskSchemaVersion, 8);
+assert(!Object.prototype.hasOwnProperty.call(savedV8Board.tasks[0], 'scheduledEndDate'));
 
 // A failed backup or malformed source leaves the original strings untouched and blocks writes.
 data.clear();
@@ -1437,6 +1885,27 @@ assert.strictEqual(state.taskMigrationOK, false);
 assert.strictEqual(data.get('shelter:board'), rawBoard);
 assert.strictEqual(data.get('shelter:boards'), rawRegistry);
 context.__denyBackup = false;
+
+// If only the migration-backup index write fails, keep the verified backup encrypted and block migration.
+data.clear();
+data.set('shelter:board', rawBoard);
+data.set('shelter:boards', rawRegistry);
+Object.assign(state, {
+  board: JSON.parse(rawBoard), boards: [JSON.parse(rawBoard)], boardId: 'board-1', boardsMeta: {},
+  taskMigrationOK: true, taskMigrationPending: false, taskMigrationError: '', taskMigrationPendingKeys: []
+});
+context.__failNextStoreKey = 'shelter:planner:migration-backup:latest';
+assert.strictEqual(api.wpMigrateTaskStores(registry), false, 'a failed migration-backup index write must stop migration');
+assert.strictEqual(state.taskMigrationOK, false);
+assert.strictEqual(data.get('shelter:board'), rawBoard, 'source board stays untouched when the index write fails');
+assert.strictEqual(data.get('shelter:boards'), rawRegistry, 'source registry stays untouched when the index write fails');
+const unindexedBackup = data.get('shelter:planner:migration-backup:v6');
+assert(unindexedBackup && unindexedBackup.startsWith('ss1:'), 'the written-but-unindexed migration backup remains encrypted');
+const unindexedPayload = JSON.parse(api.wpStoreDecrypt(unindexedBackup));
+assert.strictEqual(unindexedPayload.kind, 'SHELTER_PLANNER_MIGRATION_BACKUP');
+assert(![...data.values()].includes(JSON.stringify(unindexedPayload)), 'the index failure path never writes a plaintext fallback');
+api.wpDownloadMigrationBackup();
+assert(context.__lastModalHtml.includes('Техническая копия содержит исходные данные всех досок.'), 'the unindexed encrypted backup remains discoverable for export');
 
 data.clear();
 const corrupt = '{broken-json';
@@ -1465,7 +1934,7 @@ Object.assign(state, {
 assert.strictEqual(api.wpMigrateTaskStores(registry), true, 'an encrypted store migrates like a plaintext one');
 assert.strictEqual(api.wpFinalizeTaskMigration(), true);
 assert(data.get('shelter:board').startsWith('ss1:'), 'finalized boards are encrypted at rest');
-assert.strictEqual(JSON.parse(api.wpStoreDecrypt(data.get('shelter:board'))).taskSchemaVersion, 7);
+assert.strictEqual(JSON.parse(api.wpStoreDecrypt(data.get('shelter:board'))).taskSchemaVersion, 8);
 context.__failSecret = true;
 assert.strictEqual(api.wpStoreEncrypt('{}'), '', 'a crypto failure yields no ciphertext');
 data.set('shelter:board', rawBoard);
@@ -1480,6 +1949,86 @@ context.__failSecret = false;
 assert.strictEqual(typeof api.render.tasks, 'function');
 assert.strictEqual(typeof api.actions.taskEdit, 'function');
 assert.strictEqual(typeof api.actions.wpView, 'function');
+
+// Stage F: per-scope people sets, settings scope, and week span parity.
+const stageFBoardBefore = state.board, stageFBoardsBefore = state.boards, stageFIdBefore = state.boardId;
+const stageFWPBefore = { view: api.WP.view, boardHomeFilter: api.WP.boardHomeFilter, allProjectFilter: api.WP.allProjectFilter, calendarScope: api.WP.calendarScope, projectId: api.WP.projectId };
+const stageFBoard = api.wpNormalizeBoard({
+  id: 'stage-f', name: 'Stage F', code: 'STAGE-F', taskSchemaVersion: 7, ownerEmail: '',
+  projects: [{ id: 'prj-f', name: 'Проект', members: [] }],
+  people: ['Личный исполнитель'], invites: [], occurrences: [], recurrenceRules: [],
+  statuses: [{ key: 'open', name: 'В работе' }, { key: 'cancelled', name: 'Отменена', flags: { outdated: true } }, { key: 'done', name: 'Готово', flags: { done: true } }],
+  tasks: [
+    { id: 'f-personal', title: 'Личная', homeType: 'personal', assignee: 'Разовый личный', statusKey: 'open', priorityKey: 'normal', order: 1 },
+    { id: 'f-project', title: 'Проектная', homeType: 'project', homeId: 'prj-f', projectId: 'prj-f', project: 'Проект', assignee: 'Разовый проектный', statusKey: 'open', priorityKey: 'normal', order: 2 }
+  ]
+});
+state.board = stageFBoard; state.boards = [stageFBoard]; state.boardId = 'stage-f';
+assert.deepStrictEqual([...api.wpPeopleFor('prj-f')], ['Личный исполнитель'], 'F1: project people fall back to the personal template');
+api.wpPeopleArrayForScope('prj-f').push('Проектный исполнитель');
+assert.deepStrictEqual([...state.board.people], ['Личный исполнитель'], 'F1: project people sets stay independent from the board set');
+const fPersonalChoices = api.wpAssigneeChoices('');
+assert(fPersonalChoices.includes('Личный исполнитель') && fPersonalChoices.includes('Разовый личный'), 'F1: personal choices offer the personal set and task assignees');
+assert(!fPersonalChoices.includes('Проектный исполнитель') && !fPersonalChoices.includes('Разовый проектный'), 'F1: personal choices hide project-only people');
+const fProjectChoices = api.wpAssigneeChoices('prj-f');
+assert(fProjectChoices.includes('Проектный исполнитель') && fProjectChoices.includes('Разовый проектный'), 'F1: project choices offer the project set and its assignees');
+assert(!fProjectChoices.includes('Разовый личный'), 'F1: project choices hide personal-only assignees');
+const fUnionChoices = api.wpAssigneeChoices();
+assert(fUnionChoices.includes('Проектный исполнитель') && fUnionChoices.includes('Разовый личный') && fUnionChoices.includes('Разовый проектный'), 'F1: the default union still spans every scope');
+state.board.projects[0].members = [{ email: 'member@example.test', name: 'Участник', role: 'member', scope: 'project', status: 'active' }];
+assert(api.wpAssigneeChoices('prj-f').includes('Участник'), 'F1: project choices include project members');
+assert(!api.wpAssigneeChoices('').includes('Участник'), 'F1: personal choices exclude project members');
+state.board.people = ['Личный исполнитель', api.wpMakePerson('Сидор', 'ID-1')];
+assert.strictEqual(api.wpPersonIdTaken('ID-1', '', -1), true, 'F1: invite IDs are unique across every people set');
+assert.strictEqual(api.wpPersonIdTaken('ID-1', '', 1), false, 'F1: renaming keeps its own invite ID');
+assert.strictEqual(api.wpPersonIdTaken('ID-1', 'prj-f', -1), true, 'F1: a project set cannot reuse an ID taken elsewhere');
+assert.strictEqual(api.wpPersonNameById('ID-1'), 'Сидор');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(api.wpNormalizePeopleArray(['  Анна  ', 'анна', { name: 'Борис', contactId: 'x-9' }, { nick: 'Вера' }, '', null]))), ['Анна', { name: 'Борис', contactId: 'X-9' }, 'Вера'], 'F1: people sets normalize names, cases and invite IDs');
+const freshProject = { id: 'prj-fresh', name: 'Свежий', members: [] };
+assert.strictEqual(api.wpEnsureProjectPeople(freshProject), true);
+assert.strictEqual(api.wpEnsureProjectPeople(freshProject), false);
+assert.strictEqual(api.wpScopeAddPerson('prj-f', 'Добавленный', ''), true);
+assert(api.wpPeopleFor('prj-f').includes('Добавленный') && !api.wpPeopleFor('').includes('Добавленный'), 'F1: scoped adds land in their own set');
+assert.deepStrictEqual([...api.wpPeopleArrayForScope('missing')], [], 'F1: unknown projects resolve to a detached empty set');
+const fProjectForm = api.wpEditorBodyHtml(null, 'series', true, { ...stageAFormValues, kind: 'project', projectId: 'prj-f' }, false, null);
+assert(fProjectForm.includes('>Проектный исполнитель</option>'), 'F2: the project editor offers the project people set');
+const fPersonalForm = api.wpEditorBodyHtml(null, 'series', true, { ...stageAFormValues, kind: 'personal', projectId: '' }, false, null);
+assert(!fPersonalForm.includes('>Проектный исполнитель</option>') && fPersonalForm.includes('>Личный исполнитель</option>'), 'F2: the personal editor hides project-only people');
+api.WP.view = 'board'; api.WP.boardHomeFilter = 'project:prj-f';
+assert.strictEqual(api.wpActiveSettingsScope(), 'prj-f', 'F3: board settings follow the board project filter');
+api.WP.boardHomeFilter = 'personal';
+assert.strictEqual(api.wpActiveSettingsScope(), '', 'F3: settings default to the personal space');
+api.WP.view = 'all'; api.WP.allProjectFilter = 'project:prj-f';
+assert.strictEqual(api.wpActiveSettingsScope(), 'prj-f', 'F3: list settings follow the list project filter');
+api.WP.view = 'projects'; api.WP.projectId = 'prj-f';
+assert.strictEqual(api.wpActiveSettingsScope(), 'prj-f', 'F3: settings follow the open project');
+api.WP.projectId = '__personal__';
+assert.strictEqual(api.wpActiveSettingsScope(), '', 'F3: the personal list resolves to the personal space');
+api.WP.view = 'week'; api.WP.calendarScope = 'project:prj-f';
+assert.strictEqual(api.wpActiveSettingsScope(), 'prj-f', 'F3: week settings follow the calendar scope');
+const fSpanOverdueTask = { id: 'span-od', title: 'Длинная просрочка', homeType: 'personal', scheduledDate: '2000-01-01', deadlineAt: '2000-01-05', statusKey: 'open', priorityKey: 'normal' };
+const fSpanOverdue = api.wpCalendarSpanEvent({ task: fSpanOverdueTask, startColumn: 0, endColumn: 2, lane: 0 }, 'week');
+const fCapsuleOverdue = api.wpDayCapsule(fSpanOverdueTask);
+assert(fSpanOverdue.includes('is-overdue') && fCapsuleOverdue.includes('is-overdue'), 'F4: spans and capsules share the overdue state');
+const fSpanCancelledTask = { id: 'span-cx', title: 'Длинная отмена', homeType: 'personal', scheduledDate: '2026-10-20', deadlineAt: '2026-10-22', statusKey: 'cancelled', priorityKey: 'normal' };
+const fSpanCancelled = api.wpCalendarSpanEvent({ task: fSpanCancelledTask, startColumn: 0, endColumn: 2, lane: 0 }, 'week');
+const fCapsuleCancelled = api.wpDayCapsule(fSpanCancelledTask);
+assert(fSpanCancelled.includes('is-cancelled') && fCapsuleCancelled.includes('is-cancelled'), 'F4: spans and capsules share the cancelled state');
+assert(html.includes('.wp-calendar-span.is-overdue') && html.includes('.wp-calendar-span.is-cancelled'), 'F4: span states carry the capsule styling');
+assert(html.includes('id="dScope"') && !html.includes('dStatusScope') && !html.includes('dPrioScope'), 'F5: the dictionary uses one scope selector for every set');
+assert(html.includes("scopeSelect('Пространство')") && !html.includes("scopeSelect('Набор статусов')") && !html.includes("scopeSelect('Набор приоритетов')") && !html.includes("scopeSelect('Набор исполнителей')"), 'F5: statuses, priorities and people share one scope-first selector');
+assert(!html.includes('data-dk=') && html.includes('>Настройки проекта<'), 'F5: the settings popup stacks sections instead of tabs');
+assert(html.includes('dSec-people') && html.includes('dSec-prios') && html.includes('dSec-statuses') && html.includes('.wp-dict-sec{'), 'F5: people, priorities and statuses render as stacked sections');
+assert(html.includes('code: boardCode()') && html.includes('function boardCard(scope'), 'F5: every project carries an invitation identifier shown in the header card');
+assert(html.includes('(pr && pr.code) || bcode'), 'F5: project invites share the project identifier');
+assert(html.includes("['__new__', '+ Новый проект']"), 'F5: the scope selector creates projects inline');
+assert(html.includes("label:'Настройка проекта'") && !html.includes('Настройки доски и справочники'), 'F5: the settings entry opens project setup');
+assert(html.includes("label:'Приоритеты проекта'"), 'F5: the project menu offers priority setup');
+assert(html.includes('data-act="wpPersonalMenu"') && html.includes("label:'Статусы личного пространства'") && html.includes("label:'Приоритеты личного пространства'"), 'F5: personal space gains its own settings menu');
+assert(html.includes('wpScopeOf(x) === scope) x.assignee = r.name'), 'F5: people renames propagate within their scope');
+assert(planner.includes("'statuses','priorities']"), 'F5: imports merge board priority sets');
+state.board = stageFBoardBefore; state.boards = stageFBoardsBefore; state.boardId = stageFIdBefore;
+api.WP.view = stageFWPBefore.view; api.WP.boardHomeFilter = stageFWPBefore.boardHomeFilter; api.WP.allProjectFilter = stageFWPBefore.allProjectFilter; api.WP.calendarScope = stageFWPBefore.calendarScope; api.WP.projectId = stageFWPBefore.projectId;
 (async function testPasswordProtectedTaskTransfer() {
   const boardA = {
     id: 'board-a', name: 'Рабочая доска', code: 'BOARD-A', taskSchemaVersion: 7,
@@ -1541,10 +2090,13 @@ assert.strictEqual(typeof api.actions.wpView, 'function');
   assert.strictEqual(api.wpBoardAddPerson(personBoard, 'Иван', 'SH-AAAA-BBBB'), false, 're-adding the same assignee is a no-op');
   assert.strictEqual(api.wpBoardPersonIndex(personBoard, 'АННА'), 1, 'assignee lookup ignores case');
   assert(html.includes('id="dAddId"'), 'the board settings assignee tab has an invite-id field');
+  assert(html.includes('function wpHealPersonalPeople(') && html.includes('wpHealPersonalPeople(S.board)'), 'personal assignees heal to self plus invitees when settings open');
+  assert(html.includes('<span class="chip">это вы</span>'), 'the personal self row is pinned instead of editable');
+  assert(html.includes('укажите ID для приглашений'), 'personal adds without an invite id are refused');
   assert(html.includes('function personDlg('), 'editing an assignee uses a single name+id dialog');
   assert(html.includes('data-pp-name') && html.includes('data-pp-id'), 'the assignee dialog has both fields');
   assert(html.includes("personDlg({ title: 'Исполнитель'"), 'the board settings edit flow opens the assignee dialog');
-assert(html.includes("const D = [['projects', 'Проекты'], ['people', 'Исполнители'], ['prios', 'Приоритеты'], ['statuses', 'Статусы']];"), 'board settings offer no unused terms/formats dictionaries');
+assert(html.includes("secTitle('Исполнители')") && html.includes("secTitle('Приоритеты')") && html.includes("secTitle('Статусы')"), 'board settings offer no unused terms/formats dictionaries');
   assert(html.includes('Исполнитель с таким именем уже есть'), 'duplicate assignee names trigger a warning');
   assert(html.includes('Этот ID уже привязан к исполнителю'), 'duplicate invite ids trigger a warning');
   assert(html.includes('wpBoardAddPerson(board,nm,cid)'), 'export contacts join the board assignee list');
@@ -1618,6 +2170,15 @@ assert(html.includes("const D = [['projects', 'Проекты'], ['people', 'И�
   const migrationPayload = api.wpTaskPayloadFromMigrationBackupFile(decryptedMigration);
   assert(migrationPayload && api.wpReadTaskExportBoards(migrationPayload), 'a correctly decrypted technical migration backup is converted to a validated task payload');
   assert(api.wpReadTaskExportBoards(migrationPayload).some(board => board.tasks.some(task => task.id === 'loose-eisen')), 'loose legacy tasks are preserved when importing a migration snapshot');
+  const unreadableStoreBackup = {
+    kind: 'SHELTER_UNREADABLE_TASK_STORE_BACKUP', schemaVersion: 8,
+    raw: {
+      'shelter:board': 'ss1:' + JSON.stringify(boardA),
+      'shelter:boards': 'ss1:' + JSON.stringify({ id: 'board-a', boards: [boardA] })
+    }
+  };
+  const unreadablePayload = api.wpTaskPayloadFromMigrationBackupFile({ kind: 'SHELTER_PLANNER_MIGRATION_BACKUP_FILE', migrationBackupText: JSON.stringify(unreadableStoreBackup) });
+  assert(unreadablePayload && api.wpReadTaskExportBoards(unreadablePayload), 'an encrypted unreadable-store snapshot can be exported and recovered after the OS key becomes available');
 
   const existing = {
     id: 'board-a', name: 'Рабочая доска', code: 'BOARD-A', taskSchemaVersion: 7, people: ['Борис'],
@@ -1676,6 +2237,18 @@ assert(html.includes("const D = [['projects', 'Проекты'], ['people', 'И�
   const fullDecrypted=await api.wpDecryptTaskPayload(fullEnvelope,'Transfer code on two devices');
   const fullSourceBoards=api.wpReadTaskExportBoards(fullDecrypted);
   assert(fullSourceBoards&&fullSourceBoards.length===2,'a decrypted full export passes payload validation before import');
+  context.__failSecret=true;
+  assert.strictEqual(await api.wpApplyImportedTaskData(fullDecrypted,fullSourceBoards,'all',[]),false,'task import is cancelled when the pre-import backup cannot be encrypted');
+  assert.strictEqual(data.get('shelter:board'),storedLocalRaw,'failed pre-import encryption leaves the board untouched');
+  assert.strictEqual(data.get('shelter:boards'),storedRegistryRaw,'failed pre-import encryption leaves the registry untouched');
+  assert(![...data.keys()].some(key=>String(key).startsWith('shelter:planner:preimport-backup:')),'failed pre-import encryption writes no backup');
+  context.__failSecret=false;
+  context.__failNextStoreKey='shelter:planner:preimport-backup:latest';
+  assert.strictEqual(api.wpCreatePreImportBackup(),'','a failed pre-import index write aborts the backup');
+  const unindexedPreImport=[...data.entries()].find(([key])=>String(key).startsWith('shelter:planner:preimport-backup:')&&!String(key).endsWith(':latest'));
+  assert(unindexedPreImport&&unindexedPreImport[1].startsWith('ss1:'),'an unindexed pre-import snapshot remains encrypted');
+  assert(![...data.values()].includes(JSON.stringify(JSON.parse(api.wpStoreDecrypt(unindexedPreImport[1])))),'pre-import index failure never writes a plaintext fallback');
+  for(const key of [...data.keys()]) if(String(key).startsWith('shelter:planner:preimport-backup:')) data.delete(key);
   const applied=await api.wpApplyImportedTaskData(fullDecrypted,fullSourceBoards,'all',[]);
   assert.strictEqual(applied,true,'a correctly decrypted full export is applied after confirmation and backup');
   assert.strictEqual(state.boardId,'foreign-board','a newly imported board becomes active so its tasks are visible on another device');
@@ -1692,7 +2265,10 @@ assert(html.includes("const D = [['projects', 'Проекты'], ['people', 'И�
   assert(state.boards.some(board=>board.id==='other-board'),'unrelated local boards survive the full import');
   assert.strictEqual(state.boardsMeta.retainedMetaValue,true);assert.strictEqual(state.boardsMeta.remoteOnlyMeta,true);
   const preImportKey=data.get('shelter:planner:preimport-backup:latest');
-  const preImport=JSON.parse(data.get(preImportKey));
+  const preImportStored=data.get(preImportKey);
+  assert(preImportStored&&preImportStored.startsWith('ss1:'),'pre-import backups are encrypted at rest');
+  const preImport=JSON.parse(api.wpStoreDecrypt(preImportStored));
+  assert.notStrictEqual(preImportStored,JSON.stringify(preImport),'the stored pre-import backup is wrapped by ss1 encryption');
   assert.strictEqual(preImport.kind,'SHELTER_PLANNER_PRE_IMPORT_BACKUP');
   assert.strictEqual(preImport.raw['shelter:board'],storedLocalRaw,'the exact original local board is backed up before import');
   assert.strictEqual(preImport.raw['shelter:boards'],storedRegistryRaw,'the exact original local registry is backed up before import');
@@ -1712,7 +2288,8 @@ assert(html.includes("const D = [['projects', 'Проекты'], ['people', 'И�
       { id: 'od-lapsed', title: 'Lapsed', homeType: 'personal', statusKey: 'open', status: 'В работе', priorityKey: 'normal', deadlineAt: '2020-01-01' },
       { id: 'od-fresh', title: 'Fresh', homeType: 'personal', statusKey: 'open', status: 'В работе', priorityKey: 'normal', deadlineAt: '2030-01-01' },
       { id: 'od-out', title: 'Out', homeType: 'personal', statusKey: 'overdue', status: 'Просрочено', priorityKey: 'normal', deadlineAt: '2030-01-01', previous_status: 'waiting' },
-      { id: 'od-late', title: 'Late', homeType: 'personal', statusKey: 'overdue', status: 'Просрочено', priorityKey: 'normal', deadlineAt: '2020-01-01', previous_status: 'open' }
+      { id: 'od-late', title: 'Late', homeType: 'personal', statusKey: 'overdue', status: 'Просрочено', priorityKey: 'normal', deadlineAt: '2020-01-01', previous_status: 'open' },
+      { id: 'od-drop', title: 'Drop', homeType: 'personal', statusKey: 'overdue', status: 'Просрочено', priorityKey: 'normal', deadlineAt: '2020-01-01', previous_status: 'open' }
     ] };
   state.boards = [state.board]; state.boardId = 'od-board'; state.taskMigrationOK = true;
   const odRenderer = context.wpRenderView;
@@ -1727,6 +2304,12 @@ assert(html.includes("const D = [['projects', 'Проекты'], ['people', 'И�
   assert.strictEqual('previous_status' in state.board.tasks[2], false);
   assert.strictEqual(await api.wpRequestStatusChange({ id: 'od-late', entityType: 'task' }, 'done'), true);
   assert.strictEqual(state.board.tasks[3].completedLate, true, 'finishing from overdue flags the late completion');
+  const odModalBefore = context.__lastModalHtml;
+  assert.strictEqual(await api.wpRequestStatusChange({ id: 'od-drop', entityType: 'task' }, 'cancelled'), true, 'overdue tasks cancel without a new deadline');
+  assert.strictEqual(state.board.tasks[4].statusKey, 'cancelled');
+  assert.strictEqual('completedLate' in state.board.tasks[4], false, 'cancelled tasks are not flagged as late completions');
+  assert.strictEqual(api.wpOverdueSettleTask(state.board.tasks[4]), '', 'cancelled tasks never bounce back to overdue');
+  assert.strictEqual(context.__lastModalHtml, odModalBefore, 'cancelling never asks for a new deadline');
   context.wpRenderView = odRenderer;
   state.board = odBefore.board; state.boards = odBefore.boards; state.boardId = odBefore.boardId; state.taskMigrationOK = odBefore.taskMigrationOK;
   if (odRawBoard == null) api.store.del('shelter:board'); else api.store.set('shelter:board', odRawBoard);

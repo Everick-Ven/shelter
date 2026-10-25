@@ -28,6 +28,10 @@ configure_file(win/shelter.rc.in
 
 # ---- CEF ---------------------------------------------------------------------
 set(CEF_VERSION "154.0.32+g682c378+chromium-154.0.8037.58")
+# SHA-256 values published for the exact official minimal CEF archives above.
+# Update both pins together with CEF_VERSION; DownloadCEF fails closed on mismatch.
+set(CEF_ARCHIVE_SHA256_WINDOWS64 "aa1f7ab28005307edcc13f95e3ce5cd9d221894b00458fb5e368c00603204a2a")
+set(CEF_ARCHIVE_SHA256_MACOSX64 "e7e17e6c899ffe6c4cb16065d6dcaf16f9735d9cd0861099558f578d40714552")
 set(CEF_CHANNEL "minimal")
 option(USE_SANDBOX "Enable CEF's per-process sandbox" ON)
 option(SHELTER_BETA_BUILD "Enable beta-only promotional code access" OFF)
@@ -37,15 +41,17 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
   # Целевая платформа — Intel (x86_64).
   set(PROJECT_ARCH "x86_64")
   set(CEF_PLATFORM "macosx64")
+  set(CEF_ARCHIVE_SHA256 "${CEF_ARCHIVE_SHA256_MACOSX64}")
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
   set(CEF_PLATFORM "windows64")
+  set(CEF_ARCHIVE_SHA256 "${CEF_ARCHIVE_SHA256_WINDOWS64}")
 else()
   message(FATAL_ERROR "SHELTER собирается только для macOS (x86_64) и Windows (x64).")
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(DownloadCEF)
-DownloadCEF("${CEF_PLATFORM}" "${CEF_CHANNEL}" "${CEF_VERSION}" "${CMAKE_SOURCE_DIR}/third_party/cef")
+DownloadCEF("${CEF_PLATFORM}" "${CEF_CHANNEL}" "${CEF_VERSION}" "${CMAKE_SOURCE_DIR}/third_party/cef" "${CEF_ARCHIVE_SHA256}")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CEF_ROOT}/cmake")
 find_package(CEF REQUIRED)

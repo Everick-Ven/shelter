@@ -175,7 +175,7 @@ check('в режиме «Призрак» иконки не запрашиваю
   /if \(S\.ghost\) return;/.test(favFlush));
 const heroLinksFn = cut('function renderHeroLinks()', 'function renderHeroFoot');
 check('догрузка запускается после монтирования списков',
-  /new MutationObserver\(ms => \{/.test(html) && /ensureFavicons\(\); return;/.test(html) && /ensureFavicons\(\);/.test(heroLinksFn));
+  /new MutationObserver\(ms => \{/.test(html) && /ensureFavicons\(\); \}\);\s*\}\s*return;/.test(html) && /ensureFavicons\(\);/.test(heroLinksFn));
 check('у моста есть отдельный путь запроса (не легаси-словарь)',
   /window\.shelterCefRequest = \(method, args\) => mq2\(method, args\)/.test(html));
 

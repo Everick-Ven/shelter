@@ -4,6 +4,7 @@
 
 namespace shelter {
 inline constexpr char kAppVersion[] = "@SHELTER_VERSION@";
+inline constexpr char kAppBuildTimestamp[] = "@SHELTER_BUILD_TIMESTAMP@";
 inline constexpr char kAppBuildId[] = "@SHELTER_BUILD_ID@";
 }  // namespace shelter
 

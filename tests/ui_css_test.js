@@ -142,6 +142,11 @@ check('инструменты закреплены отдельно в нижн�
   css.includes('.sb-inner{position:relative;display:flex;flex:1 1 0%;flex-direction:column;min-height:0;overflow:hidden') &&
   css.includes('.sb-scroll{flex:0 1 auto;min-height:0;overflow-y:auto') &&
   css.includes('.sb-tools{flex:0 0 auto;margin:auto -12px 0'));
+check('в свёрнутой панели подложка выделения пространства совпадает с плиткой иконки',
+  css.includes('.app.collapsed .sb .space-row .hc{display:none}') &&
+  css.includes('.app.collapsed .sb .space-row{justify-content:center;padding-left:0}') &&
+  css.includes('.app.collapsed .sb .space-btn{flex:none;justify-content:center;padding:0 6px}') &&
+  css.includes('#tabRight.is-collapsed .space-btn .nm,#tabRight.is-collapsed .space-btn .chev,#tabRight.is-collapsed .space-row>.icon-btn{display:none}'));
 check('кнопки имеют центрированное содержимое, включая проверку кода импорта',
   /\.btn\{[^}]*text-align:center/.test(css) &&
   html.includes('.wp-import-password-submit-content{position:relative;display:block;width:100%;text-align:center') &&
@@ -182,16 +187,24 @@ check('доска задач вмещается в ширину экрана б�
   !/\.wp-board-lanes\{[^}]*scroll-snap/.test(plannerStyle) &&
   plannerStyle.includes('.wp-board-task-status .select{width:auto;min-width:min(115px,100%)') &&
   plannerStyle.includes('.wp-board-column>header b{font-size:13px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'));
-check('капсулы дня раскрыты на всю ширину столбца и отделены от многодневных рядов',
-  plannerStyle.includes('.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -8px;') &&
+check('задачи дня и многодневные ряды держат одинаковые отступы от краёв и друг от друга',
+  plannerStyle.includes('.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -6px;padding:5px 10px;') &&
   plannerStyle.includes('padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));') &&
-  plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin-left:-9px;margin-right:-9px}') &&
+  plannerStyle.includes('.wp-calendar-span{display:flex;align-items:center;gap:8px;min-width:0;min-height:20px;margin:0 8px;padding:1px 8px;') &&
+  plannerStyle.includes('.wp-calendar-span--week{height:20px;margin:0 2px;') &&
+  plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin:0 -7px}') &&
+  !plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin-left:-9px') &&
+  plannerStyle.includes('.wp-day-items>.wp-done-fold>div{gap:6px}') &&
   plannerStyle.includes('.wp-week-grid.has-spans .wp-day-items{margin-top:6px}'));
 check('задачи недели держат единый ритм: зазоры 6px и одинаковый ховер у рядов и капсул',
   plannerStyle.includes('.wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(var(--wp-span-lanes),20px);column-gap:10px;row-gap:6px;') &&
   plannerStyle.includes('.wp-day-items{display:flex;flex:1;flex-direction:column;gap:6px;') &&
   plannerStyle.includes('.wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}') &&
-  plannerStyle.includes('.wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}'));
+  plannerStyle.includes('.wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}') &&
+  plannerStyle.includes('.wp-day-capsule.dragging{opacity:.45}') &&
+  plannerStyle.includes('.wp-calendar-span.dragging{opacity:.45}'));
+check('кастомные строки меню держат метрики пунктов: равные отступы сверху и снизу',
+  css.includes('.mrow{display:flex;align-items:center;gap:8px;min-height:34px;padding:0 6px 0 10px;'));
 check('карточки доски не рвут верстку в узких колонках: мета переносится, чипы режутся многоточием',
   plannerStyle.includes('.wp-board-task .wp-task-meta>span{max-width:100%;min-width:0;overflow:hidden;overflow-wrap:anywhere}') &&
   plannerStyle.includes('.wp-board-task .wp-task-meta .wp-deadline{flex:0 1 auto;min-width:0;white-space:normal}') &&

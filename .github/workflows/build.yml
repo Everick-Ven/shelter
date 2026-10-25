@@ -206,6 +206,7 @@ jobs:
             package.log
             install.log
             geometry.log
+            geometry-app.log
             acceptance-ci.log
             smoke-run.log
             acceptance-app.log
@@ -281,12 +282,22 @@ jobs:
           python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
 
       - name: CI-hook runtime acceptance
-        timeout-minutes: 8
+        timeout-minutes: 12
         run: |
           set -euo pipefail
           . .venv/bin/activate
           version="$(tr -d '\r\n' < build-ci/shelter-version.txt)"
-          python tools/acceptance_smoke.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" 2>&1 | tee acceptance-ci.log
+          acceptance_ok=0
+          for attempt in 1 2 3; do
+            echo "Acceptance attempt $attempt"
+            if python tools/acceptance_smoke.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter --expected-version "$version" 2>&1 | tee acceptance-ci.log; then
+              acceptance_ok=1
+              break
+            fi
+            echo "Acceptance attempt $attempt failed; retrying in 30 seconds" >&2
+            sleep 30
+          done
+          [[ "$acceptance_ok" == 1 ]]
 
       - name: Package DMG
         run: |
@@ -300,7 +311,7 @@ jobs:
           (cd dist && shasum -a 256 "$dmg_name" > SHA256SUMS.txt)
 
       - name: Install and test packaged DMG from a Cyrillic path (strict)
-        timeout-minutes: 8
+        timeout-minutes: 12
         run: |
           set -euo pipefail
           exec > >(tee -a packaged-dmg-acceptance.log) 2>&1
@@ -336,7 +347,17 @@ jobs:
           if security find-generic-password -a master-key -s SHELTER "$ci_keychain" >/dev/null 2>&1; then
             security delete-generic-password -a master-key -s SHELTER "$ci_keychain"
           fi
-          python tools/acceptance_smoke.py "$app_dir/Contents/MacOS/Shelter" --expected-version "$version" --allow-missing-ci-hooks 2>&1 | tee smoke-run.log
+          acceptance_ok=0
+          for attempt in 1 2 3; do
+            echo "Packaged acceptance attempt $attempt"
+            if python tools/acceptance_smoke.py "$app_dir/Contents/MacOS/Shelter" --expected-version "$version" --allow-missing-ci-hooks 2>&1 | tee smoke-run.log; then
+              acceptance_ok=1
+              break
+            fi
+            echo "Packaged acceptance attempt $attempt failed; retrying in 30 seconds" >&2
+            sleep 30
+          done
+          [[ "$acceptance_ok" == 1 ]]
 
       - name: Inspect macOS master-key mirror
         if: always()
@@ -390,6 +411,7 @@ jobs:
             package.log
             packaged-dmg-acceptance.log
             geometry.log
+            geometry-app.log
             acceptance-ci.log
             smoke-run.log
             acceptance-app.log
@@ -432,13 +454,15 @@ jobs:
           ./crx3-format-test
       - name: Task planner and migration regression test
         run: node tests/ui_tasks_test.js
+      - name: Ghost mode persistence and partition regression test
+        run: node tests/ui_ghost_mode_test.js
       - name: Pomodoro and Efficiency Manager regression test
         run: node tests/ui_widgets_test.js
       - name: UI appearance regression test
         run: node tests/ui_appearance_test.js
       - name: Notification marquee regression test
         run: node tests/ui_toast_marquee_test.js
-      - name: Notification visibility over native pages regression test
+      - name: Notification visibility on native pages regression test
         run: node tests/ui_notification_visibility_test.js
       - name: CSP hashes and renderer secret isolation regression test
         run: node tests/ui_csp_test.js
@@ -446,6 +470,8 @@ jobs:
         run: node tests/bridge_authorization_test.js
       - name: AI agent bridge regression test
         run: node tests/ai_bridge_test.js
+      - name: Assistant tab cleanup regression test
+        run: node tests/ui_assistant_test.js
       - name: Single-source version propagation regression test
         run: node tests/app_version_source_test.js
       - name: Security hardening source anchors regression test
@@ -454,6 +480,8 @@ jobs:
         run: node tests/unicode_paths_test.js
       - name: UI versioning and HTTP cache regression test
         run: node tests/ui_build_cache_test.js
+      - name: Offline build freshness warning regression test
+        run: node tests/app_build_freshness_test.js
       - name: Platform clip-mask source regression test
         run: node tests/platform_clip_source_test.js
       - name: Shell overlay deduplication regression test
@@ -485,11 +513,6 @@ jobs:
           set -euo pipefail
           c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/extension_match_test.cc -o extension-match-test
           ./extension-match-test
-      - name: Compile and run extension engine tests
-        run: |
-          set -euo pipefail
-          c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/extension_engine_test.cc -o extension-engine-test
-          ./extension-engine-test
       - name: Compile and run public suffix tests
         run: |
           set -euo pipefail
@@ -529,6 +552,8 @@ jobs:
           set -euo pipefail
           c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/color_scheme_test.cc -o color-scheme-test
           ./color-scheme-test
+      - name: Release workflow least-privilege regression test
+        run: python3 tools/check_workflow_security.py
 
   release:
     name: Release

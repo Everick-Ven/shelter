@@ -552,12 +552,16 @@ bool TabClient::OnBeforeBrowse(CefRefPtr<CefBrowser>,
 namespace {
 
 // Отменяет сторонние запросы к доменам-трекерам и рекламные URL-шаблоны.
-// Пропускается только навигация верхнего уровня: сайт, открытый пользователем,
-// обязан загрузиться. Это именно тип запроса RT_MAIN_FRAME, а не «запрос из
-// главного фрейма»: рекламные скрипты, пиксели и баннеры, которые страница
-// подключает прямо из своего документа, приходят из главного фрейма и раньше
-// проходили фильтр насквозь — поэтому на реальных сайтах (например, с Yandex
-// Direct) реклама не блокировалась вовсе.
+// Владелец запроса — всегда страница верхнего уровня, а не фрейм, в котором
+// бегает скрипт: иначе всё внутри рекламного iframe считалось «своим» и
+// доменные правила молчали. Это именно тип запроса RT_MAIN_FRAME, а не
+// «запрос из главного фрейма»: рекламные скрипты, пиксели и баннеры,
+// которые страница подключает прямо из своего документа, приходят из
+// главного фрейма и обязаны проходить фильтр насквозь.
+// Главный кадр пропускается без проверки только когда пользователь сам
+// пришёл на адрес (клик, строка, «Открыть всё равно»): скриптовые уводы
+// (location/meta refresh — TT_CLIENT_REDIRECT_FLAG) на рекламные адреса
+// отсекаются ещё на этапе загрузки страницы.
 cef_return_value_t BlockerCheck(CefRefPtr<CefBrowser> browser,
                                 CefRefPtr<CefFrame> frame,
                                 CefRefPtr<CefRequest> request) {
@@ -565,9 +569,14 @@ cef_return_value_t BlockerCheck(CefRefPtr<CefBrowser> browser,
   const std::string url = request->GetURL().ToString();
   if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0)
     return RV_CONTINUE;
-  if (request->GetResourceType() == RT_MAIN_FRAME) return RV_CONTINUE;
+  if (request->GetResourceType() == RT_MAIN_FRAME &&
+      (request->GetTransitionType() & TT_CLIENT_REDIRECT_FLAG) == 0)
+    return RV_CONTINUE;
   char kind = 0;
-  const std::string page = frame ? frame->GetURL().ToString() : std::string();
+  std::string page;
+  if (browser && browser->GetMainFrame())
+    page = browser->GetMainFrame()->GetURL().ToString();
+  if (page.empty() && frame) page = frame->GetURL().ToString();
   if (!::shelter::blocker::ShouldBlock(url, page, &kind)) return RV_CONTINUE;
   std::string host;
   CefURLParts parts;
@@ -649,6 +658,25 @@ bool TabClient::OnBeforePopup(CefRefPtr<CefBrowser> browser,
   CEF_REQUIRE_UI_THREAD();
   const std::string url = target_url.ToString();
   if (IsShelterSchemeUrl(url)) return true;
+  // Рекламное окно не создаётся вообще — отсекается ещё на этапе открытия
+  // страницы. Popunder ловит настоящий жест клика, поэтому проверка идёт
+  // до разбора жеста: окно по списку правил не выходит ни при каком жесте.
+  {
+    char kind = 0;
+    std::string page;
+    if (browser && browser->GetMainFrame())
+      page = browser->GetMainFrame()->GetURL().ToString();
+    if (::shelter::blocker::ShouldBlock(url, page, &kind)) {
+      std::string host;
+      CefURLParts parts;
+      if (CefParseURL(CefString(url), parts))
+        host = CefString(&parts.host).ToString();
+      ::shelter::blocker::RecordBlock(host, kind,
+                                      browser ? browser->GetIdentifier() : 0);
+      Shell::Get().OnTabNewWindow(browser, url, false);
+      return true;
+    }
+  }
   // window.open(..., 'features') по жесту пользователя — настоящее окно
   // (нужно для OAuth/оплат, где важен window.opener). Всё остальное — вкладка.
   if (disposition == CEF_WOD_NEW_POPUP && user_gesture) {

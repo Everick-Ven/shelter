@@ -535,10 +535,15 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [windows, macos, security-unit]
     runs-on: ubuntu-latest
+    # Имя должно совпадать с окружением в Settings -> Environments.
+    # Секреты SHELTER_RELEASE_KEY и SHELTER_RELEASE_KEY_PASSWORD доступны только здесь.
+    environment: release
     permissions:
       actions: read
       contents: write
     steps:
+      # Нужен для проверки подписей публичным ключом из keys/.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: assets
@@ -566,6 +571,31 @@ jobs:
             echo "$hash  ${file##*/}" >> assets/SHA256SUMS.txt
           done
           echo "SHELTER_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Sign release assets (minisign)
+        env:
+          RELEASE_KEY: ${{ secrets.SHELTER_RELEASE_KEY }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.SHELTER_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -f keys/shelter-release.pub
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq minisign
+          umask 077
+          key_file="$(mktemp)"
+          trap 'rm -f "$key_file"' EXIT
+          printf '%s\n' "$RELEASE_KEY" > "$key_file"
+          dmg="SHELTER-macos-x64-${SHELTER_VERSION}.dmg"
+          files=(
+            "assets/SHELTER-windows-x64/SHELTER-Setup-x64.exe"
+            "assets/SHELTER-windows-x64/SHELTER-windows-x64-portable.zip"
+            "assets/SHELTER-macos-x64/${dmg}"
+            "assets/SHA256SUMS.txt"
+          )
+          for f in "${files[@]}"; do
+            test -f "$f"
+            printf '%s\n' "$RELEASE_KEY_PASSWORD" | minisign -S -s "$key_file" -m "$f" -x "${f}.minisig"
+            minisign -V -p keys/shelter-release.pub -m "$f" -x "${f}.minisig"
+          done
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -575,8 +605,12 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --title "SHELTER ${SHELTER_VERSION}" \
-            --notes "Установщики: SHELTER-Setup-x64.exe (Windows x64), ${dmg} (macOS Intel). Также portable zip для Windows. SHA256SUMS.txt содержит контрольные суммы. macOS: ad-hoc подпись без Developer ID и нотаризации; при первом запуске Gatekeeper может потребовать «Открыть»." \
+            --notes "Установщики: SHELTER-Setup-x64.exe (Windows x64), ${dmg} (macOS Intel). Также portable zip для Windows. SHA256SUMS.txt содержит контрольные суммы. Каждый файл подписан minisign (рядом лежит .minisig), публичный ключ: keys/shelter-release.pub в репозитории. macOS: ad-hoc подпись без Developer ID и нотаризации; при первом запуске Gatekeeper может потребовать «Открыть»." \
             assets/SHELTER-windows-x64/SHELTER-Setup-x64.exe \
+            assets/SHELTER-windows-x64/SHELTER-Setup-x64.exe.minisig \
             assets/SHELTER-windows-x64/SHELTER-windows-x64-portable.zip \
+            assets/SHELTER-windows-x64/SHELTER-windows-x64-portable.zip.minisig \
             "assets/SHELTER-macos-x64/${dmg}" \
-            assets/SHA256SUMS.txt
+            "assets/SHELTER-macos-x64/${dmg}.minisig" \
+            assets/SHA256SUMS.txt \
+            assets/SHA256SUMS.txt.minisig

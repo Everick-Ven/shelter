@@ -70,16 +70,37 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
   await step('page: settings', () => document.querySelector('[data-act="settings"]').click());
   await step('page: assistant', () => { document.querySelector('[data-act="page"][data-page="deepthink"]'); const el = document.querySelector('[data-act="page"][data-page="deepthink"]'); if (el) el.click(); });
 
-  // reduced-motion: анимации должны быть выключены
+  // reduced-motion: имена UI-анимаций/fade остаются; промежуточный transform удалён.
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
-  await page.evaluate(() => document.querySelector('[data-act="page"][data-page="start"]')?.click());
-  await new Promise(r => setTimeout(r, 500));
-  const rm = await page.evaluate(() => {
-    const pick = sel => { const el = document.querySelector(sel); return el ? getComputedStyle(el).animationName : '(нет элемента)'; };
-    return { orb: pick('.orb.ring'), omniRing: pick('.omni-ring'), heroCenter: pick('.hero-center'), toast: pick('.toast'),
-      trans: getComputedStyle(document.querySelector('.icon-btn') || document.body).transitionProperty };
+  await page.evaluate(() => {
+    document.querySelector('[data-act="page"][data-page="start"]')?.click();
+    document.body.dataset.gfx = 'beauty';
+    document.body.classList.add('native-content-visible');
+    document.querySelector('[data-act="more"]')?.click();
   });
+  await new Promise(r => setTimeout(r, 80));
+  const rm = await page.evaluate(() => {
+    const menu = document.querySelector('.menu:not(.closing)');
+    const m = menu ? getComputedStyle(menu) : null;
+    const ambient = document.querySelector('.ambient i');
+    const a = ambient ? getComputedStyle(ambient) : null;
+    const icon = document.querySelector('.icon-btn') || document.body;
+    return {
+      mediaMatches: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      menuAnimationName: m ? m.animationName : 'missing',
+      menuAnimationDuration: m ? m.animationDuration : 'missing',
+      menuTransform: m ? m.transform : 'missing',
+      ambientAnimationName: a ? a.animationName : 'missing',
+      ambientPlayState: a ? a.animationPlayState : 'missing',
+      transitionProperty: getComputedStyle(icon).transitionProperty,
+    };
+  });
+  if (!rm.mediaMatches || rm.menuAnimationName === 'none' || rm.menuAnimationDuration === '0s' || rm.menuTransform !== 'none' || rm.ambientPlayState !== 'paused') {
+    throw new Error('reduced-motion regression: ' + JSON.stringify(rm));
+  }
   console.log('reduced-motion:', JSON.stringify(rm));
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => document.body.classList.remove('native-content-visible'));
   await page.screenshot({ path: path.join(__dirname, 'tmp1024', 'reduced-motion-hero.png') });
 
   // perf-режим (S.prefs.gfx='perf') — контроль: что отключает

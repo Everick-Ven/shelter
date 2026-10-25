@@ -4786,9 +4786,41 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 }
 
 
-/* ТЗ Ф3: системное снижение анимации — без перемещений/масштабирования;
-   смена прозрачности и цвета остаётся, чтобы состояния читались. */
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition-property:opacity,color,background-color,border-color,box-shadow,outline-color!important;transition-duration:.15s!important}}
+/* ТЗ Ф3: системное снижение анимации — сохраняем fade и имена UI-анимаций,
+   но убираем перемещения/масштабирование из keyframes. Переходы оставляем
+   только по opacity/цвету; бесконечный ambient ставим на паузу. */
+@media(prefers-reduced-motion:reduce){
+  *{transition-property:opacity,color,background-color,border-color,box-shadow,outline-color!important;transition-duration:.15s!important}
+  @keyframes amb1{to{transform:none}}
+  @keyframes amb2{to{transform:none}}
+  @keyframes tabIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes viewIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes rise{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes heroIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes breathe{0%,100%{opacity:.78;transform:none}50%{opacity:1;transform:none}}
+  @keyframes pdot{0%{opacity:.9;transform:none}70%,100%{opacity:0;transform:none}}
+  @keyframes menuIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes menuOut{to{opacity:0;transform:none}}
+  @keyframes modalIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes modalOut{to{opacity:0;transform:none}}
+  @keyframes dlfIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes toastIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes toastOut{to{opacity:0;transform:none}}
+  @keyframes tipIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes tipOut{to{opacity:0;transform:none}}
+  @keyframes growX{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes dlSweep{0%{opacity:.65;transform:none}100%{opacity:1;transform:none}}
+  @keyframes slideL{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes slideR{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes dayIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes bubIn{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes ring{from{opacity:.8;transform:none}to{opacity:0;transform:none}}
+  @keyframes shimmer{from{opacity:.45;transform:none}to{opacity:1;transform:none}}
+  @keyframes think{0%,100%{opacity:.5;transform:none}50%{opacity:1;transform:none}}
+  @keyframes viewInGlass{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  @keyframes riseGlass{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+  .ambient i{animation-play-state:paused!important}
+}
 
 /* ТЗ Ф3/критерий 5: командная палитра (Ctrl+K) — горячий клавиатурный путь,
    открывается и закрывается без анимации (как панель поиска и вкладки). */

@@ -166,6 +166,9 @@ assert(html.includes('Дата начала не может быть позже 
 assert(!html.includes("downloadFile('shelter-tasks.json'"), 'the legacy task export path does not generate plaintext JSON');
 assert(html.includes("'shelter-tasks-backup-'+wpDateKey(Date.now())+'.shelter'"), 'task exports share the .shelter extension with browser backups');
 assert(!html.includes("downloadFile('shelter-planner-migration-backup.shelter',raw)"), 'the technical migration snapshot is password-protected too');
+const loadStart=html.indexOf('function load() {'),loadEnd=html.indexOf('\nlet _visitsAt',loadStart),loadSource=html.slice(loadStart,loadEnd);
+assert(loadSource.includes('const encrypted = wpStoreEncrypt(payload)') && !loadSource.includes('store.set(copyKey, payload)'), 'unreadable-store snapshots use the protected store and have no plaintext fallback');
+assert(html.includes('const encrypted=wpStoreEncrypt(text)') && !html.includes('store.set(backupKey,payload)'), 'new migration and pre-import backups are encrypted; index failures do not write raw JSON fallbacks');
 const taskImportFn = html.slice(html.indexOf('function wpImportFile()'), html.indexOf('function wpReviewSelect('));
 assert(taskImportFn.includes("input.type='file'") && !taskImportFn.includes('input.accept'), 'the task picker stays unfiltered so .shelter files remain selectable');
 const downloadFileSource = html.slice(html.indexOf('function downloadFile('), html.indexOf('\n/* =========================================================\n   ДАШБОРД', html.indexOf('function downloadFile(')));
@@ -267,7 +270,7 @@ globalThis.__api = {
   wpNormalizeBoard, wpStoreEncrypt, wpStoreDecrypt, wpStoreParse, wpMigrateTaskStores, wpFinalizeTaskMigration,
   wpSetStatusRef, wpSetTaskStatus, wpRequestStatusChange, wpTaskTransferBoards, wpTaskProjectId, wpTaskProjectChoices, wpExportBoardProjects, wpExportPayload, wpSelfTaskId, wpTaskContacts, wpSaveTaskContact, wpTaskContactOptionsHtml, wpApplyTransferRemap, wpPersonName, wpPersonContactId, wpMakePerson, wpBoardPersonIndex, wpBoardAddPerson, wpBoardPersonIndexById, wpDeleteTaskContact, wpContactIdUsedAnywhere, wpPeopleFor, wpPeopleArrayForScope, wpNormalizePeopleArray, wpEnsureProjectPeople, wpPersonIndexIn, wpPersonIndexByIdIn, wpPeopleArrayAddPerson, wpScopeAddPerson, wpPersonIdTaken, wpPersonNameById, wpAssigneeOptions,
   wpEncryptTaskPayload, wpDecryptTaskPayload, wpReadTaskExportBoards, wpMergeImportedProjects, wpMergeImportedTaskData, wpApplyImportedTaskData,
-  wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
+  wpCreatePreImportBackup, wpTaskPayloadFromMigrationBackupFile, wpDownloadMigrationBackup
 };`, context, { timeout: 5000 });
 const api = context.__api;
 
@@ -1815,6 +1818,19 @@ assert.strictEqual(JSON.parse(api.wpStoreDecrypt(data.get('shelter:boards'))).cu
 assert.strictEqual(data.has('shelter:eisenTasks'), false, 'legacy standalone matrix data is removed only after verified v8 persistence');
 assert(data.has(backupKey), 'the original migration backup remains available after migration');
 
+// A matching legacy plaintext checkpoint is re-encrypted without changing its saved raw values.
+data.clear();
+const legacyCheckpointRaw = { 'shelter:board': rawBoard, 'shelter:boards': rawRegistry, 'shelter:eisenTasks': JSON.stringify([{ id: 'loose-matrix-task', title: 'Отдельный список', qm: 2 }]), eisenTasks: null };
+const legacyCheckpointText = JSON.stringify({ kind: 'SHELTER_PLANNER_MIGRATION_BACKUP', schemaVersion: 8, createdAt: '2026-10-01T00:00:00.000Z', raw: legacyCheckpointRaw });
+data.set('shelter:board', rawBoard);
+data.set('shelter:boards', rawRegistry);
+data.set('shelter:eisenTasks', legacyCheckpointRaw['shelter:eisenTasks']);
+data.set('shelter:planner:migration-backup:v6', legacyCheckpointText);
+Object.assign(state, { board: JSON.parse(rawBoard), boards: [JSON.parse(rawBoard)], boardsMeta: {}, boardId: 'board-1', taskMigrationOK: true, taskMigrationPending: false, taskMigrationPendingKeys: [], taskMigrationBackupKey: '' });
+assert.strictEqual(api.wpMigrateTaskStores(registry), true);
+assert(data.get('shelter:planner:migration-backup:v6').startsWith('ss1:'), 'a validated legacy plaintext migration checkpoint is encrypted before migration proceeds');
+assert.strictEqual(api.wpStoreDecrypt(data.get('shelter:planner:migration-backup:v6')), legacyCheckpointText, 'checkpoint contents remain readable and unchanged after encryption');
+
 // Schema v6 data is migrated with a verified backup, folding task and occurrence calendar ends into deadlines.
 const v6Board = {
   id: 'board-v6', name: 'Доска v6', code: 'SHTR-V6', taskSchemaVersion: 6,
@@ -1869,6 +1885,27 @@ assert.strictEqual(state.taskMigrationOK, false);
 assert.strictEqual(data.get('shelter:board'), rawBoard);
 assert.strictEqual(data.get('shelter:boards'), rawRegistry);
 context.__denyBackup = false;
+
+// If only the migration-backup index write fails, keep the verified backup encrypted and block migration.
+data.clear();
+data.set('shelter:board', rawBoard);
+data.set('shelter:boards', rawRegistry);
+Object.assign(state, {
+  board: JSON.parse(rawBoard), boards: [JSON.parse(rawBoard)], boardId: 'board-1', boardsMeta: {},
+  taskMigrationOK: true, taskMigrationPending: false, taskMigrationError: '', taskMigrationPendingKeys: []
+});
+context.__failNextStoreKey = 'shelter:planner:migration-backup:latest';
+assert.strictEqual(api.wpMigrateTaskStores(registry), false, 'a failed migration-backup index write must stop migration');
+assert.strictEqual(state.taskMigrationOK, false);
+assert.strictEqual(data.get('shelter:board'), rawBoard, 'source board stays untouched when the index write fails');
+assert.strictEqual(data.get('shelter:boards'), rawRegistry, 'source registry stays untouched when the index write fails');
+const unindexedBackup = data.get('shelter:planner:migration-backup:v6');
+assert(unindexedBackup && unindexedBackup.startsWith('ss1:'), 'the written-but-unindexed migration backup remains encrypted');
+const unindexedPayload = JSON.parse(api.wpStoreDecrypt(unindexedBackup));
+assert.strictEqual(unindexedPayload.kind, 'SHELTER_PLANNER_MIGRATION_BACKUP');
+assert(![...data.values()].includes(JSON.stringify(unindexedPayload)), 'the index failure path never writes a plaintext fallback');
+api.wpDownloadMigrationBackup();
+assert(context.__lastModalHtml.includes('Техническая копия содержит исходные данные всех досок.'), 'the unindexed encrypted backup remains discoverable for export');
 
 data.clear();
 const corrupt = '{broken-json';
@@ -2133,6 +2170,15 @@ assert(html.includes("secTitle('Исполнители')") && html.includes("sec
   const migrationPayload = api.wpTaskPayloadFromMigrationBackupFile(decryptedMigration);
   assert(migrationPayload && api.wpReadTaskExportBoards(migrationPayload), 'a correctly decrypted technical migration backup is converted to a validated task payload');
   assert(api.wpReadTaskExportBoards(migrationPayload).some(board => board.tasks.some(task => task.id === 'loose-eisen')), 'loose legacy tasks are preserved when importing a migration snapshot');
+  const unreadableStoreBackup = {
+    kind: 'SHELTER_UNREADABLE_TASK_STORE_BACKUP', schemaVersion: 8,
+    raw: {
+      'shelter:board': 'ss1:' + JSON.stringify(boardA),
+      'shelter:boards': 'ss1:' + JSON.stringify({ id: 'board-a', boards: [boardA] })
+    }
+  };
+  const unreadablePayload = api.wpTaskPayloadFromMigrationBackupFile({ kind: 'SHELTER_PLANNER_MIGRATION_BACKUP_FILE', migrationBackupText: JSON.stringify(unreadableStoreBackup) });
+  assert(unreadablePayload && api.wpReadTaskExportBoards(unreadablePayload), 'an encrypted unreadable-store snapshot can be exported and recovered after the OS key becomes available');
 
   const existing = {
     id: 'board-a', name: 'Рабочая доска', code: 'BOARD-A', taskSchemaVersion: 7, people: ['Борис'],
@@ -2191,6 +2237,18 @@ assert(html.includes("secTitle('Исполнители')") && html.includes("sec
   const fullDecrypted=await api.wpDecryptTaskPayload(fullEnvelope,'Transfer code on two devices');
   const fullSourceBoards=api.wpReadTaskExportBoards(fullDecrypted);
   assert(fullSourceBoards&&fullSourceBoards.length===2,'a decrypted full export passes payload validation before import');
+  context.__failSecret=true;
+  assert.strictEqual(await api.wpApplyImportedTaskData(fullDecrypted,fullSourceBoards,'all',[]),false,'task import is cancelled when the pre-import backup cannot be encrypted');
+  assert.strictEqual(data.get('shelter:board'),storedLocalRaw,'failed pre-import encryption leaves the board untouched');
+  assert.strictEqual(data.get('shelter:boards'),storedRegistryRaw,'failed pre-import encryption leaves the registry untouched');
+  assert(![...data.keys()].some(key=>String(key).startsWith('shelter:planner:preimport-backup:')),'failed pre-import encryption writes no backup');
+  context.__failSecret=false;
+  context.__failNextStoreKey='shelter:planner:preimport-backup:latest';
+  assert.strictEqual(api.wpCreatePreImportBackup(),'','a failed pre-import index write aborts the backup');
+  const unindexedPreImport=[...data.entries()].find(([key])=>String(key).startsWith('shelter:planner:preimport-backup:')&&!String(key).endsWith(':latest'));
+  assert(unindexedPreImport&&unindexedPreImport[1].startsWith('ss1:'),'an unindexed pre-import snapshot remains encrypted');
+  assert(![...data.values()].includes(JSON.stringify(JSON.parse(api.wpStoreDecrypt(unindexedPreImport[1])))),'pre-import index failure never writes a plaintext fallback');
+  for(const key of [...data.keys()]) if(String(key).startsWith('shelter:planner:preimport-backup:')) data.delete(key);
   const applied=await api.wpApplyImportedTaskData(fullDecrypted,fullSourceBoards,'all',[]);
   assert.strictEqual(applied,true,'a correctly decrypted full export is applied after confirmation and backup');
   assert.strictEqual(state.boardId,'foreign-board','a newly imported board becomes active so its tasks are visible on another device');
@@ -2207,7 +2265,10 @@ assert(html.includes("secTitle('Исполнители')") && html.includes("sec
   assert(state.boards.some(board=>board.id==='other-board'),'unrelated local boards survive the full import');
   assert.strictEqual(state.boardsMeta.retainedMetaValue,true);assert.strictEqual(state.boardsMeta.remoteOnlyMeta,true);
   const preImportKey=data.get('shelter:planner:preimport-backup:latest');
-  const preImport=JSON.parse(data.get(preImportKey));
+  const preImportStored=data.get(preImportKey);
+  assert(preImportStored&&preImportStored.startsWith('ss1:'),'pre-import backups are encrypted at rest');
+  const preImport=JSON.parse(api.wpStoreDecrypt(preImportStored));
+  assert.notStrictEqual(preImportStored,JSON.stringify(preImport),'the stored pre-import backup is wrapped by ss1 encryption');
   assert.strictEqual(preImport.kind,'SHELTER_PLANNER_PRE_IMPORT_BACKUP');
   assert.strictEqual(preImport.raw['shelter:board'],storedLocalRaw,'the exact original local board is backed up before import');
   assert.strictEqual(preImport.raw['shelter:boards'],storedRegistryRaw,'the exact original local registry is backed up before import');

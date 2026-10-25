@@ -20,6 +20,7 @@
   var USE_WINDOWS_MASK = PLATFORM === 'win32';
   var USE_CLIP = USE_HOLES || USE_WINDOWS_MASK;
   var VERSION = '__APP_VERSION__';
+  var BUILD_TIMESTAMP = '__APP_BUILD_TIMESTAMP__';
   var root = document.documentElement;
   var DIAGNOSTICS_ENABLED = '__SHELTER_CI_HOOKS__' === 'true';
   var PERF_METHODS = Object.create(null);
@@ -717,6 +718,7 @@
     distributionChannel: DISTRIBUTION_CHANNEL,
     isDevelopment: IS_DEVELOPMENT_BUILD,
     version: VERSION,
+    buildTimestamp: BUILD_TIMESTAMP,
     isContentVisible: function () { return !!st.visible && !st.frozen && !st.busy; },
     getPremiumEntitlement: function () { return q('premium.status'); },
     startPremiumCheckout: function (planId) { return q('premium.checkout', { planId: planId || '' }); },

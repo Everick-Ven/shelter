@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-7uiukNQzNInJKPdEIuhUPHmY3NiDScGjGYhK4Yx+gk4=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-8Cpr5SJe69LRSJ9QrwCEfZDGMpdaIdDHKI27qy50Zr8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-hUYs2TQLlrBvR+E5NLz9pMfhwHFLwyW57eKRtfH6l20=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-8Cpr5SJe69LRSJ9QrwCEfZDGMpdaIdDHKI27qy50Zr8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none'; ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -5776,6 +5776,20 @@ const greeting = () => { const h = new Date().getHours(); return h >= 5 && h < 1
    ========================================================= */
 const DEMO = false;             // пустой первый запуск — без демо-пространств и задач
 const VERSION = (window.shelterNative && window.shelterNative.version) || 'dev';
+const BUILD_TIMESTAMP = (window.shelterNative && window.shelterNative.buildTimestamp) || '';
+const BUILD_STALE_AFTER_DAYS = 90;
+function shelterBuildIsStale(buildTimestamp, nowMs) {
+  const match = String(buildTimestamp || '').match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
+  if (!match) return false;
+  const parts = match.slice(1).map(Number);
+  const [year, month, day, hour, minute, second] = parts;
+  if (year < 2000 || month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) return false;
+  const builtAt = Date.UTC(year, month - 1, day, hour, minute, second);
+  const builtDate = new Date(builtAt);
+  if (builtDate.getUTCFullYear() !== year || builtDate.getUTCMonth() !== month - 1 || builtDate.getUTCDate() !== day) return false;
+  const now = Number.isFinite(nowMs) ? nowMs : Date.now();
+  return now >= builtAt + BUILD_STALE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+}
 /* платформа и локализация (1.0.113): Mac и Windows — как русский и английский */
 const IS_MAC = ((window.shelterNative && window.shelterNative.platform) || navigator.platform || '').indexOf('darwin') >= 0 || /^Mac/.test(navigator.platform || '');
 const PLAT_NAME = IS_MAC ? 'macOS (Intel)' : 'Windows 11 x64';
@@ -6237,10 +6251,16 @@ function load() {
   if (taskStoreParseError) {
     const copyKey = 'shelter:planner:unreadable-store-backup:' + Date.now();
     const payload = JSON.stringify({ kind: 'SHELTER_UNREADABLE_TASK_STORE_BACKUP', schemaVersion: WP_SCHEMA, createdAt: new Date().toISOString(), raw: { 'shelter:board': rawBoardStore, 'shelter:boards': rawBoardsStore } });
-    store.set(copyKey, payload);
-    if (store.get(copyKey) === payload) store.set('shelter:planner:migration-backup:latest', copyKey);
+    const encrypted = wpStoreEncrypt(payload);
+    if (encrypted) {
+      store.set(copyKey, encrypted);
+      if (store.get(copyKey) === encrypted) {
+        S.taskMigrationBackupKey = copyKey;
+        store.set('shelter:planner:migration-backup:latest', copyKey);
+      }
+    }
     S.taskMigrationOK = false;
-    S.taskMigrationError = taskStoreParseError + (store.get(copyKey) === payload ? ' Снимок исходных ключей сохранён; задачи доступны только для чтения.' : ' Исходные ключи не перезаписывались, режим задач — только для чтения.');
+    S.taskMigrationError = taskStoreParseError + (encrypted && store.get(copyKey) === encrypted ? ' Зашифрованный снимок исходных ключей сохранён; задачи доступны только для чтения.' : ' Исходные ключи не перезаписывались; не удалось сохранить зашифрованный снимок, задачи доступны только для чтения.');
   }
   const ext = store.json('shelter:ext', null);
   const lux = store.json('shelter:lux', {}) || {};
@@ -8851,10 +8871,8 @@ function closeGhostTabs() {
   S.downloads = (S.downloads || []).filter(x => !(x && x.ghost));
   const sp = S.spaces[S.currentSpace] || Object.values(S.spaces)[0];
   if (sp && sp.tabs.length) {
-    if (!sp.tabs.find(t => t.id === S.activeTabId)) {
-      S.activeTabId = sp.tabs[0].id;
-      renderTabs(); renderView(true, -1);
-    } else renderTabs();
+    if (!sp.tabs.find(t => t.id === S.activeTabId)) S.activeTabId = sp.tabs[0].id;
+    renderTabs();
   }
   try { refreshPage('tabs'); } catch (_) {}
   return n;
@@ -8873,7 +8891,13 @@ async function toggleGhost(force) {
   if (S.ghost) captureProfileUnlocks(achievementBefore.d);
   S.ghost = v;
   let closed = 0;
-  if (!v) closed = closeGhostTabs();
+  if (v) {
+    const active = curTab();
+    if (active) active.ghost = true;
+  } else closed = closeGhostTabs();
+  // Rebind the active native view immediately: the next navigation may not
+  // happen for a long time, and the old partition could otherwise persist data.
+  renderView(false, 0);
   saveNow();
   reconcileProfileAchievementChange(achievementBefore);
   syncSwitches(); updateToolbar(); renderHeroBits(); refreshPage('profile');
@@ -12864,7 +12888,9 @@ function settingsHtml() {
         <div class="logo" style="width:54px;height:54px;border-radius:calc(16px*var(--rs))"><svg viewBox="0 0 24 24" style="width:28px;height:28px"><path d="M16.5 5.5H10a3.25 3.25 0 0 0 0 6.5h4a3.25 3.25 0 0 1 0 6.5H7.5"/></svg></div>
         <div style="flex:1"><b style="font:600 16px var(--font-d);letter-spacing:.14em">SHELTER</b><div class="muted" style="font-size:12.5px;margin-top:4px">Версия ${VERSION} · ${PLAT_NAME} · разработчик Golubev & Kulkov</div></div>
         ${btn('update', 'Проверить обновления')}
-      </div></section>
+      </div>
+      ${shelterBuildIsStale(BUILD_TIMESTAMP, Date.now()) ? `<div class="set-card" role="status" aria-live="polite" style="margin-top:10px;padding:14px 18px"><b>Сборка старше 90 дней</b><div class="muted" style="margin-top:5px">Предупреждение рассчитано офлайн по дате сборки и не подтверждает наличие обновления. Перед использованием проверьте актуальный релиз и его подпись.</div></div>` : ''}
+      </section>
     </div></div></div>`;
   return html;
 }
@@ -13936,7 +13962,17 @@ function cycleTab(dir) {
 }
 window.getAllTabIds = () => { const a = []; Object.values(S.spaces).forEach(sp => (sp.tabs || []).forEach(t => a.push(t.id))); return a; };
 window.getActiveTabId = () => S.activeTabId;
-window.__shelterTab = id => { const ks = Object.keys(S.spaces || {}); for (const k of ks) { const t = (S.spaces[k].tabs || []).find(x => x.id === id); if (t) return { space: k, ghost: !!(t.ghost || S.ghost) }; } return { space: S.currentSpace, ghost: !!S.ghost }; };
+window.__shelterTab = id => {
+  const ks = Object.keys(S.spaces || {});
+  for (const k of ks) {
+    const t = (S.spaces[k].tabs || []).find(x => x.id === id);
+    if (t) {
+      if (S.ghost) t.ghost = true;
+      return { space: k, ghost: !!(t.ghost || S.ghost) };
+    }
+  }
+  return { space: S.currentSpace, ghost: !!S.ghost };
+};
 window.navigate = v => navigate(v);
 window.newTab = u => {
   const url = (u && typeof u === 'object') ? (u.url || 'shelter.dev/start') : (u ? resolveInput(u) : undefined);
@@ -15240,11 +15276,11 @@ function wpMigrateTaskStores(registry) {
   const keys=['shelter:board','shelter:boards','shelter:eisenTasks','eisenTasks'];
   const backupKey='shelter:planner:migration-backup:v6';
   const raw={}; keys.forEach(k=>raw[k]=store.get(k));
+  const oldBackup=store.get(backupKey);
   let backupValid=false;
-  try { const old=store.get(backupKey), parsed=old&&wpStoreParse(old).value; backupValid=!!(parsed && parsed.kind==='SHELTER_PLANNER_MIGRATION_BACKUP' && parsed.schemaVersion===WP_SCHEMA && wpIsObj(parsed.raw) && keys.every(k=>Object.prototype.hasOwnProperty.call(parsed.raw,k) && parsed.raw[k]===raw[k])); } catch(_){}
+  try { const parsed=oldBackup&&wpStoreParse(oldBackup).value; backupValid=!!(parsed && parsed.kind==='SHELTER_PLANNER_MIGRATION_BACKUP' && parsed.schemaVersion===WP_SCHEMA && wpIsObj(parsed.raw) && keys.every(k=>Object.prototype.hasOwnProperty.call(parsed.raw,k) && parsed.raw[k]===raw[k])); } catch(_){}
   if(!backupValid) {
     const payload=JSON.stringify({kind:'SHELTER_PLANNER_MIGRATION_BACKUP',schemaVersion:WP_SCHEMA,createdAt:new Date().toISOString(),raw});
-    const oldBackup=store.get(backupKey);
     let target=backupKey;
     if(oldBackup) target=backupKey+':'+Date.now();
     const blob=wpStoreEncrypt(payload);
@@ -15258,11 +15294,21 @@ function wpMigrateTaskStores(registry) {
     if(target!==backupKey && !oldBackup) store.set(backupKey,blob);
     store.set('shelter:planner:migration-backup:latest',target);
     if(store.get('shelter:planner:migration-backup:latest')!==target) {
-      store.set(backupKey,payload);
-      if(store.get(backupKey)!==payload) { S.taskMigrationOK=false; S.taskMigrationError='Резервная копия создана, но не удалось закрепить её индекс. Данные оставлены без записи; включён режим только для чтения.'; return false; }
-      S.taskMigrationBackupKey=backupKey; store.set('shelter:planner:migration-backup:latest',backupKey);
+      S.taskMigrationOK=false;
+      S.taskMigrationBackupKey=target;
+      S.taskMigrationError='Зашифрованная копия создана, но не удалось записать её индекс. Исходные данные не изменены; задачи оставлены только для чтения. Не удаляйте локальные данные.';
+      return false;
     }
-  } else { S.taskMigrationBackupKey=backupKey; store.set('shelter:planner:migration-backup:latest',backupKey); }
+  } else {
+    S.taskMigrationBackupKey=backupKey;
+    if(typeof oldBackup==='string'&&!/^(ss1:|p1:)/.test(oldBackup)) {
+      const encryptedOld=wpStoreEncrypt(oldBackup);
+      if(!encryptedOld) { S.taskMigrationOK=false; S.taskMigrationError='Старая резервная копия задач остаётся открытым текстом, а зашифровать её не удалось. Доска не изменена; режим задач — только для чтения.'; return false; }
+      store.set(backupKey,encryptedOld);
+      if(store.get(backupKey)!==encryptedOld) { S.taskMigrationOK=false; S.taskMigrationError='Старую резервную копию не удалось безопасно зашифровать. Исходные данные не изменены; режим задач — только для чтения.'; return false; }
+    }
+    store.set('shelter:planner:migration-backup:latest',backupKey);
+  }
   const out=[], byId=new Map();
   sourceBoards.forEach(b=>{
     const key=b.id ? String(b.id) : `__anonymous_${out.length}`;
@@ -18057,10 +18103,18 @@ function wpOpenMigrationBackupExport(raw,currentSnapshot=false) {
 }
 function wpDownloadMigrationBackup() {
   const latest=store.get('shelter:planner:migration-backup:latest');
-  let raw=(latest&&store.get(latest))||store.get('shelter:planner:migration-backup:v6')||store.get('shelter:planner:migration-backup:v5')||store.get('shelter:planner:migration-backup:v4'),currentSnapshot=false;
-  if(!raw) {
-    try { const keys=Object.keys(window.localStorage||{}).filter(k=>k.startsWith('shelter:planner:migration-backup:v6:')||k.startsWith('shelter:planner:migration-backup:v5:')||k.startsWith('shelter:planner:migration-backup:v4:')); const candidates=keys.map(k=>({key:k,value:store.get(k)})).filter(x=>x.value).sort((a,b)=>{try{return JSON.parse(b.value).createdAt.localeCompare(JSON.parse(a.value).createdAt)}catch(_){return b.key.localeCompare(a.key)}}); raw=candidates[0]&&candidates[0].value; } catch(_) {}
-  }
+  const preferredKey=S.taskMigrationBackupKey||latest,preferredRaw=preferredKey&&store.get(preferredKey);
+  const keys=new Set([preferredKey,'shelter:planner:migration-backup:v6','shelter:planner:migration-backup:v5','shelter:planner:migration-backup:v4'].filter(Boolean));
+  try { Object.keys(window.localStorage||{}).filter(k=>k.startsWith('shelter:planner:migration-backup:v6:')||k.startsWith('shelter:planner:migration-backup:v5:')||k.startsWith('shelter:planner:migration-backup:v4:')||k.startsWith('shelter:planner:unreadable-store-backup:')).forEach(k=>keys.add(k)); } catch(_) {}
+  const candidates=[...keys].map(key=>{
+    const value=store.get(key); if(!value) return null;
+    const parsed=wpStoreParse(value);
+    return parsed.ok&&wpIsObj(parsed.value)&&['SHELTER_PLANNER_MIGRATION_BACKUP','SHELTER_UNREADABLE_TASK_STORE_BACKUP'].includes(parsed.value.kind)
+      ? {key,value,createdAt:String(parsed.value.createdAt||'')} : null;
+  }).filter(Boolean).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||b.key.localeCompare(a.key));
+  let raw=preferredRaw&&wpStoreParse(preferredRaw).reason==='key' ? preferredRaw : candidates[0]&&candidates[0].value;
+  if(!raw) raw=preferredRaw||store.get('shelter:planner:migration-backup:v6')||store.get('shelter:planner:migration-backup:v5')||store.get('shelter:planner:migration-backup:v4');
+  let currentSnapshot=false;
   if(!raw) {
     const keys=['shelter:board','shelter:boards','shelter:eisenTasks','eisenTasks'],snapshotRaw={};
     keys.forEach(key=>snapshotRaw[key]=store.get(key));
@@ -18085,7 +18139,10 @@ function wpCreatePreImportBackup() {
   const key='shelter:planner:preimport-backup:'+Date.now();
   const raw={}; ['shelter:board','shelter:boards','shelter:eisenTasks','eisenTasks'].forEach(k=>raw[k]=store.get(k));
   const text=JSON.stringify({kind:'SHELTER_PLANNER_PRE_IMPORT_BACKUP',schemaVersion:WP_SCHEMA,createdAt:new Date().toISOString(),raw});
-  store.set(key,text); if(store.get(key)!==text) return ''; store.set('shelter:planner:preimport-backup:latest',key); return store.get('shelter:planner:preimport-backup:latest')===key ? key : '';
+  const encrypted=wpStoreEncrypt(text); if(!encrypted) return '';
+  store.set(key,encrypted); if(store.get(key)!==encrypted) return '';
+  store.set('shelter:planner:preimport-backup:latest',key);
+  return store.get('shelter:planner:preimport-backup:latest')===key ? key : '';
 }
 function wpReadTaskExportBoards(obj) {
   if(!wpIsObj(obj)||obj.app!=='SHELTER'||!Number.isInteger(obj.exportSchemaVersion)||obj.exportSchemaVersion<1||obj.exportSchemaVersion>WP_SCHEMA||!Number.isInteger(obj.taskSchemaVersion)||obj.taskSchemaVersion<1||obj.taskSchemaVersion>WP_SCHEMA) return null;
@@ -18264,8 +18321,8 @@ async function wpApplyImportedTaskData(obj,sourceBoards,mode,selection) {
 function wpTaskPayloadFromMigrationBackupFile(value) {
   if(!wpIsObj(value)||value.kind!=='SHELTER_PLANNER_MIGRATION_BACKUP_FILE'||typeof value.migrationBackupText!=='string') return null;
   let backup;try { backup=JSON.parse(value.migrationBackupText); } catch(_) { return null; }
-  if(!wpIsObj(backup)||backup.kind!=='SHELTER_PLANNER_MIGRATION_BACKUP'||!wpIsObj(backup.raw)) return null;
-  const parseStored=key=>{const raw=backup.raw[key];if(raw==null||raw==='')return null;if(typeof raw==='string'){try{return JSON.parse(raw);}catch(_){return null;}}return raw;};
+  if(!wpIsObj(backup)||!['SHELTER_PLANNER_MIGRATION_BACKUP','SHELTER_UNREADABLE_TASK_STORE_BACKUP'].includes(backup.kind)||!wpIsObj(backup.raw)) return null;
+  const parseStored=key=>{const raw=backup.raw[key];if(raw==null||raw==='')return null;if(typeof raw==='string'){const parsed=wpStoreParse(raw);return parsed.ok?parsed.value:null;}return raw;};
   const boardValue=parseStored('shelter:board'),registry=parseStored('shelter:boards');
   let boards=wpIsObj(registry)&&Array.isArray(registry.boards)?registry.boards.filter(wpIsObj).map(wpClone):[];
   if(wpIsObj(boardValue)) {const index=boards.findIndex(board=>String(board.id||'')===String(boardValue.id||''));if(index>=0)boards[index]=wpClone(boardValue);else boards.unshift(wpClone(boardValue));}

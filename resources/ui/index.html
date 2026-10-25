@@ -728,6 +728,10 @@ html[data-theme="ivory"] .omni,html[data-theme="porcelain"] .omni,html[data-them
 .omni-sheen{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;z-index:0}
 .omni-body{position:relative;z-index:2;padding:16px 14px 12px 16px}
 .omni textarea{display:block;width:100%;resize:none;background:none;border:0;outline:0;color:var(--text);font:400 16px/1.55 var(--font);
+/* ТЗ §2.9: у поля экспресс-панели не бывает собственной рамки фокуса —
+   индикатором служит свечение карточки #omni. Защита от UA-стилей и будущих
+   правил глобального фокуса (снимает «белую рамку» любой природы). */
+#heroInput:focus,#heroInput:focus-visible{outline:none;box-shadow:none;border-color:transparent;background:transparent}
   padding:3px 6px 0;min-height:32px;max-height:170px;caret-color:rgb(var(--ga));overflow-y:auto}
 .omni textarea::placeholder{color:var(--text-3)}
 .omni-row{display:flex;align-items:center;gap:8px;margin-top:14px}

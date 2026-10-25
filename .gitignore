@@ -13,3 +13,4 @@ __pycache__/
 /extension-engine-test
 /color-scheme-test
 /secret-crypto-test
+*.key

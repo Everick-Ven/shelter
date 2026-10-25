@@ -1,1 +1,0 @@
-# OWNER ACTION REQUIRED: replace this placeholder with the offline-generated minisign public-key file before enabling release signing. See docs/release-key.md.

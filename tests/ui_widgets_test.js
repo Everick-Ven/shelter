@@ -14,6 +14,10 @@ const pickerStart = html.indexOf('function openWidgetPicker(anchor)');
 const pickerEnd = html.indexOf('\nfunction openWidgetAddMenu(anchor)', pickerStart);
 assert(pickerStart >= 0 && pickerEnd > pickerStart, 'the widget picker implementation must be present');
 const pickerSource = html.slice(pickerStart, pickerEnd);
+const addMenuStart = html.indexOf('function openWidgetAddMenu(anchor)');
+const addMenuEnd = html.indexOf('\nRENDER.messenger =', addMenuStart);
+assert(addMenuStart >= 0 && addMenuEnd > addMenuStart, 'the widget add menu implementation must be present');
+const addMenuSource = html.slice(addMenuStart, addMenuEnd);
 const tickerStart = html.indexOf('function initPomodoroClock() {');
 const tickerEnd = html.indexOf('\nfunction pomoRenderTick', tickerStart);
 assert(tickerStart >= 0 && tickerEnd > tickerStart, 'the Pomodoro clock must have one global lifecycle');
@@ -28,13 +32,14 @@ assert(!html.slice(afterWidgetsStart, afterWidgetsEnd).includes('pomoTick'), 'wi
 // Exercise the widget picker in isolation: each row is a real accessible switch,
 // click state is persisted locally, and the global settings-switch handler is not used.
 const pickerMenus = [];
-let pickerPersists = 0, pickerRefreshes = 0;
+let pickerPersists = 0, pickerRefreshes = 0, pickerControlRenders = 0;
 const pickerButton = { id: 'wgShowBtn' };
 const pickerContext = {
   S: { ui: { widgets: { pomo: true, eff: false } } },
   $(selector) { return selector === '#wgShowBtn' ? pickerButton : null; },
   esc: value => String(value),
   ico: name => `<svg data-icon="${name}"></svg>`,
+  renderControls() { pickerControlRenders++; },
   persist() { pickerPersists++; },
   refreshPage(name) { assert.equal(name, 'widgets'); pickerRefreshes++; },
   openMenu(anchor, _items, options) {
@@ -56,14 +61,37 @@ const togglePickerRow = (menu, key) => menu.handler({
 });
 togglePickerRow(pickerMenus[0], 'pomo');
 assert.equal(pickerContext.S.ui.widgets.pomo, false, 'clicking the switch updates only the local widget preference');
+assert.equal(pickerControlRenders, 1, 'hiding Pomodoro immediately rerenders the global toolbar');
 assert.equal(pickerPersists, 1, 'widget visibility is persisted');
 assert.equal(pickerRefreshes, 1, 'the widget page is refreshed after a visibility change');
 assert.match(pickerMenus[1].html, /role="switch" aria-checked="false" aria-label="Помодоро"/, 'the refreshed menu announces the new switch state');
 assert(!pickerMenus[1].html.includes('class="sw-t on"'), 'the refreshed switch visual matches its off state');
 togglePickerRow(pickerMenus[1], 'eff');
 assert.equal(pickerContext.S.ui.widgets.eff, true, 'the second switch is interactive too');
+assert.equal(pickerControlRenders, 1, 'changing another widget does not rerender Pomodoro controls');
 assert.equal(pickerPersists, 2);
 assert.equal(pickerRefreshes, 2);
+
+const addMenus = [];
+let addMenuRenders = 0, addMenuPersists = 0, addMenuRefreshes = 0;
+const addMenuButton = { id: 'wgAddBtn' };
+const addMenuContext = {
+  S: { ui: { widgets: { pomo: true, eff: true, vk: false, telemost: false } } },
+  $(selector) { return selector === '#wgAddBtn' ? addMenuButton : null; },
+  openMenu(anchor, items, options) { addMenus.push({ anchor, items, options }); },
+  renderControls() { addMenuRenders++; },
+  persist() { addMenuPersists++; },
+  refreshPage(name) { assert.equal(name, 'widgets'); addMenuRefreshes++; },
+  toast() {}
+};
+vm.runInNewContext(addMenuSource + '\nglobalThis.__openWidgetAddMenu = openWidgetAddMenu;', addMenuContext, { timeout: 3000 });
+addMenuContext.__openWidgetAddMenu(addMenuButton);
+addMenus[0].items[0].run();
+assert.equal(addMenuContext.S.ui.widgets.pomo, false, 'the add menu also toggles local Pomodoro visibility');
+assert.equal(addMenuRenders, 1, 'the add menu immediately refreshes the toolbar when Pomodoro is disabled');
+assert.equal(addMenuPersists, 1);
+assert.equal(addMenuRefreshes, 1);
+assert.equal(addMenus.length, 2, 'the add menu reopens with the updated widget state');
 
 let clock = Date.UTC(2026, 9, 14, 12, 0, 0);
 class TestDate extends Date {
@@ -182,6 +210,10 @@ globalThis.__api = {
   const globalIndicator = first.api.pomoGlobalButtonHtml();
   assert(globalIndicator.includes('id="pomoGlobalBtn"') && globalIndicator.includes('pomo-global-ring'), 'the global toolbar indicator renders its progress ring');
   assert(globalIndicator.includes('aria-haspopup="dialog"') && globalIndicator.includes('aria-controls="pomoPopover"'), 'the global indicator has an accessible popover relationship');
+  first.state.ui.widgets.pomo = false;
+  assert.equal(first.api.pomoGlobalButtonHtml(), '', 'the global Pomodoro button is omitted when its widget is disabled');
+  first.state.ui.widgets.pomo = true;
+  assert(first.api.pomoGlobalButtonHtml().includes('id="pomoGlobalBtn"'), 'the global Pomodoro button remains available when enabled');
   const pomoSettings = moduleSource.slice(moduleSource.indexOf('async function openPomodoroSettings()'));
   assert(pomoSettings.includes('id="pomoSoundEnabled"') && pomoSettings.includes('pref.soundEnabled'), 'the default-on sound preference is user-configurable');
   assert(pomoSettings.includes("['#pomoShortMinutes', 1, 5") && pomoSettings.includes("['#pomoLongMinutes', 5, 30"), 'settings validation matches the accepted minute ranges');

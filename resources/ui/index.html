@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-0t212+xf8rkDhFa7X5GMshIPXdGpQQbiSWBD2kY3HOA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-JfAsJzZyGxdISZZQQjCqmn5Z1McyHQHr5m4OEbHNv8Y=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -4637,7 +4637,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .planner-page .wp-rail.is-collapsed .wp-nav-item{justify-content:center;gap:0;padding:0}
 .planner-page .wp-rail.is-collapsed .wp-nav-item>span,
 .planner-page .wp-rail.is-collapsed .wp-nav-item>i{display:none}
-.planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:center;padding:0}
+.planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:center;justify-content:center;padding:0}
 .planner-page .wp-rail.is-collapsed .wp-rail-footer span{justify-content:center;font-size:0;gap:0}
 
 /* Наверху — заголовок, поиск и действия; листается только правое содержимое. */
@@ -4816,7 +4816,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
   .planner-page .wp-rail.is-collapsed .wp-nav-item{justify-content:flex-start;gap:10px;padding:0 11px}
   .planner-page .wp-rail.is-collapsed .wp-nav-item>span{display:block}
   .planner-page .wp-rail.is-collapsed .wp-nav-item>i{display:grid}
-  .planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:stretch;padding:0 12px}
+  .planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:stretch;justify-content:flex-start;padding:0 12px}
   .planner-page .wp-rail.is-collapsed .wp-rail-footer span{justify-content:flex-start;gap:10px;font-size:11.5px}
   .wp-mobile-menu{
     display:grid;place-items:center;flex:none;width:34px;height:34px;padding:0;
@@ -10309,6 +10309,7 @@ function pomoRenderTick() {
   if (typeof pomoShowNotice === 'function') pomoShowNotice(P);
 }
 function pomoGlobalButtonHtml() {
+  if (S.ui && S.ui.widgets && !S.ui.widgets.pomo) return '';
   const P = pomoState(), dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100));
   const circumference = 2 * Math.PI * 9.5, label = `Помодоро · ${POMO_LABEL[P.mode]} · ${pomoFmt(P.remain)}`;
   return `<button type="button" class="ctl pomo-global${P.mode !== 'work' ? ' break' : ''}${P.pendingNotice ? ' has-notice' : ''}" id="pomoGlobalBtn" data-act="pomoGlobal" data-tip="${esc(label)} · Нажмите для управления" aria-label="${esc(label)}" aria-haspopup="dialog" aria-expanded="false" aria-controls="pomoPopover"><span class="pomo-global-ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="trk" cx="12" cy="12" r="9.5"/><circle class="val" cx="12" cy="12" r="9.5" style="stroke-dasharray:${(pct / 100 * circumference).toFixed(1)} ${circumference.toFixed(1)}"/></svg><i class="pomo-global-dot"></i></span><span class="pomo-global-time">${pomoFmt(P.remain)}</span></button>`;
@@ -10631,6 +10632,7 @@ function openWidgetPicker(anchor) {
     e.stopPropagation();
     const k = b.dataset.wgToggle;
     W[k] = !W[k];
+    if (k === 'pomo') renderControls();
     persist();
     refreshPage('widgets');
     openWidgetPicker($('#wgShowBtn') || target);
@@ -10641,7 +10643,7 @@ function openWidgetAddMenu(anchor) {
   const target = anchor || $('#wgAddBtn') || $('#wgShowBtn');
   if (!target) return;
   const items = [
-    { icon: 'timer', label: 'Помодоро', sub: W.pomo ? 'Уже на панели' : 'Включить виджет на панели', checked: !!W.pomo, keep: true, run: () => { W.pomo = !W.pomo; persist(); refreshPage('widgets'); openWidgetAddMenu($('#wgAddBtn')); } },
+    { icon: 'timer', label: 'Помодоро', sub: W.pomo ? 'Уже на панели' : 'Включить виджет на панели', checked: !!W.pomo, keep: true, run: () => { W.pomo = !W.pomo; renderControls(); persist(); refreshPage('widgets'); openWidgetAddMenu($('#wgAddBtn')); } },
     { icon: 'monitor', label: 'Менеджер эффективности', sub: W.eff ? 'Уже на панели' : 'Включить виджет на панели', checked: !!W.eff, keep: true, run: () => { W.eff = !W.eff; persist(); refreshPage('widgets'); openWidgetAddMenu($('#wgAddBtn')); } },
     '-',
     { icon: 'sparkles', label: 'Каталог новых виджетов', sub: 'Заметки, курсы валют и погода — в следующих обновлениях', run: () => toast('Новые виджеты появятся в ближайшем обновлении SHELTER', { icon: 'sparkles' }) }

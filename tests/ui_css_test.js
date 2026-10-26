@@ -223,12 +223,15 @@ check('кнопки футера модальных окон центриров�
   css.includes('.modal-f{display:flex;justify-content:center;gap:8px;'));
 
 // Keep the pre-existing task rail and Pomodoro visual contracts while using the updated release baseline.
-check('футер задач прижат к нижней границе и выровнен с пунктами навигации',
+check('футер задач закреплён снизу, а замок центрирован в свёрнутой панели',
   /\.planner-page \.wp-rail\{[^}]*position:sticky;top:0;[^}]*height:100%;[^}]*padding:12px 12px 0;/.test(taskLayoutStyle) &&
   /\.planner-page \.wp-rail-footer\{[^}]*flex-direction:row;[^}]*align-items:center;[^}]*margin-top:auto;[^}]*padding:0 12px;[^}]*font-size:11\.5px/.test(taskLayoutStyle) &&
   taskLayoutStyle.includes('.planner-page .wp-rail-footer span{display:flex;align-items:center;gap:10px;white-space:nowrap}') &&
   taskLayoutStyle.includes('.planner-page .wp-rail-footer .i{width:16px;height:16px;flex:none}') &&
   taskLayoutStyle.includes('.planner-page .wp-rail.is-collapsed{padding:12px 8px 0;') &&
+  taskLayoutStyle.includes('.planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:center;justify-content:center;padding:0}') &&
+  taskLayoutStyle.includes('@container shelter (max-width:900px)') &&
+  taskLayoutStyle.includes('.planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:stretch;justify-content:flex-start;padding:0 12px}') &&
   taskLayoutStyle.includes('width:min(288px,calc(100% - 40px));height:100%;padding:12px 12px 0;'));
 check('Pomodoro сохраняет крупное моноширинное кольцо и адаптивные сгруппированные кнопки',
   structureCss.includes('.pomo-ring{width:188px;height:188px}') &&
@@ -251,6 +254,14 @@ check('меню виджетов использует штатный перек�
   css.includes('.wg-picker-menu .mi.wg-toggle-row:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}') &&
   html.includes('data-wg-toggle="${key}" role="switch" aria-checked="${on}"') &&
   html.includes('W[k] = !W[k];') && html.includes("persist();\n    refreshPage('widgets');"));
+const controlsStart = html.indexOf('function renderControls() {');
+const controlsEnd = html.indexOf('\nfunction renderUser()', controlsStart);
+const controlsSource = controlsStart >= 0 && controlsEnd > controlsStart ? html.slice(controlsStart, controlsEnd) : '';
+check('верхний мини-таймер Pomodoro следует видимости виджета и обновляется при переключении',
+  html.includes("if (S.ui && S.ui.widgets && !S.ui.widgets.pomo) return '';") &&
+  controlsSource.includes('${pomoGlobalButtonHtml()}') &&
+  html.includes("if (k === 'pomo') renderControls();") &&
+  html.includes('W.pomo = !W.pomo; renderControls();'));
 check('Помодоро не содержит оставшейся визуальной разметки или CSS-индикаторов циклов',
   !css.includes('.pomo-cycle-dots') && !css.includes('.pomo-cycles{') &&
   !html.includes('pomoCycleProgress') && !html.includes('pomoCycleTip') && !html.includes('pomoCycles'));

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-Hzk5Mrn/VJWwes/eIrL7fPZNSizdsXXPhpS/qf//SD0=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-0t212+xf8rkDhFa7X5GMshIPXdGpQQbiSWBD2kY3HOA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -2538,9 +2538,6 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 .pomo-status:hover{ color:var(--text); border-color:var(--line-3); }
 .pomo-side{ flex:1; min-width:0; display:flex; flex-direction:column; gap:9px; }
 .pomo-side .btn{ width:100%; justify-content:center; }
-.pomo-cycles{ display:flex; align-items:center; gap:8px; color:var(--text-3); font-size:11px; margin-top:2px; }
-.pomo-cycles .i{ width:14px; height:14px; }
-.pomo-cycles b{ color:var(--text-2); font-weight:650; }
 
 .eff-body{ display:flex; flex-direction:column; gap:16px; flex:1; }
 .eff-top{ display:flex; align-items:center; gap:18px; }
@@ -2609,7 +2606,12 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 .wg-add-sm .i{ width:15px; height:15px; }
 .wg-bar-hint{ margin-left:auto; font-size:11.5px; color:var(--text-3); }
 @media (max-width:680px){ .wg-bar-hint{ display:none; } }
-.wg-picker-menu .mi .cbx{ margin-right:2px; flex:none; pointer-events:none; }
+.wg-picker-menu .mi.wg-toggle-row{gap:11px;min-height:48px}
+.wg-picker-menu .mi.wg-toggle-row>.lb{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0;white-space:normal}
+.wg-picker-menu .mi.wg-toggle-row>.lb>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wg-picker-menu .mi.wg-toggle-row>.lb small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-3);font-size:11.5px;line-height:1.35}
+.wg-picker-menu .mi.wg-toggle-row>.sw-t{margin-left:3px;pointer-events:none}
+.wg-picker-menu .mi.wg-toggle-row:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}
 
 /* --- Профиль: блок «Активировать ключ» --- */
 .profile-key-box{
@@ -3832,32 +3834,27 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 .pomo-notice-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:12px}
 .pomo-notice-actions>.btn{min-height:30px}
 
-/* Крупный читаемый циферблат и компактные кнопки; цикл остаётся счётчиком в данных. */
+/* Крупный читаемый циферблат и компактные кнопки; циклы используются только внутренне для расписания длинного перерыва. */
 .pomo-body{display:flex;align-items:center;gap:24px}
 .pomo-ring{width:188px;height:188px}
 .pomo-time-wrap b{font:650 42px/1 var(--mono);letter-spacing:-.025em;font-variant-numeric:tabular-nums}
 .pomo-side{display:flex;flex:1;min-width:0;flex-direction:column;gap:10px}
 .pomo-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .pomo-actions .btn{width:100%;min-width:0;justify-content:center;gap:6px;padding-left:8px;padding-right:8px}
-.pomo-cycles{display:flex;align-items:center;gap:0;margin-top:2px;color:var(--text-3)}
-.pomo-cycle-dots{display:inline-flex;align-items:center;gap:6px;min-height:20px}
-.pomo-cycle-dots i{display:block;width:7px;height:7px;border:1px solid var(--line-3);border-radius:50%;background:var(--line-2);transition:background .18s,border-color .18s,box-shadow .18s}
-.pomo-cycle-dots i.on{border-color:rgb(var(--gc));background:rgb(var(--gc));box-shadow:0 0 7px rgb(var(--gc)/.32)}
 .modal.pomo-settings-modal .modal-b{padding-top:19px}
-.modal.pomo-settings-modal .wp-form-hint{color:var(--text-4)}
+.modal.pomo-settings-modal .wp-form-hint{margin:12px 0 0;padding-top:10px;border-top:1px solid var(--line);color:var(--text-3);font-size:12px;line-height:1.5}
 @media(max-width:860px){
   .pomo-body{flex-direction:column;align-items:stretch;gap:16px}
   .pomo-ring{align-self:center}
   .pomo-side{width:100%;flex:none}
   .pomo-actions{width:min(100%,380px);margin:0 auto}
-  .pomo-cycles{justify-content:center}
 }
 @media(max-width:440px){
   .pomo-ring{width:180px;height:180px}
   .pomo-time-wrap b{font-size:38px}
   .pomo-actions{gap:6px}
 }
-body[data-gfx="perf"] :is(.pomo-global,.pomo-global *, .pomo-popover,.pomo-notice,.pomo-notice *, .pomo-ring,.pomo-ring *, .pomo-cycle-dots, .pomo-cycle-dots *){animation:none!important;transition:none!important}
+body[data-gfx="perf"] :is(.pomo-global,.pomo-global *, .pomo-popover,.pomo-notice,.pomo-notice *, .pomo-ring,.pomo-ring *){animation:none!important;transition:none!important}
 
 </style>
 
@@ -4593,7 +4590,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 .planner-page .wp-rail{
   grid-column:1;grid-row:1;position:sticky;top:0;align-self:stretch;
   display:flex;flex-direction:column;gap:12px;
-  width:auto;height:100%;min-width:0;min-height:0;padding:12px 12px 10px;
+  width:auto;height:100%;min-width:0;min-height:0;padding:12px 12px 0;
   border:0;border-right:1px solid var(--line);border-radius:0;
   background:transparent;box-shadow:none;overflow:hidden;
 }
@@ -4629,17 +4626,18 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 }
 .planner-page .wp-nav-item>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .planner-page .wp-rail-footer{
-  display:flex;flex:none;min-height:38px;margin-top:auto;padding:8px 4px 0;
+  display:flex;flex-direction:row;align-items:center;flex:none;min-height:38px;margin-top:auto;padding:0 12px;
   border-top:1px solid var(--line);font-size:11.5px;
 }
-.planner-page .wp-rail-footer span{white-space:nowrap}
-.planner-page .wp-rail.is-collapsed{padding:12px 8px 10px;gap:12px;align-items:stretch}
+.planner-page .wp-rail-footer span{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.planner-page .wp-rail-footer .i{width:16px;height:16px;flex:none}
+.planner-page .wp-rail.is-collapsed{padding:12px 8px 0;gap:12px;align-items:stretch}
 .planner-page .wp-rail.is-collapsed .wp-rail-brand{justify-content:center;padding:0;gap:0}
 .planner-page .wp-rail.is-collapsed .wp-rail-name{display:none}
 .planner-page .wp-rail.is-collapsed .wp-nav-item{justify-content:center;gap:0;padding:0}
 .planner-page .wp-rail.is-collapsed .wp-nav-item>span,
 .planner-page .wp-rail.is-collapsed .wp-nav-item>i{display:none}
-.planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:center;padding:8px 0 0}
+.planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:center;padding:0}
 .planner-page .wp-rail.is-collapsed .wp-rail-footer span{justify-content:center;font-size:0;gap:0}
 
 /* Наверху — заголовок, поиск и действия; листается только правое содержимое. */
@@ -4804,7 +4802,7 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
   .planner-page .wp-main{grid-column:1;grid-row:1}
   .planner-page .wp-rail,.planner-page .wp-rail.is-collapsed{
     position:absolute;left:0;top:0;bottom:0;z-index:40;
-    width:min(288px,calc(100% - 40px));height:100%;padding:12px 12px 10px;
+    width:min(288px,calc(100% - 40px));height:100%;padding:12px 12px 0;
     border-right:1px solid var(--line);background:var(--surface);
     box-shadow:14px 0 44px -26px rgba(0,0,0,.6);
     transform:translateX(-101%);visibility:hidden;
@@ -4818,8 +4816,8 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
   .planner-page .wp-rail.is-collapsed .wp-nav-item{justify-content:flex-start;gap:10px;padding:0 11px}
   .planner-page .wp-rail.is-collapsed .wp-nav-item>span{display:block}
   .planner-page .wp-rail.is-collapsed .wp-nav-item>i{display:grid}
-  .planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:stretch;padding:8px 4px 0}
-  .planner-page .wp-rail.is-collapsed .wp-rail-footer span{justify-content:flex-start;gap:7px;font-size:11.5px}
+  .planner-page .wp-rail.is-collapsed .wp-rail-footer{align-items:stretch;padding:0 12px}
+  .planner-page .wp-rail.is-collapsed .wp-rail-footer span{justify-content:flex-start;gap:10px;font-size:11.5px}
   .wp-mobile-menu{
     display:grid;place-items:center;flex:none;width:34px;height:34px;padding:0;
     border:1px solid var(--line);border-radius:calc(9px*var(--rs));
@@ -10299,24 +10297,11 @@ function initPomodoroClock() {
   window.addEventListener('resize', () => { if (typeof pomoPositionPopover === 'function') pomoPositionPopover(); }, { passive: true });
   document.addEventListener('scroll', () => { if (typeof pomoPositionPopover === 'function') pomoPositionPopover(); }, true);
 }
-function pomoCycleProgress(P) {
-  const progress = Math.max(0, P.cycles % 4);
-  return progress || (P.cycles > 0 ? 4 : 0);
-}
-function pomoCycleTip(P) {
-  return `До длинного перерыва: ${pomoCycleProgress(P)} из 4 фокус-сессий`;
-}
 function pomoRenderTick() {
   const P = pomoState(), dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100));
   const t = $('#pomoTime'); if (t) t.textContent = pomoFmt(P.remain);
   const sb = $('#pomoStatusBtn');
   if (sb) { sb.classList.toggle('break', P.mode !== 'work'); const label = sb.querySelector('span'); if (label) label.textContent = POMO_LABEL[P.mode]; sb.dataset.tip = 'Режим: ' + POMO_LABEL[P.mode] + '. Нажмите, чтобы сменить'; }
-  const cycles = $('#pomoCycles');
-  if (cycles) {
-    const progress = pomoCycleProgress(P), tip = pomoCycleTip(P);
-    cycles.dataset.tip = tip; cycles.setAttribute('aria-label', tip);
-    cycles.querySelectorAll('.pomo-cycle-dots i').forEach((dot, index) => dot.classList.toggle('on', index < progress));
-  }
   const ring = $('#pomoRing circle.val'); if (ring) { const C = 2 * Math.PI * 52; ring.style.strokeDasharray = `${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}`; }
   const btn = $('#pomoToggleBtn'); if (btn) btn.innerHTML = (P.running ? ico('pause') : ico('play')) + `<span>${P.running ? 'Пауза' : 'Старт'}</span>`;
   const tile = $('.pomo-tile'); if (tile) tile.classList.toggle('is-break', P.mode !== 'work');
@@ -10448,10 +10433,9 @@ function pomoRenderGlobal(P) {
 }
 function pomoWidgetHtml() {
   const P = pomoState(), dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100)), C = 2 * Math.PI * 52;
-  const cycleProgress = pomoCycleProgress(P), cycleTip = pomoCycleTip(P);
   return `<div class="card wg-tile pomo-tile ${P.mode !== 'work' ? 'is-break' : ''}">
     <div class="wg-head"><span class="wg-ic pomo">${ico('timer')}</span><div class="wg-tt"><b>Помодоро</b><small>Фокус-сессии с перерывами</small></div><button type="button" class="pomo-status ${P.mode !== 'work' ? 'break' : ''}" id="pomoStatusBtn" data-act="pomoStatus" data-tip="Режим: ${esc(POMO_LABEL[P.mode])}. Нажмите, чтобы сменить"><i></i><span>${POMO_LABEL[P.mode]}</span></button><button type="button" class="icon-btn sm" data-act="pomoSettings" data-tip="Настройки Помодоро" aria-label="Настройки Помодоро">${ico('gear')}</button><button type="button" class="icon-btn sm" data-act="pomoReset" data-tip="Сбросить" aria-label="Сбросить таймер">${ico('ref')}</button></div>
-    <div class="pomo-body"><div class="pomo-ring" id="pomoRing"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52"/><circle class="val" cx="60" cy="60" r="52" style="stroke-dasharray:${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="pomo-time-wrap"><b id="pomoTime" class="num">${pomoFmt(P.remain)}</b></div></div><div class="pomo-side"><div class="pomo-actions"><button type="button" class="btn primary" id="pomoToggleBtn" data-act="pomoToggle">${P.running ? ico('pause') : ico('play')}<span>${P.running ? 'Пауза' : 'Старт'}</span></button><button type="button" class="btn ghost sm" data-act="pomoSkip">${ico('fwd')}<span>Дальше</span></button></div><div class="pomo-cycles" id="pomoCycles" role="img" aria-label="${esc(cycleTip)}" data-tip="${esc(cycleTip)}"><span class="pomo-cycle-dots" aria-hidden="true">${[0, 1, 2, 3].map(index => `<i class="${index < cycleProgress ? 'on' : ''}"></i>`).join('')}</span><span class="sr-only">${esc(cycleTip)}</span></div></div></div>
+    <div class="pomo-body"><div class="pomo-ring" id="pomoRing"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52"/><circle class="val" cx="60" cy="60" r="52" style="stroke-dasharray:${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="pomo-time-wrap"><b id="pomoTime" class="num">${pomoFmt(P.remain)}</b></div></div><div class="pomo-side"><div class="pomo-actions"><button type="button" class="btn primary" id="pomoToggleBtn" data-act="pomoToggle">${P.running ? ico('pause') : ico('play')}<span>${P.running ? 'Пауза' : 'Старт'}</span></button><button type="button" class="btn ghost sm" data-act="pomoSkip">${ico('fwd')}<span>Дальше</span></button></div></div></div>
   </div>`;
 }
 function pomoToggle() {
@@ -10468,7 +10452,7 @@ async function pomoChangeMode() {
 }
 async function pomoReset() {
   const P = pomoState();
-  if (pomoBusy() && !(await confirmDlg({ title: 'Сбросить помодоро?', text: 'Текущий прогресс сессии и счётчик циклов за сегодня будут сброшены.', ok: 'Сбросить', danger: true, icon: 'ref' }))) return;
+  if (pomoBusy() && !(await confirmDlg({ title: 'Сбросить помодоро?', text: 'Текущий прогресс таймера будет сброшен.', ok: 'Сбросить', danger: true, icon: 'ref' }))) return;
   P.mode = 'work'; P.remain = pomoDur('work'); P.running = false; P.endsAt = 0; P.cycles = 0; P.cycleDay = dayKey(Date.now()); P.pendingNotice = null; pomoTouch(P);
   pomoPersist(); pomoRenderTick();
 }
@@ -10611,7 +10595,7 @@ SEG.effPeriod = v => {
 RENDER.widgets = () => {
   const W = S.ui.widgets || (S.ui.widgets = { pomo: true, eff: true, vk: false, telemost: false });
   const total = 2, shown = (W.pomo ? 1 : 0) + (W.eff ? 1 : 0), hasAny = W.pomo || W.eff;
-  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Виджеты</div><div class="page-sub">Внутренние приложения SHELTER</div></div></div><div class="wg-bar"><button type="button" class="btn wg-show-btn" id="wgShowBtn" data-act="wgShowMenu">${ico('layers')}<span>Показать виджет</span><span class="chip">${shown}/${total}</span>${ico('chev', 'chev')}</button><button type="button" class="btn sm icon wg-add-sm" id="wgAddBtn" data-act="wgAdd" data-tip="Добавить виджет" aria-label="Добавить виджет">${ico('plus')}</button><span class="wg-bar-hint">Управляйте отображением виджетов через чеклист</span></div>${hasAny ? `<div class="wg-grid">${W.pomo ? pomoWidgetHtml() : ''}${W.eff ? effWidgetHtml() : ''}</div>` : emptyState('timer', 'Все виджеты скрыты', 'Откройте «Показать виджет» на верхней панели и отметьте нужные виджеты.', `<button class="btn sm primary" data-act="wgShowMenu">${ico('layers')}Показать виджет</button>`)}</div>`;
+  return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Виджеты</div><div class="page-sub">Внутренние приложения SHELTER</div></div></div><div class="wg-bar"><button type="button" class="btn wg-show-btn" id="wgShowBtn" data-act="wgShowMenu">${ico('layers')}<span>Показать виджет</span><span class="chip">${shown}/${total}</span>${ico('chev', 'chev')}</button><button type="button" class="btn sm icon wg-add-sm" id="wgAddBtn" data-act="wgAdd" data-tip="Добавить виджет" aria-label="Добавить виджет">${ico('plus')}</button><span class="wg-bar-hint">Настройте отображение виджетов с помощью переключателей</span></div>${hasAny ? `<div class="wg-grid">${W.pomo ? pomoWidgetHtml() : ''}${W.eff ? effWidgetHtml() : ''}</div>` : emptyState('timer', 'Все виджеты скрыты', 'Откройте «Показать виджет» на верхней панели и включите нужные виджеты.', `<button class="btn sm primary" data-act="wgShowMenu">${ico('layers')}Показать виджет</button>`)}</div>`;
 };
 AFTER.widgets = () => {
   efficiencyTrackingSync();
@@ -10629,10 +10613,10 @@ function openWidgetPicker(anchor) {
   if (!target) return;
   const rowHtml = (key, iconName, title, sub) => {
     const on = !!W[key];
-    return `<button type="button" class="mi" data-wg-toggle="${key}">
-      <span class="cbx ${on ? 'on' : ''}" aria-hidden="true">${ico('check')}</span>
+    return `<button type="button" class="mi wg-toggle-row" data-wg-toggle="${key}" role="switch" aria-checked="${on}" aria-label="${esc(title)}">
       ${ico(iconName)}
       <span class="lb"><span>${esc(title)}</span><small>${esc(sub)}</small></span>
+      <span class="sw-t${on ? ' on' : ''}" aria-hidden="true"><span class="sw-ic ring"></span><svg class="sw-ic check i"><use href="#i-check"/></svg></span>
     </button>`;
   };
   const html = `<div class="mh">Отображаемые виджеты</div>

@@ -10,15 +10,60 @@ const start = html.indexOf('/* =================================================
 const end = html.indexOf('\nfunction openWidgetPicker(anchor)', start);
 assert(start >= 0 && end > start, 'the active Pomodoro and Efficiency Manager module must be present');
 const moduleSource = html.slice(start, end);
+const pickerStart = html.indexOf('function openWidgetPicker(anchor)');
+const pickerEnd = html.indexOf('\nfunction openWidgetAddMenu(anchor)', pickerStart);
+assert(pickerStart >= 0 && pickerEnd > pickerStart, 'the widget picker implementation must be present');
+const pickerSource = html.slice(pickerStart, pickerEnd);
 const tickerStart = html.indexOf('function initPomodoroClock() {');
-const tickerEnd = html.indexOf('\nfunction pomoCycleProgress', tickerStart);
+const tickerEnd = html.indexOf('\nfunction pomoRenderTick', tickerStart);
 assert(tickerStart >= 0 && tickerEnd > tickerStart, 'the Pomodoro clock must have one global lifecycle');
 const tickerSource = html.slice(tickerStart, tickerEnd);
 assert.match(tickerSource, /setInterval\(pomoTick, 1000\)/, 'the global clock ticks outside widget rendering');
+assert(!html.includes('pomoCycleProgress') && !html.includes('pomoCycleTip') && !html.includes('pomo-cycle-dots'), 'the removed cycle indicator has no renderer or tooltip left');
 const afterWidgetsStart = html.indexOf('AFTER.widgets = () => {');
 const afterWidgetsEnd = html.indexOf('\n};', afterWidgetsStart);
 assert(afterWidgetsStart >= 0 && afterWidgetsEnd > afterWidgetsStart);
 assert(!html.slice(afterWidgetsStart, afterWidgetsEnd).includes('pomoTick'), 'widget remounts must not add duplicate Pomodoro tickers');
+
+// Exercise the widget picker in isolation: each row is a real accessible switch,
+// click state is persisted locally, and the global settings-switch handler is not used.
+const pickerMenus = [];
+let pickerPersists = 0, pickerRefreshes = 0;
+const pickerButton = { id: 'wgShowBtn' };
+const pickerContext = {
+  S: { ui: { widgets: { pomo: true, eff: false } } },
+  $(selector) { return selector === '#wgShowBtn' ? pickerButton : null; },
+  esc: value => String(value),
+  ico: name => `<svg data-icon="${name}"></svg>`,
+  persist() { pickerPersists++; },
+  refreshPage(name) { assert.equal(name, 'widgets'); pickerRefreshes++; },
+  openMenu(anchor, _items, options) {
+    const menu = { anchor, html: options.html, options, handler: null, addEventListener(type, handler) { assert.equal(type, 'click'); this.handler = handler; } };
+    pickerMenus.push(menu);
+    return menu;
+  }
+};
+vm.runInNewContext(pickerSource + '\nglobalThis.__openWidgetPicker = openWidgetPicker;', pickerContext, { timeout: 3000 });
+pickerContext.__openWidgetPicker(pickerButton);
+assert.match(pickerMenus[0].html, /role="switch" aria-checked="true" aria-label="Помодоро"/, 'enabled widget switches expose the correct accessible state');
+assert.match(pickerMenus[0].html, /role="switch" aria-checked="false" aria-label="Менеджер эффективности"/, 'disabled widget switches expose the correct accessible state');
+assert.match(pickerMenus[0].html, /class="sw-t on"/, 'an enabled row uses the settings switch visual');
+assert.match(pickerMenus[0].html, /class="sw-t"/, 'a disabled row uses the settings switch visual');
+assert(!pickerMenus[0].html.includes('cbx') && !pickerSource.includes('data-sw'), 'widget switches avoid checkboxes and the global preferences handler');
+const togglePickerRow = (menu, key) => menu.handler({
+  target: { closest(selector) { assert.equal(selector, '[data-wg-toggle]'); return { dataset: { wgToggle: key } }; } },
+  preventDefault() {}, stopPropagation() {}
+});
+togglePickerRow(pickerMenus[0], 'pomo');
+assert.equal(pickerContext.S.ui.widgets.pomo, false, 'clicking the switch updates only the local widget preference');
+assert.equal(pickerPersists, 1, 'widget visibility is persisted');
+assert.equal(pickerRefreshes, 1, 'the widget page is refreshed after a visibility change');
+assert.match(pickerMenus[1].html, /role="switch" aria-checked="false" aria-label="Помодоро"/, 'the refreshed menu announces the new switch state');
+assert(!pickerMenus[1].html.includes('class="sw-t on"'), 'the refreshed switch visual matches its off state');
+togglePickerRow(pickerMenus[1], 'eff');
+assert.equal(pickerContext.S.ui.widgets.eff, true, 'the second switch is interactive too');
+assert.equal(pickerPersists, 2);
+assert.equal(pickerRefreshes, 2);
 
 let clock = Date.UTC(2026, 9, 14, 12, 0, 0);
 class TestDate extends Date {
@@ -92,8 +137,8 @@ function boot(state = { ui: { widgets: { pomo: true, eff: true } }, visits: [], 
   };
   vm.runInNewContext(harness + '\n' + moduleSource + `
 globalThis.__api = {
-  POMO_DUR, widgetPrefs, pomoDur, pomoState, pomoWidgetHtml, pomoGlobalButtonHtml, pomoToggle, pomoChangeMode, pomoReset,
-  pomoFinishPhase, pomoProcessExpired, pomoCycleProgress, pomoCycleTip, pomoAcknowledgeNotice, pomoMergeSnapshot, pomoSignal,
+  POMO_DUR, widgetPrefs, pomoDur, pomoState, pomoWidgetHtml, pomoGlobalButtonHtml, pomoToggle, pomoChangeMode, pomoReset, pomoSkip,
+  pomoFinishPhase, pomoProcessExpired, pomoAcknowledgeNotice, pomoMergeSnapshot, pomoSignal,
   efficiencyCanTrack, efficiencyCurrentVisit, efficiencyAddActiveMs,
   efficiencyPendingByDay, efficiencyFlushActiveSegment, efficiencyTrackingSync,
   efficiencyCheckpoint, effData, effBodyHtml, effWidgetHtml, effPeriod, periodRange, dayKey, render: RENDER, segments: SEG, transient: T
@@ -130,21 +175,24 @@ globalThis.__api = {
   assert(widgetPage.includes('class="page"') && widgetPage.includes('class="wg-grid"'), 'the Widgets page renders its configured cards');
   assert(widgetPage.includes('wg-tile pomo-tile'), 'the Pomodoro card has a concrete renderer');
   assert(widgetPage.includes('id="pomoToggleBtn"') && widgetPage.includes('data-act="pomoSettings"'), 'Pomodoro start and settings controls are present in the page');
-  const dotMarkup = widgetPage.match(/<span class="pomo-cycle-dots" aria-hidden="true">([\s\S]*?)<\/span>/);
-  assert(dotMarkup && (dotMarkup[1].match(/<i\b/g) || []).length === 4, 'the cycle progress is rendered as exactly four dots');
-  assert(!widgetPage.includes('Циклы сегодня:'), 'the visible numeric cycle statistic is removed');
-  assert(widgetPage.includes('До длинного перерыва: 0 из 4 фокус-сессий'), 'cycle progress exposes an exact accessible tooltip');
+  assert(widgetPage.includes('с помощью переключателей'), 'the widget toolbar describes the new switch controls');
+  assert(moduleSource.includes('и включите нужные виджеты.'), 'the empty state uses switch terminology too');
+  assert(!/pomo-cycles|pomo-cycle-dots|pomoCycles|До длинного перерыва|циклов сегодня/i.test(widgetPage), 'the Pomodoro card has no visible cycle dots, statistic, or tooltip');
+  assert(widgetPage.includes('data-act="pomoSkip"'), 'the next-phase control remains available after removing the decorative cycle indicator');
   const globalIndicator = first.api.pomoGlobalButtonHtml();
   assert(globalIndicator.includes('id="pomoGlobalBtn"') && globalIndicator.includes('pomo-global-ring'), 'the global toolbar indicator renders its progress ring');
   assert(globalIndicator.includes('aria-haspopup="dialog"') && globalIndicator.includes('aria-controls="pomoPopover"'), 'the global indicator has an accessible popover relationship');
-  assert.equal(first.api.pomoCycleProgress({ cycles: 3 }), 3);
-  assert.equal(first.api.pomoCycleProgress({ cycles: 4 }), 4);
-  assert.equal(first.api.pomoCycleProgress({ cycles: 5 }), 1, 'the four-dot set advances independently of the total cycle count');
-  assert.equal(first.api.pomoCycleTip({ cycles: 2 }), 'До длинного перерыва: 2 из 4 фокус-сессий');
   const pomoSettings = moduleSource.slice(moduleSource.indexOf('async function openPomodoroSettings()'));
   assert(pomoSettings.includes('id="pomoSoundEnabled"') && pomoSettings.includes('pref.soundEnabled'), 'the default-on sound preference is user-configurable');
   assert(pomoSettings.includes("['#pomoShortMinutes', 1, 5") && pomoSettings.includes("['#pomoLongMinutes', 5, 30"), 'settings validation matches the accepted minute ranges');
   assert(widgetPage.includes('id="effBody"'), 'the Efficiency Manager card renders with its update target');
+
+  const skippedPhase = boot();
+  await skippedPhase.api.pomoSkip();
+  const afterSkip = skippedPhase.api.pomoState();
+  assert.equal(afterSkip.mode, 'short', 'the Next button still advances the Pomodoro phase');
+  assert.equal(afterSkip.cycles, 1, 'the internal phase counter remains for long-break scheduling');
+  assert(!skippedPhase.api.pomoWidgetHtml().includes('pomo-cycle-dots'), 'internal phase scheduling is not exposed as a visual statistic');
 
   const startedAt = clock;
   first.api.pomoToggle();

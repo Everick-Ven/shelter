@@ -223,10 +223,13 @@ check('кнопки футера модальных окон центриров�
   css.includes('.modal-f{display:flex;justify-content:center;gap:8px;'));
 
 // Keep the pre-existing task rail and Pomodoro visual contracts while using the updated release baseline.
-check('rail задач sticky по высоте, футер прижат вниз и сохраняет читаемый размер текста',
-  /\.planner-page \.wp-rail\{[^}]*position:sticky;top:0;[^}]*height:100%/.test(taskLayoutStyle) &&
-  /\.planner-page \.wp-rail-footer\{[^}]*margin-top:auto;[^}]*padding:8px 4px 0;[^}]*font-size:11\.5px/.test(taskLayoutStyle) &&
-  taskLayoutStyle.includes('.planner-page .wp-rail.is-collapsed'));
+check('футер задач прижат к нижней границе и выровнен с пунктами навигации',
+  /\.planner-page \.wp-rail\{[^}]*position:sticky;top:0;[^}]*height:100%;[^}]*padding:12px 12px 0;/.test(taskLayoutStyle) &&
+  /\.planner-page \.wp-rail-footer\{[^}]*flex-direction:row;[^}]*align-items:center;[^}]*margin-top:auto;[^}]*padding:0 12px;[^}]*font-size:11\.5px/.test(taskLayoutStyle) &&
+  taskLayoutStyle.includes('.planner-page .wp-rail-footer span{display:flex;align-items:center;gap:10px;white-space:nowrap}') &&
+  taskLayoutStyle.includes('.planner-page .wp-rail-footer .i{width:16px;height:16px;flex:none}') &&
+  taskLayoutStyle.includes('.planner-page .wp-rail.is-collapsed{padding:12px 8px 0;') &&
+  taskLayoutStyle.includes('width:min(288px,calc(100% - 40px));height:100%;padding:12px 12px 0;'));
 check('Pomodoro сохраняет крупное моноширинное кольцо и адаптивные сгруппированные кнопки',
   structureCss.includes('.pomo-ring{width:188px;height:188px}') &&
   structureCss.includes('.pomo-time-wrap b{font:650 42px/1 var(--mono)') &&
@@ -237,9 +240,19 @@ check('Pomodoro popover и уведомление доступны, а perf-ан
   structureCss.includes('body[data-gfx="perf"] :is(.pomo-global') &&
   html.includes('aria-modal', html.indexOf('function pomoEnsureGlobalLayers()')) &&
   html.includes('data-act="pomoNoticeAck"'));
-check('подсказка настроек Pomodoro имеет отдельный верхний отступ и меньшую заметность',
+check('заметка настроек Pomodoro повторяет отступ и цвет .eff-note',
+  css.includes('.eff-note{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);color:var(--text-3);font-size:12px;line-height:1.5}') &&
   structureCss.includes('.modal.pomo-settings-modal .modal-b{padding-top:19px}') &&
-  structureCss.includes('.modal.pomo-settings-modal .wp-form-hint{color:var(--text-4)}') &&
+  structureCss.includes('.modal.pomo-settings-modal .wp-form-hint{margin:12px 0 0;padding-top:10px;border-top:1px solid var(--line);color:var(--text-3);font-size:12px;line-height:1.5}') &&
   html.includes("cls: 'pomo-settings-modal'"));
+check('меню виджетов использует штатный переключатель, клавиатурный фокус и локальную настройку',
+  css.includes('.wg-picker-menu .mi.wg-toggle-row{gap:11px;min-height:48px}') &&
+  css.includes('.wg-picker-menu .mi.wg-toggle-row>.sw-t{margin-left:3px;pointer-events:none}') &&
+  css.includes('.wg-picker-menu .mi.wg-toggle-row:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}') &&
+  html.includes('data-wg-toggle="${key}" role="switch" aria-checked="${on}"') &&
+  html.includes('W[k] = !W[k];') && html.includes("persist();\n    refreshPage('widgets');"));
+check('Помодоро не содержит оставшейся визуальной разметки или CSS-индикаторов циклов',
+  !css.includes('.pomo-cycle-dots') && !css.includes('.pomo-cycles{') &&
+  !html.includes('pomoCycleProgress') && !html.includes('pomoCycleTip') && !html.includes('pomoCycles'));
 
 finish();

@@ -7,6 +7,7 @@ const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'resources/ui/index.html'), 'utf8');
 const host = fs.readFileSync(path.join(root, 'resources/ui/host-bridge.js'), 'utf8');
 const native = fs.readFileSync(path.join(root, 'src/shell_bridge.cc'), 'utf8');
+const acceptance = fs.readFileSync(path.join(root, 'tools/acceptance_smoke.py'), 'utf8');
 
 const controls = html.match(/<div class="wctl win-ctls" id="winCtl"[\s\S]*?<\/div>/);
 assert(controls, 'the dedicated Windows window-control group must exist');
@@ -27,6 +28,8 @@ assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?border-radius:[^;]+;[\s\S]*?b
   'Windows keys use the glass control material');
 assert.match(css, /#winCtl\.win-ctls \.wc:active\{/);
 assert.match(css, /#winCtl\.win-ctls \.wc:focus-visible\{/);
+assert.match(css, /\.host-win32 \.tb>\.omni-tb\{width:min\(620px,42vw\)\}/,
+  'the centered address field yields space for Windows controls on narrow desktop widths');
 assert.match(css, /-webkit-app-region:no-drag/);
 assert.doesNotMatch(css, /\.wctl \.wc-(?:min|max|close)\{background:#(?:FEBC2E|28C840|FF5F57)\}/,
   'the Windows controls no longer use Mac traffic-light colors');
@@ -40,5 +43,8 @@ assert(bridgeStart >= 0 && bridgeEnd > bridgeStart);
 const handler = native.slice(bridgeStart, bridgeEnd);
 assert(handler.indexOf('if (!IsUiBrowser(browser))') < handler.indexOf('if (m == "win.state")'),
   'the read-only native window-state query remains behind the central UI authorization boundary');
+
+assert.match(acceptance, /fireActionTile: controls\.children\.length === 2[\s\S]*?pomodoroGlobalIndicator: controls\.children\.length === 2/,
+  'runtime acceptance must validate both the session-clear control and the new global Pomodoro indicator');
 
 console.log('Windows window-control styling, platform gating, placement, and native state tests passed');

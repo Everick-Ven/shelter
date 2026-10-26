@@ -3745,7 +3745,9 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 /* Поиск в узком сайдбаре сохраняет полное имя, обрезая только хвост. */
 .sb-search span:not(.kbd){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* Нативные Windows-кнопки: стеклянные квадратные клавиши вместо светофорных точек. */
+/* Нативные Windows-кнопки: стеклянные квадратные клавиши вместо светофорных точек.
+   Чуть уже адресная капсула, чтобы ряд действий помещался и на 1280 px. */
+.host-win32 .tb>.omni-tb{width:min(620px,42vw)}
 #winCtl.win-ctls{display:flex;align-items:center;gap:4px;flex:none;margin:0;padding:0;-webkit-app-region:no-drag}
 #winCtl.win-ctls .wc{
   position:relative;display:grid;place-items:center;width:32px;height:32px;flex:none;

@@ -535,9 +535,11 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const ext = document.getElementById('extBtn');
         const header = document.querySelector('.tb');
         const fire = controls && controls.querySelector('.ctl.fire');
-        if (!quick || !settings || !more || !controls || !prot || !ext || !fire || !header)
+        const pomo = controls && controls.querySelector('#pomoGlobalBtn');
+        if (!quick || !settings || !more || !controls || !prot || !ext || !fire || !pomo || !header)
           return null;
         const fireRect = fire.getBoundingClientRect();
+        const pomoRect = pomo.getBoundingClientRect();
         const protRect = prot.getBoundingClientRect();
         const extRect = ext.getBoundingClientRect();
         const quickRect = quick.getBoundingClientRect();
@@ -549,10 +551,17 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
             settings.nextElementSibling === more &&
             Math.abs(settingsRect.top - moreRect.top) <= 1 &&
             Math.abs(moreRect.left - settingsRect.right) <= 12,
-          fireIsOnlyTile: controls.children.length === 1 &&
+          fireActionTile: controls.children.length === 2 &&
             controls.firstElementChild === fire &&
-            controls.getAttribute('aria-label') === 'Удаление сессий' &&
+            controls.getAttribute('aria-label') === 'Удаление сессий и Помодоро' &&
             Math.abs(fireRect.top - quickRect.top) <= 1,
+          pomodoroGlobalIndicator: controls.children.length === 2 &&
+            controls.lastElementChild === pomo &&
+            pomo.classList.contains('pomo-global') &&
+            pomo.getAttribute('data-act') === 'pomoGlobal' &&
+            pomo.getAttribute('aria-haspopup') === 'dialog' &&
+            pomo.getAttribute('aria-controls') === 'pomoPopover' &&
+            Math.abs(pomoRect.top - quickRect.top) <= 1,
           shieldBeforeSettings: prot.parentElement === settings.parentElement &&
             prot.nextElementSibling === settings &&
             Math.abs(protRect.top - settingsRect.top) <= 1 &&

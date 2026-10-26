@@ -1,0 +1,419 @@
+{
+  "nativeNoticeThemes": [
+    {
+      "theme": "graphite",
+      "menu": "color(srgb 0.0862745 0.0862745 0.0980392 / 0.82)",
+      "text": "rgb(159, 160, 168)",
+      "title": "rgb(242, 242, 245)",
+      "contrastOnMenu": {
+        "copy": 6.94,
+        "title": 16.16
+      },
+      "copyText": "Следующий этап — Фокус. Можно продолжить, когда будете готовы."
+    },
+    {
+      "theme": "obsidian",
+      "menu": "color(srgb 0.0823529 0.0862745 0.105882 / 0.82)",
+      "text": "rgb(162, 165, 175)",
+      "title": "rgb(237, 238, 242)",
+      "contrastOnMenu": {
+        "copy": 7.34,
+        "title": 15.58
+      },
+      "copyText": "Следующий этап — Фокус. Можно продолжить, когда будете готовы."
+    },
+    {
+      "theme": "amethyst",
+      "menu": "color(srgb 0.0901961 0.0705882 0.109804 / 0.82)",
+      "text": "rgb(170, 160, 182)",
+      "title": "rgb(244, 239, 248)",
+      "contrastOnMenu": {
+        "copy": 7.38,
+        "title": 16.27
+      },
+      "copyText": "Следующий этап — Фокус. Можно продолжить, когда будете готовы."
+    },
+    {
+      "theme": "bordeaux",
+      "menu": "color(srgb 1 1 1 / 0.82)",
+      "text": "rgb(99, 68, 77)",
+      "title": "rgb(75, 29, 39)",
+      "contrastOnMenu": {
+        "copy": 8.52,
+        "title": 13.96
+      },
+      "copyText": "Следующий этап — Фокус. Можно продолжить, когда будете готовы."
+    },
+    {
+      "theme": "ivory",
+      "menu": "color(srgb 1 1 1 / 0.82)",
+      "text": "rgb(83, 77, 70)",
+      "title": "rgb(29, 26, 22)",
+      "contrastOnMenu": {
+        "copy": 8.34,
+        "title": 17.33
+      },
+      "copyText": "Следующий этап — Фокус. Можно продолжить, когда будете готовы."
+    },
+    {
+      "theme": "porcelain",
+      "menu": "color(srgb 1 1 1 / 0.82)",
+      "text": "rgb(73, 81, 95)",
+      "title": "rgb(14, 20, 31)",
+      "contrastOnMenu": {
+        "copy": 8,
+        "title": 18.44
+      },
+      "copyText": "Следующий этап — Фокус. Можно продолжить, когда будете готовы."
+    }
+  ],
+  "narrowLargeNotice": {
+    "visible": true,
+    "viewport": {
+      "width": 320,
+      "height": 800
+    },
+    "notice": {
+      "x": 16,
+      "y": 449,
+      "width": 288,
+      "height": 335,
+      "right": 304,
+      "bottom": 784
+    },
+    "title": {
+      "font": "22px",
+      "text": "Перерыв завершён",
+      "scrollWidth": 194,
+      "clientWidth": 194
+    },
+    "copy": {
+      "font": "20px",
+      "lineHeight": "30px",
+      "text": "Следующий этап — Фокус. Можно продолжить, когда будете готовы.",
+      "scrollWidth": 194,
+      "clientWidth": 194
+    },
+    "buttons": [
+      {
+        "font": "20px",
+        "width": 242,
+        "height": 42,
+        "right": 281,
+        "scrollWidth": 240,
+        "clientWidth": 240
+      },
+      {
+        "font": "20px",
+        "width": 242,
+        "height": 42,
+        "right": 281,
+        "scrollWidth": 240,
+        "clientWidth": 240
+      }
+    ],
+    "overflow": false
+  },
+  "settingsRanges": {
+    "ranges": [
+      {
+        "i": 0,
+        "id": "glowIntRange",
+        "className": "fscale-r",
+        "min": 10,
+        "max": 100,
+        "step": 5,
+        "disabled": false,
+        "value": 45
+      },
+      {
+        "i": 1,
+        "id": "glowSatRange",
+        "className": "fscale-r",
+        "min": 20,
+        "max": 100,
+        "step": 5,
+        "disabled": false,
+        "value": 60
+      },
+      {
+        "i": 2,
+        "id": "",
+        "className": "uiscale-r",
+        "min": 50,
+        "max": 200,
+        "step": 5,
+        "disabled": false,
+        "value": 100
+      },
+      {
+        "i": 3,
+        "id": "",
+        "className": "fscale-r",
+        "min": 70,
+        "max": 150,
+        "step": 5,
+        "disabled": false,
+        "value": 100
+      },
+      {
+        "i": 4,
+        "id": "",
+        "className": "fscale-r",
+        "min": 70,
+        "max": 150,
+        "step": 5,
+        "disabled": false,
+        "value": 100
+      },
+      {
+        "i": 5,
+        "id": "",
+        "className": "fscale-r",
+        "min": 70,
+        "max": 150,
+        "step": 5,
+        "disabled": false,
+        "value": 100
+      }
+    ],
+    "tests": [
+      {
+        "id": "glowIntRange",
+        "className": "fscale-r",
+        "states": [
+          {
+            "value": 10,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 128.998779296875,
+            "cssWidth": "129px"
+          },
+          {
+            "value": 55,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          },
+          {
+            "value": 100,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          }
+        ],
+        "drag": {
+          "value": 95,
+          "min": 10,
+          "max": 100
+        }
+      },
+      {
+        "id": "glowSatRange",
+        "className": "fscale-r",
+        "states": [
+          {
+            "value": 20,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          },
+          {
+            "value": 60,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          },
+          {
+            "value": 100,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          }
+        ],
+        "drag": {
+          "value": 95,
+          "min": 20,
+          "max": 100
+        }
+      },
+      {
+        "id": "",
+        "className": "uiscale-r",
+        "states": [
+          {
+            "value": 50,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 170,
+            "cssWidth": "170px"
+          },
+          {
+            "value": 125,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 170,
+            "cssWidth": "170px"
+          },
+          {
+            "value": 200,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 170,
+            "cssWidth": "170px"
+          }
+        ],
+        "drag": {
+          "value": 200,
+          "min": 50,
+          "max": 200
+        }
+      },
+      {
+        "id": "",
+        "className": "fscale-r",
+        "states": [
+          {
+            "value": 70,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          },
+          {
+            "value": 110,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          },
+          {
+            "value": 150,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          }
+        ],
+        "drag": {
+          "value": 150,
+          "min": 70,
+          "max": 150
+        }
+      },
+      {
+        "id": "",
+        "className": "fscale-r",
+        "states": [
+          {
+            "value": 70,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          },
+          {
+            "value": 110,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          },
+          {
+            "value": 150,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          }
+        ],
+        "drag": {
+          "value": 150,
+          "min": 70,
+          "max": 150
+        }
+      },
+      {
+        "id": "",
+        "className": "fscale-r",
+        "states": [
+          {
+            "value": 70,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          },
+          {
+            "value": 110,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          },
+          {
+            "value": 150,
+            "disabled": false,
+            "trackHeight": "24px",
+            "trackBackground": "rgba(0, 0, 0, 0)",
+            "width": 129,
+            "cssWidth": "129px"
+          }
+        ],
+        "drag": {
+          "value": 150,
+          "min": 70,
+          "max": 150
+        }
+      }
+    ],
+    "errors": []
+  },
+  "passwordGeneratorRange": {
+    "states": [
+      {
+        "value": 12,
+        "progress": "0%",
+        "length": "12"
+      },
+      {
+        "value": 30,
+        "progress": "50%",
+        "length": "30"
+      },
+      {
+        "value": 48,
+        "progress": "100%",
+        "length": "48"
+      }
+    ],
+    "drag": {
+      "value": 47,
+      "progress": "97.22222222222221%",
+      "length": "47"
+    }
+  },
+  "consoleErrors": []
+}

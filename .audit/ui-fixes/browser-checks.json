@@ -1,0 +1,410 @@
+{
+  "pomo-ivory": {
+    "visible": true,
+    "rect": {
+      "x": 134,
+      "y": 64.5,
+      "width": 480,
+      "height": 175.5
+    },
+    "titleFont": "18px",
+    "titleWeight": "650",
+    "copyFont": "15px",
+    "copyLineHeight": "22.5px",
+    "actionFont": "15px",
+    "actionHeight": 42,
+    "titleText": "Перерыв завершён",
+    "copyText": "Следующий этап — Фокус. Можно продолжить, когда будете готовы.",
+    "colors": {
+      "title": "rgb(29, 26, 22)",
+      "copy": "rgb(83, 77, 70)",
+      "surface": "rgb(255, 255, 255)"
+    },
+    "box": {
+      "title": {
+        "x": 205,
+        "y": 87.5,
+        "width": 386,
+        "height": 22.5,
+        "top": 87.5,
+        "right": 591,
+        "bottom": 110,
+        "left": 205
+      },
+      "copy": {
+        "x": 205,
+        "y": 114,
+        "width": 386,
+        "height": 45,
+        "top": 114,
+        "right": 591,
+        "bottom": 159,
+        "left": 205
+      }
+    }
+  },
+  "pomo-graphite": {
+    "visible": true,
+    "rect": {
+      "x": 134,
+      "y": 64.5,
+      "width": 480,
+      "height": 175.5
+    },
+    "titleFont": "18px",
+    "titleWeight": "650",
+    "copyFont": "15px",
+    "copyLineHeight": "22.5px",
+    "actionFont": "15px",
+    "actionHeight": 42,
+    "titleText": "Перерыв завершён",
+    "copyText": "Следующий этап — Фокус. Можно продолжить, когда будете готовы.",
+    "colors": {
+      "title": "rgb(242, 242, 245)",
+      "copy": "rgb(159, 160, 168)",
+      "surface": "rgb(22, 22, 25)"
+    },
+    "box": {
+      "title": {
+        "x": 205,
+        "y": 87.5,
+        "width": 386,
+        "height": 22.5,
+        "top": 87.5,
+        "right": 591,
+        "bottom": 110,
+        "left": 205
+      },
+      "copy": {
+        "x": 205,
+        "y": 114,
+        "width": 386,
+        "height": 45,
+        "top": 114,
+        "right": 591,
+        "bottom": 159,
+        "left": 205
+      }
+    }
+  },
+  "passwords-ivory": {
+    "banner": "rgba(40, 36, 32, 0.23) 0px 12px 30px -24px, rgba(255, 255, 255, 0.74) 0px 1px 0px 0px inset, rgba(60, 42, 18, 0.016) 0px -1px 0px 0px inset",
+    "rows": "rgba(40, 36, 32, 0.23) 0px 12px 30px -24px, rgba(255, 255, 255, 0.74) 0px 1px 0px 0px inset, rgba(60, 42, 18, 0.016) 0px -1px 0px 0px inset",
+    "cardToken": "0 12px 30px -24px rgba(40,36,32,.23),inset 0 1px 0 rgba(255,255,255,.74),inset 0 -1px 0 rgba(60,42,18,.014)",
+    "background": "rgba(0, 0, 0, 0)"
+  },
+  "widgets-ivory": {
+    "cards": [
+      "rgba(40, 36, 32, 0.23) 0px 12px 30px -24px, rgba(255, 255, 255, 0.74) 0px 1px 0px 0px inset, rgba(60, 42, 18, 0.016) 0px -1px 0px 0px inset",
+      "rgba(40, 36, 32, 0.23) 0px 12px 30px -24px, rgba(255, 255, 255, 0.74) 0px 1px 0px 0px inset, rgba(60, 42, 18, 0.016) 0px -1px 0px 0px inset"
+    ],
+    "bar": "rgba(40, 36, 32, 0.23) 0px 12px 30px -24px, rgba(255, 255, 255, 0.74) 0px 1px 0px 0px inset, rgba(60, 42, 18, 0.016) 0px -1px 0px 0px inset",
+    "token": "0 12px 30px -24px rgba(40,36,32,.23),inset 0 1px 0 rgba(255,255,255,.74),inset 0 -1px 0 rgba(60,42,18,.014)"
+  },
+  "passwords-graphite": {
+    "banner": "rgba(0, 0, 0, 0.62) 0px 18px 46px -32px, rgba(255, 255, 255, 0.15) 0px 1px 0px 0px inset, rgba(255, 255, 255, 0.024) 0px -1px 0px 0px inset",
+    "rows": "rgba(0, 0, 0, 0.62) 0px 18px 46px -32px, rgba(255, 255, 255, 0.15) 0px 1px 0px 0px inset, rgba(255, 255, 255, 0.024) 0px -1px 0px 0px inset",
+    "cardToken": "0 18px 46px -32px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.15),inset 0 -1px 0 rgba(255,255,255,.025)",
+    "background": "rgba(0, 0, 0, 0)"
+  },
+  "widgets-graphite": {
+    "cards": [
+      "rgba(0, 0, 0, 0.62) 0px 18px 46px -32px, rgba(255, 255, 255, 0.15) 0px 1px 0px 0px inset, rgba(255, 255, 255, 0.024) 0px -1px 0px 0px inset",
+      "rgba(0, 0, 0, 0.62) 0px 18px 46px -32px, rgba(255, 255, 255, 0.15) 0px 1px 0px 0px inset, rgba(255, 255, 255, 0.024) 0px -1px 0px 0px inset"
+    ],
+    "bar": "rgba(0, 0, 0, 0.62) 0px 18px 46px -32px, rgba(255, 255, 255, 0.15) 0px 1px 0px 0px inset, rgba(255, 255, 255, 0.024) 0px -1px 0px 0px inset",
+    "token": "0 18px 46px -32px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.15),inset 0 -1px 0 rgba(255,255,255,.025)"
+  },
+  "windowWin32": {
+    "platform": "win32",
+    "tabMountVisible": true,
+    "controlVisible": true,
+    "controlParent": "tabTop",
+    "tabMount": {
+      "x": 280,
+      "y": 0,
+      "width": 990,
+      "height": 43,
+      "right": 1270,
+      "bottom": 43
+    },
+    "controls": {
+      "x": 1038.984375,
+      "y": 7,
+      "width": 112,
+      "height": 32,
+      "right": 1150.984375,
+      "bottom": 39
+    },
+    "plus": {
+      "x": 1002.984375,
+      "y": 9,
+      "width": 28,
+      "height": 28,
+      "right": 1030.984375,
+      "bottom": 37
+    },
+    "lightsHidden": true,
+    "overflow": false,
+    "actions": [
+      {
+        "action": "minimize",
+        "label": "Свернуть окно",
+        "icon": "#i-minus"
+      },
+      {
+        "action": "maximize",
+        "label": "Развернуть окно",
+        "icon": "i win-maximize-icon"
+      },
+      {
+        "action": "close",
+        "label": "Закрыть окно",
+        "icon": "#i-x"
+      }
+    ]
+  },
+  "windowMaximized": {
+    "pressed": "true",
+    "label": "Восстановить окно",
+    "restore": "block",
+    "calls": [
+      "maximize"
+    ]
+  },
+  "windowActions": {
+    "pressed": "false",
+    "calls": [
+      "maximize",
+      "restore",
+      "minimize",
+      "close"
+    ]
+  },
+  "windowMac": {
+    "platform": "darwin",
+    "controlsHidden": true,
+    "lightsHidden": false,
+    "lightsLive": true,
+    "trafficLights": [
+      "rgb(255, 95, 87)",
+      "rgb(254, 188, 46)",
+      "rgb(40, 200, 64)"
+    ],
+    "controlsInDom": true
+  },
+  "toolbarGeometry": {
+    "fire": {
+      "x": 936,
+      "y": 63,
+      "width": 32,
+      "height": 32,
+      "right": 968,
+      "bottom": 95
+    },
+    "timer": {
+      "x": 976,
+      "y": 63,
+      "width": 82,
+      "height": 32,
+      "right": 1058,
+      "bottom": 95
+    },
+    "extensions": {
+      "x": 1066,
+      "y": 63,
+      "width": 32,
+      "height": 32,
+      "right": 1098,
+      "bottom": 95
+    },
+    "gapFireTimer": 8,
+    "gapTimerExtensions": 8,
+    "timerText": "25:00"
+  },
+  "toolbarStableWidth": {
+    "normal": {
+      "timer": 82,
+      "extensionX": 1066
+    },
+    "short": {
+      "timer": 82,
+      "extensionX": 1066
+    },
+    "long": {
+      "timer": 82,
+      "extensionX": 1066
+    }
+  },
+  "range-graphite": {
+    "initial": [
+      {
+        "min": 40,
+        "max": 100,
+        "value": 82,
+        "progress": "70%",
+        "track": "auto",
+        "rect": {
+          "x": 23,
+          "y": 414.8125,
+          "width": 278.328125,
+          "height": 7
+        }
+      },
+      {
+        "min": 10,
+        "max": 23,
+        "value": 16,
+        "progress": "46.15384615384615%",
+        "track": "auto",
+        "rect": {
+          "x": 23,
+          "y": 481.75,
+          "width": 278.328125,
+          "height": 7
+        }
+      }
+    ],
+    "states": [
+      {
+        "which": 0,
+        "value": 40,
+        "progress": "0%",
+        "track": "auto"
+      },
+      {
+        "which": 0,
+        "value": 70,
+        "progress": "50%",
+        "track": "auto"
+      },
+      {
+        "which": 0,
+        "value": 100,
+        "progress": "100%",
+        "track": "auto"
+      },
+      {
+        "which": 1,
+        "value": 10,
+        "progress": "0%",
+        "track": "auto"
+      },
+      {
+        "which": 1,
+        "value": 17,
+        "progress": "53.84615384615385%",
+        "track": "auto"
+      },
+      {
+        "which": 1,
+        "value": 23,
+        "progress": "100%",
+        "track": "auto"
+      }
+    ],
+    "dragged": {
+      "value": 97,
+      "progress": "95%",
+      "track": "auto"
+    },
+    "endpoint": [
+      {
+        "value": 100,
+        "progress": "100%",
+        "track": "auto"
+      },
+      {
+        "value": 23,
+        "progress": "100%",
+        "track": "auto"
+      }
+    ]
+  },
+  "range-ivory": {
+    "initial": [
+      {
+        "min": 40,
+        "max": 100,
+        "value": 100,
+        "progress": "100%",
+        "track": "auto",
+        "rect": {
+          "x": 23,
+          "y": 414.8125,
+          "width": 278.328125,
+          "height": 7
+        }
+      },
+      {
+        "min": 10,
+        "max": 23,
+        "value": 23,
+        "progress": "100%",
+        "track": "auto",
+        "rect": {
+          "x": 23,
+          "y": 481.75,
+          "width": 278.328125,
+          "height": 7
+        }
+      }
+    ],
+    "states": [
+      {
+        "which": 0,
+        "value": 40,
+        "progress": "0%",
+        "track": "auto"
+      },
+      {
+        "which": 0,
+        "value": 70,
+        "progress": "50%",
+        "track": "auto"
+      },
+      {
+        "which": 0,
+        "value": 100,
+        "progress": "100%",
+        "track": "auto"
+      },
+      {
+        "which": 1,
+        "value": 10,
+        "progress": "0%",
+        "track": "auto"
+      },
+      {
+        "which": 1,
+        "value": 17,
+        "progress": "53.84615384615385%",
+        "track": "auto"
+      },
+      {
+        "which": 1,
+        "value": 23,
+        "progress": "100%",
+        "track": "auto"
+      }
+    ],
+    "dragged": {
+      "value": 97,
+      "progress": "95%",
+      "track": "auto"
+    },
+    "endpoint": [
+      {
+        "value": 100,
+        "progress": "100%",
+        "track": "auto"
+      },
+      {
+        "value": 23,
+        "progress": "100%",
+        "track": "auto"
+      }
+    ]
+  },
+  "consoleErrors": []
+}

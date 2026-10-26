@@ -16,6 +16,16 @@ for (const [action, label] of [['minimize', 'Свернуть окно'], ['maxi
     `${action} must be an accessible native window action`);
 }
 assert.match(controls[0], /aria-pressed="false"/, 'the maximize button exposes its toggle state');
+assert.match(controls[0], /<use href="#i-minus"\/>/);
+assert.match(controls[0], /<use href="#i-x"\/>/);
+assert(!controls[0].includes('${ico('), 'the window controls must not render a literal template expression');
+assert.match(html, /<symbol id="i-minus"/);
+assert.match(html, /<symbol id="i-x"/);
+assert.match(html, /const label = maximized \? 'Восстановить окно' : 'Развернуть окно'/,
+  'the accessible label follows the actual native maximize state');
+assert.match(html, /--window-control-gap:var\(--toolbar-gap\)/);
+assert.match(html, /\.tab-mount\{display:flex;align-items:center;gap:var\(--toolbar-gap\)/);
+assert.match(html, /\.tab-mount>\.wctl\{margin-left:auto;-webkit-app-region:no-drag\}/);
 assert.match(html, /if \(n\.platform !== 'win32'\) \{ ctl\.hidden = true; return; \}/,
   'the replacement controls are shown only on Windows');
 assert.match(html, /if \(n\.platform === 'darwin'\) \{[\s\S]*?lights\.classList\.add\('live'\)/,
@@ -24,10 +34,15 @@ assert.match(html, /if \(pos === 'top'\)[\s\S]*?tm\.appendChild\(ctl\)[\s\S]*?el
   'Windows controls move with the tab row to the first row for all tab positions');
 
 const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(match => match[1]).join('\n');
+assert.match(css, /--toolbar-gap:8px;/);
+assert.match(css, /--window-control-size:32px;/);
+assert.match(css, /--window-control-icon-size:14px;/);
 assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?border-radius:[^;]+;[\s\S]*?background:[^;]+;[\s\S]*?box-shadow:var\(--glass-shadow-md\)/,
   'Windows keys use the glass control material');
-assert.match(css, /#winCtl\.win-ctls\{display:flex;align-items:center;gap:4px;/);
-assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?width:32px;height:32px/);
+assert.match(css, /#winCtl\.win-ctls\{display:flex;align-items:center;gap:var\(--window-control-gap\);/);
+assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?width:var\(--window-control-size\);height:var\(--window-control-size\)/);
+assert.match(css, /#winCtl\.win-ctls \.wc-close:hover\{[^}]*color:rgb\(var\(--danger\)\)/);
+assert.match(css, /#winCtl\.win-ctls \.wc-max\[aria-pressed="true"\] \.win-restore-icon\{display:block\}/);
 assert.match(css, /#winCtl\.win-ctls \.wc:active\{/);
 assert.match(css, /#winCtl\.win-ctls \.wc:focus-visible\{/);
 assert.match(css, /@media\s*\(min-width:1025px\) and \(max-width:1800px\)\{[\s\S]*?\.host-win32 \.tb\{display:flex\}[\s\S]*?\.host-win32 \.tb>\.omni-tb\{flex:1 1 0;width:auto;min-width:140px;max-width:620px;margin:0 auto\}/,

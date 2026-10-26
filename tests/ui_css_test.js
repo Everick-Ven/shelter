@@ -125,7 +125,7 @@ check('липкая шапка совпадает с полями страниц
 check('на узком экране инструменты возвращаются в переносимый flex-ряд',
   /@media \(max-width:720px\)\s*\{[\s\S]*?\.tb\{display:flex;height:auto;min-height:54px;flex-wrap:wrap/.test(structureCss) &&
   /\.tb>\.omni-tb\{flex:1 1 140px;width:auto;min-width:140px;max-width:none;margin:0\}/.test(structureCss) &&
-  /\.tb>\.tb-actions\{flex:1 0 100%;min-width:0;flex-wrap:wrap;justify-content:flex-end;gap:5px\}/.test(structureCss));
+  /\.tb>\.tb-actions\{flex:1 0 100%;min-width:0;flex-wrap:wrap;justify-content:flex-end;gap:var\(--toolbar-gap\)\}/.test(structureCss));
 check('узкий ассистент: detail занимает всю ширину при выносе рейла',
   /@container dt-shell \(max-width:900px\)\s*\{\s*\/\*[\s\S]*?\*\/\s*\.dt-app > \.dt-main\{grid-column:1 \/ -1\}/.test(css));
 
@@ -199,8 +199,8 @@ check('задачи дня и многодневные ряды держат о�
 check('задачи недели держат единый ритм: зазоры 6px и одинаковый ховер у рядов и капсул',
   plannerStyle.includes('.wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(var(--wp-span-lanes),20px);column-gap:10px;row-gap:6px;') &&
   plannerStyle.includes('.wp-day-items{display:flex;flex:1;flex-direction:column;gap:6px;') &&
-  plannerStyle.includes('.wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}') &&
-  plannerStyle.includes('.wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}') &&
+  plannerStyle.includes('.wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:var(--shadow-card-hover);filter:brightness(1.03);position:relative;z-index:5}') &&
+  plannerStyle.includes('.wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:var(--shadow-card-hover);filter:brightness(1.03);position:relative;z-index:5}') &&
   plannerStyle.includes('.wp-day-capsule.dragging{opacity:.45}') &&
   plannerStyle.includes('.wp-calendar-span.dragging{opacity:.45}'));
 check('кастомные строки меню держат метрики пунктов: равные отступы сверху и снизу',
@@ -265,5 +265,27 @@ check('верхний мини-таймер Pomodoro следует видимо
 check('Помодоро не содержит оставшейся визуальной разметки или CSS-индикаторов циклов',
   !css.includes('.pomo-cycle-dots') && !css.includes('.pomo-cycles{') &&
   !html.includes('pomoCycleProgress') && !html.includes('pomoCycleTip') && !html.includes('pomoCycles'));
+check('уведомление Pomodoro использует токены ширины, отступов и типографики',
+  css.includes('--pomo-notice-width:480px;') && css.includes('--pomo-notice-padding:22px;') &&
+  css.includes('--pomo-notice-title-size:18px;') && css.includes('--pomo-notice-copy-size:15px;') &&
+  css.includes('--pomo-notice-action-size:15px;') && css.includes('--pomo-notice-copy-line-height:1.5;') &&
+  css.includes('width:min(var(--pomo-notice-width),calc(100vw - var(--pomo-notice-edge) - var(--pomo-notice-edge)))') &&
+  css.includes('font-weight:650;line-height:var(--pomo-notice-title-line-height)') &&
+  css.includes('line-height:var(--pomo-notice-copy-line-height)'));
+check('основные карточки и hover-состояния используют единые тени с темой и Speed override',
+  css.includes('--shadow-card:var(--glass-shadow-md);') &&
+  css.includes('--shadow-card-hover:var(--glass-shadow-md),') &&
+  css.includes('--shadow-card:none !important;') &&
+  css.includes('--shadow-card-hover:none !important;') &&
+  css.includes('.card{background:var(--card);border:1px solid var(--line);border-radius:calc(20px*var(--rs));box-shadow:var(--shadow-card)') &&
+  css.includes('.banner,.meter,.dash-top .stats,.hist .card'));
+check('ползунки Chrome и Gecko рисуют прогресс в пределах одного трека',
+  css.includes('.rng::-webkit-slider-runnable-track{') && css.includes('.rng::-moz-range-track{') &&
+  (css.match(/background-size:var\(--range-progress\) 100%;background-repeat:no-repeat;/g) || []).length === 2 &&
+  css.includes('.rng::-moz-range-progress{height:7px;border-radius:99px;background:transparent;box-shadow:none}'));
+const rangeSync = html.slice(html.indexOf('function syncRangeFill(el) {'), html.indexOf('function initRanges(root = document)'));
+check('range progress clamped and updated via a CSS custom property (no inline gradient)',
+  rangeSync.includes('Number.isFinite(value)') && rangeSync.includes('Math.max(0, Math.min(100') &&
+  rangeSync.includes("el.style.setProperty('--range-progress'") && !rangeSync.includes('el.style.background'));
 
 finish();

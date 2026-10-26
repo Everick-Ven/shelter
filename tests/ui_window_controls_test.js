@@ -26,6 +26,8 @@ assert.match(html, /if \(pos === 'top'\)[\s\S]*?tm\.appendChild\(ctl\)[\s\S]*?el
 const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(match => match[1]).join('\n');
 assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?border-radius:[^;]+;[\s\S]*?background:[^;]+;[\s\S]*?box-shadow:var\(--glass-shadow-md\)/,
   'Windows keys use the glass control material');
+assert.match(css, /#winCtl\.win-ctls\{display:flex;align-items:center;gap:3px;/);
+assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?width:26px;height:26px/);
 assert.match(css, /#winCtl\.win-ctls \.wc:active\{/);
 assert.match(css, /#winCtl\.win-ctls \.wc:focus-visible\{/);
 assert.match(css, /\.host-win32 \.tb>\.omni-tb\{width:min\(620px,28vw\)\}/,

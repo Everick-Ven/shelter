@@ -25,13 +25,20 @@ assert.match(html, /const label = maximized \? 'Восстановить окн�
   'the accessible label follows the actual native maximize state');
 assert.match(html, /--window-control-gap:var\(--toolbar-gap\)/);
 assert.match(html, /\.tab-mount\{display:flex;align-items:center;gap:var\(--toolbar-gap\)/);
-assert.match(html, /\.tab-mount>\.wctl\{margin-left:auto;-webkit-app-region:no-drag\}/);
+// Кнопки окна живут в углу окна и не зависят от положения вкладок.
+assert.match(html, /<div class="app" id="app">\s*<!--[^>]*-->\s*<div class="wctl win-ctls" id="winCtl"/,
+  'the window controls are a direct child of .app, not of a tab/toolbar container');
+assert.doesNotMatch(html, /tm\.appendChild\(ctl\)|home\.appendChild\(ctl\)/,
+  'applyTabPos must not move the window controls between containers');
+assert.match(html, /#winCtl\.win-ctls\{position:fixed;top:var\(--wc-top\);right:var\(--wc-right\);/,
+  'the window controls use fixed window-corner positioning');
+assert.match(html, /\.host-win32 \.app\[data-tabpos="top"\] #tabTop\{padding-right:var\(--wc-reserve\)\}/);
+assert.match(html, /\.host-win32 \.app\[data-tabpos="left"\] \.tb,\.host-win32 \.app\[data-tabpos="bottom"\] \.tb\{padding-right:var\(--wc-reserve\)\}/);
+assert.match(html, /\.host-win32 \.app\[data-tabpos="right"\] \.tab-rail\{padding-top:/);
 assert.match(html, /if \(n\.platform !== 'win32'\) \{ ctl\.hidden = true; return; \}/,
   'the replacement controls are shown only on Windows');
 assert.match(html, /if \(n\.platform === 'darwin'\) \{[\s\S]*?lights\.classList\.add\('live'\)/,
   'the existing macOS traffic-light controls remain intact');
-assert.match(html, /if \(pos === 'top'\)[\s\S]*?tm\.appendChild\(ctl\)[\s\S]*?else[\s\S]*?home\.appendChild\(ctl\)/,
-  'Windows controls move with the tab row to the first row for all tab positions');
 
 const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(match => match[1]).join('\n');
 assert.match(css, /--toolbar-gap:8px;/);
@@ -39,7 +46,7 @@ assert.match(css, /--window-control-size:32px;/);
 assert.match(css, /--window-control-icon-size:14px;/);
 assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?border-radius:[^;]+;[\s\S]*?background:[^;]+;[\s\S]*?box-shadow:var\(--glass-shadow-md\)/,
   'Windows keys use the glass control material');
-assert.match(css, /#winCtl\.win-ctls\{display:flex;align-items:center;gap:var\(--window-control-gap\);/);
+assert.match(css, /#winCtl\.win-ctls\{position:fixed;[^}]*display:flex;align-items:center;gap:var\(--window-control-gap\);/);
 assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?width:var\(--window-control-size\);height:var\(--window-control-size\)/);
 assert.match(css, /#winCtl\.win-ctls \.wc-close:hover\{[^}]*color:rgb\(var\(--danger\)\)/);
 assert.match(css, /#winCtl\.win-ctls \.wc-max\[aria-pressed="true"\] \.win-restore-icon\{display:block\}/);

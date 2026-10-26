@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-licJ7xD8qaoGniSysHIAgcSM+Z46GNnp+EDrGE82KEI=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-2dAyQfsSj6ypmR3qLCZmDFnLF4Nc8r1V5+s+qczxN78=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -308,6 +308,10 @@ html.theme-anim body{
 
 /* ---------- Каркас окна ---------- */
 .app{position:relative;z-index:1;display:flex;height:100vh;height:100dvh}
+/* Кнопки окна Windows: один угол при любом положении вкладок. */
+.app{--wc-w:calc(var(--window-control-size)*3 + var(--window-control-gap)*2);--wc-right:22px;--wc-top:20px;--wc-edge:10px;
+  --wc-reserve:calc(var(--wc-right) + var(--wc-w) + var(--toolbar-gap) - var(--wc-edge))}
+.app[data-tabpos="top"],.app[data-tabpos="right"]{--wc-top:7px}
 .main{flex:1;min-width:0;display:flex;flex-direction:column;padding:0 10px 10px 0}
 .app.collapsed .main{padding-left:0}
 
@@ -540,7 +544,6 @@ body.no-badges .badge{display:none!important}
 .tab-mount .tab.drop-before::after{left:-4px;top:5px;bottom:5px;right:auto;width:3px;height:auto;border-radius:99px}
 .tab-mount .tab.new{display:flex;flex:0 0 auto;width:auto;min-width:0;max-width:none;padding-right:10px}
 .tab-mount .tabs .icon-btn{flex:none}
-.tab-mount>.wctl{margin-left:auto;-webkit-app-region:no-drag}
 .tab-mount>.tab-plus{position:relative;flex:none;z-index:3;background:var(--bg)}
 .tab-mount>.tab-plus:hover{background:var(--hover);color:var(--text)}
 .tabs-scroll{position:absolute;left:2px;right:2px;bottom:0;height:2px;border-radius:99px;background:var(--line);pointer-events:none}
@@ -3805,7 +3808,12 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .host-win32 .tb>.omni-tb{flex:1 1 0;width:auto;min-width:140px;max-width:620px;margin:0 auto}
   .host-win32 .tb>.tb-actions{flex:0 0 auto;min-width:0;margin-left:auto}
 }
-#winCtl.win-ctls{display:flex;align-items:center;gap:var(--window-control-gap);flex:none;margin:0;padding:0;-webkit-app-region:no-drag}
+#winCtl.win-ctls{position:fixed;top:var(--wc-top);right:var(--wc-right);z-index:40;display:flex;align-items:center;gap:var(--window-control-gap);flex:none;margin:0;padding:0;-webkit-app-region:no-drag}
+/* Резерв места под кнопки окна в первом ряду выбранной раскладки. */
+.host-win32 .app[data-tabpos="top"] #tabTop{padding-right:var(--wc-reserve)}
+.host-win32 .app[data-tabpos="left"] .tb,.host-win32 .app[data-tabpos="bottom"] .tb{padding-right:var(--wc-reserve)}
+.host-win32 .app[data-tabpos="right"] .tab-rail{padding-top:calc(var(--wc-top) + var(--window-control-size) + 8px)}
+.host-win32 .app[data-tabpos="right"]:has(#tabRight.is-collapsed) .tb{padding-right:calc(var(--wc-reserve) - var(--sb-wc))}
 #winCtl.win-ctls .wc{
   position:relative;display:grid;place-items:center;width:var(--window-control-size);height:var(--window-control-size);flex:none;
   padding:0;border:1px solid var(--glass-rim);border-radius:calc(10px*var(--rs));
@@ -5107,6 +5115,12 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
 </svg>
 
 <div class="app" id="app">
+  <!-- Кнопки окна Windows: фиксированы в правом верхнем углу окна, не зависят от положения вкладок -->
+        <div class="wctl win-ctls" id="winCtl" hidden role="group" aria-label="Управление окном">
+          <button type="button" class="wc wc-min" data-w="minimize" data-tip="Свернуть окно" aria-label="Свернуть окно"><svg class="i" aria-hidden="true"><use href="#i-minus"/></svg></button>
+          <button type="button" class="wc wc-max" data-w="maximize" data-tip="Развернуть окно" aria-label="Развернуть окно" aria-pressed="false"><svg class="i win-maximize-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="3.75" y="3.75" width="12.5" height="12.5" rx="1.5"/></svg><svg class="i win-restore-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 6.5V4.75c0-.7.55-1.25 1.25-1.25h7c.7 0 1.25.55 1.25 1.25v7c0 .7-.55 1.25-1.25 1.25H13"/><path d="M4.75 7.5h7c.7 0 1.25.55 1.25 1.25v7c0 .7-.55 1.25-1.25 1.25h-7c-.7 0-1.25-.55-1.25-1.25v-7c0-.7.55-1.25 1.25-1.25Z"/></svg></button>
+          <button type="button" class="wc wc-close" data-w="close" data-tip="Закрыть окно" aria-label="Закрыть окно"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+        </div>
   <!-- ============ БОКОВАЯ ПАНЕЛЬ ============ -->
   <aside class="sb" id="sb" aria-label="Боковая панель">
     <div class="sb-top" id="sbTop"><div class="lights" id="winLights" aria-hidden="true"><i></i><i></i><i></i></div></div>
@@ -5173,11 +5187,6 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
         <button class="tb-btn" id="protBtn" data-act="prot" data-tip="Защита" aria-label="Защита"><svg class="i"><use href="#i-shield-check"/></svg></button>
         <button class="tb-btn" id="settingsBtn" data-act="settings" data-tip="Настройки  ⌘," aria-label="Настройки"><svg class="i"><use href="#i-gear"/></svg></button>
         <button class="tb-btn" id="moreBtn" data-act="more" data-tip="Меню" aria-label="Меню"><svg class="i"><use href="#i-dots"/></svg></button>
-        <div class="wctl win-ctls" id="winCtl" hidden role="group" aria-label="Управление окном">
-          <button type="button" class="wc wc-min" data-w="minimize" data-tip="Свернуть окно" aria-label="Свернуть окно"><svg class="i" aria-hidden="true"><use href="#i-minus"/></svg></button>
-          <button type="button" class="wc wc-max" data-w="maximize" data-tip="Развернуть окно" aria-label="Развернуть окно" aria-pressed="false"><svg class="i win-maximize-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="3.75" y="3.75" width="12.5" height="12.5" rx="1.5"/></svg><svg class="i win-restore-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 6.5V4.75c0-.7.55-1.25 1.25-1.25h7c.7 0 1.25.55 1.25 1.25v7c0 .7-.55 1.25-1.25 1.25H13"/><path d="M4.75 7.5h7c.7 0 1.25.55 1.25 1.25v7c0 .7-.55 1.25-1.25 1.25h-7c-.7 0-1.25-.55-1.25-1.25v-7c0-.7.55-1.25 1.25-1.25Z"/></svg></button>
-          <button type="button" class="wc wc-close" data-w="close" data-tip="Закрыть окно" aria-label="Закрыть окно"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
-        </div>
       </div>
     </header>
 
@@ -7562,13 +7571,8 @@ function applyTabPos() {
     if (target && sr && tl && tl.parentElement !== target) { target.appendChild(sr); target.appendChild(tl); }
     Object.entries(mounts).forEach(([k, el]) => { if (el) el.hidden = k !== pos; });
     if (mounts.right) { mounts.right.classList.toggle('is-collapsed', !!S.ui.railCollapsed); syncRailToggle(); }
-    /* оконные кнопки Windows — всегда в правом верхнем углу ПЕРВОГО ряда:
-       вкладки сверху → ряд вкладок; иначе → тулбар (он первый ряд) */
-    const ctl = document.getElementById('winCtl');
-    if (ctl) {
-      if (pos === 'top') { const tm = document.getElementById('tabTop'); if (tm && ctl.parentElement !== tm) tm.appendChild(ctl); }
-      else { const cg = document.getElementById('ctlGrid'); const home = cg && cg.parentElement; if (home && ctl.parentElement !== home) home.appendChild(ctl); }
-    }
+    /* Кнопки окна Windows (#winCtl) не переносятся: они position:fixed в углу окна,
+       а место под них резервируют CSS-правила по [data-tabpos]. */
     renderSpaceRow(); renderTabs();
   } catch (e) { try { console.warn('applyTabPos failed:', e); } catch (_) {} }
 }

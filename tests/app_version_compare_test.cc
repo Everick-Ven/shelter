@@ -1,5 +1,5 @@
 // Контракт src/app_version_compare.h: проверка обновлений обязана понимать
-// теги релизов («v1.0.304») и сравнивать их с kAppVersion численно —
+// теги релизов («v1.0.305») и сравнивать их с kAppVersion численно —
 // лексикографическое сравнение назвало бы «1.10.0» старее «1.9.9».
 #include <iostream>
 #include <string>
@@ -25,16 +25,16 @@ void CheckCompare(const std::string& a, const std::string& b, int expected,
 }  // namespace
 
 int main() {
-  CheckCompare("1.0.303", "1.0.303", 0);
-  CheckCompare("v1.0.304", "1.0.303", 1);
+  CheckCompare("1.0.304", "1.0.304", 0);
+  CheckCompare("v1.0.305", "1.0.304", 1);
   CheckCompare("1.0.303", "1.0.304", -1);
   CheckCompare("1.2", "1.2.0", 0);
   CheckCompare("1.10.0", "1.9.9", 1);
   CheckCompare("2.0", "1.99.99", 1);
   CheckCompare("  v2.0", "1.9.9", 1);
   CheckCompare("1.0.3-beta", "1.0.3", 0);
-  CheckCompare("1.0.303.5", "1.0.303", 1);
-  CheckCompare("1.0.303", "1.0.303.1", -1);
+  CheckCompare("1.0.304.5", "1.0.304", 1);
+  CheckCompare("1.0.304", "1.0.304.1", -1);
   CheckCompare("abc", "1.0", 0, false);
   CheckCompare("1.0", "", 0, false);
   CheckCompare("", "", 0, false);

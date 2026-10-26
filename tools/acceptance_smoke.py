@@ -534,6 +534,7 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const prot = document.getElementById('protBtn');
         const ext = document.getElementById('extBtn');
         const header = document.querySelector('.tb');
+        const windowControls = document.getElementById('winCtl');
         const fire = controls && controls.querySelector('.ctl.fire');
         const pomo = controls && controls.querySelector('#pomoGlobalBtn');
         if (!quick || !settings || !more || !controls || !prot || !ext || !fire || !pomo || !header)
@@ -618,6 +619,16 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           viewportWidth: innerWidth,
           dashboardFallbackDisabled: dashboardFallbackDisabled,
           toolbar: toolbar,
+          toolbarGeometry: {
+            headerClientWidth: header.clientWidth,
+            headerScrollWidth: header.scrollWidth,
+            headerRight: Math.round(headerRect.right),
+            viewportWidth: innerWidth,
+            actionsWidth: Math.round(document.querySelector('.tb-actions').getBoundingClientRect().width),
+            controlsWidth: Math.round(controls.getBoundingClientRect().width),
+            addressWidth: Math.round(document.getElementById('omniTb').getBoundingClientRect().width),
+            windowControlsWidth: Math.round(windowControls ? windowControls.getBoundingClientRect().width : 0)
+          },
           menuLabels: labels,
           visibleForbidden: visibleForbidden,
           profileLast: profileLast,
@@ -1056,6 +1067,8 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         const app = document.getElementById('dtApp');
         if (!app) throw new Error('assistant page did not render');
+        if (app.querySelector('.dt-privacy-pill'))
+          throw new Error('obsolete assistant privacy pill is still present');
         await frame();
         const parse = value => String(value || '').split(/\s+/).map(part => {
           const n = parseFloat(part);
@@ -1081,8 +1094,7 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
            макете это macOS Split View — панели стыкуются встык и разделены
            волосяной линией, их проверяет блок ниже. */
         const surfaces = ['.dt-new', '.dt-thread-search', '.dt-kpis',
-                          '.dt-welcome-mark', '.omni.dt-omni', '.dt-privacy-pill',
-                          '.dt-private'];
+                          '.dt-welcome-mark', '.omni.dt-omni', '.dt-private'];
         const report = {};
         /* Приветственный экран живёт только в пустом диалоге: на чистом
            профиле Открыт ознакомительный диалог с сообщениями. Открываем

@@ -28,7 +28,7 @@ assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?border-radius:[^;]+;[\s\S]*?b
   'Windows keys use the glass control material');
 assert.match(css, /#winCtl\.win-ctls \.wc:active\{/);
 assert.match(css, /#winCtl\.win-ctls \.wc:focus-visible\{/);
-assert.match(css, /\.host-win32 \.tb>\.omni-tb\{width:min\(620px,30vw\)\}/,
+assert.match(css, /\.host-win32 \.tb>\.omni-tb\{width:min\(620px,28vw\)\}/,
   'the centered address field yields space for Windows controls on narrow desktop widths');
 assert.match(css, /-webkit-app-region:no-drag/);
 assert.doesNotMatch(css, /\.wctl \.wc-(?:min|max|close)\{background:#(?:FEBC2E|28C840|FF5F57)\}/,

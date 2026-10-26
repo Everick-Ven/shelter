@@ -26,12 +26,12 @@ assert.match(html, /if \(pos === 'top'\)[\s\S]*?tm\.appendChild\(ctl\)[\s\S]*?el
 const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(match => match[1]).join('\n');
 assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?border-radius:[^;]+;[\s\S]*?background:[^;]+;[\s\S]*?box-shadow:var\(--glass-shadow-md\)/,
   'Windows keys use the glass control material');
-assert.match(css, /#winCtl\.win-ctls\{display:flex;align-items:center;gap:3px;/);
-assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?width:26px;height:26px/);
+assert.match(css, /#winCtl\.win-ctls\{display:flex;align-items:center;gap:4px;/);
+assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?width:32px;height:32px/);
 assert.match(css, /#winCtl\.win-ctls \.wc:active\{/);
 assert.match(css, /#winCtl\.win-ctls \.wc:focus-visible\{/);
-assert.match(css, /\.host-win32 \.tb>\.omni-tb\{width:min\(620px,28vw\)\}/,
-  'the centered address field yields space for Windows controls on narrow desktop widths');
+assert.match(css, /@media\s*\(min-width:1025px\) and \(max-width:1800px\)\{[\s\S]*?\.host-win32 \.tb\{display:flex\}[\s\S]*?\.host-win32 \.tb>\.omni-tb\{flex:1 1 0;width:auto;min-width:140px;max-width:620px;margin:0 auto\}/,
+  'the Windows toolbar reserves a flexible address field between its action groups at desktop widths');
 assert.match(css, /-webkit-app-region:no-drag/);
 assert.doesNotMatch(css, /\.wctl \.wc-(?:min|max|close)\{background:#(?:FEBC2E|28C840|FF5F57)\}/,
   'the Windows controls no longer use Mac traffic-light colors');

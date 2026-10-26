@@ -3745,12 +3745,18 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 /* Поиск в узком сайдбаре сохраняет полное имя, обрезая только хвост. */
 .sb-search span:not(.kbd){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* Нативные Windows-кнопки: стеклянные квадратные клавиши вместо светофорных точек.
-   Чуть уже адресная капсула, чтобы ряд действий помещался и на 1280 px. */
-.host-win32 .tb>.omni-tb{width:min(620px,28vw)}
-#winCtl.win-ctls{display:flex;align-items:center;gap:3px;flex:none;margin:0;padding:0;-webkit-app-region:no-drag}
+/* Нативные Windows-кнопки: стеклянные квадратные клавиши вместо светофорных точек. */
+@media (min-width:1025px) and (max-width:1800px){
+  /* Справа действий больше, чем навигации: адресная строка гибко занимает
+     свободный промежуток, не накладываясь на кнопки и не прокручивая тулбар. */
+  .host-win32 .tb{display:flex}
+  .host-win32 .tb>.tb-g{flex:0 0 auto}
+  .host-win32 .tb>.omni-tb{flex:1 1 0;width:auto;min-width:140px;max-width:620px;margin:0 auto}
+  .host-win32 .tb>.tb-actions{flex:0 0 auto;min-width:0;margin-left:auto}
+}
+#winCtl.win-ctls{display:flex;align-items:center;gap:4px;flex:none;margin:0;padding:0;-webkit-app-region:no-drag}
 #winCtl.win-ctls .wc{
-  position:relative;display:grid;place-items:center;width:26px;height:26px;flex:none;
+  position:relative;display:grid;place-items:center;width:32px;height:32px;flex:none;
   padding:0;border:1px solid var(--glass-rim);border-radius:calc(10px*var(--rs));
   background:linear-gradient(140deg,rgba(255,255,255,.09),transparent 64%),var(--glass-1);
   color:var(--text-2);box-shadow:var(--glass-shadow-md);

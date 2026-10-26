@@ -91,6 +91,8 @@ check('секции настроек не подменяются оценкой 
 const phone = cut('@media (max-width:720px){\n  .sb{position:fixed', '@container shelter (max-width:1100px)');
 check('телефонный блок найден', phone.length > 0, phone.length + ' символов');
 check('в телефонном режиме плитки защиты поджаты', /\.tb-ctls \.ctl\{width:2[0-9]px\}/.test(phone));
+check('быстрые действия отделены от «Расширений» базовым отступом 16px (приёмка требует зазор ≥ 20px вместе с gap)',
+  /\.tb-actions>#quickBtn\{margin-left:16px\}/.test(css));
 check('в телефонном режиме нет своего отступа перед быстрыми действиями',
   !/\.tb-actions>#quickBtn\{margin-left:(?!16px)/.test(phone));
 

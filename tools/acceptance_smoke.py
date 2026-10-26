@@ -549,8 +549,15 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const headerRect = header.getBoundingClientRect();
         const rectSummary = el => {
           const r = el.getBoundingClientRect();
-          return { left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width) };
+          return [Math.round(r.left), Math.round(r.right), Math.round(r.width)];
         };
+        /* Glass shadows can extend the scrollable overflow box without moving
+           controls outside the toolbar; validate actual visible element bounds. */
+        const visuallyOutOfHeader = Array.from(header.querySelectorAll('*')).filter(el => {
+          const style = getComputedStyle(el), r = el.getBoundingClientRect();
+          return style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0 &&
+            (r.left < headerRect.left - 1 || r.right > headerRect.right + 1);
+        });
         const toolbar = {
           settingsBeforeMenu: settings.parentElement === more.parentElement &&
             settings.nextElementSibling === more &&
@@ -576,8 +583,8 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           extraGapBeforeQuick: quickRect.left - extRect.right >= 20,
           quickLabelUpdated: quick.dataset.tip === 'Оформление и вкладки' &&
             quick.getAttribute('aria-label') === 'Оформление и вкладки',
-          noHorizontalOverflow: header.scrollWidth <= header.clientWidth + 1 &&
-            headerRect.right <= innerWidth + 1,
+          noHorizontalOverflow: headerRect.left >= -1 && headerRect.right <= innerWidth + 1 &&
+            visuallyOutOfHeader.length === 0,
           sidebarClean: !document.querySelector('#sb [data-act="schemeMode"], #sb #swatches, #sb [data-act="settings"], #sb [data-act="account"]')
         };
         more.click();
@@ -624,20 +631,11 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           dashboardFallbackDisabled: dashboardFallbackDisabled,
           toolbar: toolbar,
           toolbarGeometry: {
-            headerClientWidth: header.clientWidth,
-            headerScrollWidth: header.scrollWidth,
-            headerRect: rectSummary(header),
-            viewportWidth: innerWidth,
-            leftGroup: rectSummary(header.querySelector('.tb-g')),
+            header: [rectSummary(header), header.clientWidth, header.scrollWidth],
+            left: rectSummary(header.querySelector('.tb-g')),
             address: rectSummary(document.getElementById('omniTb')),
             actions: rectSummary(document.querySelector('.tb-actions')),
-            controls: rectSummary(controls),
-            extensions: rectSummary(ext),
-            quick: rectSummary(quick),
-            shield: rectSummary(prot),
-            settings: rectSummary(settings),
-            menu: rectSummary(more),
-            windowControls: rectSummary(windowControls)
+            outside: visuallyOutOfHeader.slice(0, 6).map(el => [el.id || el.className || el.tagName, rectSummary(el)])
           },
           menuLabels: labels,
           visibleForbidden: visibleForbidden,

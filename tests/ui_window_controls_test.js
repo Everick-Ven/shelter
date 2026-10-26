@@ -48,5 +48,7 @@ assert(handler.indexOf('if (!IsUiBrowser(browser))') < handler.indexOf('if (m ==
 
 assert.match(acceptance, /fireActionTile: controls\.children\.length === 2[\s\S]*?pomodoroGlobalIndicator: controls\.children\.length === 2/,
   'runtime acceptance must validate both the session-clear control and the new global Pomodoro indicator');
+assert.match(acceptance, /noHorizontalOverflow:[\s\S]*?visuallyOutOfHeader\.length === 0/,
+  'runtime acceptance checks visible toolbar bounds rather than counting glass-shadow overflow');
 
 console.log('Windows window-control styling, platform gating, placement, and native state tests passed');

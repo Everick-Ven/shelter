@@ -50,7 +50,8 @@ const promptMarkup = html.slice(promptStart, promptEnd);
 const promptActions = Array.from(promptMarkup.matchAll(/data-dlp="([^"]+)"/g), match => match[1]);
 assert.deepEqual(promptActions, ['cancel', 'save'], 'prompt has only Cancel and Download actions');
 assert.match(promptMarkup, /data-dlp="cancel">Отмена/);
-assert.match(promptMarkup, /data-dlp="save">Скачать/);
+assert.ok(promptMarkup.includes('data-dlp="save">${saveLabel}'), 'download button uses the danger-aware label');
+assert.ok(html.includes("const saveLabel = danger ? 'Скачать всё равно' : 'Скачать';"), 'default label stays «Скачать», danger offers «Скачать всё равно»');
 assert.doesNotMatch(promptMarkup, /saveAs|Сохранить как/);
 
 const restored = context.__downloadTest.normalizeDownloadHistory([

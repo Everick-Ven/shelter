@@ -53,7 +53,10 @@ bool SanitizeRelPath(std::string* rel) {
   return true;
 }
 
-constexpr size_t kMaxSecretRequestBytes = 64u * 1024u * 1024u;
+// Верхняя граница одного запроса шифрования. Мост синхронный (XHR из UI),
+// поэтому огромный блоб подвешивал бы интерфейс; 8 МиБ с запасом покрывает
+// легитимные записи (пароли, ключи, история), а всё большее — ошибка клиента.
+constexpr size_t kMaxSecretRequestBytes = 8u * 1024u * 1024u;
 
 bool ReadPostBody(CefRefPtr<CefRequest> request, std::string* body) {
   if (!request || !body) return false;
@@ -141,6 +144,20 @@ std::string InjectBridge(std::string html) {
   return html;
 }
 
+std::string HtmlEscape(const std::string& s) {
+  std::string r;
+  for (char c : s) {
+    switch (c) {
+      case '&': r += "&amp;"; break;
+      case '<': r += "&lt;"; break;
+      case '>': r += "&gt;"; break;
+      case '"': r += "&quot;"; break;
+      default: r += c;
+    }
+  }
+  return r;
+}
+
 // Если index.html не найден рядом с exe (запуск прямо из архива без распаковки,
 // потерянная папка ui/ при копировании), вместо пустого чёрного окна отдаём
 // встроенную страницу-подсказку: пользователю видно, что произошло и что делать.
@@ -173,7 +190,10 @@ b{color:#EDEDF0}</style></head><body><div class="card">
 </ol>
 <p>Искали интерфейс здесь: <code>@DIR@</code></p>
 </div></body></html>)";
-  ReplaceAll(&html, "@DIR@", looked_in);
+  // Путь приходит из файловой системы (имя каталога с распаковкой), а страница
+  // отдаётся по UI-URL в UI-браузере — без экранирования crafted-имя каталога
+  // (легально на macOS/Linux) дало бы выполнение JS с доступом к мосту.
+  ReplaceAll(&html, "@DIR@", HtmlEscape(looked_in));
   return html;
 }
 
@@ -223,6 +243,7 @@ class UiSchemeHandlerFactory : public CefSchemeHandlerFactory {
     } else if (rel == "host-bridge.js") {
       ReplaceAll(&data, "__PLATFORM__", kPlatform);
       ReplaceAll(&data, "__APP_VERSION__", kAppVersion);
+      ReplaceAll(&data, "__APP_BUILD_TIMESTAMP__", kAppBuildTimestamp);
       // Производительные замеры и их журналирование включаются только в CI-сборке.
 #if defined(SHELTER_CI_HOOKS)
       ReplaceAll(&data, "__SHELTER_CI_HOOKS__", "true");

@@ -1,21 +1,22 @@
 # План подписания релизов SHELTER
 
-> **Статус:** проектирование. Этот документ описывает будущий процесс; он не меняет workflow, не подписывает текущие артефакты и не включает автоматическое обновление CEF.
+> **Статус на 2026-10-25:** P0 workflow внедрён частично в `.github/workflows/build.yml`: после owner setup он создаёт SHA-256 manifest, detached minisign signature, проверяет её, выпускает GitHub provenance attestations; CEF архивы закреплены по SHA-256. Public key сейчас placeholder, secrets не настроены/не проверены, GitHub Environment controls не подтверждены; текущая job должна остановиться на placeholder/отсутствующих secrets. Объявление `environment: release-signing` в YAML само по себе не включает reviewers, tag rules или branch/tag protection. Реальный подписанный релиз не выпускался. Authenticode, Developer ID и notarization не внедрены; Gatekeeper/SmartScreen предупреждения остаются ожидаемыми.
 
 ## Текущее состояние
 
-- Версия CEF закреплена в `CMakeLists.txt` параметром `CEF_VERSION`; ключ кеша CEF задаётся отдельно в `.github/workflows/build.yml` через `CEF_VERSION_KEY`.
-- Windows job выпускает Inno Setup (`SHELTER-Setup-x64.exe`) и portable ZIP.
-- macOS job собирает DMG. Сейчас `tools/make_dmg.sh` подписывает вложенные компоненты и приложение ad-hoc, без Developer ID и нотаризации.
-- Release job создаёт `SHA256SUMS.txt`, но не подписывает сам манифест. GitHub Actions использует стандартный `GITHUB_TOKEN`; сертификаты подписи и секреты Apple пока не настроены.
+- Версия и ожидаемые SHA-256 Windows/macOS архивов CEF закреплены в `CMakeLists.txt`; `cmake/DownloadCEF.cmake` проверяет их при скачивании и перед использованием кешированного архива. Текущий отрыв от stable и источники зафиксированы в [`cef-maintenance.md`](cef-maintenance.md).
+- Windows job выпускает Inno Setup (`SHELTER-Setup-x64.exe`) и portable ZIP. macOS job собирает DMG; `tools/make_dmg.sh` подписывает вложенные компоненты ad-hoc, без Developer ID и нотаризации.
+- Tag-only release job под Environment `release-signing` создаёт SHA-256 manifest, подписывает его minisign 0.12 и проверяет подпись public key, загруженным из `main` (не из tag commit). Затем provenance action attests установщик, ZIP, DMG, manifest и `.minisig`; только после этого `gh release create` публикует assets. Защита самого workflow/tag по-прежнему зависит от GitHub settings и review владельца.
+- `docs/release-pubkey.txt` пока placeholder; `release-signing` Environment, required reviewers/tag rules и 2FA/security settings не подтверждены. Job fail-closed на placeholder/отсутствующих secrets, но workflow не может проверить наличие reviewer/tag controls. Не считать YAML Environment реальной ручной блокировкой, пока настройки не проверены в GitHub UI.
+- Для текущего P0 workflow нужны только `RELEASE_MINISIGN_SECRET_KEY_BASE64` и `RELEASE_MINISIGN_PASSWORD` как Environment secrets. Сертификаты Authenticode/Apple не настроены и не используются.
 
 ## Целевой процесс релиза
 
-1. Сборки, тесты и smoke/acceptance-проверки выполняются без ключей подписи. Pull request и сборки из fork никогда не получают release secrets.
-2. Для защищённого тега `v*` артефакты передаются в платформенные signing jobs. Эти jobs запускаются в защищённом GitHub Environment `release-signing` с обязательным reviewer approval.
-3. Windows Setup и portable ZIP создаются из уже подписанных PE-файлов. macOS DMG создаётся из подписанного и прошедшего нотаризацию `SHELTER.app`.
-4. После окончательной подписи и упаковки формируются контрольные суммы всех публикуемых артефактов. Затем detached-подписью подписывается `SHA256SUMS.txt`; перед публикацией выполняется повторная проверка манифеста и его подписи.
-5. В GitHub Release загружаются только проверенные артефакты, `SHA256SUMS.txt` и его подпись. В release notes указываются идентификатор сертификата/публичного ключа и команды проверки.
+1. **Реализовано в P0:** сборки и тесты выполняются без minisign secrets; release job запускается только для `v*` в официальном репозитории и объявляет Environment `release-signing`. Environment approval/tag protection остаются owner action и ещё не проверены. PR/fork jobs не ссылаются на signing secrets.
+2. **Реализовано в P0:** из готовых Windows/macOS артефактов строится SHA-256 manifest; он подписывается detached minisign 0.12 из digest-pinned source archive и проверяется repository public key до публикации.
+3. **Реализовано в P0:** provenance action attests все финальные release assets после подписи манифеста; release notes содержат команды проверки. SHA-256 `.minisig` не включается в собственный manifest.
+4. **Не реализовано (отдельная P1):** Authenticode, Developer ID, hardened runtime/notarization и платформенные signing jobs. Текущие installers/DMG не становятся подписанными этими сертификатами из-за мини-signature.
+5. Владелец обязан сначала заменить placeholder public key, независимо опубликовать fingerprint и подтвердить GitHub Environment, reviewer/tag rules и secrets. Workflow блокируется кодом на placeholder/отсутствующих secrets, но не может самостоятельно подтвердить настройки reviewer/tag; до ручной проверки реальный release tag не создавать.
 
 ## Windows — Authenticode
 
@@ -53,16 +54,19 @@
 
 ## Подпись `SHA256SUMS.txt`
 
-Предлагаемый формат — detached-подпись **minisign**:
+Формат detached-подписи **minisign 0.12** реализуется в текущем P0 workflow:
 
-- Публичный ключ проверки публикуется в репозитории или на официальной странице SHELTER и его fingerprint указывается в release notes.
-- Приватный ключ хранится только в GitHub Environment `release-signing`; workflow подписывает готовый `SHA256SUMS.txt` и прикладывает рядом `SHA256SUMS.txt.minisig`.
-- Release job проверяет подпись закреплённым публичным ключом до создания/обновления GitHub Release. Проверка SHA-256 выполняется по именам фактически загружаемых файлов.
-- Манифест строится **после** Authenticode, codesign, notarization/stapling и окончательной упаковки. Сам файл подписи не включается в собственный манифест.
+- Workflow загружает официальный source archive tag 0.12, проверяет его SHA-256 `796dce1376f9bcb1a19ece729c075c47054364355fe0c0c1ebe5104d508c7db0` и собирает локальный verifier/signing tool из этого source. Linux release binary и его digest не используются.
+- Публичный ключ после owner action будет в `docs/release-pubkey.txt`; release notes печатают SHA-256 fingerprint decoded public-key record. Fingerprint нужно отдельно сообщить/проверить по доверенному каналу. Сейчас файл placeholder и реального fingerprint нет.
+- Временный private key декодируется только внутри release job из Environment secret, с `umask 077`, подписывает финальный `SHA256SUMS.txt`, затем подпись сразу проверяется и временный key file удаляется trap-ом. Пароль миниsign получает через stdin, не через CLI argument. Пользовательские key/password secrets не коммитятся.
+- Release job проверяет detached signature до создания GitHub Release. Проверка SHA-256 выполняется по basename трёх финальных файлов; manifest и signature также attest-ятся.
+- Сам `.minisig` не включается в подписываемый manifest. P1 Authenticode/codesign/notarization пока нет; когда появятся, manifest должен формироваться после их применения и окончательной упаковки.
 
-## Планируемые GitHub Actions secrets
+## GitHub Actions secrets и настройки Environment
 
-Создать Environment `release-signing`, ограничить его защищёнными release tags и включить обязательное ручное подтверждение. Использовать отдельные, минимально доступные секреты:
+Только два секрета `RELEASE_MINISIGN_SECRET_KEY_BASE64` и `RELEASE_MINISIGN_PASSWORD` используются текущим P0 workflow. Сначала владелец должен офлайн создать ключ по [`release-key.md`](release-key.md), заменить placeholder, а затем вручную проверить/настроить `release-signing` Environment, required reviewers, deployment tag rule `v*` и repository tag rules. Эти GitHub settings в ходе аудита не менялись и пока не подтверждены.
+
+Остальные строки таблицы — только возможные secrets для P1 platform signing; их **не создавать** до отдельного решения владельца:
 
 | Secret | Назначение |
 |---|---|
@@ -79,15 +83,15 @@
 
 Имена издателя, отпечаток ожидаемого сертификата, minisign public key, пути к entitlements и timestamp URL не являются секретами — их следует закрепить и проверять в репозитории. Стандартный `GITHUB_TOKEN` остаётся ограниченным правом `contents: write` только для release job. Ротация или отзыв сертификата/ключа оформляется отдельной операцией с обновлением fingerprint и публичного ключа.
 
-## Планируемые изменения workflow
+## Будущие изменения workflow: P1 platform signing
 
-Изменения вносятся только после утверждения этого плана:
+Это отдельный этап, не реализуемый до решений владельца. Текущий P0 detached-manifest-signing уже описан выше.
 
-1. Оставить обычные Windows/macOS build и тестовые jobs без signing credentials.
-2. Для release tag включить отдельные Windows/macOS signing jobs под защищённым Environment. Они скачивают проверенные build artifacts, подписывают PE или `.app`, создают соответствующий пакет и публикуют его как промежуточный artifact.
-3. Добавить проверки Authenticode, `codesign`, notarization/staple и Gatekeeper до загрузки артефактов в release. Любая ошибка подписи должна завершать job с ненулевым кодом.
-4. В release job скачать только подписанные артефакты, создать `SHA256SUMS.txt`, подписать его minisign-ключом, проверить подпись и контрольные суммы, затем загрузить файлы в GitHub Release.
-5. Не запускать шаги, использующие signing secrets, на `pull_request`, включая fork PR. Не передавать секреты в сторонние actions; использовать встроенные системные инструменты и pinned actions.
+1. Оставить обычные Windows/macOS build и тестовые jobs без platform-signing credentials.
+2. После отдельного утверждения включить Windows/macOS signing jobs только в теговый release path под reviewer-protected Environment. Они должны брать проверенные build artifacts, подписывать app-owned PE или `.app`, создавать соответствующий пакет и передавать его как финальный artifact.
+3. Добавить проверки Authenticode, `codesign`, notarization/staple и Gatekeeper до включения файлов в release manifest. Любая ошибка подписи завершает job.
+4. Оставить minisign manifest signing/provenance после финальной упаковки и пересчитывать manifest после новых платформенных подписей.
+5. Не запускать шаги с platform-signing secrets на `pull_request`, включая fork PR; не передавать secrets сторонним actions; использовать системные инструменты и pinned actions.
 
 ## Регулярное обновление CEF
 

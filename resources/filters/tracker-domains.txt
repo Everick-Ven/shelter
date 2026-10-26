@@ -115,6 +115,10 @@ clickadu.com
 richads.com
 ad-maven.com
 revenuehits.com
+popcash.net
+hybrid.ai
+aniview.com
+tsyndicate.com
 
 # --- счётчики и пиксели (RU/глобальные) ---
 mc.yandex.ru

@@ -18,6 +18,7 @@
 #include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 #include "src/common.h"
+#include "src/net_utils.h"
 #include "src/shell.h"
 
 namespace shelter {
@@ -37,59 +38,14 @@ std::set<std::string> g_insecure_allowed;
 constexpr size_t kMaxUpgradeTable = 256;
 constexpr size_t kMaxAllowList = 1024;
 
-std::string Lower(std::string s) {
-  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
-    return static_cast<char>(std::tolower(c));
-  });
-  return s;
-}
-
-// Разбирает IPv4-адрес; возвращает false, если это не точечная четверка.
-bool ParseIpv4(const std::string& host, int octets[4]) {
-  int parts[4];
-  char tail;
-  if (std::sscanf(host.c_str(), "%d.%d.%d.%d%c", &parts[0], &parts[1],
-                  &parts[2], &parts[3], &tail) != 4) {
-    return false;
-  }
-  for (int i = 0; i < 4; i++) {
-    if (parts[i] < 0 || parts[i] > 255) return false;
-    octets[i] = parts[i];
-  }
-  return true;
-}
-
-// Loopback, линк-локал, частные диапазоны, CGNAT — как Chrome в режиме
-// «публичные сайты»: такие адреса не апгрейдятся (роутеры, принтеры,
-// интранет-порталы почти никогда не имеют валидного сертификата).
-bool IsPrivateHost(std::string host) {
-  host = Lower(host);
-  if (host.empty()) return true;
-  if (!host.empty() && host.front() == '[' && host.back() == ']')
-    host = host.substr(1, host.size() - 2);  // IPv6 в скобках
-  if (host == "localhost" || host == "::1") return true;
-  if (host.size() > 10 && host.compare(host.size() - 10, 10, ".localhost") == 0)
-    return true;
-  if (host.compare(0, 4, "fe80", 4) == 0 || host.compare(0, 2, "fc") == 0 ||
-      host.compare(0, 2, "fd") == 0) {
-    return true;
-  }
-  int o[4];
-  if (ParseIpv4(host, o)) {
-    if (o[0] == 127 || o[0] == 0 || o[0] == 10) return true;
-    if (o[0] == 169 && o[1] == 254) return true;       // link-local
-    if (o[0] == 192 && o[1] == 168) return true;
-    if (o[0] == 172 && o[1] >= 16 && o[1] <= 31) return true;
-    if (o[0] == 100 && o[1] >= 64 && o[1] <= 127) return true;  // CGNAT
-    return false;
-  }
-  return false;
-}
+// Классификация приватных хостов и нижний регистр живут в src/net_utils.h —
+// там же контракт (tests/net_utils_test.cc): IPv6-ветка только для литералов
+// с ':', fe80::/10 целиком, «localhost.» и IPv4-mapped покрыты.
 
 std::string HostOf(const std::string& url) {
   CefURLParts parts;
   if (!CefParseURL(CefString(url), parts)) return std::string();
-  return Lower(CefString(&parts.host).ToString());
+  return LowerHost(CefString(&parts.host).ToString());
 }
 
 }  // namespace
@@ -99,7 +55,7 @@ void SetHttpsOnlyEnabled(bool on) { g_https_only.store(on); }
 bool HttpsOnlyEnabled() { return g_https_only.load(); }
 
 void SetDohProvider(const std::string& provider) {
-  const std::string p = Lower(provider);
+  const std::string p = LowerHost(provider);
   std::lock_guard<std::mutex> lk(g_mu);
   g_doh_provider = (p == "cf" || p == "google" || p == "quad9" || p == "sys")
                        ? p
@@ -145,6 +101,31 @@ void ApplyDohPrefs(CefRefPtr<CefRequestContext> context) {
   }
 }
 
+void ApplyPrivacyPrefs(CefRefPtr<CefRequestContext> context) {
+  if (!context.get() || !CefCurrentlyOn(TID_UI)) return;
+  auto set = [&context](const char* name, CefRefPtr<CefValue> value) {
+    CefString error;
+    if (!context->SetPreference(name, value, error)) {
+      LOG(WARNING) << "netguard: SetPreference(" << name
+                   << ") failed: " << error.ToString();
+    }
+  };
+  // Сторонние cookie — главный механизм сквозного трекинга: запрещаем явно,
+  // а не дефолтом движка. Оба префа про одно и то же (устаревший bool и
+  // актуальный режим) — ставим согласованно.
+  CefRefPtr<CefValue> block_3p = CefValue::Create();
+  block_3p->SetBool(true);
+  set("profile.block_third_party_cookies", block_3p);
+  CefRefPtr<CefValue> cookie_mode = CefValue::Create();
+  cookie_mode->SetInt(1);  // CookieControlsMode::kBlockThirdParty
+  set("profile.cookie_controls_mode", cookie_mode);
+  // Рекламные API Privacy Sandbox (Topics, Attribution Reporting, FLEDGE):
+  // измерения для рекламодателей приватному браузеру не нужны — целиком off.
+  CefRefPtr<CefValue> sandbox_off = CefValue::Create();
+  sandbox_off->SetBool(false);
+  set("privacy_sandbox.apis_enabled", sandbox_off);
+}
+
 std::optional<std::string> TryUpgrade(const std::string& url) {
   if (!HttpsOnlyEnabled()) return std::nullopt;
   if (url.rfind("http://", 0) != 0) return std::nullopt;
@@ -152,7 +133,7 @@ std::optional<std::string> TryUpgrade(const std::string& url) {
   if (!CefParseURL(CefString(url), parts)) return std::nullopt;
   // Явный порт почти наверняка не слушает TLS — апгрейд сломает адрес.
   if (parts.port.length > 0) return std::nullopt;
-  const std::string host = Lower(CefString(&parts.host).ToString());
+  const std::string host = LowerHost(CefString(&parts.host).ToString());
   if (host.empty() || host.find('.') == std::string::npos) return std::nullopt;
   if (IsPrivateHost(host)) return std::nullopt;
   {
@@ -185,7 +166,7 @@ std::optional<std::string> TakeUpgradeFallback(const std::string& https_url) {
 }
 
 void AllowInsecure(const std::string& host) {
-  const std::string h = Lower(host);
+  const std::string h = LowerHost(host);
   if (h.empty()) return;
   std::lock_guard<std::mutex> lk(g_mu);
   g_insecure_allowed.insert(h);

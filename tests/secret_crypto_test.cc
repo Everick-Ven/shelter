@@ -124,5 +124,12 @@ int main() {
 
   assert(!shelter::secret_crypto::EncryptWithKey(key, plaintext, "short",
                                                   &ciphertext));
+
+  // Канонические векторы SHA-256 (FIPS 180-4): Sha256Hex используется для
+  // отпечатков сертификатов при пининге исключений (L5).
+  assert(shelter::secret_crypto::Sha256Hex("") ==
+         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+  assert(shelter::secret_crypto::Sha256Hex("abc") ==
+         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
   return 0;
 }

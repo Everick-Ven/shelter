@@ -4,17 +4,19 @@
 #include <cmath>
 #include <filesystem>
 #include <sstream>
+#include <utility>
 #if defined(SHELTER_CI_HOOKS)
 #include <chrono>
 #include <cstdint>
 #include <iomanip>
-#include <utility>
 #endif
 
 #include "include/cef_cookie.h"
 #include "include/cef_parser.h"
+#include "include/cef_request.h"
 #include "include/cef_task.h"
 #include "include/cef_thread.h"
+#include "include/cef_urlrequest.h"
 #include "include/wrapper/cef_helpers.h"
 #include "src/blocker.h"
 #include "src/clients.h"
@@ -198,14 +200,16 @@ const std::set<std::string>& DiagnosticMethodNames() {
       "cookie.setEnabled", "https.setEnabled", "dns.setProvider",
       "strict.setEnabled", "strict.allow", "ghost.setEnabled",
       "shell.filestate", "dl.decision", "dl.control", "privacy.clear",
-      "dbg.protections", "dbg.hit", "dbg.clip", "window.minimize",
+      "dbg.protections", "dbg.hit", "dbg.clip", "dbg.window",
+      "window.minimize",
       "window.maximize", "window.close", "window.openPlain",
       "privacy.clear", "auth.open", "devtools.ctl", "ai.test", "ai.chat",
       "clipboard.read", "clipboard.write", "tab.captureThumbs",
       "tab.hideContent", "tab.navigate", "tab.reload", "tab.stop",
       "tab.zoom", "ui.ready", "viewport.sync", "diag.performance",
       "ui.longtask", "freeze.snapshot", "freeze.decode", "freeze.hide",
-      "freeze.total", "thaw.show", "thaw.total", "other"};
+      "freeze.total", "thaw.show", "thaw.total", "perm.allow",
+      "cert.decision", "app.checkUpdates", "other"};
   return names;
 }
 
@@ -236,6 +240,302 @@ class ScopeExit {
   Callback callback_;
 };
 #endif  // SHELTER_CI_HOOKS
+
+// ---- внешний ИИ-агент (OpenAI-совместимый API) ------------------------------
+// Ключ и HTTPS-трафик живут только в браузерном процессе: страница отдаёт
+// конфиг через мост, натив выполняет запрос и возвращает лишь текст
+// ответа/ошибку. CSP страницы не трогаем — connect-src остаётся строгим.
+
+// Лимиты ответов провайдера: модели отдают текст, а не файлы.
+constexpr size_t kAiTestMaxBytes = 128 * 1024;
+constexpr size_t kAiChatMaxBytes = 2 * 1024 * 1024;
+
+bool IsLoopbackHost(const std::string& host) {
+  std::string lower = host;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+  if (lower.size() >= 2 && lower.front() == '[' && lower.back() == ']')
+    lower = lower.substr(1, lower.size() - 2);
+  return lower == "localhost" || lower == "127.0.0.1" || lower == "::1";
+}
+
+// Собирает URL вида "<base>/<path>": наружу — только https; http — лишь на
+// loopback (локальные Ollama/LM Studio). Пустая строка — недопустимый baseUrl.
+std::string AiApiUrl(const std::string& base, const char* path) {
+  const auto begin = base.find_first_not_of(" \t\r\n");
+  const auto end = base.find_last_not_of(" \t\r\n");
+  std::string clean =
+      begin == std::string::npos ? "" : base.substr(begin, end - begin + 1);
+  while (!clean.empty() && clean.back() == '/') clean.pop_back();
+  if (clean.empty()) return "";
+  for (unsigned char c : clean) {
+    if (c <= 0x20 || c == 0x7f) return "";
+  }
+  // Без userinfo: «https://провайдер@чужой-хост/» уведёт ключ не туда.
+  const size_t scheme_end = clean.find("://");
+  const size_t auth_begin =
+      scheme_end == std::string::npos ? 0 : scheme_end + 3;
+  const size_t auth_end = clean.find_first_of("/?#", auth_begin);
+  const std::string authority = clean.substr(
+      auth_begin, auth_end == std::string::npos ? auth_end
+                                               : auth_end - auth_begin);
+  if (authority.find('@') != std::string::npos) return "";
+  CefURLParts parts;
+  if (!CefParseURL(CefString(clean), parts)) return "";
+  std::string scheme = CefString(&parts.scheme).ToString();
+  std::transform(scheme.begin(), scheme.end(), scheme.begin(),
+                 [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+  if (scheme != "https" && scheme != "http") return "";
+  const std::string host = CefString(&parts.host).ToString();
+  if (host.empty()) return "";
+  if (scheme == "http" && !IsLoopbackHost(host)) return "";
+  return clean + "/" + path;
+}
+
+// Однострочный фрагмент тела ответа для диагностики: провайдер обычно кладёт
+// сюда причину 4xx. Управляющие символы вырезаем, длину ограничиваем.
+std::string AiErrorSnippet(const std::string& body, size_t max_len = 300) {
+  std::string out;
+  out.reserve(std::min(body.size(), max_len));
+  for (unsigned char c : body) {
+    if (out.size() >= max_len) break;
+    if (c < 0x20 || c == 0x7f) {
+      if (c == '\t') out += ' ';
+      continue;
+    }
+    out += static_cast<char>(c);
+  }
+  const auto end = out.find_last_not_of(' ');
+  return end == std::string::npos ? "" : out.substr(0, end + 1);
+}
+
+std::string AiNetError(CefURLRequest::ErrorCode code) {
+  switch (code) {
+    case ERR_INTERNET_DISCONNECTED:
+      return "offline";
+    case ERR_NAME_NOT_RESOLVED:
+      return "dns_error";
+    case ERR_CONNECTION_REFUSED:
+      return "connection_refused";
+    case ERR_TIMED_OUT:
+    case ERR_CONNECTION_TIMED_OUT:
+      return "timeout";
+    default:
+      return "network_error";
+  }
+}
+
+// choices[0].message.content из OpenAI-совместимого ответа; "" — чужой формат.
+std::string AiChatText(const std::string& body) {
+  CefRefPtr<CefValue> v = ParseJson(body);
+  if (!v || v->GetType() != VTYPE_DICTIONARY) return "";
+  CefRefPtr<CefDictionaryValue> root = v->GetDictionary();
+  if (!root || !root->HasKey("choices") ||
+      root->GetType("choices") != VTYPE_LIST) {
+    return "";
+  }
+  CefRefPtr<CefListValue> choices = root->GetList("choices");
+  if (!choices || choices->GetSize() == 0 ||
+      choices->GetType(0) != VTYPE_DICTIONARY) {
+    return "";
+  }
+  CefRefPtr<CefDictionaryValue> first = choices->GetDictionary(0);
+  if (!first || !first->HasKey("message") ||
+      first->GetType("message") != VTYPE_DICTIONARY) {
+    return "";
+  }
+  CefRefPtr<CefDictionaryValue> message = first->GetDictionary("message");
+  if (!message || !message->HasKey("content") ||
+      message->GetType("content") != VTYPE_STRING) {
+    return "";
+  }
+  return message->GetString("content").ToString();
+}
+
+// true, если провайдер отдал разборчивый список моделей, а нужной в нём нет
+// (почти наверняка опечатка в имени). Неразборчивый список — не повод
+// отказывать: ключ уже проверен кодом 200.
+bool AiModelsListExcludes(const std::string& body, const std::string& model,
+                          std::string* error) {
+  if (model.empty() || !error) return false;
+  CefRefPtr<CefValue> v = ParseJson(body);
+  if (!v || v->GetType() != VTYPE_DICTIONARY) return false;
+  CefRefPtr<CefDictionaryValue> root = v->GetDictionary();
+  if (!root || !root->HasKey("data") || root->GetType("data") != VTYPE_LIST)
+    return false;
+  CefRefPtr<CefListValue> data = root->GetList("data");
+  if (!data) return false;
+  for (size_t i = 0; i < data->GetSize(); ++i) {
+    if (data->GetType(i) != VTYPE_DICTIONARY) continue;
+    CefRefPtr<CefDictionaryValue> item = data->GetDictionary(i);
+    if (item && item->HasKey("id") && item->GetType("id") == VTYPE_STRING &&
+        item->GetString("id").ToString() == model) {
+      return false;
+    }
+  }
+  *error = "unknown_model: " + model;
+  return true;
+}
+
+// Один запрос к ИИ-провайдеру: держит мост-колбэк до завершения и отдаёт
+// вердикт в UI. Создаётся на UI-потоке — колбэки CEF приходят туда же, так
+// что мост-колбэк вызываем напрямую. Запрос удерживаем сами (request_):
+// на внутреннее самоудержание CefURLRequest не полагаемся.
+class AiUrlRequestClient : public CefURLRequestClient {
+ public:
+  enum class Mode { kTest, kChat };
+
+  AiUrlRequestClient(Mode mode, std::string model, size_t max_bytes,
+                     CefRefPtr<Callback> cb)
+      : mode_(mode),
+        model_(std::move(model)),
+        max_bytes_(max_bytes),
+        cb_(std::move(cb)) {}
+
+  void Bind(CefRefPtr<CefURLRequest> request) {
+    request_ = std::move(request);
+  }
+
+  void OnRequestComplete(CefRefPtr<CefURLRequest> request) override {
+    const auto status = request->GetRequestStatus();
+    if (status != UR_SUCCESS) {
+      const bool too_large =
+          status == UR_CANCELED && bytes_.size() >= max_bytes_;
+      Fail(too_large ? "response_too_large"
+                     : (status == UR_CANCELED
+                            ? "cancelled"
+                            : AiNetError(request->GetRequestError())));
+    } else {
+      CefRefPtr<CefResponse> r = request->GetResponse();
+      const int http_code = r ? r->GetStatus() : 0;
+      if (http_code != 200) {
+        std::string err = "http_" + std::to_string(http_code);
+        const std::string snippet = AiErrorSnippet(bytes_);
+        if (!snippet.empty()) err += ": " + snippet;
+        Fail(err);
+      } else if (mode_ == Mode::kChat) {
+        const std::string text = AiChatText(bytes_);
+        if (text.empty()) {
+          Fail("bad_response");
+        } else {
+          cb_->Success(std::string("{\"ok\":true,\"text\":") + JsString(text) +
+                       "}");
+        }
+      } else {
+        std::string model_error;
+        if (AiModelsListExcludes(bytes_, model_, &model_error)) {
+          Fail(model_error);
+        } else {
+          cb_->Success("{\"ok\":true}");
+        }
+      }
+    }
+    request_ = nullptr;
+  }
+  void OnUploadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+  void OnDownloadProgress(CefRefPtr<CefURLRequest> request, int64_t current,
+                          int64_t) override {
+    if (current > static_cast<int64_t>(max_bytes_)) request->Cancel();
+  }
+  void OnDownloadData(CefRefPtr<CefURLRequest>, const void* data,
+                      size_t data_length) override {
+    if (bytes_.size() >= max_bytes_) return;
+    bytes_.append(static_cast<const char*>(data),
+                  std::min(data_length, max_bytes_ - bytes_.size()));
+  }
+  bool GetAuthCredentials(bool, const CefString&, int, const CefString&,
+                          const CefString&,
+                          CefRefPtr<CefAuthCallback>) override {
+    return false;
+  }
+
+ private:
+  void Fail(const std::string& error) {
+    // Именно Success: host-bridge на onFailure отдаёт null, и текст причины
+    // потерялся бы, а диалог показывает r.error как есть.
+    cb_->Success(std::string("{\"ok\":false,\"error\":") + JsString(error) +
+                 "}");
+  }
+
+  Mode mode_;
+  std::string model_;
+  size_t max_bytes_;
+  CefRefPtr<Callback> cb_;
+  CefRefPtr<CefURLRequest> request_;
+  std::string bytes_;
+  IMPLEMENT_REFCOUNTING(AiUrlRequestClient);
+  DISALLOW_COPY_AND_ASSIGN(AiUrlRequestClient);
+};
+
+// Общий запуск ai.test/ai.chat: валидация, сборка запроса, возврат true —
+// вердикт придёт в мост-колбэк асинхронно.
+bool StartAiRequest(CefRefPtr<CefBrowser> browser, bool chat,
+                    CefRefPtr<CefDictionaryValue> a, CefRefPtr<Callback> cb) {
+  CefRefPtr<CefDictionaryValue> cfg = a;
+  std::string prompt;
+  if (chat) {
+    if (!a || !a->HasKey("cfg") || a->GetType("cfg") != VTYPE_DICTIONARY) {
+      cb->Success("{\"ok\":false,\"error\":\"missing_config\"}");
+      return true;
+    }
+    cfg = a->GetDictionary("cfg");
+    prompt = Str(a, "prompt");
+    if (prompt.empty()) {
+      cb->Success("{\"ok\":false,\"error\":\"empty_prompt\"}");
+      return true;
+    }
+  }
+  const std::string model = Str(cfg, "model");
+  const std::string url =
+      AiApiUrl(Str(cfg, "baseUrl"), chat ? "chat/completions" : "models");
+  if (url.empty()) {
+    cb->Success("{\"ok\":false,\"error\":\"invalid_url\"}");
+    return true;
+  }
+  const std::string api_key = Str(cfg, "apiKey");
+  if (api_key.empty()) {
+    cb->Success("{\"ok\":false,\"error\":\"missing_api_key\"}");
+    return true;
+  }
+  CefRefPtr<CefRequest> req = CefRequest::Create();
+  req->SetURL(url);
+  CefRequest::HeaderMap headers;
+  headers.insert(std::make_pair(CefString("Authorization"),
+                                CefString("Bearer " + api_key)));
+  if (chat) {
+    req->SetMethod("POST");
+    headers.insert(std::make_pair(CefString("Content-Type"),
+                                  CefString("application/json")));
+    CefRefPtr<CefDictionaryValue> body = CefDictionaryValue::Create();
+    body->SetString("model", model);
+    CefRefPtr<CefDictionaryValue> msg = CefDictionaryValue::Create();
+    msg->SetString("role", "user");
+    msg->SetString("content", prompt);
+    CefRefPtr<CefListValue> messages = CefListValue::Create();
+    messages->SetDictionary(0, msg);
+    body->SetList("messages", messages);
+    body->SetInt("max_tokens", 1024);
+    const std::string payload = ToJson(body);
+    CefRefPtr<CefPostData> post = CefPostData::Create();
+    CefRefPtr<CefPostDataElement> element = CefPostDataElement::Create();
+    element->SetToBytes(payload.size(), payload.c_str());
+    post->AddElement(element);
+    req->SetPostData(post);
+  } else {
+    req->SetMethod("GET");
+  }
+  req->SetHeaderMap(headers);
+  CefRefPtr<AiUrlRequestClient> client = new AiUrlRequestClient(
+      chat ? AiUrlRequestClient::Mode::kChat : AiUrlRequestClient::Mode::kTest,
+      model, chat ? kAiChatMaxBytes : kAiTestMaxBytes, cb);
+  client->Bind(CefURLRequest::Create(
+      req, client, browser->GetHost()->GetRequestContext()));
+  return true;
+}
 
 }  // namespace
 
@@ -651,6 +951,32 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     cb->Success("{}");
     return true;
   }
+  if (m == "perm.allow") {
+    // Пользователь выдал сайту запрошенные разрешения из тоста «Разрешить».
+    // Действует до перезапуска; страница должна запросить снова (перезагрузка).
+    Shell::Get().AllowSitePermissions(
+        Str(a, "origin"),
+        static_cast<uint32_t>(Num(a, "mask", 0)),
+        Flag(a, "media", false));
+    cb->Success("{\"ok\":true}");
+    return true;
+  }
+  if (m == "cert.decision") {
+    // Решение пользователя по ошибке сертификата: once (продолжить один раз),
+    // remember (запомнить отпечаток) или back (отказ). Всё неизвестное натив
+    // трактует как отказ.
+    Shell::Get().CertDecision(Str(a, "id"), Str(a, "action"));
+    cb->Success("{\"ok\":true}");
+    return true;
+  }
+  if (m == "app.checkUpdates") {
+    // Проверка обновлений: натив сверяет kAppVersion с tag_name официального
+    // releases/latest и отвечает событием "update-status". manual отличает
+    // ручную проверку (кнопка «О SHELTER») от автоматической.
+    Shell::Get().CheckForUpdates(Flag(a, "manual", false));
+    cb->Success("{\"ok\":true}");
+    return true;
+  }
   if (m == "ghost.setEnabled") {
     // Режим «Призрак»: новые вкладки уходят в in-memory профили на стороне
     // моста; нативная часть при выключении сразу освобождает пустые
@@ -733,6 +1059,16 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                 ((flags & 2) ? "true" : "false") + "}");
     return true;
   }
+  if (m == "dbg.window") {  // диагностика (CI): состояние главного окна
+    CefRefPtr<CefWindow> window = Shell::Get().window();
+    const bool maximized = window.get() && window->IsMaximized();
+    const bool fullscreen = window.get() && window->IsFullscreen();
+    std::ostringstream out;
+    out << "{\"maximized\":" << (maximized ? "true" : "false")
+        << ",\"fullscreen\":" << (fullscreen ? "true" : "false") << "}";
+    cb->Success(out.str());
+    return true;
+  }
   if (m == "dbg.hit") {  // диагностика hitTest (macOS), только для CI
     cb->Success(JsString(platform::DebugHitTest(Num(a, "x", 0), Num(a, "y", 0))));
     return true;
@@ -759,6 +1095,12 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
 #endif  // SHELTER_CI_HOOKS
+
+  // ---- внешний ИИ-агент ----
+  if (m == "ai.test" || m == "ai.chat") {
+    // Асинхронный HTTPS к провайдеру; вердикт придёт в cb позже.
+    return StartAiRequest(browser, m == "ai.chat", a, cb);
+  }
   return false;
 }
 
@@ -870,32 +1212,56 @@ void Shell::ClearPrivacy(CefRefPtr<CefListValue> parts,
         CefRefPtr<CefCookieManager> cm = it->second->GetCookieManager(nullptr);
         if (cm) cm->VisitAllCookies(new CookieClearVisitor(full ? 0 : begin));
       }
+      // Живой браузер раздела для DevTools-команд (кэш и хранилища — общие
+      // на профиль, достаточно одного; вкладки может и не быть — например,
+      // раздел вычищают после закрытия всех его вкладок).
+      CefRefPtr<CefBrowser> any;
       for (auto& kv : tabs_) {
-        Tab& t = kv.second;
-        if (t.partition != p || !t.browser) continue;
-        if (wants("CACHE")) {
-          t.browser->GetHost()->ExecuteDevToolsMethod(0, "Network.clearBrowserCache", nullptr);
+        if (kv.second.partition == p && kv.second.browser) {
+          any = kv.second.browser;
+          break;
         }
-        if (wants("LOCAL_STORAGE") || wants("INDEXED_DB") || wants("SERVICE_WORKERS")) {
+      }
+      if (wants("CACHE") && any) {
+        any->GetHost()->ExecuteDevToolsMethod(0, "Network.clearBrowserCache", nullptr);
+      }
+      const bool clear_storage = wants("LOCAL_STORAGE") || wants("INDEXED_DB") ||
+                                 wants("SERVICE_WORKERS");
+      if (clear_storage && any) {
+        std::string types;
+        auto add = [&](const char* s) { types += (types.empty() ? "" : ",") + std::string(s); };
+        if (wants("LOCAL_STORAGE")) add("local_storage");
+        if (wants("INDEXED_DB")) add("indexeddb");
+        if (wants("SERVICE_WORKERS")) { add("service_workers"); add("cache_storage"); }
+        // Origins: весь журнал раздела за сессию, а не только открытые
+        // вкладки, — иначе хранилища закрытых сайтов переживали бы частичную
+        // очистку. Адреса открытых вкладок добавляем тоже — журнал мог
+        // переполниться и вытеснить старые записи.
+        std::set<std::string> origins;
+        auto known = partition_origins_.find(p);
+        if (known != partition_origins_.end()) origins = known->second;
+        for (auto& kv : tabs_) {
+          Tab& t = kv.second;
+          if (t.partition != p || !t.browser) continue;
           CefURLParts up;
           if (CefParseURL(t.current_url, up)) {
             const std::string origin = CefString(&up.origin).ToString();
-            if (!origin.empty()) {
-              std::string types;
-              auto add = [&](const char* s) { types += (types.empty() ? "" : ",") + std::string(s); };
-              if (wants("LOCAL_STORAGE")) add("local_storage");
-              if (wants("INDEXED_DB")) add("indexeddb");
-              if (wants("SERVICE_WORKERS")) { add("service_workers"); add("cache_storage"); }
-              CefRefPtr<CefDictionaryValue> dp = CefDictionaryValue::Create();
-              dp->SetString("origin", origin);
-              dp->SetString("storageTypes", types);
-              t.browser->GetHost()->ExecuteDevToolsMethod(0, "Storage.clearDataForOrigin", dp);
-            }
+            if (!origin.empty() && origin != "null") origins.insert(origin);
           }
         }
+        for (const auto& origin : origins) {
+          CefRefPtr<CefDictionaryValue> dp = CefDictionaryValue::Create();
+          dp->SetString("origin", origin);
+          dp->SetString("storageTypes", types);
+          any->GetHost()->ExecuteDevToolsMethod(0, "Storage.clearDataForOrigin", dp);
+        }
+        partition_origins_.erase(p);  // журнал отчищен — начнётся заново
       }
     }
-    if (full) QueueWipe(p);  // каталог профиля удалится при следующем запуске
+    if (full) {
+      QueueWipe(p);  // каталог профиля удалится при следующем запуске
+      partition_origins_.erase(p);
+    }
   }
   cb->Success("{\"ok\":true}");
 }

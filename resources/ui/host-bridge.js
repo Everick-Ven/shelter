@@ -20,6 +20,7 @@
   var USE_WINDOWS_MASK = PLATFORM === 'win32';
   var USE_CLIP = USE_HOLES || USE_WINDOWS_MASK;
   var VERSION = '__APP_VERSION__';
+  var BUILD_TIMESTAMP = '__APP_BUILD_TIMESTAMP__';
   var root = document.documentElement;
   var DIAGNOSTICS_ENABLED = '__SHELTER_CI_HOOKS__' === 'true';
   var PERF_METHODS = Object.create(null);
@@ -143,6 +144,7 @@
     epoch: 0                 // invalidates in-flight freeze/thaw across tab/view changes
   };
   var cbs = { dlprompt: null, ctxclose: null };
+  var lastPopupToast = 0;
 
   function setNativeContentClass() {
     var body = document.body;
@@ -489,8 +491,16 @@
     var px = clipColorContext.getImageData(0, 0, 1, 1).data;
     return [px[0], px[1], px[2], px[3]];
   }
+  /* Цвет маски меняется только с темой/материалом: кэшируем результат, чтобы
+     каждый clipTick/kickClip не дёргал getComputedStyle + getImageData.
+     Сброс — в refreshMask (слушает data-theme/style/class на корне и data-gfx
+     на body; через root.style сбрасывается и смена --glass-op в applyGlassOp).
+     macOS-ветка (USE_HOLES) цветом маски не пользуется — не трогаем. */
+  var clipColorCache = null;
+  function invalidateClipMaskColor() { clipColorCache = null; }
   function clipMaskColor() {
     if (!USE_WINDOWS_MASK) return 0;
+    if (clipColorCache !== null) return clipColorCache;
     var cs = getComputedStyle(byId('stage') || root);
     var surface = readCssColor(cs.getPropertyValue('--surface').trim());
     var glass = readCssColor(cs.getPropertyValue('--glass-surface').trim());
@@ -505,7 +515,8 @@
     var r = Math.round(glass[0] * alpha + base[0] * (1 - alpha));
     var g = Math.round(glass[1] * alpha + base[1] * (1 - alpha));
     var b = Math.round(glass[2] * alpha + base[2] * (1 - alpha));
-    return (r << 16) | (g << 8) | b;
+    clipColorCache = (r << 16) | (g << 8) | b;
+    return clipColorCache;
   }
   function syncClip() {
     if (!USE_CLIP || !st.visible || st.frozen || st.busy) return 0;
@@ -707,6 +718,7 @@
     distributionChannel: DISTRIBUTION_CHANNEL,
     isDevelopment: IS_DEVELOPMENT_BUILD,
     version: VERSION,
+    buildTimestamp: BUILD_TIMESTAMP,
     isContentVisible: function () { return !!st.visible && !st.frozen && !st.busy; },
     getPremiumEntitlement: function () { return q('premium.status'); },
     startPremiumCheckout: function (planId) { return q('premium.checkout', { planId: planId || '' }); },
@@ -743,6 +755,9 @@
     onDownloadPrompt: function (cb) { cbs.dlprompt = cb; },
     downloadDecision: function (o) { return q('dl.decision', o || {}); },
     downloadControl: function (o) { return q('dl.control', o || {}); },
+    permAllow: function (o) { return q('perm.allow', o || {}); },
+    certDecision: function (o) { return q('cert.decision', o || {}); },
+    checkUpdates: function (o) { return q('app.checkUpdates', o || {}); },
     secretEnc: function (t) { return secretCall('encrypt', t); },
     secretDec: function (t) { return secretCall('decrypt', t); },
     setFullscreen: function (on) { return q('win.fullscreen', { on: !!on }); },
@@ -756,6 +771,12 @@
     extSetMode: function (engine) { return q('ext.setMode', { engine: !!engine }); },
     fileOpen: function () { return q('file.open'); },  // Ctrl+O: диалог ОС -> file-open
     devTools: function (msg) { return q('devtools', msg || {}); },  // окно DevTools (F12 / ⇧⌘I)
+    // Внешний ИИ-агент: проверка подключения и чат через нативный HTTPS
+    // (ai.test/ai.chat). Без этих методов диалог отдавал «Нет доступа».
+    testAgent: function (cfg) { return q('ai.test', cfg || {}); },
+    agentChat: function (cfg, prompt) {
+      return q('ai.chat', { cfg: cfg || {}, prompt: String(prompt == null ? '' : prompt) });
+    },
     // authWindow намеренно не определён: вёрстка использует запасной путь.
     // Док-панель DevTools (act=open/close) в CEF не реализована.
   };
@@ -779,7 +800,28 @@
       if (p.id === st.tabId && typeof window.onNativeLoading === 'function') window.onNativeLoading(!!p.loading);
     },
     newtab: function (p) {
-      if (p.url && typeof window.newTab === 'function') window.newTab(p.url);
+      if (!p || !p.url || typeof window.newTab !== 'function') return;
+      if (p.gesture === false) {
+        // Всплывающее окно без жеста пользователя (window.open из скрипта):
+        // вкладку не открываем, иначе любая страница устраивает tab-bomb.
+        // Тост троттлирован; кнопка даёт разово открыть заблокированный адрес.
+        var now = Date.now();
+        if (now - lastPopupToast > 8000) {
+          lastPopupToast = now;
+          if (typeof window.toast === 'function') {
+            (function (url, host) {
+              var text = host ? ('Сайт ' + host + ' пытался открыть всплывающее окно — заблокировано')
+                              : 'Всплывающее окно заблокировано';
+              window.toast(text, {
+                icon: 'shield-check', ms: 7000,
+                action: { label: 'Открыть всё равно', run: function () { window.newTab(url); } }
+              });
+            })(p.url, p.host || '');
+          }
+        }
+        return;
+      }
+      window.newTab(p.url);
     },
     key: function (p) {
       var ev = new KeyboardEvent('keydown', {
@@ -978,6 +1020,7 @@
     if (tl) new MutationObserver(scheduleSync).observe(tl, { childList: true, subtree: true });
     if (USE_WINDOWS_MASK) {
       var refreshMask = function () {
+        invalidateClipMaskColor();
         if (!st.visible || st.frozen || st.busy) return;
         st.clipKey = '';
         syncClip();

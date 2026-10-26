@@ -41,6 +41,11 @@ std::string DohTemplates(const std::string& provider);
 // после инициализации контекста (иначе профиль ещё не существует).
 void ApplyDohPrefs(CefRefPtr<CefRequestContext> context);
 
+// Приватные префы профиля: запрет сторонних cookie и выключение рекламных
+// API Privacy Sandbox. Применяется к каждому контексту (включая временные)
+// при инициализации — приватный браузер не полагается на дефолты Chromium.
+void ApplyPrivacyPrefs(CefRefPtr<CefRequestContext> context);
+
 // https://-версия url, если навигацию надо поднять; иначе nullopt.
 // Не трогает: не-http схемы, адреса с явным портом, loopback/частные
 // диапазоны, имена без точек (интранет) и хосты из исключений пользователя.

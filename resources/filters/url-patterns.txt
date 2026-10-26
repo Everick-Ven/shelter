@@ -13,7 +13,8 @@ doubleclick.net
 /adv/sponsor
 /popunder.js
 /popunder/
-/clickunder.
+/pop-under
+clickunder
 /an.yandex.ru
 /yandex_rtb
 /ads/system/context.js
@@ -32,6 +33,14 @@ doubleclick.net
 /rtb/banner
 /adserver.php
 /openrtb
+/adv/
+/vast
+/adframe
+/ad-frame
+/ad_iframe
+/tizer
+/banners/
+/reklam
 
 /teaser/
 /teasers/

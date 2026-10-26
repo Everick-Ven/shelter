@@ -25,8 +25,16 @@ assert(delegateStart >= 0 && delegateEnd > delegateStart, 'главное окн
 const delegate = source.slice(delegateStart, delegateEnd);
 assert(delegate.includes('GetInitialShowState') && delegate.includes('ReadMainWindowMode()'), 'при запуске читается сохранённый режим окна');
 assert(delegate.includes('CEF_SHOW_STATE_NORMAL') && delegate.includes('CEF_SHOW_STATE_MAXIMIZED') && delegate.includes('CEF_SHOW_STATE_FULLSCREEN'), 'CEF получает обычный, развёрнутый или полноэкранный режим');
-assert(delegate.includes('OnWindowBoundsChanged') && delegate.includes('SaveMainWindowMode(window)'), 'изменения размера и развёртывания сохраняются');
+assert(delegate.includes('OnWindowBoundsChanged') && delegate.includes('TrackWindowMode(window)'), 'изменения размера и развёртывания сохраняются через трекер режима');
+assert(delegate.includes('initial_mode_') && delegate.includes('tracking_') && delegate.includes('SaveMainWindowMode(window)'), 'трекер сохраняет режим только после достижения стартового состояния');
 assert(delegate.includes('OnWindowFullscreenTransition') && delegate.includes('if (is_completed)'), 'полноэкранный режим сохраняется после перехода');
+assert(delegate.includes('GetInitialBounds'), 'обычный режим восстанавливает сохранённые границы окна');
+assert(state.includes('window-state-v2') && state.includes('SHELTER_WINDOW_STATE_V2'), 'формат файла состояния версионирован');
+assert(state.includes('GetAllDisplays') && state.includes('GetWorkArea'), 'сохранённые границы проверяются по существующим мониторам');
+assert(state.includes('GetBoundsInScreen'), 'в обычном режиме сохраняются экранные границы окна');
 assert(source.includes('SaveMainWindowMode(window_);'), 'последний режим сохраняется также при закрытии главного окна');
+assert(delegate.includes('Shell::Get().closing()'), 'переходы при уничтожении окна не затирают сохранённый режим');
+assert(source.includes('teardown_left_fullscreen') && source.includes('saved_at_close.mode == MainWindowMode::kFullscreen'), 'закрытие из полноэкранного режима не понижает его до обычного');
+assert(delegate.includes('WithStandardWindowButtons') && delegate.includes('#if defined(OS_MAC)'), 'нативные кнопки окна остаются только на macOS, на Windows их рисует вёрстка');
 
 console.log('Проверка исходника восстановления режима окна прошла');

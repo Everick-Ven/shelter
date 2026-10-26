@@ -1075,9 +1075,61 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
         const app = document.getElementById('dtApp');
         if (!app) throw new Error('assistant page did not render');
-        if (app.querySelector('.dt-privacy-pill'))
-          throw new Error('obsolete assistant privacy pill is still present');
+        for (const selector of ['.dt-private', '.dt-privacy-pill', '.dt-local-label', '.dt-local-dot']) {
+          if (app.querySelector(selector))
+            throw new Error('obsolete Assistant privacy/status indicator is still present: ' + selector);
+        }
+        const privacyFoot = app.querySelector('.dt-composer-foot');
+        if (!privacyFoot || privacyFoot.querySelector('.i') ||
+            /Переписка и ключи хранятся исключительно на вашем устройстве/.test(privacyFoot.textContent))
+          throw new Error('obsolete Assistant composer privacy badge/copy is still present');
         await frame();
+        const textarea = app.querySelector('.dt-omni textarea');
+        const sendRow = app.querySelector('.dt-omni .omni-row');
+        const sendButton = sendRow && sendRow.querySelector('[data-act="dtSend"]');
+        if (!textarea || !sendRow || !sendButton || !sendRow.contains(sendButton))
+          throw new Error('Assistant send button is not inside the lower composer row');
+        const measureSend = () => {
+          const input = textarea.getBoundingClientRect();
+          const row = sendRow.getBoundingClientRect();
+          const send = sendButton.getBoundingClientRect();
+          return {
+            input: {top: input.top, bottom: input.bottom, height: input.height},
+            row: {top: row.top, bottom: row.bottom, left: row.left, right: row.right},
+            send: {top: send.top, bottom: send.bottom, left: send.left, right: send.right, centerY: (send.top + send.bottom) / 2}
+          };
+        };
+        const assertSendPosition = (layout, label) => {
+          if (layout.send.top < layout.input.bottom - 1 ||
+              layout.send.top < layout.row.top - 1 || layout.send.bottom > layout.row.bottom + 1 ||
+              Math.abs(layout.row.right - layout.send.right) > 4)
+            throw new Error(label + ' send button is not stably placed at the lower-right row: ' + JSON.stringify(layout));
+        };
+        const originalDraft = textarea.value;
+        let sendReport;
+        try {
+          textarea.value = '';
+          textarea.dispatchEvent(new Event('input', {bubbles: true}));
+          await frame(); await pause(40);
+          const beforeGrow = measureSend();
+          textarea.value = Array.from({length: 7}, (_, i) => 'Assistant layout probe line ' + (i + 1)).join('\n');
+          textarea.dispatchEvent(new Event('input', {bubbles: true}));
+          await frame(); await pause(40);
+          const afterGrow = measureSend();
+          if (afterGrow.input.height < beforeGrow.input.height + 20)
+            throw new Error('Assistant input did not grow for the send-button stability probe: ' + JSON.stringify({beforeGrow, afterGrow}));
+          assertSendPosition(beforeGrow, 'before textarea growth');
+          assertSendPosition(afterGrow, 'after textarea growth');
+          if (Math.abs(beforeGrow.send.left - afterGrow.send.left) > 1 ||
+              Math.abs((beforeGrow.send.centerY - beforeGrow.row.top) -
+                       (afterGrow.send.centerY - afterGrow.row.top)) > 1)
+            throw new Error('Assistant send button jumped inside the accessory row as the textarea grew: ' + JSON.stringify({beforeGrow, afterGrow}));
+          sendReport = {beforeGrow, afterGrow};
+        } finally {
+          textarea.value = originalDraft;
+          textarea.dispatchEvent(new Event('input', {bubbles: true}));
+          await frame();
+        }
         const parse = value => String(value || '').split(/\s+/).map(part => {
           const n = parseFloat(part);
           if (!isFinite(n)) throw new Error('unparsable radius: ' + value);
@@ -1100,15 +1152,16 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         /* Карточки и капсулы ассистента: у каждой все четыре угла скруглены
            одинаково. Панели .dt-rail/.dt-main сюда не входят: в текущем
            макете это macOS Split View — панели стыкуются встык и разделены
-           волосяной линией, их проверяет блок ниже. */
-        const surfaces = ['.dt-new', '.dt-thread-search', '.dt-kpis',
-                          '.dt-welcome-mark', '.omni.dt-omni', '.dt-private'];
+           волосяной линией, их проверяет блок ниже. KPI-группы .dt-kpis
+           здесь тоже нет: чистый профиль открывается пустым диалогом без
+           сообщений, поэтому её скругление меряется пробой ниже. */
+        const surfaces = ['.dt-new', '.dt-thread-search',
+                          '.dt-welcome-mark', '.omni.dt-omni'];
         const report = {};
         /* Приветственный экран живёт только в пустом диалоге: на чистом
-           профиле Открыт ознакомительный диалог с сообщениями. Открываем
-           новый диалог штатной кнопкой, измеряем экран, затем возвращаемся
-           в прежний — иначе проба проверяла бы поверхность, которой в этом
-           состоянии просто нет. */
+           профиле Открыт пустой «Новый диалог», и экран уже на месте.
+           Если его нет (профиль с историей), открываем новый диалог
+           штатной кнопкой, измеряем экран, затем возвращаемся в прежний. */
         const restoreThread =
           (app.querySelector('.dt-thread.active') || {}).dataset;
         const welcomeHome = app.querySelector('[data-act="dtNew"]');
@@ -1148,9 +1201,11 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         app.appendChild(holder);
         /* .dt-kpi — не карточка, а ячейка внутри скруглённой группы .dt-kpis
            (волосяные разделители внутри, прямые углы), поэтому в списке её
-           нет: скругление проверяется у самой группы. */
+           нет: скругление проверяется у самой группы. Сама группа тоже
+           меряется здесь, а не в DOM: в пустом диалоге чистого профиля
+           сообщений с KPI-блоками нет. */
         const messageSurface = ['.dt-user-bubble', '.dt-answer', '.dt-answer-tools',
-                                '.bub', '.bub.me'];
+                                '.dt-kpis', '.bub', '.bub.me'];
         try {
           for (const selector of messageSurface) {
             const probe = document.createElement('div');
@@ -1213,7 +1268,7 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
           );
           if (back) { back.click(); await frame(); await pause(80); }
         }
-        return JSON.stringify({gap: gap, layout: layout, surfaces: report});
+        return JSON.stringify({gap: gap, layout: layout, surfaces: report, sendButton: sendReport});
       })()
     """
     result = ui.evaluate(expression, timeout=60)
@@ -1225,12 +1280,15 @@ def assistant_corners_probe(ui: Cdp) -> Dict[str, Any]:
         for selector in (
             ".dt-user-bubble",
             ".dt-answer",
+            ".dt-kpis",
             ".bub.me",
         )
         if selector not in data.get("surfaces", {})
     ]
     if missing:
         raise AcceptanceError(f"Assistant corner probe skipped surfaces: {missing}")
+    if not data.get("sendButton"):
+        raise AcceptanceError("Assistant corner probe did not report lower-row send-button stability")
     return data
 
 

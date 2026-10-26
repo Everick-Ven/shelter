@@ -1,0 +1,75 @@
+== Контраст токенов (WCAG) ==
+theme	bg	surface	card	card-2	text	text-2	text-3	text-4
+obsidian	#08090B	#0E0F13	#121318	#17181E	17.18	8.10	3.97	2.18
+amethyst	#09070C	#0E0B12	#141019	#1A1520	17.71	8.03	3.85	2.15
+ivory	#E8E3D9	#F6F3ED	#FFFFFF	#F4F0E9	13.55	4.43	2.26	1.43
+porcelain	#E4E8EE	#F4F6F9	#FFFFFF	#EEF1F5	15.00	4.78	2.20	1.40
+graphite	#08080A	#0E0E10	#141417	#1A1A1E	17.91	7.69	3.83	2.10
+bordeaux	#F6DCD2	#FDEDE7	#FFFFFF	#FCF1EC	10.69	4.84	2.44	1.29
+
+== Контраст по поверхностям (bg / card / card-2) ==
+theme	text-2	text-3	text-4
+obsidian	8.10/7.54/7.20	3.97/3.70/3.53	2.18/2.03/1.94
+amethyst	8.03/7.53/7.18	3.85/3.60/3.44	2.15/2.02/1.92
+ivory	4.43/5.67/4.99	2.26/2.89/2.54	1.43/1.83/1.61
+porcelain	4.78/5.88/5.19	2.20/2.71/2.39	1.40/1.72/1.52
+graphite	7.69/7.06/6.67	3.83/3.52/3.32	2.10/1.93/1.82
+bordeaux	4.84/6.32/5.69	2.44/3.18/2.87	1.29/1.68/1.51
+
+== Метрики эффектов ==
+backdrop-filter	132
+filter:blur / blur(	66
+box-shadow	305
+animation: (объявления)	57
+@keyframes	36
+!important	116
+font-size 9px	16
+font-size 10px	20
+font-size 11px	46
+font-size 11.5px	91
+font-size 12px	148
+transition: all	0
+ease-in	0
+will-change	6
+prefers-reduced-motion	6
+infinite animations	13
+
+== var(--text-4) в CSS ==
+  .hero-kicker i{width:4px;height:4px;border-radius:50%;background:var(--text-4)}
+  .tk.done .tt b{color:var(--text-3);text-decoration:line-through;text-decoration-color:var(--text-4)}
+  .profile-stat-copy small{color:var(--text-4);font-size:11px;line-height:1.25;display:-webkit-box;-webkit-line-
+  .ach-filter small{min-width:17px;padding:2px 4px;border-radius:calc(6px*var(--rs));background:var(--card-3);co
+  .ach-meter>small{max-width:115px;color:var(--text-4);font-size:8.5px;text-align:right;white-space:nowrap;font-
+  .ach-protection-chip{min-width:0;display:flex;align-items:center;gap:6px;padding:6px 7px;border:1px solid var(
+  .ach-protection-chip .i{width:12px;height:12px;flex:none;color:var(--text-4)}
+  .ach-detail-status .i{width:14px;height:14px;color:var(--text-4)}
+  .ach-status-tag{max-width:118px;overflow:hidden;text-overflow:ellipsis;padding:4px 6px;border:1px solid var(--
+  .ach-card.is-disabled .ach-status-tag{color:var(--text-4)}
+  .ach-empty{min-height:66px;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:
+  .account-name-field>small{display:block;margin-top:6px;color:var(--text-4);font-size:9px;line-height:1.4}
+  .account-connection>div>small{overflow:hidden;color:var(--text-4);font-size:9px;text-overflow:ellipsis;white-s
+  .account-connect-panel>small{display:block;margin-top:4px;color:var(--text-4);font-size:9px}
+  .account-avatar-copy>small{color:var(--text-4);font-size:8.5px;line-height:1.4}
+  .ach-card.is-hidden .ach-metal-label{color:var(--text-4)}
+  .ach-focus-copy>span{color:var(--text-4);font-size:8px}
+  .ach-progress-focus>.i{width:13px;height:13px;color:var(--text-4)}
+  .ach-payment-callout>span{display:flex;align-items:flex-start;gap:6px;color:var(--text-4);font-size:8.5px;line
+  .checkout-summary>span{color:var(--text-4);font-size:9px}
+  .checkout-card>small{display:block;margin:11px auto 0;color:var(--text-4);font-size:8.5px;line-height:1.45}
+  color:var(--text-4); display:grid; place-items:center; flex:none; cursor:pointer;
+  .dt-thread-search input::placeholder{color:var(--text-4)}
+  .dt-group-label{padding:11px 9px 5px;color:var(--text-4);font-size:10px;font-weight:650;letter-spacing:.075em;
+  .dt-thread-text small{display:block;max-width:100%;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white
+  .dt-rail-empty{padding:25px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:cent
+  .dt-top-title small{display:block;margin-top:2px;font-size:10px;color:var(--text-4)}
+  .dt-composer-foot span + span::before{content:"·";margin-right:10px;color:var(--text-4)}
+  .wp-search>.i{width:15px;height:15px;flex:none}.wp-search input{height:32px;min-width:0;padding:0;background:t
+  .wp-date-calendar-day.outside{color:var(--text-4)}
+  .wp-task{position:relative;display:grid;grid-template-columns:18px minmax(0,1fr) 22px;align-items:start;gap:6p
+  .wp-subbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:5px 0
+  .wp-project-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 10px;c
+  .wp-project-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 10px;c
+  .wp-matrix-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.wp-quadrant{min-height:170
+  .wp-matrix-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.wp-quadrant{min-height:170
+  .wp-month-dots i{width:7px;height:7px;border-radius:50%;background:var(--wp-prio-none,var(--text-4));box-shado
+  .wp-month-mini-dots i{width:5px;height:5px;border-radius:50%;background:var(--wp-prio-none,var(--text-4))}

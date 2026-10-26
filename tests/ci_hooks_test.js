@@ -36,7 +36,7 @@ const createUi = from(shell, 'CefRefPtr<CefBrowserView> Shell::CreateUiView(',
 assert.match(createUi, /#if defined\(SHELTER_CI_HOOKS\)[\s\S]*getenv\("SHELTER_SMOKE_URL"\)[\s\S]*#endif/);
 const debugBridge = from(bridge, '#if defined(SHELTER_CI_HOOKS)',
                          '#endif  // SHELTER_CI_HOOKS');
-for (const hook of ['dbg.hit', 'dbg.clip']) assert.ok(debugBridge.includes(hook));
+for (const hook of ['dbg.hit', 'dbg.clip', 'dbg.window']) assert.ok(debugBridge.includes(hook));
 const bridgeGuard = bridge.indexOf('#if defined(SHELTER_CI_HOOKS)');
 assert.notEqual(bridgeGuard, -1);
 assert.doesNotMatch(bridge.slice(0, bridgeGuard), /dbg\.(?:hit|clip)/);
@@ -122,6 +122,8 @@ assert.match(geometry, /shelterCefRequest\('view\.open'/);
 assert.match(geometry, /persist:space-/);
 assert.match(geometry, /native_open_attempts/);
 assert.match(geometry, /shell: content bounds/);
+assert.match(geometry, /dbg\.window/);
+assert.match(geometry, /window-state-v2/);
 const geometrySteps = workflow.match(/- name: Geometry acceptance \(CI hooks\)[\s\S]*?(?=\n      - name: )/g) || [];
 assert.equal(geometrySteps.length, 2, 'geometry acceptance must run on both target platforms');
 for (const step of geometrySteps) {

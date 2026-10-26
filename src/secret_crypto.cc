@@ -295,6 +295,19 @@ bool ConstantTimeEqual(const Byte* a, const Byte* b, size_t size) {
 
 }  // namespace
 
+std::string Sha256Hex(const std::string& input) {
+  const auto digest =
+      Sha256(reinterpret_cast<const Byte*>(input.data()), input.size());
+  static constexpr char kHex[] = "0123456789abcdef";
+  std::string out;
+  out.reserve(64);
+  for (Byte b : digest) {
+    out.push_back(kHex[b >> 4]);
+    out.push_back(kHex[b & 0x0f]);
+  }
+  return out;
+}
+
 bool EncryptWithKey(const std::string& key_hex, const std::string& plaintext,
                     const std::string& nonce, std::string* ciphertext) {
   if (!ciphertext) return false;

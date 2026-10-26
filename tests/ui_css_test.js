@@ -142,6 +142,11 @@ check('инструменты закреплены отдельно в нижн�
   css.includes('.sb-inner{position:relative;display:flex;flex:1 1 0%;flex-direction:column;min-height:0;overflow:hidden') &&
   css.includes('.sb-scroll{flex:0 1 auto;min-height:0;overflow-y:auto') &&
   css.includes('.sb-tools{flex:0 0 auto;margin:auto -12px 0'));
+check('в свёрнутой панели подложка выделения пространства совпадает с плиткой иконки',
+  css.includes('.app.collapsed .sb .space-row .hc{display:none}') &&
+  css.includes('.app.collapsed .sb .space-row{justify-content:center;padding-left:0}') &&
+  css.includes('.app.collapsed .sb .space-btn{flex:none;justify-content:center;padding:0 6px}') &&
+  css.includes('#tabRight.is-collapsed .space-btn .nm,#tabRight.is-collapsed .space-btn .chev,#tabRight.is-collapsed .space-row>.icon-btn{display:none}'));
 check('кнопки имеют центрированное содержимое, включая проверку кода импорта',
   /\.btn\{[^}]*text-align:center/.test(css) &&
   html.includes('.wp-import-password-submit-content{position:relative;display:block;width:100%;text-align:center') &&
@@ -158,29 +163,81 @@ check('новый rail задач содержит мобильный слой �
   taskLayoutStyle.includes('@container shelter (max-width:900px)') &&
   taskLayoutStyle.includes('.planner-page .wp-layout.is-rail-open .wp-rail') && taskLayoutStyle.includes('.wp-rail-scrim{') &&
   html.includes('class="wp-mobile-menu" data-act="wpRailOpen"') && html.includes('class="wp-rail-scrim" data-act="wpRailClose"'));
-check('месячная сетка и выбранный день используют двухколоночную компоновку',
-  taskLayoutStyle.includes('.wp-month-layout{') && taskLayoutStyle.includes('grid-template-columns:minmax(0,1fr) 280px') &&
+check('месячная сетка и выбранный день используют двухколоночную компоновку, как в «Истории»',
+  taskLayoutStyle.includes('.wp-month-layout{') && taskLayoutStyle.includes('grid-template-columns:minmax(0,1fr) 330px') &&
   html.includes('<div class="wp-month-layout"><div class="wp-month-calendar">'));
-check('доска растягивается до правого края без изменения отступов других представлений',
-  taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){padding-right:0}'));
-check('месячная сетка задач использует компактные пропорции календаря истории',
-  plannerStyle.includes('.wp-month-day{min-height:84px;aspect-ratio:1.22}') &&
-  taskLayoutStyle.includes('.planner-page .wp-month-day{'));
-check('rail задач высокий и липкий, футер прижат вниз и совпадает по отступу с иконками',
+check('мини-календарь закреплён слева, а подробный день занимает правую колонку',
+  taskLayoutStyle.includes('.wp-month-layout.is-mini{grid-template-columns:232px minmax(0,1fr)}') &&
+  taskLayoutStyle.includes('.wp-month-layout.is-mini>.wp-month-mini{position:sticky;top:0}') &&
+  taskLayoutStyle.includes('.wp-month-layout.is-mini>.wp-month-selected{position:static;max-height:none;overflow:visible}') &&
+  taskLayoutStyle.includes('.wp-month-layout.is-mini{grid-template-columns:minmax(0,1fr)}') &&
+  html.includes('<div class="wp-month-layout is-mini">'));
+check('доска делит общие боковые отступы с остальными представлениями, как в референсе',
+  taskLayoutStyle.includes('.planner-page .wp-view:has(>.wp-board-lanes){overflow-x:clip}') &&
+  !taskLayoutStyle.includes('wp-board-lanes){padding-right'));
+check('сводка доски не закреплена и не перекрывает тулбар при прокрутке',
+  !taskLayoutStyle.includes('.wp-board-pin') &&
+  html.includes('.planner-page :is(.wp-all-toolbar,.wp-board-toolbar).is-scrollable{position:relative;top:auto;box-shadow:none}'));
+check('рабочее поле задач резервирует место под полосу прокрутки, чтобы контент не ездил',
+  taskLayoutStyle.includes('.planner-page .wp-view{') && taskLayoutStyle.includes('scrollbar-gutter:stable'));
+check('доска задач вмещается в ширину экрана без горизонтальной прокрутки',
+  plannerStyle.includes('.wp-board-lanes{display:grid;grid-template-columns:repeat(var(--wp-lanes,4),minmax(0,1fr));align-items:start;gap:9px;overflow-x:hidden') &&
+  !plannerStyle.includes('repeat(4,minmax(220px,1fr))') && !/\.wp-board-lanes\{[^}]*overflow-x:auto/.test(plannerStyle) &&
+  (plannerStyle.match(/\.wp-board-lanes\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:7px\}/g) || []).length === 2 &&
+  !/\.wp-board-lanes\{[^}]*scroll-snap/.test(plannerStyle) &&
+  plannerStyle.includes('.wp-board-task-status .select{width:auto;min-width:min(115px,100%)') &&
+  plannerStyle.includes('.wp-board-column>header b{font-size:13px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'));
+check('задачи дня и многодневные ряды держат одинаковые отступы от краёв и друг от друга',
+  plannerStyle.includes('.wp-day-capsule{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:auto;min-width:0;min-height:72px;margin:0 -6px;padding:5px 10px;') &&
+  plannerStyle.includes('padding:5px 10px;border:1px solid color-mix(in srgb,rgb(var(--accent)) 18%,var(--line));border-radius:calc(5px*var(--rs));') &&
+  plannerStyle.includes('.wp-calendar-span{display:flex;align-items:center;gap:8px;min-width:0;min-height:20px;margin:0 8px;padding:1px 8px;') &&
+  plannerStyle.includes('.wp-calendar-span--week{height:20px;margin:0 2px;') &&
+  plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin:0 -7px}') &&
+  !plannerStyle.includes('.wp-week-mobile .wp-day-capsule{margin-left:-9px') &&
+  plannerStyle.includes('.wp-day-items>.wp-done-fold>div{gap:6px}') &&
+  plannerStyle.includes('.wp-week-grid.has-spans .wp-day-items{margin-top:6px}'));
+check('задачи недели держат единый ритм: зазоры 6px и одинаковый ховер у рядов и капсул',
+  plannerStyle.includes('.wp-calendar-span-layer{position:absolute;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(var(--wp-span-lanes),20px);column-gap:10px;row-gap:6px;') &&
+  plannerStyle.includes('.wp-day-items{display:flex;flex:1;flex-direction:column;gap:6px;') &&
+  plannerStyle.includes('.wp-calendar-span:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}') &&
+  plannerStyle.includes('.wp-day-capsule:hover{border-color:rgb(var(--accent));transform:translateY(-1px);box-shadow:0 4px 12px rgb(0 0 0/.16);filter:brightness(1.03);position:relative;z-index:5}') &&
+  plannerStyle.includes('.wp-day-capsule.dragging{opacity:.45}') &&
+  plannerStyle.includes('.wp-calendar-span.dragging{opacity:.45}'));
+check('кастомные строки меню держат метрики пунктов: равные отступы сверху и снизу',
+  css.includes('.mrow{display:flex;align-items:center;gap:8px;min-height:34px;padding:0 6px 0 10px;'));
+check('карточки доски не рвут верстку в узких колонках: мета переносится, чипы режутся многоточием',
+  plannerStyle.includes('.wp-board-task .wp-task-meta>span{max-width:100%;min-width:0;overflow:hidden;overflow-wrap:anywhere}') &&
+  plannerStyle.includes('.wp-board-task .wp-task-meta .wp-deadline{flex:0 1 auto;min-width:0;white-space:normal}') &&
+  plannerStyle.includes('.wp-board-task .wp-chip,.wp-board-task .wp-tag{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'));
+check('статусы красятся из шести свотчей с кольцом активного цвета',
+  plannerStyle.includes('.wp-swatches{display:flex;align-items:center;gap:6px;flex:none}') &&
+  plannerStyle.includes('.wp-swatch.is-on{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--sw,var(--line-3))}'));
+check('месячная сетка задач повторяет компактные метрики «Истории», без слоя диапазонов — только точки',
+  plannerStyle.includes('min-height:84px;aspect-ratio:1.22;') &&
+  !plannerStyle.includes('.wp-month-day{height:150px;') &&
+  taskLayoutStyle.includes('.planner-page .wp-month-day{height:78px;') &&
+  taskLayoutStyle.includes('.planner-page .wp-month-day-head{min-height:24px;gap:3px}') &&
+  !plannerStyle.includes('wp-month-span-layer') &&
+  !taskLayoutStyle.includes('wp-month-span-layer'));
+check('кнопки футера модальных окон центрированы',
+  css.includes('.modal-f{display:flex;justify-content:center;gap:8px;'));
+
+// Keep the pre-existing task rail and Pomodoro visual contracts while using the updated release baseline.
+check('rail задач sticky по высоте, футер прижат вниз и сохраняет читаемый размер текста',
   /\.planner-page \.wp-rail\{[^}]*position:sticky;top:0;[^}]*height:100%/.test(taskLayoutStyle) &&
-  /\.planner-page \.wp-rail-footer\{[^}]*margin-top:auto;[^}]*padding:8px 4px 0 11px/.test(taskLayoutStyle) &&
+  /\.planner-page \.wp-rail-footer\{[^}]*margin-top:auto;[^}]*padding:8px 4px 0;[^}]*font-size:11\.5px/.test(taskLayoutStyle) &&
   taskLayoutStyle.includes('.planner-page .wp-rail.is-collapsed'));
-check('Pomodoro использует крупное моноширинное кольцо и адаптивные сгруппированные кнопки',
+check('Pomodoro сохраняет крупное моноширинное кольцо и адаптивные сгруппированные кнопки',
   structureCss.includes('.pomo-ring{width:188px;height:188px}') &&
   structureCss.includes('.pomo-time-wrap b{font:650 42px/1 var(--mono)') &&
   structureCss.includes('.pomo-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))') &&
   structureCss.includes('@media(max-width:860px)') && structureCss.includes('@media(max-width:440px)'));
-check('Pomodoro global popover и заметное уведомление доступны, а в perf анимации отключены',
+check('Pomodoro popover и уведомление доступны, а perf-анимации отключены',
   structureCss.includes('.pomo-popover[hidden],.pomo-notice[hidden]{display:none!important}') &&
   structureCss.includes('body[data-gfx="perf"] :is(.pomo-global') &&
   html.includes('aria-modal', html.indexOf('function pomoEnsureGlobalLayers()')) &&
   html.includes('data-act="pomoNoticeAck"'));
-check('hint настроек Помодоро имеет отдельный верхний отступ и меньшую заметность',
+check('подсказка настроек Pomodoro имеет отдельный верхний отступ и меньшую заметность',
   structureCss.includes('.modal.pomo-settings-modal .modal-b{padding-top:19px}') &&
   structureCss.includes('.modal.pomo-settings-modal .wp-form-hint{color:var(--text-4)}') &&
   html.includes("cls: 'pomo-settings-modal'"));

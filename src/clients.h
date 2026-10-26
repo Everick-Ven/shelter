@@ -9,6 +9,7 @@
 #include "include/cef_client.h"
 #include "include/cef_permission_handler.h"
 #include "include/cef_resource_request_handler.h"
+#include "include/cef_ssl_info.h"
 #include "include/wrapper/cef_message_router.h"
 
 namespace shelter {
@@ -248,6 +249,15 @@ class TabClient : public CefClient,
       CefRefPtr<CefRequest> request, bool is_navigation, bool is_download,
       const CefString& request_initiator,
       bool& disable_default_handling) override;
+
+  // Ошибка сертификата: совпавший пин — молча продолжаем, иначе осознанное
+  // решение пользователя через диалог (продолжить один раз / запомнить /
+  // назад). Пустого доверия нет: неверный отпечаток и любая ошибка = отказ.
+  bool OnCertificateError(CefRefPtr<CefBrowser> browser,
+                          cef_errorcode_t cert_error,
+                          const CefString& request_url,
+                          CefRefPtr<CefSSLInfo> ssl_info,
+                          CefRefPtr<CefCallback> callback) override;
 
   // CefResourceRequestHandler — блокировка трекеров/рекламы.
   cef_return_value_t OnBeforeResourceLoad(

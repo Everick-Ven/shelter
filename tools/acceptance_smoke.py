@@ -547,6 +547,10 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const settingsRect = settings.getBoundingClientRect();
         const moreRect = more.getBoundingClientRect();
         const headerRect = header.getBoundingClientRect();
+        const rectSummary = el => {
+          const r = el.getBoundingClientRect();
+          return { left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width) };
+        };
         const toolbar = {
           settingsBeforeMenu: settings.parentElement === more.parentElement &&
             settings.nextElementSibling === more &&
@@ -622,12 +626,18 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           toolbarGeometry: {
             headerClientWidth: header.clientWidth,
             headerScrollWidth: header.scrollWidth,
-            headerRight: Math.round(headerRect.right),
+            headerRect: rectSummary(header),
             viewportWidth: innerWidth,
-            actionsWidth: Math.round(document.querySelector('.tb-actions').getBoundingClientRect().width),
-            controlsWidth: Math.round(controls.getBoundingClientRect().width),
-            addressWidth: Math.round(document.getElementById('omniTb').getBoundingClientRect().width),
-            windowControlsWidth: Math.round(windowControls ? windowControls.getBoundingClientRect().width : 0)
+            leftGroup: rectSummary(header.querySelector('.tb-g')),
+            address: rectSummary(document.getElementById('omniTb')),
+            actions: rectSummary(document.querySelector('.tb-actions')),
+            controls: rectSummary(controls),
+            extensions: rectSummary(ext),
+            quick: rectSummary(quick),
+            shield: rectSummary(prot),
+            settings: rectSummary(settings),
+            menu: rectSummary(more),
+            windowControls: rectSummary(windowControls)
           },
           menuLabels: labels,
           visibleForbidden: visibleForbidden,

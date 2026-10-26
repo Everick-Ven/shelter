@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-hGiGL9Ikeg2OauOTR3wfnhABAunerx1gUlrlK3HoQa0=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-/OnfYqUvXhqqQgmNngkz+140dEPpV3Ofms1nvvDtRDk=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-8o8lCThXM1NLOHfY+A8Z9fv4Lr8SHAfSmU/3ABUgysg=' 'sha256-vBshIhXp4ne/5zlCPVQCeEb9SkT1SgyuT65xijYHNb4=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4owRtbPMA0aOD6OBen8PRy8fwjX4eA4Vpr2ICWhWpcE=';style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self' data:;object-src 'none';base-uri 'self';form-action 'none';connect-src 'self';worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -311,21 +311,10 @@ body.is-fullscreen .lights{display:none}
 .lights.live i:nth-child(1)::after{content:"×"}
 .lights.live i:nth-child(2)::after{content:"–"}
 .lights.live i:nth-child(3)::after{content:"⤢";font-size:8px}
-/* Оконные кнопки Windows: место прежнее — справа в первом ряду, как привычно
-   пользователям Windows (свернуть, растянуть, закрыть), но внешний вид —
-   круглые «светофоры» в стиле Mac с глифами на hover. */
-.wctl{display:flex;align-items:center;gap:8px;flex:none;margin-left:10px;padding:0 2px}
-.wctl .wc{position:relative;width:12px;height:12px;border-radius:50%;border:0;padding:0;cursor:pointer;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.28);transition:transform .15s,filter .15s;-webkit-app-region:no-drag}
-.wctl .wc:hover{filter:brightness(1.1);transform:scale(1.08)}
-.wctl .wc:active{transform:scale(.92)}
-.wctl .wc-min{background:#FEBC2E}
-.wctl .wc-max{background:#28C840}
-.wctl .wc-close{background:#FF5F57}
-.wctl .wc::after{position:absolute;inset:0;display:grid;place-items:center;font:700 9px/1 "Shelter Inter",sans-serif;color:rgba(0,0,0,.55);opacity:0;transition:opacity .12s}
-.wctl:hover .wc::after{opacity:1}
-.wctl .wc-min::after{content:"–"}
-.wctl .wc-max::after{content:"⤢";font-size:8px}
-.wctl .wc-close::after{content:"×"}
+/* Оконные кнопки Windows размещаются в первом ряду; стеклянное оформление
+   и состояния клавиш уточняются в структурном слое ниже. */
+.wctl{display:flex;align-items:center;gap:4px;flex:none;margin-left:0;padding:0;-webkit-app-region:no-drag}
+.wctl .wc{position:relative;display:grid;place-items:center;width:32px;height:32px;flex:none;padding:0;border:1px solid var(--line-2);border-radius:calc(10px*var(--rs));background:var(--card-2);color:var(--text-2);cursor:pointer;-webkit-app-region:no-drag}
 .brand{display:flex;align-items:center;gap:12px;padding:0 6px;flex:none}
 .logo{width:38px;height:38px;border-radius:calc(12px*var(--rs));flex:none;display:grid;place-items:center;position:relative;color:#fff;
   background:linear-gradient(155deg,var(--logo-a),var(--logo-b));
@@ -2687,8 +2676,6 @@ html.reduce-motion .view.enter,html.reduce-motion .rise{ animation-duration:.01m
 .dt-top-title b{display:block;max-width:min(45vw,480px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
 .dt-top-title small{display:block;margin-top:2px;font-size:10px;color:var(--text-4)}
 .dt-top-actions{display:flex;align-items:center;gap:10px;flex:none}
-.dt-privacy-pill{height:27px;padding:0 9px;display:inline-flex;align-items:center;gap:6px;border:1px solid rgb(var(--ok)/.17);border-radius:99px;background:rgb(var(--ok)/.06);color:var(--text-3);font-size:10px}
-.dt-privacy-pill .i{width:13px;height:13px;color:rgb(var(--ok))}
 .dt-mobile-menu{display:none}
 .dt-conversation{min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;padding:32px clamp(22px,5vw,72px) 26px;--dt-fs:15px}
 .dt-conversation.dt-fs-s{--dt-fs:13px}
@@ -2842,7 +2829,9 @@ body.native-content-visible:not([data-gfx="perf"]) .suggest,
 body.native-content-visible:not([data-gfx="perf"]) .findbar,
 body.native-content-visible:not([data-gfx="perf"]) .toast,
 body.native-content-visible:not([data-gfx="perf"]) .tip,
-body.native-content-visible:not([data-gfx="perf"]) .dl-float{
+body.native-content-visible:not([data-gfx="perf"]) .dl-float,
+body.native-content-visible:not([data-gfx="perf"]) .pomo-popover,
+body.native-content-visible:not([data-gfx="perf"]) .pomo-notice{
   background-color:var(--native-popup-menu);
   background-image:linear-gradient(var(--native-contrast-veil),var(--native-contrast-veil)),linear-gradient(145deg,rgba(255,255,255,.11),rgba(255,255,255,.035) 32%,transparent 72%);
   border-color:color-mix(in srgb,var(--glass-border) 84%,rgb(var(--ga)/.28));
@@ -3220,11 +3209,10 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
                  grid-template-rows:auto minmax(0,1fr) auto}
 
 /* 3.1 Шапка диалога → навигационная панель iOS: заголовок по центру,
-       статус слева, действия справа (иконки + текстовая accent-кнопка). */
+       симметричные крайние дорожки сохраняют центрирование; действия справа. */
 .dt-topbar{height:54px;padding:0 14px;border-radius:0;gap:10px;
   display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center}
 .dt-topbar>.dt-mobile-menu{grid-column:1;grid-row:1;justify-self:start}
-.dt-topbar>.dt-privacy-pill{grid-column:1;grid-row:1;justify-self:start}
 .dt-topbar>.dt-top-title{grid-column:2;grid-row:1;justify-self:center;align-self:stretch;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center}
 .dt-top-title .dt-top-orb{display:none}
@@ -3315,7 +3303,6 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 @container dt-shell (max-width:1100px){
   .dt-top-actions .btn.sm span{display:none}
   .dt-top-actions .btn.sm{padding:0 7px}
-  .dt-topbar>.dt-privacy-pill{display:none}
   .dt-top-title b{max-width:min(30vw,300px)}
   .dt-composer-foot span:last-child{display:none}
 }
@@ -3325,7 +3312,6 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .dt-app .dt-rail{left:0;top:0;bottom:0;border-radius:0;border-right:1px solid var(--line);
                    background:var(--surface)}
   .dt-topbar{padding:0 10px;grid-template-columns:auto minmax(0,1fr) auto}
-  .dt-topbar>.dt-privacy-pill{display:none}
   .dt-top-actions .btn.sm span{display:none}
   .dt-welcome{padding-top:28px}
 }
@@ -3402,7 +3388,9 @@ body.native-content-visible:not([data-gfx="perf"]) .suggest,
 body.native-content-visible:not([data-gfx="perf"]) .findbar,
 body.native-content-visible:not([data-gfx="perf"]) .toast,
 body.native-content-visible:not([data-gfx="perf"]) .tip,
-body.native-content-visible:not([data-gfx="perf"]) .dl-float{
+body.native-content-visible:not([data-gfx="perf"]) .dl-float,
+body.native-content-visible:not([data-gfx="perf"]) .pomo-popover,
+body.native-content-visible:not([data-gfx="perf"]) .pomo-notice{
   background-color:var(--native-popup-menu);
   background-image:linear-gradient(var(--native-contrast-veil),var(--native-contrast-veil)),linear-gradient(145deg,rgba(255,255,255,.11),rgba(255,255,255,.035) 32%,transparent 72%);
   border-color:color-mix(in srgb,var(--glass-border) 84%,rgb(var(--ga)/.28));
@@ -3501,6 +3489,10 @@ body.glow-off .ambient,body.glow-off #heroFx{opacity:0}
   --bf-menu:blur(30px) saturate(190%);
   --r-xl:30px;--r-l:23px;--r-m:18px;--r-s:13px;--r-xs:10px;
 }
+html[data-theme="ivory"],html[data-theme="porcelain"],html[data-theme="bordeaux"]{
+  --glass-shadow-lg:0 22px 58px -46px rgba(40,36,32,.34),inset 0 1px 0 rgba(255,255,255,.82),inset 0 -1px 0 rgba(60,42,18,.018);
+  --glass-shadow-md:0 12px 30px -24px rgba(40,36,32,.23),inset 0 1px 0 rgba(255,255,255,.74),inset 0 -1px 0 rgba(60,42,18,.014);
+}
 
 /* Атмосферный фон даёт стеклу что преломлять — цветные отражения остаются очень мягкими. */
 .ambient{
@@ -3529,7 +3521,7 @@ body.glow-off .ambient,body.glow-off #heroFx{opacity:0}
 }
 .sb::after{
   content:"";position:absolute;right:0;top:18px;bottom:18px;width:1px;z-index:2;pointer-events:none;
-  background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--text) 18%,transparent) 18%,rgb(var(--gc)/.18) 54%,transparent 92%);
+  background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--text) 9%,transparent) 18%,rgb(var(--gc)/.10) 54%,transparent 92%);
 }.sb-search, .user, .swatches{
   background:linear-gradient(140deg,rgba(255,255,255,.09),transparent 58%),var(--glass-1);
   border-color:var(--glass-edge);box-shadow:var(--glass-shadow-md);
@@ -3750,6 +3742,107 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .bm-mount:not([hidden]){margin-bottom:6px}
 }
 
+/* Поиск в узком сайдбаре сохраняет полное имя, обрезая только хвост. */
+.sb-search span:not(.kbd){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Нативные Windows-кнопки: стеклянные квадратные клавиши вместо светофорных точек. */
+#winCtl.win-ctls{display:flex;align-items:center;gap:4px;flex:none;margin:0;padding:0;-webkit-app-region:no-drag}
+#winCtl.win-ctls .wc{
+  position:relative;display:grid;place-items:center;width:32px;height:32px;flex:none;
+  padding:0;border:1px solid var(--glass-rim);border-radius:calc(10px*var(--rs));
+  background:linear-gradient(140deg,rgba(255,255,255,.09),transparent 64%),var(--glass-1);
+  color:var(--text-2);box-shadow:var(--glass-shadow-md);
+  -webkit-backdrop-filter:var(--bf-glass);backdrop-filter:var(--bf-glass);
+  cursor:pointer;transition:background .16s,border-color .16s,color .16s,box-shadow .16s,transform .12s;
+  -webkit-app-region:no-drag
+}
+#winCtl.win-ctls .wc::after{display:none}
+#winCtl.win-ctls .wc .i{width:14px;height:14px;pointer-events:none}
+#winCtl.win-ctls .wc:hover{background:var(--glass-2);border-color:var(--glass-edge);color:var(--text);box-shadow:var(--glass-shadow-md),0 5px 14px -12px rgba(0,0,0,.26)}
+#winCtl.win-ctls .wc:active{transform:scale(.94);background:var(--press);box-shadow:inset 0 1px 2px rgba(0,0,0,.12)}
+#winCtl.win-ctls .wc:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}
+#winCtl.win-ctls .wc-close:hover{background:color-mix(in srgb,rgb(var(--danger)) 12%,var(--glass-2));border-color:rgb(var(--danger)/.38);color:rgb(var(--danger))}
+#winCtl.win-ctls .win-restore-icon{display:none}
+#winCtl.win-ctls .wc-max[aria-pressed="true"] .win-maximize-icon{display:none}
+#winCtl.win-ctls .wc-max[aria-pressed="true"] .win-restore-icon{display:block}
+
+/* Помодоро: глобальный индикатор и управляемые, не модальные поверхности. */
+.tb-ctls .ctl.pomo-global{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  width:auto;min-width:82px;height:32px;padding:0 7px;border-radius:calc(10px*var(--rs));
+  color:var(--text-2);font-variant-numeric:tabular-nums;
+}
+.tb-ctls .ctl.pomo-global::after{display:none}
+.tb-ctls .ctl.pomo-global:hover{color:var(--text);background:var(--glass-2)}
+.tb-ctls .ctl.pomo-global.break .pomo-global-ring circle.val{stroke:rgb(var(--ok))}
+.tb-ctls .ctl.pomo-global.has-notice{border-color:rgb(var(--warn)/.55);color:var(--text)}
+.pomo-global-ring{position:relative;display:grid;place-items:center;flex:none;width:22px;height:22px}
+.pomo-global-ring svg{width:100%;height:100%;overflow:visible;transform:rotate(-90deg)}
+.pomo-global-ring circle{fill:none;stroke-width:2.35}
+.pomo-global-ring circle.trk{stroke:var(--line-2)}
+.pomo-global-ring circle.val{stroke:rgb(var(--gc));stroke-linecap:round;transition:stroke-dasharray .45s var(--ease),stroke .2s}
+.pomo-global-dot{position:absolute;top:-1px;right:-2px;width:6px;height:6px;border:1px solid var(--card);border-radius:50%;background:rgb(var(--warn));display:none}
+.pomo-global.has-notice .pomo-global-dot{display:block}
+.pomo-global-time{font:600 10px/1 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pomo-popover,.pomo-notice{
+  color:var(--text);border:1px solid var(--glass-edge);
+  background:linear-gradient(138deg,rgba(255,255,255,.12),rgba(255,255,255,.035) 30%,transparent 66%),var(--glass-menu);
+  box-shadow:var(--glass-shadow-lg);-webkit-backdrop-filter:var(--bf-menu);backdrop-filter:var(--bf-menu);
+}
+.pomo-popover[hidden],.pomo-notice[hidden]{display:none!important}
+.pomo-popover{position:fixed;z-index:220;width:min(320px,calc(100vw - 24px));padding:14px;border-radius:var(--r-l)}
+.pomo-popover-head{display:flex;align-items:center;gap:9px}
+.pomo-popover-icon{width:30px;height:30px;display:grid;place-items:center;flex:none;border-radius:calc(10px*var(--rs));background:rgb(var(--gc)/.12);color:rgb(var(--gc))}
+.pomo-popover-icon .i{width:16px;height:16px}
+.pomo-popover-title{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}
+.pomo-popover-title b{font-size:12px;font-weight:650}
+.pomo-popover-title small{font-size:10px;color:var(--text-3)}
+.pomo-popover-close{width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:calc(8px*var(--rs));background:transparent;color:var(--text-3)}
+.pomo-popover-close:hover{background:var(--hover);color:var(--text)}
+.pomo-popover-close .i{width:15px;height:15px}
+.pomo-popover-clock{display:flex;align-items:baseline;gap:8px;margin:13px 0 5px}
+.pomo-popover-clock strong{font:650 31px/1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.035em}
+.pomo-popover-clock span{color:var(--text-3);font-size:10px}
+.pomo-popover-copy{min-height:28px;color:var(--text-3);font-size:10px;line-height:1.4}
+.pomo-popover-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px}
+.pomo-popover-actions>.btn{justify-content:center;min-width:0}
+.pomo-popover-reset{width:100%;justify-content:center;margin-top:7px}
+.pomo-notice{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:min(390px,calc(100vw - 32px));padding:14px;border-radius:var(--r-l);pointer-events:auto}
+.pomo-notice-head{display:flex;align-items:flex-start;gap:10px}
+.pomo-notice-icon{width:30px;height:30px;display:grid;place-items:center;flex:none;border-radius:calc(10px*var(--rs));background:rgb(var(--gc)/.12);color:rgb(var(--gc))}
+.pomo-notice-icon .i{width:16px;height:16px}
+.pomo-notice-head>div{display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}
+.pomo-notice-head b{font-size:12px;font-weight:650}
+.pomo-notice-head span{color:var(--text-3);font-size:10px;line-height:1.45}
+.pomo-notice-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:12px}
+.pomo-notice-actions>.btn{min-height:30px}
+
+/* Крупный читаемый циферблат и компактные кнопки; цикл остаётся счётчиком в данных. */
+.pomo-body{display:flex;align-items:center;gap:24px}
+.pomo-ring{width:188px;height:188px}
+.pomo-time-wrap b{font:650 42px/1 var(--mono);letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+.pomo-side{display:flex;flex:1;min-width:0;flex-direction:column;gap:10px}
+.pomo-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pomo-actions .btn{width:100%;min-width:0;justify-content:center;gap:6px;padding-left:8px;padding-right:8px}
+.pomo-cycles{display:flex;align-items:center;gap:0;margin-top:2px;color:var(--text-3)}
+.pomo-cycle-dots{display:inline-flex;align-items:center;gap:6px;min-height:20px}
+.pomo-cycle-dots i{display:block;width:7px;height:7px;border:1px solid var(--line-3);border-radius:50%;background:var(--line-2);transition:background .18s,border-color .18s,box-shadow .18s}
+.pomo-cycle-dots i.on{border-color:rgb(var(--gc));background:rgb(var(--gc));box-shadow:0 0 7px rgb(var(--gc)/.32)}
+.modal.pomo-settings-modal .modal-b{padding-top:19px}
+.modal.pomo-settings-modal .wp-form-hint{color:var(--text-4)}
+@media(max-width:860px){
+  .pomo-body{flex-direction:column;align-items:stretch;gap:16px}
+  .pomo-ring{align-self:center}
+  .pomo-side{width:100%;flex:none}
+  .pomo-actions{width:min(100%,380px);margin:0 auto}
+  .pomo-cycles{justify-content:center}
+}
+@media(max-width:440px){
+  .pomo-ring{width:180px;height:180px}
+  .pomo-time-wrap b{font-size:38px}
+  .pomo-actions{gap:6px}
+}
+body[data-gfx="perf"] :is(.pomo-global,.pomo-global *, .pomo-popover,.pomo-notice,.pomo-notice *, .pomo-ring,.pomo-ring *, .pomo-cycle-dots, .pomo-cycle-dots *){animation:none!important;transition:none!important}
 
 </style>
 
@@ -4428,7 +4521,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 }
 .planner-page .wp-layout.is-sidebar-collapsed{grid-template-columns:56px minmax(0,1fr);gap:0}
 .planner-page .wp-rail{
-  grid-column:1;grid-row:1;position:relative;top:auto;align-self:stretch;
+  grid-column:1;grid-row:1;position:sticky;top:0;align-self:stretch;
   display:flex;flex-direction:column;gap:12px;
   width:auto;height:100%;min-width:0;min-height:0;padding:12px 12px 10px;
   border:0;border-right:1px solid var(--line);border-radius:0;
@@ -4466,7 +4559,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 }
 .planner-page .wp-nav-item>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .planner-page .wp-rail-footer{
-  display:flex;flex:none;min-height:38px;margin-top:auto;padding:8px 4px 0;
+  display:flex;flex:none;min-height:38px;margin-top:auto;padding:8px 4px 0 11px;
   border-top:1px solid var(--line);font-size:10px;
 }
 .planner-page .wp-rail-footer span{white-space:nowrap}
@@ -4817,7 +4910,7 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
       <div class="brand-t hc"><b>SHELTER<sup>™</sup></b><span>Приватный браузер</span></div>
     </div>
     <div class="sb-sep"></div>
-    <button class="sb-search" data-act="palette" data-tip="Поиск  ⌘K"><svg class="i"><use href="#i-search"/></svg><span class="hc">Поиск</span><span class="kbd hc">⌘ K</span></button>
+    <button type="button" class="sb-search" data-act="palette" data-tip="Поиск по браузеру · ⌘K" aria-label="Поиск по браузеру"><svg class="i"><use href="#i-search"/></svg><span class="hc">Поиск по браузеру</span><span class="kbd hc">⌘ K</span></button>
 
     <div class="sb-pin" id="sbPin">
       <div class="nav-ind" id="navIndPin"></div>
@@ -4869,16 +4962,16 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
         <div class="suggest" id="tbSuggest" hidden></div>
       </div>
       <div class="tb-g tb-actions" style="gap:6px">
-        <div class="tb-ctls" id="ctlGrid" role="group" aria-label="Удаление сессий"></div>
+        <div class="tb-ctls" id="ctlGrid" role="group" aria-label="Удаление сессий и Помодоро"></div>
         <button class="tb-btn" id="extBtn" data-act="extList" data-tip="Расширения" aria-label="Расширения"><svg class="i"><use href="#i-puzzle"/></svg></button>
         <button class="tb-btn" id="quickBtn" data-act="quick" data-tip="Оформление и вкладки" aria-label="Оформление и вкладки"><svg class="i"><use href="#i-sliders"/></svg></button>
         <button class="tb-btn" id="protBtn" data-act="prot" data-tip="Защита" aria-label="Защита"><svg class="i"><use href="#i-shield-check"/></svg></button>
         <button class="tb-btn" id="settingsBtn" data-act="settings" data-tip="Настройки  ⌘," aria-label="Настройки"><svg class="i"><use href="#i-gear"/></svg></button>
         <button class="tb-btn" id="moreBtn" data-act="more" data-tip="Меню" aria-label="Меню"><svg class="i"><use href="#i-dots"/></svg></button>
-        <div class="wctl" id="winCtl" hidden role="group" aria-label="Управление окном">
-          <button class="wc wc-min" data-w="minimize" data-tip="Свернуть" aria-label="Свернуть окно"></button>
-          <button class="wc wc-max" data-w="maximize" data-tip="Растянуть" aria-label="Растянуть окно"></button>
-          <button class="wc wc-close" data-w="close" data-tip="Закрыть" aria-label="Закрыть окно"></button>
+        <div class="wctl win-ctls" id="winCtl" hidden role="group" aria-label="Управление окном">
+          <button type="button" class="wc wc-min" data-w="minimize" data-tip="Свернуть окно" aria-label="Свернуть окно">${ico('minus')}</button>
+          <button type="button" class="wc wc-max" data-w="maximize" data-tip="Развернуть окно" aria-label="Развернуть окно" aria-pressed="false"><svg class="i win-maximize-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="3.75" y="3.75" width="12.5" height="12.5" rx="1.5"/></svg><svg class="i win-restore-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 6.5V4.75c0-.7.55-1.25 1.25-1.25h7c.7 0 1.25.55 1.25 1.25v7c0 .7-.55 1.25-1.25 1.25H13"/><path d="M4.75 7.5h7c.7 0 1.25.55 1.25 1.25v7c0 .7-.55 1.25-1.25 1.25h-7c-.7 0-1.25-.55-1.25-1.25v-7c0-.7.55-1.25 1.25-1.25Z"/></svg></button>
+          <button type="button" class="wc wc-close" data-w="close" data-tip="Закрыть окно" aria-label="Закрыть окно">${ico('x')}</button>
         </div>
       </div>
     </header>
@@ -6108,6 +6201,7 @@ function saveNow() {
   /* Загрузки приватной сессии («Призрак») на диск не пишутся — как список
      загрузок инкогнито в больших браузерах; сами файлы остаются в папке. */
   const oldLux = store.json('shelter:lux', {}) || {};
+  try { if (typeof pomoMergeStoredLux === 'function') pomoMergeStoredLux(oldLux); } catch (_) {}
   const nextLux = Object.assign({}, oldLux, { seeded: true, prefs: S.prefs, ui: S.ui, deep: S.deep, account: S.account, downloads: (S.downloads || []).filter(x => x && !x.ghost), blocks: S.blocks });
   const chats = blobToStore('__chatsBlob', S.chats);
   const messages = blobToStore('__messagesBlob', S.messages);
@@ -7130,7 +7224,7 @@ function renderControls() {
   /* Переключатели защиты переехали в попап щита, а «Удалить сессии» остаётся
      плиткой в тулбаре — в том же виде, в каком были кнопки защит. */
   const g = $('#ctlGrid'); if (!g) return;
-  g.innerHTML = `<button class="ctl fire" data-act="fire" data-tip="Удалить сессии\nНажмите — и все входы, cookies и данные сайтов будут стёрты во всех пространствах, будто вы заходили в чужой компьютер. Готовые пространства с пометкой «сессии хранятся» не трогаются." data-tip-always="1" data-tip-pos="top" aria-label="Удалить сессии">${ico('flame')}</button>`;
+  g.innerHTML = `<button type="button" class="ctl fire" data-act="fire" data-tip="Удалить сессии\nНажмите — и все входы, cookies и данные сайтов будут стёрты во всех пространствах, будто вы заходили в чужой компьютер. Готовые пространства с пометкой «сессии хранятся» не трогаются." data-tip-always="1" data-tip-pos="top" aria-label="Удалить сессии">${ico('flame')}</button>${pomoGlobalButtonHtml()}`;
   syncSchemeBtn();
 }
 function renderUser() {
@@ -7175,19 +7269,43 @@ function initWinLights() {
     }
     return;
   }
-  /* Windows / Linux (frameless CEF): место кнопок прежнее — справа в первом
-     ряду (привычная раскладка Windows), изменился только внешний вид:
-     круглые «светофоры» в стиле Mac. Левые lights остаются только на Mac. */
+  /* Windows получает стеклянные клавиши управления окном; точки macOS выше
+     остаются без изменений. В остальных платформах этот блок скрыт. */
   if (lights) lights.hidden = true;
   const ctl = document.getElementById('winCtl');
   if (!ctl) return;
+  if (n.platform !== 'win32') { ctl.hidden = true; return; }
   ctl.hidden = false;
-  ctl.addEventListener('click', e => {
-    const b = e.target.closest('[data-w]'); if (!b) return;
-    if (b.dataset.w === 'close') n.close();
-    else if (b.dataset.w === 'minimize') n.minimize();
-    else doMax();
-  });
+  const maxButton = ctl.querySelector('[data-w="maximize"]');
+  const syncWindowState = async () => {
+    if (!maxButton || typeof n.getWindowState !== 'function') return;
+    try {
+      const state = await n.getWindowState();
+      if (!state) return;
+      const maximized = state.maximized === true;
+      const label = maximized ? 'Восстановить окно' : 'Развернуть окно';
+      maxButton.setAttribute('aria-pressed', String(maximized));
+      maxButton.setAttribute('aria-label', label);
+      maxButton.dataset.tip = label;
+      maxButton.classList.toggle('is-maximized', maximized);
+    } catch (_) {}
+  };
+  const toggleMaximize = () => {
+    try { Promise.resolve(n.maximize()).then(syncWindowState, syncWindowState); }
+    catch (_) {}
+  };
+  if (!ctl.dataset.controlsBound) {
+    ctl.dataset.controlsBound = '1';
+    ctl.addEventListener('click', e => {
+      const b = e.target.closest('[data-w]'); if (!b) return;
+      if (b.dataset.w === 'close') n.close();
+      else if (b.dataset.w === 'minimize') n.minimize();
+      else toggleMaximize();
+    });
+    window.addEventListener('resize', syncWindowState, { passive: true });
+    window.addEventListener('focus', syncWindowState);
+  }
+  syncWindowState();
 }
 function toggleSidebar() {
   const app = $('#app');
@@ -9579,18 +9697,27 @@ function chatMainHtml() {
    ========================================================= */
 const POMO_DUR = { work: 25 * 60, short: 5 * 60, long: 15 * 60 };
 const POMO_LABEL = { work: 'Фокус', short: 'Короткий перерыв', long: 'Длинный перерыв' };
+const pomoMinuteValue = (value, fallback, min, max) => {
+  const numeric = Number(value);
+  return clamp(Number.isFinite(numeric) ? Math.round(numeric) : fallback, min, max);
+};
 function widgetPrefs() {
   if (!S.ui || typeof S.ui !== 'object') S.ui = {};
   let prefs = S.ui.widgetPrefs;
   if (!prefs || typeof prefs !== 'object' || Array.isArray(prefs)) prefs = S.ui.widgetPrefs = {};
   let pomo = prefs.pomodoro;
   if (!pomo || typeof pomo !== 'object' || Array.isArray(pomo)) pomo = prefs.pomodoro = {};
-  pomo.workMinutes = clamp(Math.round(Number(pomo.workMinutes) || 25), 15, 60);
-  pomo.shortBreakMinutes = clamp(Math.round(Number(pomo.shortBreakMinutes) || 5), 3, 20);
-  pomo.longBreakMinutes = clamp(Math.round(Number(pomo.longBreakMinutes) || 15), 10, 30);
+  pomo.workMinutes = pomoMinuteValue(pomo.workMinutes, 25, 15, 60);
+  pomo.shortBreakMinutes = pomoMinuteValue(pomo.shortBreakMinutes, 5, 1, 5);
+  pomo.longBreakMinutes = pomoMinuteValue(pomo.longBreakMinutes, 15, 5, 30);
   pomo.autoBreak = pomo.autoBreak === true;
+  pomo.soundEnabled = pomo.soundEnabled !== false;
+  pomo.settingsUpdatedAt = Math.max(0, Number(pomo.settingsUpdatedAt) || 0);
   if (!pomo.session || typeof pomo.session !== 'object' || Array.isArray(pomo.session))
-    pomo.session = { mode: 'work', remain: 25 * 60, running: false, endsAt: 0, cycles: 0, cycleDay: dayKey(Date.now()) };
+    pomo.session = { mode: 'work', remain: 25 * 60, running: false, endsAt: 0, cycles: 0, cycleDay: dayKey(Date.now()), updatedAt: 0, pendingNotice: null };
+  pomo.session.updatedAt = Math.max(0, Number(pomo.session.updatedAt) || 0);
+  if (!pomo.session.pendingNotice || typeof pomo.session.pendingNotice !== 'object' || Array.isArray(pomo.session.pendingNotice) || typeof pomo.session.pendingNotice.id !== 'string' || !Array.isArray(pomo.session.pendingNotice.completedModes))
+    pomo.session.pendingNotice = null;
   let eff = prefs.efficiency;
   if (!eff || typeof eff !== 'object' || Array.isArray(eff)) eff = prefs.efficiency = {};
   if (!['day', 'week'].includes(eff.period)) eff.period = ['day', 'week'].includes(S.ui.effPeriod) ? S.ui.effPeriod : 'day';
@@ -9602,7 +9729,126 @@ function pomoDur(mode) {
   return minutes * 60 || POMO_DUR[mode] || POMO_DUR.work;
 }
 const pomoFmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + pad2(s % 60); };
-function pomoFinishPhase(P, at = Date.now(), { quiet = false, forceStop = false } = {}) {
+function pomoTouch(P, at = Date.now()) {
+  P.updatedAt = Math.max((Number(P.updatedAt) || 0) + 1, Number(at) || 0, Date.now());
+  return P.updatedAt;
+}
+function pomoSignal(id) {
+  const prefs = widgetPrefs().pomodoro;
+  if (!prefs.soundEnabled || !id || T.pomoLastSignalId === id) return;
+  if (document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus())) return;
+  try {
+    const signalStore = window.localStorage, signalKey = 'shelter:pomodoro:last-signal';
+    if (signalStore && signalStore.getItem(signalKey) === id) { T.pomoLastSignalId = id; return; }
+    if (signalStore) signalStore.setItem(signalKey, id);
+  } catch (_) {}
+  T.pomoLastSignalId = id;
+  try {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (typeof Ctor !== 'function') return;
+    let context = T.pomoAudioContext;
+    if (!context || context.state === 'closed') context = T.pomoAudioContext = new Ctor();
+    const play = () => {
+      if (!context || context.state === 'closed') return;
+      const startAt = context.currentTime;
+      [659.25, 880].forEach((frequency, index) => {
+        const oscillator = context.createOscillator(), gain = context.createGain();
+        const start = startAt + index * .19, end = start + .28;
+        oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(.0001, start);
+        gain.gain.exponentialRampToValueAtTime(.045, start + .025);
+        gain.gain.exponentialRampToValueAtTime(.0001, end);
+        oscillator.connect(gain); gain.connect(context.destination);
+        oscillator.start(start); oscillator.stop(end);
+      });
+    };
+    if (context.state === 'suspended' && typeof context.resume === 'function') Promise.resolve(context.resume()).then(play).catch(() => {});
+    else play();
+  } catch (_) {}
+}
+function pomoUnlockAudio() {
+  try {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (typeof Ctor !== 'function') return;
+    let context = T.pomoAudioContext;
+    if (!context || context.state === 'closed') context = T.pomoAudioContext = new Ctor();
+    if (context.state === 'suspended' && typeof context.resume === 'function') Promise.resolve(context.resume()).catch(() => {});
+  } catch (_) {}
+}
+function pomoBroadcast() {
+  const channel = T.pomoChannel;
+  if (!channel || typeof channel.postMessage !== 'function') return;
+  const prefs = widgetPrefs().pomodoro;
+  try {
+    channel.postMessage({ type: 'sync', pomodoro: {
+      workMinutes: prefs.workMinutes, shortBreakMinutes: prefs.shortBreakMinutes,
+      longBreakMinutes: prefs.longBreakMinutes, autoBreak: prefs.autoBreak,
+      soundEnabled: prefs.soundEnabled, settingsUpdatedAt: prefs.settingsUpdatedAt,
+      session: Object.assign({}, prefs.session, { pendingNotice: prefs.session.pendingNotice ? Object.assign({}, prefs.session.pendingNotice, { completedModes: prefs.session.pendingNotice.completedModes.slice() }) : null })
+    } });
+  } catch (_) {}
+}
+function pomoPersist() {
+  saveNow();
+  pomoBroadcast();
+}
+function pomoMergeSnapshot(snapshot, render = true) {
+  if (!snapshot || typeof snapshot !== 'object') return false;
+  const prefs = widgetPrefs().pomodoro;
+  let changed = false;
+  const incomingSettingsAt = Math.max(0, Number(snapshot.settingsUpdatedAt) || 0);
+  if (incomingSettingsAt > prefs.settingsUpdatedAt) {
+    prefs.workMinutes = pomoMinuteValue(snapshot.workMinutes, 25, 15, 60);
+    prefs.shortBreakMinutes = pomoMinuteValue(snapshot.shortBreakMinutes, 5, 1, 5);
+    prefs.longBreakMinutes = pomoMinuteValue(snapshot.longBreakMinutes, 15, 5, 30);
+    prefs.autoBreak = snapshot.autoBreak === true;
+    prefs.soundEnabled = snapshot.soundEnabled !== false;
+    prefs.settingsUpdatedAt = incomingSettingsAt;
+    changed = true;
+  }
+  const incoming = snapshot.session;
+  if (incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
+    const current = prefs.session, incomingAt = Math.max(0, Number(incoming.updatedAt) || 0);
+    const currentNotice = current.pendingNotice && current.pendingNotice.id || '';
+    const incomingNotice = incoming.pendingNotice && incoming.pendingNotice.id || '';
+    if (incomingAt > current.updatedAt || (incomingAt === current.updatedAt && incomingNotice !== currentNotice)) {
+      prefs.session = Object.assign({}, current, incoming, {
+        pendingNotice: incoming.pendingNotice && Array.isArray(incoming.pendingNotice.completedModes)
+          ? Object.assign({}, incoming.pendingNotice, { completedModes: incoming.pendingNotice.completedModes.slice() }) : null
+      });
+      changed = true;
+    }
+  }
+  if (changed && render) pomoRenderTick();
+  return changed;
+}
+function pomoMergeStoredLux(lux) {
+  const stored = lux && lux.ui && lux.ui.widgetPrefs && lux.ui.widgetPrefs.pomodoro;
+  if (stored && typeof stored === 'object') pomoMergeSnapshot(stored, false);
+}
+function pomoInitSync() {
+  if (T.pomoSyncStarted) return;
+  T.pomoSyncStarted = true;
+  try {
+    if (typeof window.BroadcastChannel === 'function') {
+      const channel = T.pomoChannel = new window.BroadcastChannel('shelter-pomodoro-v1');
+      channel.onmessage = event => {
+        if (event && event.data && event.data.type === 'sync') pomoMergeSnapshot(event.data.pomodoro);
+      };
+    }
+  } catch (_) { T.pomoChannel = null; }
+  try {
+    window.addEventListener('storage', event => {
+      if (!event || event.key !== 'shelter:lux' || !event.newValue) return;
+      try { pomoMergeStoredLux(JSON.parse(event.newValue)); } catch (_) {}
+    });
+  } catch (_) {}
+}
+function pomoNoticeId(phases, total = phases.length) {
+  const first = phases[0] || { mode: 'work', at: 0 }, last = phases[phases.length - 1] || first;
+  return `pomodoro:${total}:${first.mode}:${Math.round(first.at)}:${last.mode}:${Math.round(last.at)}`;
+}
+function pomoFinishPhase(P, at = Date.now(), { quiet = false, forceStop = false, persist = true } = {}) {
   const completed = P.mode;
   if (completed === 'work') {
     P.cycles = Math.max(0, (+P.cycles || 0)) + 1; P.cycleDay = dayKey(at);
@@ -9610,24 +9856,61 @@ function pomoFinishPhase(P, at = Date.now(), { quiet = false, forceStop = false 
   } else P.mode = 'work';
   P.remain = pomoDur(P.mode);
   P.running = completed === 'work' && !forceStop && widgetPrefs().pomodoro.autoBreak;
-  P.endsAt = P.running ? at + P.remain * 1000 : 0; P.updatedAt = at;
-  if (!quiet) toast(completed === 'work' ? 'Фокус-сессия завершена' : 'Перерыв завершён', { icon: 'timer' });
-  saveNow();
+  P.endsAt = P.running ? at + P.remain * 1000 : 0; pomoTouch(P, at);
+  if (!quiet) {
+    P.pendingNotice = { id: pomoNoticeId([{ mode: completed, at }]), completedModes: [completed], completedAt: at };
+    pomoSignal(P.pendingNotice.id);
+    if (typeof pomoShowNotice === 'function') pomoShowNotice(P);
+  }
+  if (persist) pomoPersist();
+  return completed;
+}
+function pomoProcessExpired(P, now = Date.now()) {
+  const recentPhases = [];
+  let firstPhase = null, lastPhase = null, count = 0, guard = 0;
+  while (P.running && P.endsAt && P.endsAt <= now && guard < 100000) {
+    const phase = { mode: P.mode, at: P.endsAt };
+    if (!firstPhase) firstPhase = phase;
+    lastPhase = phase; recentPhases.push(phase);
+    if (recentPhases.length > 4) recentPhases.shift();
+    pomoFinishPhase(P, phase.at, { quiet: true, persist: false });
+    count++; guard++;
+  }
+  if (!count) return false;
+  const catchUpLimited = !!(P.running && P.endsAt && P.endsAt <= now);
+  if (catchUpLimited) { P.running = false; P.endsAt = 0; P.remain = pomoDur(P.mode); }
+  const today = dayKey(now);
+  if (P.cycleDay !== today) { P.cycles = 0; P.cycleDay = today; }
+  P.pendingNotice = {
+    id: pomoNoticeId([firstPhase, lastPhase], count),
+    completedModes: recentPhases.map(phase => phase.mode),
+    firstCompletedMode: firstPhase.mode, completedCount: count,
+    completedAt: lastPhase.at, catchUpLimited
+  };
+  pomoTouch(P, now);
+  pomoSignal(P.pendingNotice.id);
+  pomoPersist();
+  if (typeof pomoShowNotice === 'function') pomoShowNotice(P);
+  return true;
 }
 function pomoState() {
-  const P = widgetPrefs().pomodoro.session;
+  const P = widgetPrefs().pomodoro.session, now = Date.now();
   if (!['work', 'short', 'long'].includes(P.mode)) P.mode = 'work';
-  P.remain = Number.isFinite(Number(P.remain)) ? clamp(Math.ceil(Number(P.remain)), 0, pomoDur(P.mode)) : pomoDur(P.mode);
+  const dur = pomoDur(P.mode), savedRemain = Number(P.remain);
+  P.remain = Number.isFinite(savedRemain) ? clamp(Math.ceil(savedRemain), 0, dur) : dur;
   P.cycles = Math.max(0, Math.floor(Number(P.cycles) || 0));
-  const today = dayKey(Date.now()); if (P.cycleDay !== today) { P.cycles = 0; P.cycleDay = today; }
+  let repaired = false;
+  const today = dayKey(now);
+  if (P.cycleDay !== today) { P.cycles = 0; P.cycleDay = today; repaired = true; }
   P.running = P.running === true; P.endsAt = Number(P.endsAt) || 0;
-  if (P.running && !P.endsAt) P.endsAt = Date.now() + P.remain * 1000;
-  else if (P.running && P.endsAt <= Date.now()) {
-    pomoFinishPhase(P, P.endsAt, { quiet: true });
-    if (P.running && P.endsAt <= Date.now()) pomoFinishPhase(P, P.endsAt, { quiet: true, forceStop: true });
-    else if (P.running) P.remain = clamp(Math.ceil((P.endsAt - Date.now()) / 1000), 0, pomoDur(P.mode));
-  }
-  else if (P.running) P.remain = clamp(Math.ceil((P.endsAt - Date.now()) / 1000), 0, pomoDur(P.mode));
+  if (P.running && !P.endsAt) { P.endsAt = now + P.remain * 1000; repaired = true; }
+  if (P.running && P.endsAt > now + dur * 1000) { P.endsAt = now + dur * 1000; repaired = true; }
+  if (P.running && P.endsAt <= now) {
+    pomoProcessExpired(P, now);
+    if (P.running) P.remain = clamp(Math.ceil((P.endsAt - now) / 1000), 0, pomoDur(P.mode));
+  } else if (P.running) P.remain = clamp(Math.ceil((P.endsAt - now) / 1000), 0, pomoDur(P.mode));
+  else P.endsAt = 0;
+  if (repaired) { pomoTouch(P, now); pomoPersist(); }
   return P;
 }
 const pomoBusy = () => { const P = pomoState(); return P.running || P.remain < pomoDur(P.mode) - 0.5; };
@@ -9635,48 +9918,202 @@ function pomoGuardSwitch() {
   if (!pomoBusy()) return Promise.resolve(true);
   return confirmDlg({ title: 'Таймер уже запущен', text: 'Сессия помодоро не завершена — переключение сбросит текущий прогресс. Действительно переключить таймер?', ok: 'Переключить', cancel: 'Остаться', danger: true, icon: 'timer' });
 }
-function pomoFinishCurrent() { pomoFinishPhase(pomoState(), Date.now(), { quiet: true, forceStop: true }); }
+function pomoFinishCurrent() {
+  const P = pomoState(); P.pendingNotice = null;
+  pomoFinishPhase(P, Date.now(), { quiet: true, forceStop: true, persist: false });
+  pomoTouch(P); pomoPersist();
+}
 function pomoTick() {
-  const P = pomoState(); if (!P.running) return;
-  P.remain = Math.max(0, Math.ceil((P.endsAt - Date.now()) / 1000));
-  if (P.remain <= 0) pomoFinishPhase(P, P.endsAt || Date.now());
+  const P = pomoState();
+  if (P.running) P.remain = clamp(Math.ceil((P.endsAt - Date.now()) / 1000), 0, pomoDur(P.mode));
   pomoRenderTick();
+}
+function initPomodoroClock() {
+  if (T.pomoClockStarted) return;
+  T.pomoClockStarted = true;
+  pomoInitSync();
+  if (typeof pomoEnsureGlobalLayers === 'function') pomoEnsureGlobalLayers();
+  pomoTick();
+  T.pomoClockTimer = setInterval(pomoTick, 1000);
+  const refresh = () => { if (!document.hidden) pomoTick(); };
+  document.addEventListener('visibilitychange', refresh);
+  window.addEventListener('focus', refresh);
+  window.addEventListener('pageshow', refresh);
+  window.addEventListener('resize', () => { if (typeof pomoPositionPopover === 'function') pomoPositionPopover(); }, { passive: true });
+  document.addEventListener('scroll', () => { if (typeof pomoPositionPopover === 'function') pomoPositionPopover(); }, true);
+}
+function pomoCycleProgress(P) {
+  const progress = Math.max(0, P.cycles % 4);
+  return progress || (P.cycles > 0 ? 4 : 0);
+}
+function pomoCycleTip(P) {
+  return `До длинного перерыва: ${pomoCycleProgress(P)} из 4 фокус-сессий`;
 }
 function pomoRenderTick() {
   const P = pomoState(), dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100));
-  const t = $('#pomoTime'); if (!t) return;
-  t.textContent = pomoFmt(P.remain);
+  const t = $('#pomoTime'); if (t) t.textContent = pomoFmt(P.remain);
   const sb = $('#pomoStatusBtn');
   if (sb) { sb.classList.toggle('break', P.mode !== 'work'); const label = sb.querySelector('span'); if (label) label.textContent = POMO_LABEL[P.mode]; sb.dataset.tip = 'Режим: ' + POMO_LABEL[P.mode] + '. Нажмите, чтобы сменить'; }
-  const c = $('#pomoCycles b'); if (c) c.textContent = P.cycles;
+  const cycles = $('#pomoCycles');
+  if (cycles) {
+    const progress = pomoCycleProgress(P), tip = pomoCycleTip(P);
+    cycles.dataset.tip = tip; cycles.setAttribute('aria-label', tip);
+    cycles.querySelectorAll('.pomo-cycle-dots i').forEach((dot, index) => dot.classList.toggle('on', index < progress));
+  }
   const ring = $('#pomoRing circle.val'); if (ring) { const C = 2 * Math.PI * 52; ring.style.strokeDasharray = `${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}`; }
   const btn = $('#pomoToggleBtn'); if (btn) btn.innerHTML = (P.running ? ico('pause') : ico('play')) + `<span>${P.running ? 'Пауза' : 'Старт'}</span>`;
   const tile = $('.pomo-tile'); if (tile) tile.classList.toggle('is-break', P.mode !== 'work');
+  if (typeof pomoRenderGlobal === 'function') pomoRenderGlobal(P);
+  if (typeof pomoShowNotice === 'function') pomoShowNotice(P);
+}
+function pomoGlobalButtonHtml() {
+  const P = pomoState(), dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100));
+  const circumference = 2 * Math.PI * 9.5, label = `Помодоро · ${POMO_LABEL[P.mode]} · ${pomoFmt(P.remain)}`;
+  return `<button type="button" class="ctl pomo-global${P.mode !== 'work' ? ' break' : ''}${P.pendingNotice ? ' has-notice' : ''}" id="pomoGlobalBtn" data-act="pomoGlobal" data-tip="${esc(label)} · Нажмите для управления" aria-label="${esc(label)}" aria-haspopup="dialog" aria-expanded="false" aria-controls="pomoPopover"><span class="pomo-global-ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="trk" cx="12" cy="12" r="9.5"/><circle class="val" cx="12" cy="12" r="9.5" style="stroke-dasharray:${(pct / 100 * circumference).toFixed(1)} ${circumference.toFixed(1)}"/></svg><i class="pomo-global-dot"></i></span><span class="pomo-global-time">${pomoFmt(P.remain)}</span></button>`;
+}
+function pomoEnsureGlobalLayers() {
+  if (!$('#pomoPopover')) {
+    const popover = document.createElement('div');
+    popover.id = 'pomoPopover'; popover.className = 'pomo-popover';
+    popover.setAttribute('role', 'dialog'); popover.setAttribute('aria-modal', 'false');
+    popover.setAttribute('aria-label', 'Управление Помодоро'); popover.hidden = true;
+    popover.innerHTML = `<div class="pomo-popover-head"><span class="pomo-popover-icon">${ico('timer')}</span><span class="pomo-popover-title"><b>Помодоро</b><small id="pomoPopoverMode">Фокус</small></span><button type="button" class="pomo-popover-close" data-act="pomoPopoverClose" aria-label="Закрыть управление Помодоро">${ico('x')}</button></div><div class="pomo-popover-clock"><strong id="pomoPopoverTime">25:00</strong><span>осталось</span></div><div class="pomo-popover-copy" id="pomoPopoverCopy">Таймер работает на всех страницах SHELTER.</div><div class="pomo-popover-actions"><button type="button" class="btn sm primary" id="pomoPopoverToggle" data-act="pomoToggle">${ico('play')}<span>Старт</span></button><button type="button" class="btn sm ghost" data-act="pomoStatus">Сменить режим</button></div><button type="button" class="btn sm ghost pomo-popover-reset" data-act="pomoReset">${ico('ref')}Сбросить таймер</button>`;
+    document.body.appendChild(popover);
+  }
+  const trigger = $('#pomoGlobalBtn');
+  if (trigger) { trigger.setAttribute('aria-controls', 'pomoPopover'); trigger.setAttribute('aria-haspopup', 'dialog'); }
+  if (!$('#pomoNotice')) {
+    const notice = document.createElement('aside');
+    notice.id = 'pomoNotice'; notice.className = 'pomo-notice';
+    notice.setAttribute('role', 'region'); notice.setAttribute('aria-live', 'assertive');
+    notice.setAttribute('aria-label', 'Уведомление Помодоро'); notice.hidden = true;
+    document.body.appendChild(notice);
+  }
+  if (!T.pomoGlobalEvents) {
+    T.pomoGlobalEvents = true;
+    document.addEventListener('pointerdown', event => {
+      const popover = $('#pomoPopover');
+      if (!popover || popover.hidden) return;
+      if (popover.contains(event.target) || (event.target.closest && event.target.closest('#pomoGlobalBtn'))) return;
+      pomoClosePopover(false);
+    }, true);
+    document.addEventListener('keydown', event => {
+      const popover = $('#pomoPopover');
+      if (event.key !== 'Escape' || !popover || popover.hidden) return;
+      event.preventDefault(); event.stopImmediatePropagation(); pomoClosePopover(true);
+    }, true);
+  }
+  pomoRenderTick();
+}
+function pomoPositionPopover() {
+  const popover = $('#pomoPopover'), trigger = $('#pomoGlobalBtn');
+  if (!popover || popover.hidden || !trigger) return;
+  const margin = 12, width = Math.min(320, Math.max(220, innerWidth - margin * 2));
+  const rect = trigger.getBoundingClientRect(), height = popover.offsetHeight || 230;
+  let left = Math.max(margin, Math.min(innerWidth - width - margin, rect.right - width));
+  let top = rect.bottom + 8;
+  if (top + height > innerHeight - margin) top = Math.max(margin, rect.top - height - 8);
+  popover.style.left = `${Math.round(left)}px`; popover.style.top = `${Math.round(top)}px`;
+}
+function pomoOpenPopover() {
+  if (!$('#pomoPopover')) pomoEnsureGlobalLayers();
+  const popover = $('#pomoPopover'), trigger = $('#pomoGlobalBtn');
+  if (!popover) return;
+  popover.hidden = false;
+  if (trigger) trigger.setAttribute('aria-expanded', 'true');
+  pomoRenderTick(); pomoPositionPopover();
+  const focusTarget = $('#pomoPopoverToggle'); if (focusTarget) focusTarget.focus({ preventScroll: true });
+}
+function pomoClosePopover(returnFocus = false) {
+  const popover = $('#pomoPopover'), trigger = $('#pomoGlobalBtn');
+  if (popover) popover.hidden = true;
+  if (trigger) trigger.setAttribute('aria-expanded', 'false');
+  if (returnFocus && trigger) trigger.focus({ preventScroll: true });
+}
+function pomoTogglePopover() {
+  const popover = $('#pomoPopover');
+  if (popover && !popover.hidden) pomoClosePopover(true);
+  else pomoOpenPopover();
+}
+function pomoAcknowledgeNotice() {
+  const P = pomoState();
+  if (!P.pendingNotice) return;
+  P.pendingNotice = null; pomoTouch(P); pomoPersist(); pomoRenderTick();
+}
+function pomoShowNotice(P) {
+  const noticeEl = $('#pomoNotice'); if (!noticeEl) return;
+  const notice = P && P.pendingNotice;
+  if (!notice) { noticeEl.hidden = true; noticeEl.dataset.viewKey = ''; return; }
+  const focused = !document.hidden && (typeof document.hasFocus !== 'function' || document.hasFocus());
+  noticeEl.hidden = !focused;
+  if (!focused) return;
+  pomoSignal(notice.id);
+  const modes = (notice.completedModes || []).filter(mode => POMO_LABEL[mode]);
+  const lastCompleted = modes[modes.length - 1] || notice.firstCompletedMode || 'work';
+  const completedCount = Math.max(1, Number(notice.completedCount) || modes.length || 1);
+  const viewKey = `${notice.id}|${P.mode}|${P.running}`;
+  if (noticeEl.dataset.viewKey === viewKey) return;
+  noticeEl.dataset.viewKey = viewKey;
+  const title = lastCompleted === 'work' ? 'Фокус-сессия завершена' : 'Перерыв завершён';
+  const detail = notice.catchUpLimited
+    ? `После очень долгого простоя таймер остановлен. Следующий этап — ${POMO_LABEL[P.mode]}.`
+    : completedCount > 4
+      ? `Во время паузы завершилось ${completedCount} этапов — от «${POMO_LABEL[notice.firstCompletedMode] || POMO_LABEL.work}» до «${POMO_LABEL[lastCompleted]}». Следующий этап — ${POMO_LABEL[P.mode]}.`
+      : modes.length > 1
+        ? `Во время паузы завершились этапы: ${modes.map(mode => POMO_LABEL[mode]).join(' → ')}. Следующий этап — ${POMO_LABEL[P.mode]}.`
+        : `Следующий этап — ${POMO_LABEL[P.mode]}. ${P.running ? 'Он уже запущен автоматически.' : 'Можно продолжить, когда будете готовы.'}`;
+  const actionLabel = P.running ? 'Пауза' : `Начать: ${POMO_LABEL[P.mode]}`;
+  noticeEl.innerHTML = `<div class="pomo-notice-head"><span class="pomo-notice-icon">${ico('timer')}</span><div><b>${esc(title)}</b><span>${esc(detail)}</span></div></div><div class="pomo-notice-actions"><button type="button" class="btn sm primary" data-act="pomoNoticeToggle">${P.running ? ico('pause') : ico('play')}<span>${esc(actionLabel)}</span></button><button type="button" class="btn sm ghost" data-act="pomoNoticeAck">Подтвердить</button></div>`;
+}
+function pomoRenderGlobal(P) {
+  P = P || pomoState();
+  const dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100));
+  const label = `Помодоро · ${POMO_LABEL[P.mode]} · ${pomoFmt(P.remain)}`;
+  const trigger = $('#pomoGlobalBtn');
+  if (trigger) {
+    trigger.classList.toggle('break', P.mode !== 'work');
+    trigger.classList.toggle('has-notice', !!P.pendingNotice);
+    trigger.setAttribute('aria-label', P.pendingNotice ? label + ' · требуется подтверждение' : label);
+    trigger.dataset.tip = label + ' · Нажмите для управления';
+    const time = trigger.querySelector('.pomo-global-time'); if (time) time.textContent = pomoFmt(P.remain);
+    const ring = trigger.querySelector('.pomo-global-ring circle.val');
+    if (ring) { const C = 2 * Math.PI * 9.5; ring.style.strokeDasharray = `${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}`; }
+  }
+  const popover = $('#pomoPopover');
+  if (popover) {
+    const time = $('#pomoPopoverTime'), mode = $('#pomoPopoverMode'), toggle = $('#pomoPopoverToggle'), copy = $('#pomoPopoverCopy');
+    if (time) time.textContent = pomoFmt(P.remain);
+    if (mode) mode.textContent = POMO_LABEL[P.mode];
+    if (toggle) { toggle.innerHTML = (P.running ? ico('pause') : ico('play')) + `<span>${P.running ? 'Пауза' : 'Старт'}</span>`; toggle.setAttribute('aria-label', P.running ? 'Поставить Помодоро на паузу' : 'Запустить Помодоро'); }
+    if (copy) copy.textContent = P.pendingNotice ? 'Этап завершён — подтвердите уведомление, чтобы убрать отметку.' : 'Таймер работает на всех страницах SHELTER.';
+  }
+  pomoShowNotice(P);
 }
 function pomoWidgetHtml() {
   const P = pomoState(), dur = pomoDur(P.mode), pct = Math.max(0, Math.min(100, (1 - P.remain / dur) * 100)), C = 2 * Math.PI * 52;
+  const cycleProgress = pomoCycleProgress(P), cycleTip = pomoCycleTip(P);
   return `<div class="card wg-tile pomo-tile ${P.mode !== 'work' ? 'is-break' : ''}">
     <div class="wg-head"><span class="wg-ic pomo">${ico('timer')}</span><div class="wg-tt"><b>Помодоро</b><small>Фокус-сессии с перерывами</small></div><button type="button" class="pomo-status ${P.mode !== 'work' ? 'break' : ''}" id="pomoStatusBtn" data-act="pomoStatus" data-tip="Режим: ${esc(POMO_LABEL[P.mode])}. Нажмите, чтобы сменить"><i></i><span>${POMO_LABEL[P.mode]}</span></button><button type="button" class="icon-btn sm" data-act="pomoSettings" data-tip="Настройки Помодоро" aria-label="Настройки Помодоро">${ico('gear')}</button><button type="button" class="icon-btn sm" data-act="pomoReset" data-tip="Сбросить" aria-label="Сбросить таймер">${ico('ref')}</button></div>
-    <div class="pomo-body"><div class="pomo-ring" id="pomoRing"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52"/><circle class="val" cx="60" cy="60" r="52" style="stroke-dasharray:${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="pomo-time-wrap"><b id="pomoTime" class="num">${pomoFmt(P.remain)}</b></div></div><div class="pomo-side"><button type="button" class="btn primary" id="pomoToggleBtn" data-act="pomoToggle">${P.running ? ico('pause') : ico('play')}<span>${P.running ? 'Пауза' : 'Старт'}</span></button><button type="button" class="btn ghost sm" data-act="pomoSkip">${ico('fwd')}<span>Дальше</span></button><div class="pomo-cycles" id="pomoCycles">${ico('activity')}<span>Циклы сегодня: <b>${P.cycles}</b></span></div></div></div>
+    <div class="pomo-body"><div class="pomo-ring" id="pomoRing"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52"/><circle class="val" cx="60" cy="60" r="52" style="stroke-dasharray:${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="pomo-time-wrap"><b id="pomoTime" class="num">${pomoFmt(P.remain)}</b></div></div><div class="pomo-side"><div class="pomo-actions"><button type="button" class="btn primary" id="pomoToggleBtn" data-act="pomoToggle">${P.running ? ico('pause') : ico('play')}<span>${P.running ? 'Пауза' : 'Старт'}</span></button><button type="button" class="btn ghost sm" data-act="pomoSkip">${ico('fwd')}<span>Дальше</span></button></div><div class="pomo-cycles" id="pomoCycles" role="img" aria-label="${esc(cycleTip)}" data-tip="${esc(cycleTip)}"><span class="pomo-cycle-dots" aria-hidden="true">${[0, 1, 2, 3].map(index => `<i class="${index < cycleProgress ? 'on' : ''}"></i>`).join('')}</span><span class="sr-only">${esc(cycleTip)}</span></div></div></div>
   </div>`;
 }
 function pomoToggle() {
   const P = pomoState();
   if (P.running) { P.remain = clamp(Math.ceil((P.endsAt - Date.now()) / 1000), 0, pomoDur(P.mode)); P.running = false; P.endsAt = 0; }
-  else { if (P.remain <= 0) P.remain = pomoDur(P.mode); P.running = true; P.endsAt = Date.now() + P.remain * 1000; }
-  P.updatedAt = Date.now(); saveNow(); pomoRenderTick();
+  else { if (P.remain <= 0) P.remain = pomoDur(P.mode); P.running = true; P.endsAt = Date.now() + P.remain * 1000; pomoUnlockAudio(); }
+  P.pendingNotice = null; pomoTouch(P); pomoPersist(); pomoRenderTick();
 }
 async function pomoChangeMode() {
   if (!(await pomoGuardSwitch())) return;
   const P = pomoState(); P.mode = P.mode === 'work' ? 'short' : P.mode === 'short' ? 'long' : 'work';
-  P.remain = pomoDur(P.mode); P.running = false; P.endsAt = 0; P.updatedAt = Date.now();
-  saveNow(); pomoRenderTick(); toast('Режим: ' + POMO_LABEL[P.mode], { icon: 'timer' });
+  P.remain = pomoDur(P.mode); P.running = false; P.endsAt = 0; P.pendingNotice = null; pomoTouch(P);
+  pomoPersist(); pomoRenderTick(); toast('Режим: ' + POMO_LABEL[P.mode], { icon: 'timer' });
 }
 async function pomoReset() {
   const P = pomoState();
   if (pomoBusy() && !(await confirmDlg({ title: 'Сбросить помодоро?', text: 'Текущий прогресс сессии и счётчик циклов за сегодня будут сброшены.', ok: 'Сбросить', danger: true, icon: 'ref' }))) return;
-  P.mode = 'work'; P.remain = pomoDur('work'); P.running = false; P.endsAt = 0; P.cycles = 0; P.cycleDay = dayKey(Date.now()); P.updatedAt = Date.now();
-  saveNow(); pomoRenderTick();
+  P.mode = 'work'; P.remain = pomoDur('work'); P.running = false; P.endsAt = 0; P.cycles = 0; P.cycleDay = dayKey(Date.now()); P.pendingNotice = null; pomoTouch(P);
+  pomoPersist(); pomoRenderTick();
 }
 async function pomoSkip() {
   if (!(await pomoGuardSwitch())) return;
@@ -9684,11 +10121,11 @@ async function pomoSkip() {
 }
 async function openPomodoroSettings() {
   const pref = widgetPrefs().pomodoro;
-  const modal = openModal({ width: 460, html: `<div class="modal-h"><div class="mi-ic">${ico('timer')}</div><h3>Настройки Помодоро</h3><button class="icon-btn" data-pomo-settings-close aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="pomo-settings-grid"><label class="field"><span>Фокус · 15–60 минут</span><input class="input" id="pomoWorkMinutes" type="number" min="15" max="60" step="1" value="${pref.workMinutes}"></label><label class="field"><span>Короткий перерыв · 3–20 минут</span><input class="input" id="pomoShortMinutes" type="number" min="3" max="20" step="1" value="${pref.shortBreakMinutes}"></label><label class="field"><span>Длинный перерыв · 10–30 минут</span><input class="input" id="pomoLongMinutes" type="number" min="10" max="30" step="1" value="${pref.longBreakMinutes}"></label><label class="pomo-auto-break"><input id="pomoAutoBreak" type="checkbox" ${pref.autoBreak ? 'checked' : ''}><span>Автоматически начинать перерыв после фокуса</span></label></div><p class="wp-form-hint">По умолчанию: 25 / 5 / 15 минут, автоматический перерыв выключен. Изменения сохраняются на этом устройстве.</p></div><div class="modal-f"><button class="btn ghost" data-pomo-settings-close>Отмена</button><button class="btn primary" data-pomo-settings-save>${ico('check')}Сохранить</button></div>` });
+  const modal = openModal({ width: 460, cls: 'pomo-settings-modal', html: `<div class="modal-h"><div class="mi-ic">${ico('timer')}</div><h3>Настройки Помодоро</h3><button class="icon-btn" data-pomo-settings-close aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b"><div class="pomo-settings-grid"><label class="field"><span>Фокус · 15–60 минут</span><input class="input" id="pomoWorkMinutes" type="number" min="15" max="60" step="1" value="${pref.workMinutes}"></label><label class="field"><span>Короткий перерыв · 1–5 минут</span><input class="input" id="pomoShortMinutes" type="number" min="1" max="5" step="1" value="${pref.shortBreakMinutes}"></label><label class="field"><span>Длинный перерыв · 5–30 минут</span><input class="input" id="pomoLongMinutes" type="number" min="5" max="30" step="1" value="${pref.longBreakMinutes}"></label><label class="pomo-auto-break"><input id="pomoAutoBreak" type="checkbox" ${pref.autoBreak ? 'checked' : ''}><span>Автоматически начинать перерыв после фокуса</span></label><label class="pomo-auto-break"><input id="pomoSoundEnabled" type="checkbox" ${pref.soundEnabled ? 'checked' : ''}><span>Умеренный звуковой сигнал по окончании этапа</span></label></div><p class="wp-form-hint">По умолчанию: 25 / 5 / 15 минут; автоматический перерыв выключен, звуковой сигнал включён. Звук воспроизводится локально — системные уведомления не используются.</p></div><div class="modal-f"><button class="btn ghost" data-pomo-settings-close>Отмена</button><button class="btn primary" data-pomo-settings-save>${ico('check')}Сохранить</button></div>` });
   modal.scrim.addEventListener('click', e => {
     if (e.target.closest('[data-pomo-settings-close]')) { closeModal(modal); return; }
     if (!e.target.closest('[data-pomo-settings-save]')) return;
-    const values = [['#pomoWorkMinutes', 15, 60, 'Фокус'], ['#pomoShortMinutes', 3, 20, 'Короткий перерыв'], ['#pomoLongMinutes', 10, 30, 'Длинный перерыв']].map(([selector, min, max, label]) => {
+    const values = [['#pomoWorkMinutes', 15, 60, 'Фокус'], ['#pomoShortMinutes', 1, 5, 'Короткий перерыв'], ['#pomoLongMinutes', 5, 30, 'Длинный перерыв']].map(([selector, min, max, label]) => {
       const input = modal.scrim.querySelector(selector), value = Number(input && input.value); return { input, value, min, max, label };
     });
     const invalid = values.find(x => !Number.isInteger(x.value) || x.value < x.min || x.value > x.max);
@@ -9698,8 +10135,11 @@ async function openPomodoroSettings() {
     const next = widgetPrefs().pomodoro;
     next.workMinutes = values[0].value; next.shortBreakMinutes = values[1].value; next.longBreakMinutes = values[2].value;
     next.autoBreak = !!modal.scrim.querySelector('#pomoAutoBreak')?.checked;
-    P.remain = clamp(P.remain, 0, pomoDur(P.mode)); P.updatedAt = Date.now();
-    saveNow(); closeModal(modal); pomoRenderTick();
+    next.soundEnabled = !!modal.scrim.querySelector('#pomoSoundEnabled')?.checked;
+    next.settingsUpdatedAt = Math.max(Date.now(), (Number(next.settingsUpdatedAt) || 0) + 1);
+    if (next.soundEnabled) pomoUnlockAudio();
+    P.remain = clamp(P.remain, 0, pomoDur(P.mode)); pomoTouch(P);
+    pomoPersist(); closeModal(modal); pomoRenderTick();
     toast(wasRunning ? 'Настройки сохранены · таймер поставлен на паузу' : 'Настройки Помодоро сохранены', { icon: 'check' });
   });
 }
@@ -9817,7 +10257,6 @@ RENDER.widgets = () => {
   return `<div class="page"><div class="page-h"><div class="ttl"><div class="page-title">Виджеты</div><div class="page-sub">Внутренние приложения SHELTER</div></div></div><div class="wg-bar"><button type="button" class="btn wg-show-btn" id="wgShowBtn" data-act="wgShowMenu">${ico('layers')}<span>Показать виджет</span><span class="chip">${shown}/${total}</span>${ico('chev', 'chev')}</button><button type="button" class="btn sm icon wg-add-sm" id="wgAddBtn" data-act="wgAdd" data-tip="Добавить виджет" aria-label="Добавить виджет">${ico('plus')}</button><span class="wg-bar-hint">Управляйте отображением виджетов через чеклист</span></div>${hasAny ? `<div class="wg-grid">${W.pomo ? pomoWidgetHtml() : ''}${W.eff ? effWidgetHtml() : ''}</div>` : emptyState('timer', 'Все виджеты скрыты', 'Откройте «Показать виджет» на верхней панели и отметьте нужные виджеты.', `<button class="btn sm primary" data-act="wgShowMenu">${ico('layers')}Показать виджет</button>`)}</div>`;
 };
 AFTER.widgets = () => {
-  if ((S.ui.widgets || {}).pomo) pageTimer(pomoTick, 1000, true);
   efficiencyTrackingSync();
 };
 T.effWindowFocused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
@@ -12065,7 +12504,6 @@ RENDER.deepthink = m => {
           </div>
         </div>
         <div class="dt-top-actions">
-          <span class="dt-privacy-pill">${ico('shield-check')}<span>Приватный контур</span></span>
           <button type="button" class="dt-mini dt-fs-btn" data-act="dtFontSize" data-tip="Размер текста ответа" aria-label="Размер текста">Аа</button>
           <button type="button" class="btn sm" data-act="agentApi">${ico('sparkles')}<span>${apiConnected ? 'API настройки' : 'Подключить API'}</span></button>
         </div>
@@ -12777,7 +13215,7 @@ function paletteItems(q) {
 }
 function openPalette() {
   if ($('.palette')) return;
-  const m = openModal({ raw: true, top: true, html: `<div class="palette" role="dialog" aria-modal="true" aria-label="Команды"><div class="pal-in">${ico('search')}<input id="palIn" placeholder="Вкладки, закладки, история и команды" autocomplete="off" spellcheck="false"><span class="kbd">esc</span></div><div class="pal-list" id="palList"></div><div class="pal-foot"><span><span class="kbd">↑↓</span>выбор</span><span><span class="kbd">↵</span>открыть</span><span><span class="kbd">esc</span>закрыть</span></div></div>` });
+  const m = openModal({ raw: true, top: true, html: `<div class="palette" role="dialog" aria-modal="true" aria-label="Поиск по браузеру"><div class="pal-in">${ico('search')}<input id="palIn" type="search" aria-label="Поиск по браузеру" placeholder="Поиск по браузеру" autocomplete="off" spellcheck="false"><span class="kbd">esc</span></div><div class="pal-list" id="palList"></div><div class="pal-foot"><span><span class="kbd">↑↓</span>выбор</span><span><span class="kbd">↵</span>открыть</span><span><span class="kbd">esc</span>закрыть</span></div></div>` });
   const root = m.scrim, inp = $('#palIn', root), list = $('#palList', root); let items = [], hl = 0;
   const paint = () => { $$('.sg', list).forEach((el, i) => el.classList.toggle('hl', i === hl)); const el = list.querySelector('.sg.hl'); if (el) el.scrollIntoView({ block: 'nearest' }); };
   const render = () => {
@@ -13213,6 +13651,10 @@ const ACT = {
   pomoSettings: () => openPomodoroSettings(),
   pomoReset: () => pomoReset(),
   pomoSkip: () => pomoSkip(),
+  pomoGlobal: () => pomoTogglePopover(),
+  pomoPopoverClose: () => pomoClosePopover(true),
+  pomoNoticeToggle: () => pomoToggle(),
+  pomoNoticeAck: () => pomoAcknowledgeNotice(),
   wgShowMenu: el => openWidgetPicker(el),
   wgAdd: el => openWidgetAddMenu(el),
   activatePromoKey: () => activatePromoKey(),
@@ -13553,6 +13995,7 @@ function init() {
   if (S.ui.collapsed || (innerWidth < 980 && innerWidth > 720)) app.classList.add('collapsed');
   const _sbk = document.querySelector('.sb-search .kbd'); if (_sbk) _sbk.textContent = kb(_sbk.textContent);
   renderControls(); renderSpaceRow(); renderTabs(); renderUser(); renderBadges();
+  initPomodoroClock();
   initTabDnD(); initOmnibox(); initHeroInput(); initFind(); initWinLights();
   applyTabPos(); applyBmPos(); applyPers();
   $('#tabList').addEventListener('scroll', tabsScrollSync, { passive: true });
@@ -16754,10 +17197,7 @@ init();
       if (!app.hasAttribute('data-ux')) app.setAttribute('data-ux', 'ambient');
       const bar = app.querySelector('.dt-topbar');
       if (bar) {
-        // Статус «Приватный контур» — в левую часть nav bar (как iOS status).
         const acts = bar.querySelector('.dt-top-actions');
-        const pill = acts && acts.querySelector('.dt-privacy-pill');
-        if (pill) bar.insertBefore(pill, bar.firstChild);
         // «Новый диалог» — из рейла в правую часть nav bar (compose-кнопка).
         if (acts) {
           const nw = app.querySelector('.dt-rail .dt-new');

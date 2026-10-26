@@ -24,7 +24,7 @@
   var DIAGNOSTICS_ENABLED = '__SHELTER_CI_HOOKS__' === 'true';
   var PERF_METHODS = Object.create(null);
   [
-    'premium.status', 'premium.checkout', 'user-data.delete', 'win.minimize',
+    'premium.status', 'premium.checkout', 'user-data.delete', 'win.state', 'win.minimize',
     'win.maximize', 'win.close', 'win.fullscreen', 'favicon.ensure', 'ext.list',
     'ext.setMode', 'ext.install', 'ext.remove', 'ext.pick', 'file.open',
     'win.openPlain', 'view.open', 'view.layout', 'view.clip', 'view.hide',
@@ -196,7 +196,7 @@
   var FREEZE_BASE = '.menu:not(.closing),.scrim:not(.closing),.call:not([hidden]),#findbar:not([hidden])';
   /* Лёгкие слои (подсказки, уведомления, подсказки омнибокса, панель загрузок) показываются через
      «дыры» в нативном виде вкладки: страница остаётся живой, без снимков и подвисаний. */
-  var HOLE_SEL = '.tip,#toasts>.toast,.suggest:not([hidden]),#noteFloat:not([hidden]),#dlFloat:not([hidden])';
+  var HOLE_SEL = '.tip,#toasts>.toast,.suggest:not([hidden]),#noteFloat:not([hidden]),#dlFloat:not([hidden]),.pomo-popover:not([hidden]),.pomo-notice:not([hidden])';
   /* без «дыр» те же слои показываем через снимок (как раньше) */
   var OVERLAY_SEL = USE_HOLES ? FREEZE_BASE : FREEZE_BASE + ',' + HOLE_SEL;
 
@@ -710,6 +710,7 @@
     isContentVisible: function () { return !!st.visible && !st.frozen && !st.busy; },
     getPremiumEntitlement: function () { return q('premium.status'); },
     startPremiumCheckout: function (planId) { return q('premium.checkout', { planId: planId || '' }); },
+    getWindowState: function () { return q('win.state'); },
     minimize: function () { return q('win.minimize'); },
     maximize: function () { return q('win.maximize'); },
     close: function () { return q('win.close'); },
@@ -888,8 +889,8 @@
   }
 
   /* ---------- наблюдатели ---------- */
-  var POPUP_ROOTS = '.menu,.scrim,.tip,.call';
-  var HOLE_ROOTS = '.tip,.toast,.suggest,#dlFloat';
+  var POPUP_ROOTS = '.menu,.scrim,.tip,.call,.pomo-popover,.pomo-notice';
+  var HOLE_ROOTS = '.tip,.toast,.suggest,#dlFloat,.pomo-popover,.pomo-notice';
   var popupObservers = new Map();
   function isElement(node) { return !!node && node.nodeType === 1 && typeof node.matches === 'function'; }
   function hasHole(node) {

@@ -166,5 +166,23 @@ check('доска растягивается до правого края без
 check('месячная сетка задач использует компактные пропорции календаря истории',
   plannerStyle.includes('.wp-month-day{min-height:84px;aspect-ratio:1.22}') &&
   taskLayoutStyle.includes('.planner-page .wp-month-day{'));
+check('rail задач высокий и липкий, футер прижат вниз и совпадает по отступу с иконками',
+  /\.planner-page \.wp-rail\{[^}]*position:sticky;top:0;[^}]*height:100%/.test(taskLayoutStyle) &&
+  /\.planner-page \.wp-rail-footer\{[^}]*margin-top:auto;[^}]*padding:8px 4px 0 11px/.test(taskLayoutStyle) &&
+  taskLayoutStyle.includes('.planner-page .wp-rail.is-collapsed'));
+check('Pomodoro использует крупное моноширинное кольцо и адаптивные сгруппированные кнопки',
+  structureCss.includes('.pomo-ring{width:188px;height:188px}') &&
+  structureCss.includes('.pomo-time-wrap b{font:650 42px/1 var(--mono)') &&
+  structureCss.includes('.pomo-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))') &&
+  structureCss.includes('@media(max-width:860px)') && structureCss.includes('@media(max-width:440px)'));
+check('Pomodoro global popover и заметное уведомление доступны, а в perf анимации отключены',
+  structureCss.includes('.pomo-popover[hidden],.pomo-notice[hidden]{display:none!important}') &&
+  structureCss.includes('body[data-gfx="perf"] :is(.pomo-global') &&
+  html.includes('aria-modal', html.indexOf('function pomoEnsureGlobalLayers()')) &&
+  html.includes('data-act="pomoNoticeAck"'));
+check('hint настроек Помодоро имеет отдельный верхний отступ и меньшую заметность',
+  structureCss.includes('.modal.pomo-settings-modal .modal-b{padding-top:19px}') &&
+  structureCss.includes('.modal.pomo-settings-modal .wp-form-hint{color:var(--text-4)}') &&
+  html.includes("cls: 'pomo-settings-modal'"));
 
 finish();

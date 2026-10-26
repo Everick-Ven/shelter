@@ -188,7 +188,7 @@ std::map<std::string, BridgePerfBucket>& BridgePerfBuckets() {
 const std::set<std::string>& DiagnosticMethodNames() {
   static const std::set<std::string> names = {
       "premium.status", "premium.checkout", "user-data.delete",
-      "win.minimize", "win.maximize", "win.close", "win.fullscreen",
+      "win.state", "win.minimize", "win.maximize", "win.close", "win.fullscreen",
       "favicon.ensure", "ext.list", "ext.setMode", "ext.install",
       "ext.remove", "ext.pick", "file.open", "win.openPlain",
       "view.open", "view.layout", "view.clip", "view.hide", "view.show",
@@ -333,6 +333,12 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   }
 
   // ---- окно ----
+  if (m == "win.state") {
+    cb->Success(window_ && window_->IsMaximized()
+                    ? "{\"maximized\":true}"
+                    : "{\"maximized\":false}");
+    return true;
+  }
   if (m == "win.minimize") {
     if (window_) window_->Minimize();
     cb->Success("{}");

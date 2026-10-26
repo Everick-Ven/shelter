@@ -15,7 +15,9 @@ for (const selector of [
   '#toasts>.toast',
   '.suggest:not([hidden])',
   '#noteFloat:not([hidden])',
-  '#dlFloat:not([hidden])'
+  '#dlFloat:not([hidden])',
+  '.pomo-popover:not([hidden])',
+  '.pomo-notice:not([hidden])'
 ]) {
   assert.ok(holes.has(selector), `Слой ${selector} не защищён от перекрытия нативной страницей`);
 }
@@ -103,6 +105,10 @@ assert.match(
   'На Windows активное уведомление должно запускать снимок, на macOS — вырезаться из нативного слоя'
 );
 assert.ok(!bridge.includes('sh-snap-wait'), 'получение снимка не должно скрывать интерфейс на время ожидания');
+assert.match(bridge, /var POPUP_ROOTS = '[^']*\.pomo-popover[^']*\.pomo-notice/,
+  'Pomodoro-панели должны отслеживаться для обновления нативных отверстий');
+assert.match(bridge, /var HOLE_ROOTS = '[^']*\.pomo-popover[^']*\.pomo-notice/,
+  'Pomodoro-панели должны учитываться при обновлении отверстий в нативной странице');
 const freezeStart = bridge.indexOf('  function freeze() {');
 const freezeEnd = bridge.indexOf('  function thaw()', freezeStart);
 assert.ok(freezeStart >= 0 && freezeEnd > freezeStart, 'Не найден цикл замены нативного вида снимком');
@@ -141,7 +147,9 @@ const nativePopupStart = html.indexOf('body.native-content-visible:not([data-gfx
 const nativePopupEnd = html.indexOf('body.native-content-visible:not([data-gfx="perf"]) .modal', nativePopupStart);
 assert.ok(nativePopupStart >= 0 && nativePopupEnd > nativePopupStart, 'Не найдены стили поверх нативной страницы');
 const nativePopupStyle = html.slice(nativePopupStart, nativePopupEnd);
-assert.match(nativePopupStyle, /\.dl-float\{/);
+assert.match(nativePopupStyle, /\.dl-float,/);
+assert.match(nativePopupStyle, /\.pomo-popover,/);
+assert.match(nativePopupStyle, /\.pomo-notice\{/);
 assert.match(nativePopupStyle, /background-color:var\(--native-popup-menu\)/);
 assert.match(nativePopupStyle, /background-image:linear-gradient\(var\(--native-contrast-veil\)/);
 

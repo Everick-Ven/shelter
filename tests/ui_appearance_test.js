@@ -47,6 +47,17 @@ assert.strictEqual(html.indexOf('data-act="theme"', themeActionAt + 1), -1, 'no 
 assert.match(html, /theme: el => \{ if \(el\.closest\('\.settings'\)\) setTheme\(el\.dataset\.theme, el\); \}/);
 assert.strictEqual((html.match(/segHtml\('schemeMode'/g) || []).length, 2, 'light/dark mode is available in Settings and the quick appearance menu');
 
+// Light palettes soften glass shadows and the sidebar edge without changing dark themes.
+const structureCssMatch = html.match(/<style id="ux-macos-structure">([\s\S]*?)<\/style>/);
+assert(structureCssMatch, 'the active late glass-structure stylesheet must be present');
+const structureCss = structureCssMatch[1];
+assert.match(structureCss, /html\[data-theme="ivory"\],html\[data-theme="porcelain"\],html\[data-theme="bordeaux"\]\{\s*--glass-shadow-lg:0 22px 58px -46px/,
+  'only the three light themes receive the softened glass-shadow tokens');
+assert.match(structureCss, /color-mix\(in srgb,var\(--text\) 9%,transparent\).*rgb\(var\(--gc\)\/.10\)/,
+  'the active sidebar separator is softened');
+const earlySeparator = (html.match(/background:linear-gradient\(180deg,transparent,color-mix\(in srgb,var\(--text\) 18%,transparent\) 18%,rgb\(var\(--gc\)\/\.18\) 54%,transparent 92%\);/g) || []).length;
+assert.equal(earlySeparator, 1, 'the earlier duplicate remains intact while the active late rule overrides it');
+
 // Planner title, content gutters, and layout respond to the app's own viewport.
 const plannerHeader = section('function wpHeaderControls() {', 'function wpDateControls() {');
 assert(plannerHeader.includes("${ico('tasks')}Задачи"));

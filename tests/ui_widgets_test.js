@@ -10,6 +10,15 @@ const start = html.indexOf('/* =================================================
 const end = html.indexOf('\nfunction openWidgetPicker(anchor)', start);
 assert(start >= 0 && end > start, 'the active Pomodoro and Efficiency Manager module must be present');
 const moduleSource = html.slice(start, end);
+const tickerStart = html.indexOf('function initPomodoroClock() {');
+const tickerEnd = html.indexOf('\nfunction pomoCycleProgress', tickerStart);
+assert(tickerStart >= 0 && tickerEnd > tickerStart, 'the Pomodoro clock must have one global lifecycle');
+const tickerSource = html.slice(tickerStart, tickerEnd);
+assert.match(tickerSource, /setInterval\(pomoTick, 1000\)/, 'the global clock ticks outside widget rendering');
+const afterWidgetsStart = html.indexOf('AFTER.widgets = () => {');
+const afterWidgetsEnd = html.indexOf('\n};', afterWidgetsStart);
+assert(afterWidgetsStart >= 0 && afterWidgetsEnd > afterWidgetsStart);
+assert(!html.slice(afterWidgetsStart, afterWidgetsEnd).includes('pomoTick'), 'widget remounts must not add duplicate Pomodoro tickers');
 
 let clock = Date.UTC(2026, 9, 14, 12, 0, 0);
 class TestDate extends Date {
@@ -69,7 +78,7 @@ function boot(state = { ui: { widgets: { pomo: true, eff: true } }, visits: [], 
     __state: state,
     __transient: {},
     __document: { hidden: false, hasFocus: () => true, addEventListener() {} },
-    __window: { addEventListener() {}, shelterNative: options.native || null },
+    __window: { addEventListener() {}, localStorage: options.localStorage || { getItem() { return null; }, setItem() {} }, AudioContext: options.AudioContext || null, shelterNative: options.native || null },
     __tab: options.tab || null,
     __effBody: { innerHTML: '' },
     __counts: { saves: 0, persists: 0, flushes: 0, refreshes: 0 },
@@ -83,8 +92,9 @@ function boot(state = { ui: { widgets: { pomo: true, eff: true } }, visits: [], 
   };
   vm.runInNewContext(harness + '\n' + moduleSource + `
 globalThis.__api = {
-  POMO_DUR, widgetPrefs, pomoDur, pomoState, pomoWidgetHtml, pomoToggle, pomoChangeMode, pomoReset,
-  pomoFinishPhase, efficiencyCanTrack, efficiencyCurrentVisit, efficiencyAddActiveMs,
+  POMO_DUR, widgetPrefs, pomoDur, pomoState, pomoWidgetHtml, pomoGlobalButtonHtml, pomoToggle, pomoChangeMode, pomoReset,
+  pomoFinishPhase, pomoProcessExpired, pomoCycleProgress, pomoCycleTip, pomoAcknowledgeNotice, pomoMergeSnapshot, pomoSignal,
+  efficiencyCanTrack, efficiencyCurrentVisit, efficiencyAddActiveMs,
   efficiencyPendingByDay, efficiencyFlushActiveSegment, efficiencyTrackingSync,
   efficiencyCheckpoint, effData, effBodyHtml, effWidgetHtml, effPeriod, periodRange, dayKey, render: RENDER, segments: SEG, transient: T
 };`, context, { timeout: 5000 });
@@ -98,25 +108,42 @@ globalThis.__api = {
   assert.equal(prefs.shortBreakMinutes, 5);
   assert.equal(prefs.longBreakMinutes, 15);
   assert.equal(prefs.autoBreak, false);
+  assert.equal(prefs.soundEnabled, true, 'the completion sound is enabled by default');
   assert.equal(prefs.session.mode, 'work');
   assert.equal(prefs.session.remain, 25 * 60);
   assert.deepEqual({ ...first.api.POMO_DUR }, { work: 1500, short: 300, long: 900 });
 
-  prefs.workMinutes = 14; prefs.shortBreakMinutes = 2; prefs.longBreakMinutes = 9;
+  prefs.workMinutes = 14; prefs.shortBreakMinutes = 0; prefs.longBreakMinutes = 4;
   first.api.widgetPrefs();
-  assert.equal(prefs.workMinutes, 15);
-  assert.equal(prefs.shortBreakMinutes, 3);
-  assert.equal(prefs.longBreakMinutes, 10);
-  prefs.workMinutes = 61; prefs.shortBreakMinutes = 21; prefs.longBreakMinutes = 31;
+  assert.equal(prefs.workMinutes, 15, 'legacy focus values are clamped to the accepted minimum');
+  assert.equal(prefs.shortBreakMinutes, 1, 'legacy short breaks are clamped to one minute');
+  assert.equal(prefs.longBreakMinutes, 5, 'legacy long breaks are clamped to five minutes');
+  prefs.workMinutes = 61; prefs.shortBreakMinutes = 6; prefs.longBreakMinutes = 31;
   first.api.widgetPrefs();
   assert.equal(prefs.workMinutes, 60);
-  assert.equal(prefs.shortBreakMinutes, 20);
+  assert.equal(prefs.shortBreakMinutes, 5);
   assert.equal(prefs.longBreakMinutes, 30);
+  assert.equal(first.api.pomoDur('short'), 5 * 60);
+  assert.equal(first.api.pomoDur('long'), 30 * 60);
   prefs.workMinutes = 25; prefs.shortBreakMinutes = 5; prefs.longBreakMinutes = 15;
   const widgetPage = first.api.render.widgets();
   assert(widgetPage.includes('class="page"') && widgetPage.includes('class="wg-grid"'), 'the Widgets page renders its configured cards');
   assert(widgetPage.includes('wg-tile pomo-tile'), 'the Pomodoro card has a concrete renderer');
   assert(widgetPage.includes('id="pomoToggleBtn"') && widgetPage.includes('data-act="pomoSettings"'), 'Pomodoro start and settings controls are present in the page');
+  const dotMarkup = widgetPage.match(/<span class="pomo-cycle-dots" aria-hidden="true">([\s\S]*?)<\/span>/);
+  assert(dotMarkup && (dotMarkup[1].match(/<i\b/g) || []).length === 4, 'the cycle progress is rendered as exactly four dots');
+  assert(!widgetPage.includes('Циклы сегодня:'), 'the visible numeric cycle statistic is removed');
+  assert(widgetPage.includes('До длинного перерыва: 0 из 4 фокус-сессий'), 'cycle progress exposes an exact accessible tooltip');
+  const globalIndicator = first.api.pomoGlobalButtonHtml();
+  assert(globalIndicator.includes('id="pomoGlobalBtn"') && globalIndicator.includes('pomo-global-ring'), 'the global toolbar indicator renders its progress ring');
+  assert(globalIndicator.includes('aria-haspopup="dialog"') && globalIndicator.includes('aria-controls="pomoPopover"'), 'the global indicator has an accessible popover relationship');
+  assert.equal(first.api.pomoCycleProgress({ cycles: 3 }), 3);
+  assert.equal(first.api.pomoCycleProgress({ cycles: 4 }), 4);
+  assert.equal(first.api.pomoCycleProgress({ cycles: 5 }), 1, 'the four-dot set advances independently of the total cycle count');
+  assert.equal(first.api.pomoCycleTip({ cycles: 2 }), 'До длинного перерыва: 2 из 4 фокус-сессий');
+  const pomoSettings = moduleSource.slice(moduleSource.indexOf('async function openPomodoroSettings()'));
+  assert(pomoSettings.includes('id="pomoSoundEnabled"') && pomoSettings.includes('pref.soundEnabled'), 'the default-on sound preference is user-configurable');
+  assert(pomoSettings.includes("['#pomoShortMinutes', 1, 5") && pomoSettings.includes("['#pomoLongMinutes', 5, 30"), 'settings validation matches the accepted minute ranges');
   assert(widgetPage.includes('id="effBody"'), 'the Efficiency Manager card renders with its update target');
 
   const startedAt = clock;
@@ -157,6 +184,42 @@ globalThis.__api = {
   session = reloaded.api.pomoState();
   assert.equal(session.mode, 'work', 'an elapsed break advances back to work after reload');
   assert.equal(session.running, false);
+
+  phase.autoBreak = true;
+  phase.session = { mode: 'work', remain: 1, running: true, endsAt: clock - 22 * 60_000, cycles: 0, cycleDay: dayKey(clock) };
+  session = reloaded.api.pomoState();
+  assert.equal(session.mode, 'work');
+  assert.equal(session.running, false, 'catch-up pauses after advancing through an expired automatic break');
+  assert.deepEqual(Array.from(session.pendingNotice.completedModes), ['work', 'short'], 'long-idle catch-up records every phase that elapsed');
+  const noticeId = session.pendingNotice.id;
+  const updatedAt = session.updatedAt;
+  assert.equal(reloaded.api.pomoState().pendingNotice.id, noticeId, 'repeated ticks do not create duplicate completion notices');
+  assert.equal(session.updatedAt, updatedAt, 'a persisted completion notice is stable across timer ticks');
+  await reloaded.api.pomoAcknowledgeNotice();
+  assert.equal(session.pendingNotice, null, 'the completion indicator remains until explicit acknowledgement');
+
+  phase.session = { mode: 'work', remain: 1, running: true, endsAt: clock - 60 * 60_000, cycles: 0, cycleDay: dayKey(clock) };
+  session = reloaded.api.pomoState();
+  assert.equal(session.pendingNotice.completedCount, 2, 'a long idle period is summarized as one notice for every phase that elapsed');
+  assert.equal(reloaded.api.pomoState().pendingNotice.id, session.pendingNotice.id, 'long-idle ticks keep the same notice identity');
+
+  const sharedValues = new Map(), sharedStorage = {
+    getItem(key) { return sharedValues.has(key) ? sharedValues.get(key) : null; },
+    setItem(key, value) { sharedValues.set(key, String(value)); }
+  };
+  const audioEvents = [];
+  class TestAudioContext {
+    constructor() { this.state = 'running'; this.currentTime = 0; this.destination = {}; }
+    createOscillator() { return { frequency: { setValueAtTime() {} }, connect() {}, start() { audioEvents.push('start'); }, stop() {} }; }
+    createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; }
+  }
+  const simultaneousState = { ui: { widgetPrefs: { pomodoro: { soundEnabled: true, session: { mode: 'work', remain: 1, running: true, endsAt: clock - 1000, cycles: 0, cycleDay: dayKey(clock) } } } }, visits: [], ghost: false };
+  const firstWindow = boot(simultaneousState, { localStorage: sharedStorage, AudioContext: TestAudioContext });
+  const firstWindowSession = firstWindow.api.pomoState();
+  assert.equal(audioEvents.length, 2, 'the focused window plays one two-tone completion signal');
+  const secondWindow = boot(JSON.parse(JSON.stringify(firstWindow.state)), { localStorage: sharedStorage, AudioContext: TestAudioContext });
+  secondWindow.api.pomoSignal(firstWindowSession.pendingNotice.id);
+  assert.equal(audioEvents.length, 2, 'another page/window suppresses the already-claimed signal');
 
   phase.session = { mode: 'work', remain: 25 * 60, running: false, endsAt: 0, cycles: 2, cycleDay: dayKey(clock) };
   await reloaded.api.pomoChangeMode();

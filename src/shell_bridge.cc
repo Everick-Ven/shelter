@@ -42,6 +42,39 @@ class CloseAfterUserDataDeleteTask : public CefTask {
   IMPLEMENT_REFCOUNTING(CloseAfterUserDataDeleteTask);
 };
 
+// ShowDevTools can synchronously create/focus a Views browser. The Inspect path
+// reaches TabAction from CefMessageRouter::OnQuery, so defer that window work
+// until the current cefQuery callback has returned to CEF.
+class ShowDevToolsTask : public CefTask {
+ public:
+  ShowDevToolsTask(CefRefPtr<CefBrowser> browser,
+                   const CefPoint& inspect_element_at)
+      : browser_(std::move(browser)), inspect_element_at_(inspect_element_at) {}
+
+  void Execute() override {
+    if (!browser_ || !browser_->IsValid()) return;
+    CefRefPtr<CefBrowserHost> host = browser_->GetHost();
+    if (!host) return;
+    CefWindowInfo window_info;
+    CefBrowserSettings settings;
+    host->ShowDevTools(window_info, nullptr, settings, inspect_element_at_);
+  }
+
+ private:
+  CefRefPtr<CefBrowser> browser_;
+  CefPoint inspect_element_at_;
+  IMPLEMENT_REFCOUNTING(ShowDevToolsTask);
+};
+
+void PostShowDevTools(CefRefPtr<CefBrowser> browser,
+                      const CefPoint& inspect_element_at) {
+  if (!browser || !browser->IsValid()) return;
+  // Do not fall back to a synchronous call if the application is already
+  // shutting down; that would reintroduce the callback re-entrancy risk.
+  CefPostTask(TID_UI,
+              new ShowDevToolsTask(std::move(browser), inspect_element_at));
+}
+
 double Num(CefRefPtr<CefDictionaryValue> d, const char* key, double def = 0) {
   if (!d || !d->HasKey(key)) return def;
   switch (d->GetType(key)) {
@@ -1133,9 +1166,7 @@ void Shell::TabAction(const std::string& id, const std::string& act,
   } else if (act == "print") {
     b->GetHost()->Print();
   } else if (act == "devtools") {
-    CefWindowInfo wi;
-    CefBrowserSettings bs;
-    b->GetHost()->ShowDevTools(wi, nullptr, bs, CefPoint());
+    PostShowDevTools(b, CefPoint());
   } else if (act == "inspect") {
     // «Инспектировать»: DevTools открывается сразу на элементе под курсором.
     // Координаты — «x,y» в DIP относительно вида вкладки (из события ctx).
@@ -1145,10 +1176,7 @@ void Shell::TabAction(const std::string& id, const std::string& act,
       x = std::atoi(url.substr(0, comma).c_str());
       y = std::atoi(url.substr(comma + 1).c_str());
     }
-    CefWindowInfo wi;
-    CefBrowserSettings bs;
-    b->GetHost()->ShowDevTools(wi, nullptr, bs,
-                               CefPoint(std::max(0, x), std::max(0, y)));
+    PostShowDevTools(b, CefPoint(std::max(0, x), std::max(0, y)));
   } else if (act == "cut") {
     f->Cut();
   } else if (act == "copy") {

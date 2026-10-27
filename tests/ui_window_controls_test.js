@@ -25,9 +25,17 @@ assert.match(html, /const label = maximized \? 'Восстановить окн�
   'the accessible label follows the actual native maximize state');
 assert.match(html, /--window-control-gap:var\(--toolbar-gap\)/);
 assert.match(html, /\.tab-mount\{display:flex;align-items:center;gap:var\(--toolbar-gap\)/);
-// Кнопки окна живут в углу окна и не зависят от положения вкладок.
-assert.match(html, /<div class="app" id="app">\s*<!--[^>]*-->\s*<div class="wctl win-ctls" id="winCtl"/,
-  'the window controls are a direct child of .app, not of a tab/toolbar container');
+// Keep controls at the same viewport corner, but nest them after the toolbar's
+// drag region. CEF applies draggable/no-drag rectangles in order; placing this
+// no-drag sibling before .tb lets the later toolbar union cover the buttons.
+const toolbarStart = html.indexOf('<header class="tb">');
+const actionsStart = html.indexOf('<div class="tb-g tb-actions">', toolbarStart);
+const controlsStart = html.indexOf('<div class="wctl win-ctls" id="winCtl"', toolbarStart);
+const toolbarEnd = html.indexOf('</header>', toolbarStart);
+assert(toolbarStart >= 0 && actionsStart > toolbarStart && controlsStart > actionsStart && controlsStart < toolbarEnd,
+  'the no-drag window controls must follow the draggable toolbar in CEF region order');
+assert.doesNotMatch(html, /<div class="app" id="app">\s*<!--[^>]*-->\s*<div class="wctl win-ctls" id="winCtl"/,
+  'the window controls must not precede and be covered by the later toolbar drag region');
 assert.doesNotMatch(html, /tm\.appendChild\(ctl\)|home\.appendChild\(ctl\)/,
   'applyTabPos must not move the window controls between containers');
 assert.match(html, /#winCtl\.win-ctls\{position:fixed;top:var\(--wc-top\);right:var\(--wc-right\);/,
@@ -39,6 +47,16 @@ assert.match(html, /if \(n\.platform !== 'win32'\) \{ ctl\.hidden = true; return
   'the replacement controls are shown only on Windows');
 assert.match(html, /if \(n\.platform === 'darwin'\) \{[\s\S]*?lights\.classList\.add\('live'\)/,
   'the existing macOS traffic-light controls remain intact');
+const initStart = html.indexOf('function initWinLights() {');
+const initEnd = html.indexOf('\nfunction toggleSidebar()', initStart);
+assert(initStart >= 0 && initEnd > initStart, 'the native control initializer must exist');
+const winInit = html.slice(initStart, initEnd);
+assert.match(winInit, /ctl\.addEventListener\('click'/, 'the window controls must listen for clicks');
+for (const action of ['close', 'minimize']) {
+  assert(winInit.includes(`b.dataset.w === '${action}'`) && winInit.includes(`n.${action}()`),
+    `${action} must reach its native window action`);
+}
+assert.match(winInit, /else toggleMaximize\(\)/, 'the maximize button toggles the native state');
 
 const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(match => match[1]).join('\n');
 assert.match(css, /--toolbar-gap:8px;/);
@@ -48,6 +66,8 @@ assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?border-radius:[^;]+;[\s\S]*?b
   'Windows keys use the glass control material');
 assert.match(css, /#winCtl\.win-ctls\{position:fixed;[^}]*display:flex;align-items:center;gap:var\(--window-control-gap\);/);
 assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?width:var\(--window-control-size\);height:var\(--window-control-size\)/);
+assert.match(css, /#winCtl\.win-ctls \.wc:hover\{/,
+  'all three controls provide visible hover feedback');
 assert.match(css, /#winCtl\.win-ctls \.wc-close:hover\{[^}]*color:rgb\(var\(--danger\)\)/);
 assert.match(css, /#winCtl\.win-ctls \.wc-max\[aria-pressed="true"\] \.win-restore-icon\{display:block\}/);
 assert.match(css, /#winCtl\.win-ctls \.wc:active\{/);

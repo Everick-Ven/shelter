@@ -38,7 +38,8 @@ assert.match(host, /local: \{ x: p\.x \|\| 0, y: p\.y \|\| 0 \}/, 'мост пе
 
 // --- Нативная часть ------------------------------------------------------------
 assert.match(bridge, /\(act == "window" \|\| act == "open"\) && devtools_tab &&\s*devtools_tab->browser/);
-assert.match(bridge, /\} else if \(act == "inspect"\) \{[\s\S]*?ShowDevTools\(wi, nullptr, bs,\s*CefPoint\(std::max\(0, x\), std::max\(0, y\)\)\)/);
+assert.match(bridge, /\} else if \(act == "inspect"\) \{[\s\S]*?PostShowDevTools\(b,\s*CefPoint\(std::max\(0, x\), std::max\(0, y\)\)\)/,
+  'Inspect still targets the clicked point, via the deferred CEF call');
 assert.match(bridge, /#include <cstdlib>/, 'std::atoi требует <cstdlib>');
 assert.match(shell, /code == "F12" \|\| \(mod && shift && code == "KeyI"\) \|\| mac_devtools/);
 assert.match(shell, /#if defined\(OS_MAC\)\s*const bool mac_devtools = mod && alt && !shift && code == "KeyI";/);

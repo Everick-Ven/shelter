@@ -92,6 +92,20 @@ jobs:
             }
           }
 
+      - name: Enable crash dumps for acceptance runs
+        shell: pwsh
+        run: |
+          $dumps = Join-Path $env:GITHUB_WORKSPACE 'crashdumps'
+          New-Item -ItemType Directory -Force -Path $dumps | Out-Null
+          $wer = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting'
+          New-ItemProperty -Path $wer -Name Disabled -Value 0 -PropertyType DWord -Force | Out-Null
+          $key = Join-Path $wer 'LocalDumps\Shelter.exe'
+          New-Item -Path $key -Force | Out-Null
+          New-ItemProperty -Path $key -Name DumpFolder -Value $dumps -PropertyType ExpandString -Force | Out-Null
+          New-ItemProperty -Path $key -Name DumpCount -Value 4 -PropertyType DWord -Force | Out-Null
+          # 1 = minidump: thread stacks and module list, small enough to upload.
+          New-ItemProperty -Path $key -Name DumpType -Value 1 -PropertyType DWord -Force | Out-Null
+
       - name: Geometry and DevTools acceptance (CI hooks)
         shell: bash
         run: |
@@ -154,6 +168,15 @@ jobs:
           Start-Sleep -Seconds 2
           if (Test-Path $exe) { throw "SHELTER executable remains after uninstall: $exe" }
 
+      - name: Summarize Windows crash dumps
+        if: always()
+        shell: pwsh
+        run: |
+          $env:PYTHONIOENCODING = "utf-8"
+          python -m pip install --disable-pip-version-check minidump 2>&1 | Out-Null
+          python tools/analyze_crash_dump.py crashdumps --out crash-stack.txt
+          exit 0
+
       - name: Report Windows failure diagnostics
         if: failure()
         shell: pwsh
@@ -214,6 +237,8 @@ jobs:
             acceptance-ci.log
             smoke-run.log
             acceptance-app.log
+            crash-stack.txt
+            crashdumps/**
           if-no-files-found: ignore
           retention-days: 14
 
@@ -384,6 +409,20 @@ jobs:
             exit 1
           }
 
+      - name: Collect macOS crash reports
+        if: always()
+        run: |
+          # ReportCrash writes the .ips a few seconds after the process dies.
+          sleep 15
+          mkdir -p crashreports
+          for dir in "$HOME/Library/Logs/DiagnosticReports" "/Library/Logs/DiagnosticReports"; do
+            if [ -d "$dir" ]; then
+              find "$dir" -maxdepth 2 -type f -iname 'shelter*' -mmin -240 -exec cp -p {} crashreports/ \; || true
+            fi
+          done
+          ls -la crashreports || true
+          python3 tools/analyze_crash_dump.py crashreports --out crash-stack.txt || true
+
       - name: Report macOS failure diagnostics
         if: failure()
         run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log packaged-dmg-acceptance.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
@@ -419,6 +458,8 @@ jobs:
             acceptance-ci.log
             smoke-run.log
             acceptance-app.log
+            crash-stack.txt
+            crashreports/**
           if-no-files-found: ignore
           retention-days: 14
 

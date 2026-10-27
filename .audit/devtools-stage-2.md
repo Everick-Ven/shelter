@@ -48,4 +48,12 @@
 
 ## Сохранность рабочей копии
 
-Существующие файлы `.audit/` не изменялись; этот журнал создан отдельным файлом. Не выполнялись `git add`, reset, clean или удаление пользовательских изменений. Посторонние изменения рабочего дерева не включались в staging.
+Существующие файлы `.audit/` не изменялись; этот журнал создан отдельным файлом. Посторонние изменения рабочего дерева не включались в staging.
+
+## CI follow-up после push этапа 2
+
+**Коммит:** `7148a70 feat: add CEF Views DevTools dock` (push прошёл; удалённая ветка указывала на этот SHA).
+
+GitHub Actions Build завершился с ошибкой. DevTools regression step и native build на Windows/macOS прошли. Проверка `CSP hashes and renderer secret isolation` обнаружила, что два SHA-256 в CSP не соответствовали обновлённым inline-скриптам `resources/ui/index.html`. Геометрические acceptance checks на обеих платформах затем не дождались инициализации UI bridge (`ready=false`, `hasNavigate=false`, `hasNativeRequest=false`); это согласуется с блокировкой скриптов устаревшими CSP hashes и не указывает на отдельный сбой DevTools geometry.
+
+**Исправление:** CSP allowlist обновлён для двух изменённых inline-скриптов. Локально повторены и прошли `node tests/ui_csp_test.js`, все четыре профильных DevTools/Windows-control теста, `node --check resources/ui/host-bridge.js`, синтаксическая проверка всех пяти inline JS-блоков и `git diff --check`. Повторный GitHub Actions runtime/geometry acceptance после push исправления ещё ожидает результата.

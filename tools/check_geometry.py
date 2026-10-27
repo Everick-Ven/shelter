@@ -517,6 +517,12 @@ def main() -> int:
             process,
             devtools_deadline,
         )
+        wait_until(
+            lambda: devtools_marker_count("ci: devtools dock focus requested") >= 1,
+            "the docked DevTools BrowserView to receive focus after ShowDevTools returns",
+            process,
+            devtools_deadline,
+        )
 
         inspect_result = cdp.evaluate("""(() => {
           const id = typeof window.getActiveTabId === 'function'
@@ -536,6 +542,12 @@ def main() -> int:
         wait_until(
             lambda: devtools_marker_count("ci: devtools ShowDevTools returned") >= 2,
             "CEF ShowDevTools to return for the Inspect request",
+            process,
+            devtools_deadline,
+        )
+        wait_until(
+            lambda: devtools_marker_count("ci: devtools dock focus requested") >= 2,
+            "the docked DevTools BrowserView to receive focus after Inspect",
             process,
             devtools_deadline,
         )

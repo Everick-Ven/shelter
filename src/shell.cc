@@ -1331,6 +1331,9 @@ bool Shell::OnDevToolsPopupBrowserViewCreated(
     CefRefPtr<CefBrowserView> browser_view,
     CefRefPtr<CefBrowserView> popup_browser_view) {
   CEF_REQUIRE_UI_THREAD();
+#if defined(SHELTER_CI_HOOKS)
+  Log("ci: devtools popup callback entered");
+#endif
   if (!popup_browser_view) return true;
   CefRefPtr<CefBrowser> source_browser =
       browser_view ? browser_view->GetBrowser() : nullptr;
@@ -1364,19 +1367,24 @@ bool Shell::OnDevToolsPopupBrowserViewCreated(
   }
   devtools_overlay_ = window_->AddOverlayView(
       popup_browser_view, CEF_DOCKING_MODE_CUSTOM, true);
+#if defined(SHELTER_CI_HOOKS)
+  Log("ci: devtools AddOverlayView returned");
+#endif
   if (!devtools_overlay_ || !devtools_overlay_->IsValid()) {
     devtools_overlay_ = nullptr;
     devtools_view_docked_ = false;
     return false;
   }
   devtools_overlay_->SetBounds(devtools_rect_);
+#if defined(SHELTER_CI_HOOKS)
+  Log("ci: devtools overlay bounds set");
+#endif
   const bool visible = devtools_open_ && devtools_rect_visible_ &&
                       devtools_rect_.width > 0 && devtools_rect_.height > 0;
   devtools_overlay_->SetVisible(visible);
 #if defined(SHELTER_CI_HOOKS)
   Log("ci: devtools dock overlay attached");
 #endif
-  if (visible) popup_browser_view->RequestFocus();
   return true;
 }
 

@@ -80,6 +80,10 @@ assertHookGuard(mac, 'g_forced_key', 'macOS forced-key counter');
 assertHookGuard(mac, 'g_redirected', 'macOS redirected-event counter');
 assertHookGuard(mac, 'DumpView(', 'macOS diagnostic view dump');
 assertHookGuard(bridge, 'ci: devtools ShowDevTools returned', 'DevTools runtime-call marker');
+assertHookGuard(bridge, 'ci: devtools dock focus requested', 'deferred DevTools focus marker');
+assertHookGuard(shell, 'ci: devtools popup callback entered', 'DevTools popup callback marker');
+assertHookGuard(shell, 'ci: devtools AddOverlayView returned', 'DevTools overlay creation marker');
+assertHookGuard(shell, 'ci: devtools overlay bounds set', 'DevTools overlay bounds marker');
 assertHookGuard(shell, 'ci: devtools dock overlay attached', 'DevTools Views-popup marker');
 for (const [file, source] of [['src/browser_app.cc', browser], ['src/shell.cc', shell],
                               ['src/shell_bridge.cc', bridge], ['src/platform.h', platformHeader]]) {
@@ -127,6 +131,7 @@ assert.match(geometry, /window\.shelterOpenDevtools/);
 assert.match(geometry, /inspect: true, x: 12, y: 12/);
 assert.match(geometry, /ci: devtools ShowDevTools returned/);
 assert.match(geometry, /ci: devtools dock overlay attached/);
+assert.match(geometry, /ci: devtools dock focus requested/);
 assert.match(geometry, /native_open_attempts/);
 assert.match(geometry, /shell: content bounds/);
 assert.match(geometry, /dbg\.window/);

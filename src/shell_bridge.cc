@@ -1351,13 +1351,26 @@ void Shell::OnDevToolsShowCallReturned(const std::string& id,
                                        std::uint64_t generation,
                                        bool did_call) {
   CEF_REQUIRE_UI_THREAD();
+  const bool is_current = generation == devtools_generation_ &&
+                          id == devtools_target_tab_;
   if (did_call) {
 #if defined(SHELTER_CI_HOOKS)
     Log("ci: devtools ShowDevTools returned");
 #endif
   }
-  if (generation == devtools_generation_ && id == devtools_target_tab_ &&
-      (!devtools_view_ || devtools_view_tab_ != id)) {
+  if (did_call && is_current && !closing_ && devtools_open_ &&
+      devtools_view_ && devtools_view_tab_ == id && devtools_view_docked_ &&
+      devtools_overlay_ && devtools_overlay_->IsValid() &&
+      devtools_rect_visible_ && devtools_rect_.width > 0 &&
+      devtools_rect_.height > 0) {
+    // Requesting focus from OnPopupBrowserViewCreated runs inside CEF's
+    // synchronous ShowDevTools call. Wait until that call has returned.
+    devtools_view_->RequestFocus();
+#if defined(SHELTER_CI_HOOKS)
+    Log("ci: devtools dock focus requested");
+#endif
+  }
+  if (is_current && (!devtools_view_ || devtools_view_tab_ != id)) {
     devtools_opening_ = false;
   }
 }

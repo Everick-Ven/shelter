@@ -35,6 +35,18 @@ assert.match(popupWindowDelegate,
   /GetWindowRuntimeStyle\(\) override \{\s*return is_devtools_ \? CEF_RUNTIME_STYLE_CHROME\s*: CEF_RUNTIME_STYLE_ALLOY;/,
   'detached DevTools uses a Chrome-style window while ordinary popups stay Alloy');
 assert.match(shell, /if \(is_devtools && Shell::Get\(\)\.OnDevToolsPopupBrowserViewCreated\(\s*browser_view, popup_browser_view\)\)/);
+const popupCallback = shell.slice(
+  shell.indexOf('bool Shell::OnDevToolsPopupBrowserViewCreated'),
+  shell.indexOf('void Shell::OnBrowserViewDestroyed')
+);
+assert.doesNotMatch(popupCallback, /popup_browser_view->RequestFocus\(\)/,
+  'do not focus the popup inside CEF OnPopupBrowserViewCreated');
+const showReturned = bridge.slice(
+  bridge.indexOf('void Shell::OnDevToolsShowCallReturned'),
+  bridge.indexOf('// ---- действия над вкладкой')
+);
+assert.match(showReturned, /devtools_view_docked_[\s\S]*devtools_overlay_[\s\S]*devtools_view_->RequestFocus\(\)/,
+  'focus the dock only after ShowDevTools has returned');
 assert.match(shell, /AddOverlayView\(\s*popup_browser_view,\s*CEF_DOCKING_MODE_CUSTOM,\s*true\)/);
 assert.match(shell, /devtools_overlay_->SetBounds\(devtools_rect_\)/);
 assert.match(shell, /OnBrowserDestroyed\(\s*CefRefPtr<CefBrowserView> browser_view,\s*CefRefPtr<CefBrowser> browser\)/);

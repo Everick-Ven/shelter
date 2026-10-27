@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <sstream>
 #include <utility>
@@ -867,9 +868,14 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
   if (m == "devtools") {
-    // UI просит отдельное окно DevTools для активной вкладки. Док-панель
-    // (act=open/close) нативно не реализована — отвечаем честным ok:false.
-    if (Str(a, "act") == "window" && !active_tab_.empty()) {
+    // Настоящий Chromium DevTools в отдельном окне для активной вкладки.
+    // Повторный вызов выводит уже открытое окно на передний план (ShowDevTools
+    // не плодит копии). Док-режим (встроенная панель) здесь не реализован:
+    // act=dock/close отвечают честным ok:false.
+    const std::string act = Str(a, "act");
+    Tab* devtools_tab = active_tab_.empty() ? nullptr : FindTab(active_tab_);
+    if ((act == "window" || act == "open") && devtools_tab &&
+        devtools_tab->browser) {
       TabAction(active_tab_, "devtools", "");
       cb->Success("{\"ok\":true}");
     } else {
@@ -1130,6 +1136,19 @@ void Shell::TabAction(const std::string& id, const std::string& act,
     CefWindowInfo wi;
     CefBrowserSettings bs;
     b->GetHost()->ShowDevTools(wi, nullptr, bs, CefPoint());
+  } else if (act == "inspect") {
+    // «Инспектировать»: DevTools открывается сразу на элементе под курсором.
+    // Координаты — «x,y» в DIP относительно вида вкладки (из события ctx).
+    int x = 0, y = 0;
+    const size_t comma = url.find(',');
+    if (comma != std::string::npos) {
+      x = std::atoi(url.substr(0, comma).c_str());
+      y = std::atoi(url.substr(comma + 1).c_str());
+    }
+    CefWindowInfo wi;
+    CefBrowserSettings bs;
+    b->GetHost()->ShowDevTools(wi, nullptr, bs,
+                               CefPoint(std::max(0, x), std::max(0, y)));
   } else if (act == "cut") {
     f->Cut();
   } else if (act == "copy") {

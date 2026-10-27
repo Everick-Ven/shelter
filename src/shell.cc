@@ -2087,8 +2087,14 @@ bool Shell::OnTabKey(CefRefPtr<CefBrowser> browser, const CefKeyEvent& e) {
   Tab* t = FindTabByBrowser(browser->GetIdentifier());
   if (!t) return false;
 
-  // Нативные действия над страницей
-  if (code == "F12" || (mod && shift && code == "KeyI")) {
+  // Нативные действия над страницей. DevTools: F12 и Ctrl+Shift+I везде,
+  // ⌥⌘I — только на macOS (на Windows Ctrl+Alt — это AltGr и печатает символы).
+#if defined(OS_MAC)
+  const bool mac_devtools = mod && alt && !shift && code == "KeyI";
+#else
+  const bool mac_devtools = false;
+#endif
+  if (code == "F12" || (mod && shift && code == "KeyI") || mac_devtools) {
     TabAction(t->id, "devtools", "");
     return true;
   }

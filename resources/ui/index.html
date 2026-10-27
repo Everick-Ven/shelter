@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-2dAyQfsSj6ypmR3qLCZmDFnLF4Nc8r1V5+s+qczxN78=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-eo//GKGEItCUcNn+8kb99e3wHdnIg9JeFgeNFzXi1RM=' 'sha256-BkhVOTStrL9pgnNSWsrEBGJNaXzg4fkD1Agejpi8eow=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -1016,7 +1016,8 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 ::highlight(find-cur){background-color:rgb(var(--ga)/.75);color:#fff}
 
 /* 1.0.144: панель DevTools — оболочка для НАСТОЯЩЕГО Chromium DevTools-фронтенда
-   (в вебе — заглушка; в приложении — host-webview + setDevToolsWebContents из main). */
+   Заготовка под встроенный (док) режим: сейчас не открывается — DevTools работает в отдельном окне,
+   см. openDevtools(). Размеры/позиция остаются, чтобы док можно было включить без переделки вёрстки. */
 .stage.dt-open .viewport{bottom:268px}
 .stage.dt-open[data-device] .viewport{bottom:286px}
 .devtools{position:absolute;left:0;right:0;bottom:0;height:268px;z-index:22;display:flex;flex-direction:column;background:var(--card);border-top:1px solid var(--line-2);
@@ -1025,7 +1026,6 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .dt-h{display:flex;align-items:center;gap:8px;height:44px;padding:0 8px 0 14px;border-bottom:1px solid var(--line);flex:none}
 .dt-own{font-size:12.5px;color:var(--text-2);font-weight:640;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}
 .dt-b{position:relative;flex:1;min-height:0}
-.dt-host{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
 .dt-stub{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center;padding:18px 34px;pointer-events:none}
 .dt-stub .i{width:32px;height:32px;color:var(--text-3)}
 .dt-stub b{font-size:15px;color:var(--text)}
@@ -10029,7 +10029,10 @@ window.shelterCtxMenu = function (d) {
     items.push({ label: 'Обновить', icon: 'ref', run: () => { try { if (wv && wv.reload) wv.reload(); else ACT.reload(); } catch (_) {} } });
     items.push('-');
     items.push({ label: 'Печать…', icon: 'printer', run: () => { try { if (wv && wv.print) wv.print(); else act('print'); } catch (_) {} } });
-    items.push({ label: 'Инспектировать', icon: 'code', run: () => { try { toggleDevtools(true); } catch (_) {} } });
+    if (S.prefs.menuDev !== false) {
+      const loc = d.local || {};
+      items.push({ label: 'Инспектировать', icon: 'code', run: () => act('inspect', (loc.x | 0) + ',' + (loc.y | 0)) });
+    }
     while (items.length > 1 && items[items.length - 1] === '-') items.pop();
     openMenu(null, items, { point: d.point });
   } catch (_) {}
@@ -10073,9 +10076,7 @@ document.addEventListener('contextmenu', e => {
     openMenu(null, [
       { label: 'Назад', icon: 'back', run: () => ACT.back() },
       { label: 'Вперёд', icon: 'fwd', run: () => ACT.fwd() },
-      { label: 'Обновить', icon: 'ref', run: () => ACT.reload() },
-      '-',
-      { label: 'Инспектировать', icon: 'code', run: () => ACT.devtools() }
+      { label: 'Обновить', icon: 'ref', run: () => ACT.reload() }
     ], { point });
   } catch (_) {}
 });
@@ -13870,123 +13871,23 @@ function initFind() {
 /* =========================================================
    DevTools, эмуляция устройств, масштаб
    ========================================================= */
-const DT = { ownerTab: 0, lastDevWc: 0, pendingDevOpen: 0, devPoll: 0, devTries: 0 };
-function tabFind(id) {
-  try { const ks = Object.keys(S.spaces || {}); for (let i = 0; i < ks.length; i++) { const t = (S.spaces[ks[i]].tabs || []).find(x => x.id === id); if (t) return t; } } catch (_) {}
-  return null;
-}
-/* 1.0.144: панель DevTools — настоящий Chromium DevTools через main (setDevToolsWebContents);
-   в вебе/демо — заглушка внутренней страницы (webviewForTab/IPC недоступны). */
-function toggleDevtools(force, opts) {
-  const st = $('#stage'), open = typeof force === 'boolean' ? force : !st.classList.contains('dt-open');
-  const winMode = !!(opts && opts.window);
-  if (open) DT.ownerTab = S.activeTabId;
-  st.classList.toggle('dt-open', open && !winMode);
-  if (winMode) { dtDevSend({ act: 'window' }); return; }
-  if (open) dtPanelOpen(); else dtPanelClose();
-  setTimeout(() => Hero.relayout(), 540);
-}
+/* DevTools: настоящий Chromium DevTools в отдельном окне (CefBrowserHost::ShowDevTools).
+   Док-панель #devtools осталась заготовкой под встроенный режим и сейчас не открывается;
+   прежний Electron-код дока (<webview>) удалён — в CEF он не работал. */
 function dtDevSend(m) { try { if (NAT && NAT.devTools) return NAT.devTools(m); } catch (_) {} return null; }
-function dtHostEl(create) {
-  let host = document.getElementById('devHost');
-  if (!host && create) {
-    host = document.createElement('webview');
-    host.id = 'devHost'; host.className = 'dt-host';
-    host.setAttribute('partition', 'devtools-host');
-    host.setAttribute('webpreferences', 'contextIsolation=yes, nodeIntegration=no, sandbox=yes');
-    /* 1.0.144-fix (пустая панель): у <webview> БЕЗ src нет гостя — getWebContentsId
-       недоступен и IPC уйти не может. src=about:blank — initial-документ ровно как у
-       нового BrowserWindow из официального примера setDevToolsWebContents. */
-    host.setAttribute('src', 'about:blank');
-    host.addEventListener('dom-ready', dtHostReady);
-    host.addEventListener('did-attach', dtHostReady);
-    const body = document.getElementById('dtBody'), stub = document.getElementById('dtStub');
-    if (body) body.insertBefore(host, stub || null);
-    if (!DT.devPoll) DT.devPoll = setInterval(dtHostPoll, 150);
+function dtCanInspect() {
+  const t = curTab(), m = t ? urlMeta(t.url || '') : null;
+  if (!NAT || !NAT.devTools) { toast('Инструменты разработчика доступны в приложении SHELTER', { icon: 'code' }); return false; }
+  if (!t || (m && m.kind === 'internal')) { toast('Внутренние страницы SHELTER не инспектируются — откройте сайт', { icon: 'code' }); return false; }
+  return true;
+}
+/* Открыть DevTools для активной вкладки (повторный вызов выводит окно вперёд). */
+function openDevtools() {
+  if (!dtCanInspect()) return;
+  const p = dtDevSend({ act: 'open' });
+  if (p && typeof p.then === 'function') {
+    p.then(r => { if (!(r && r.ok)) toast('Не удалось открыть инструменты разработчика', { icon: 'code' }); }).catch(() => {});
   }
-  return host;
-}
-function dtHid() {
-  try {
-    const host = document.getElementById('devHost');
-    return (host && typeof host.getWebContentsId === 'function' && host.getWebContentsId()) || 0;
-  } catch (_) { return 0; }
-}
-function dtHostReady() { try { if (DT.pendingDevOpen) { DT.pendingDevOpen = 0; DT.devTries = 0; dtSendDevOpen(); } } catch (_) {} }
-function dtHostPoll() {
-  try {
-    if (!DT.pendingDevOpen) { clearInterval(DT.devPoll); DT.devPoll = 0; return; }
-    if (dtHid()) { DT.pendingDevOpen = 0; DT.devTries = 0; clearInterval(DT.devPoll); DT.devPoll = 0; dtSendDevOpen(); }
-  } catch (_) {}
-}
-function dtDevTarget() {
-  try {
-    /* внутренняя страница → 0: панель показывает заглушку и НЕ создаёт webview-гостя */
-    const t = tabFind(DT.ownerTab);
-    const m = t ? urlMeta(t.url || '') : null;
-    if (!t || (m && m.kind === 'internal')) return 0;
-    const wv = window.webviewForTab ? window.webviewForTab(DT.ownerTab) : null; return (wv && typeof wv.getWebContentsId === 'function' && wv.getWebContentsId()) || 0;
-  } catch (_) { return 0; }
-}
-function dtSendDevOpen() {
-  try {
-    const target = dtDevTarget();
-    const hid = dtHid();
-    if (!target || !hid) return;
-    DT.lastDevWc = target;
-    const p = dtDevSend({ act: 'open', target: target, host: hid });
-    if (p && typeof p.then === 'function') {
-      p.then((r) => {
-        try {
-          if (r && r.ok) return;
-          if ((DT.devTries | 0) < 3) { DT.devTries = (DT.devTries | 0) + 1; setTimeout(() => dtSendDevOpen(), 400); }
-        } catch (_) {}
-      }).catch(() => {});
-    }
-  } catch (_) {}
-}
-function dtPanelOpen() {
-  try {
-    const t = tabFind(DT.ownerTab);
-    const el = document.getElementById('dtOwner');
-    if (el) el.textContent = (t && (t.title || t.url)) || 'DevTools';
-  } catch (_) {}
-  /* Поддержка нативного CEF DevTools (CefBrowserHost::ShowDevTools по координатам #dtBody без <webview>) */
-  if (window.shelterCef && window.shelterCef.isCef) {
-    const t = tabFind(DT.ownerTab);
-    const m = t ? urlMeta(t.url || '') : null;
-    const stub = document.getElementById('dtStub');
-    if (!t || (m && m.kind === 'internal')) {
-      if (stub) stub.hidden = false;
-      dtDevSend({ act: 'close', tabId: DT.ownerTab });
-      return;
-    }
-    if (stub) stub.hidden = true;
-    const bounds = window.shelterCef.getDevToolsRect();
-    window.shelterCef.syncViewport();
-    dtDevSend({ act: 'open', tabId: DT.ownerTab, bounds });
-    return;
-  }
-  const target = dtDevTarget();
-  const stub = document.getElementById('dtStub');
-  if (!target) { /* внутренняя страница — заглушка */
-    try { const h0 = document.getElementById('devHost'); if (h0) h0.hidden = true; } catch (_) {}
-    if (stub) stub.hidden = false;
-    dtDevSend({ act: 'close', target: DT.lastDevWc || 0 });
-    return;
-  }
-  if (stub) stub.hidden = true;
-  const host = dtHostEl(true);
-  if (host) host.hidden = false;
-  if (dtHid()) { DT.pendingDevOpen = 0; dtSendDevOpen(); } else DT.pendingDevOpen = 1;
-}
-function dtPanelClose() {
-  try { clearInterval(DT.devPoll); } catch (_) {}
-  DT.devPoll = 0; DT.pendingDevOpen = 0;
-  dtDevSend({ act: 'close', target: DT.lastDevWc || 0 });
-  try {
-    document.querySelectorAll('webview').forEach(w => { try { if (typeof w.closeDevTools === 'function') w.closeDevTools(); } catch (_) {} });
-  } catch (_) {}
 }
 function setDevice(v) {
   S.ui.device = v; persist();
@@ -14157,7 +14058,7 @@ function moreMenu(anchor) {
     ] : []),
     { label: 'Найти на странице', icon: 'search', kbd: '⌘F', run: openFind },
     ...(S.prefs.menuDev !== false ? [
-      { label: 'Инструменты разработчика', icon: 'code', kbd: '⌥⌘I', run: () => toggleDevtools() }
+      { label: 'Инструменты разработчика', icon: 'code', kbd: IS_MAC ? '⌥⌘I' : 'F12', run: () => openDevtools() }
     ] : []),
     ...(S.prefs.menuAdapt !== false ? [
       { html: `<div class="mrow"><span class="lb" style="display:flex;align-items:center;gap:11px">${ico('monitor')}Адаптация</span>${segHtml('device', [['desktop', 'ПК'], ['tablet', 'Планшет'], ['phone', 'Мобильная']], S.ui.device, 'sm')}</div>` }
@@ -14212,7 +14113,7 @@ const ACT = {
   cert: el => certPop(el), star: () => toggleBookmarkCurrent(), shield: el => shieldPop(el), more: el => moreMenu(el), quick: el => quickPanel(el), ghost: () => toggleGhost(), fire: () => fire(),
   heroMode: el => heroModeMenu(el), heroEngine: el => engineMenu(el), heroSend: () => heroSubmit(),
   open: (el, e) => navigate(el.dataset.url, { newTab: e.metaKey || e.ctrlKey }), addBookmarkDlg: () => addBookmarkDlg(),
-  findPrev: () => findStep(-1), findNext: () => findStep(1), findClose: () => closeFind(), devtools: () => toggleDevtools(false), devtoolsClose: () => toggleDevtools(false), deviceOff: () => setDevice('desktop'),
+  findPrev: () => findStep(-1), findNext: () => findStep(1), findClose: () => closeFind(), devtools: () => openDevtools(), devtoolsClose: () => {}, deviceOff: () => setDevice('desktop'),
   dashExport: () => dashExport(),
   histDay: el => histSelectDay(el.dataset.day), histMonth: el => histMonth(+el.dataset.d), histClear: el => histClearMenu(el), histMenuMore: el => histMoreMenu(el), cbdOpen: () => clearBrowsingDlg(), visMenu: el => visMenu(el),
   histWeek: el => { const H = H0(), d = parseKey(H.sel); d.setDate(d.getDate() + +el.dataset.d); const k = dayKey(Math.min(d.getTime(), Date.now())); H.sel = k; H.month = new Date(parseKey(k).getFullYear(), parseKey(k).getMonth(), 1); histRerender(); },
@@ -14402,12 +14303,12 @@ document.addEventListener('keydown', e => {
     if (OV.menu) { closeMenu(); return; }
     if (OV.stack.length) { const top = OV.stack[OV.stack.length - 1]; if (top.dismiss) closeModal(top); return; }
     if (!$('#findbar').hidden) { closeFind(); return; }
-    if ($('#stage').classList.contains('dt-open')) { toggleDevtools(false); return; }
     if ($('#app').classList.contains('sb-open')) { $('#app').classList.remove('sb-open'); return; }
     if (typeof window.shelterStopLoad === 'function' && window.shelterStopLoad()) return;
     if (typing) ae.blur();
     return;
   }
+  if (e.key === 'F12') { e.preventDefault(); openDevtools(); return; }
   if (OV.stack.length && !(mod && e.code === 'KeyK')) return;
   if (!mod) {
     if (!typing && e.altKey && e.code === 'ArrowLeft') { e.preventDefault(); ACT.back(); return; }
@@ -14426,7 +14327,7 @@ document.addEventListener('keydown', e => {
   else if (K === 'KeyY') { e.preventDefault(); openPage('history'); }
   else if (K === 'KeyD') { e.preventDefault(); toggleBookmarkCurrent(); }
   else if (K === 'KeyO') { e.preventDefault(); openFileDlg(); }
-  else if (K === 'KeyI' && e.altKey) { e.preventDefault(); toggleDevtools(undefined, { window: e.shiftKey }); }
+  else if (K === 'KeyI' && (e.shiftKey || (e.altKey && e.metaKey))) { e.preventDefault(); openDevtools(); }
   else if (K === 'Comma') { e.preventDefault(); openSettings(); }
   else if (K === 'Backslash') { e.preventDefault(); toggleSidebar(); }
   else if (K === 'Equal' || K === 'NumpadAdd') { e.preventDefault(); setZoom(S.ui.zoom + 10); }
@@ -14484,7 +14385,7 @@ window.toast = (m, o) => toast(m, o);
 window.openPage = p => openPage(p);
 window.openFind = () => openFind();
 window.doFind = q => doFind(q);
-window.toggleDevtools = () => toggleDevtools();
+window.toggleDevtools = () => openDevtools();
 window.pushTabHist = pushTabHist;
 /* Хуки для диспетчера CEF-событий: он живёт в первом (адаптерном) скрипте и
    видит только window, поэтому учёт заблокированных запросов, тосты строгого

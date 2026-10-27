@@ -770,7 +770,7 @@
     // запуска — аргумент командной строки фиксируется до старта CEF.
     extSetMode: function (engine) { return q('ext.setMode', { engine: !!engine }); },
     fileOpen: function () { return q('file.open'); },  // Ctrl+O: диалог ОС -> file-open
-    devTools: function (msg) { return q('devtools', msg || {}); },  // окно DevTools (F12 / ⇧⌘I)
+    devTools: function (msg) { return q('devtools', msg || {}); },  // окно DevTools (F12 / Ctrl+Shift+I / ⌥⌘I)
     // Внешний ИИ-агент: проверка подключения и чат через нативный HTTPS
     // (ai.test/ai.chat). Без этих методов диалог отдавал «Нет доступа».
     testAgent: function (cfg) { return q('ai.test', cfg || {}); },
@@ -840,7 +840,8 @@
       };
       window.shelterCtxMenu({
         params: p.params || {}, wv: wv, gid: id, partition: p.partition,
-        point: { x: vp.x + (p.x || 0), y: vp.y + (p.y || 0) }
+        point: { x: vp.x + (p.x || 0), y: vp.y + (p.y || 0) },
+        local: { x: p.x || 0, y: p.y || 0 }  // координаты в виде вкладки — для «Инспектировать»
       });
     },
     found: function (p) {

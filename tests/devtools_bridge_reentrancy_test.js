@@ -1,8 +1,8 @@
 'use strict';
 
-// CEF's ShowDevTools API is dispatched off the UI task and then posts its
-// internal work back to UI. This avoids synchronous popup creation in the
-// browser/router callback and retains the stale-request guard.
+// DevTools opens from a deferred UI task after the router callback has returned.
+// The call retains the host, checks the active target/generation, and reports
+// whether the CEF entry point actually returned.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,34 +19,23 @@ assert.match(tabAction, /act == "inspect"[\s\S]*?UiEvent\("devtools\.request"[\s
 assert.doesNotMatch(tabAction, /PostShowDevTools\(|->ShowDevTools\(/,
   'TabAction must not enter CEF ShowDevTools from a browser/router callback');
 assert.match(source, /CefPostTask\(TID_UI, new ShowDevToolsTask/,
-  'the browser-process UI task validates the current target first');
-assert.match(source, /CefRefPtr<CefBrowserHost> host_/,
-  'the dispatched CEF task keeps a strong host reference');
-assert.match(source, /CanShowDevTools\(tab_id_, browser_->GetIdentifier\(\),\s*generation_\)/,
-  'stale tasks are gated against the current target and generation');
+  'the browser-process UI task queue performs the deferred CEF operation');
 
-const callStart = source.indexOf('class ShowDevToolsCallTask');
-const callEnd = source.indexOf('\nclass ShowDevToolsTask', callStart);
-assert(callStart >= 0 && callEnd > callStart, 'off-UI CEF call task must be present');
-const callTask = source.slice(callStart, callEnd);
-assert.match(source, /CefPostTask\(\s*TID_FILE_USER_VISIBLE,\s*new ShowDevToolsCallTask/,
-  'the UI task must defer the thread-safe CEF entry point off the UI call stack');
-assert.match(callTask, /CEF_REQUIRE_FILE_USER_VISIBLE_THREAD\(\)/,
-  'the CEF entry point must run on the intended CEF worker thread');
-assert.match(callTask, /host_->ShowDevTools\(/,
-  'the worker task owns the actual CEF ShowDevTools call');
-assert.match(callTask, /CefPostTask\(TID_UI,\s*new ShowDevToolsReturnedTask/,
-  'completion is reported back to UI after CEF has queued its internal work');
-assert.match(source, /OnDevToolsShowCallReturned\(tab_id_, generation_, false\)/,
-  'a stale or rejected request releases opening state without claiming a call');
-const returnedStart = source.indexOf('class ShowDevToolsReturnedTask');
-const returnedEnd = source.indexOf('\nclass ShowDevToolsCallTask', returnedStart);
-assert(returnedStart >= 0 && returnedEnd > returnedStart, 'UI completion task must be present');
-assert.match(callTask,
-  /new ShowDevToolsReturnedTask\(\s*tab_id_, generation_, true\)/,
-  'a completed CEF API call reports success back to UI');
-assert.match(source.slice(returnedStart, returnedEnd),
-  /OnDevToolsShowCallReturned\(tab_id_, generation_, did_call_\)/,
-  'the UI completion task reports the result for CI verification');
+const taskStart = source.indexOf('class ShowDevToolsTask');
+const taskEnd = source.indexOf('\nvoid PostShowDevTools', taskStart);
+assert(taskStart >= 0 && taskEnd > taskStart, 'deferred ShowDevTools task must be present');
+const task = source.slice(taskStart, taskEnd);
+assert.match(task, /CEF_REQUIRE_UI_THREAD\(\)/,
+  'ShowDevTools is invoked on the CEF UI thread');
+assert.match(task, /CefRefPtr<CefBrowserHost> host_/,
+  'the task keeps a strong BrowserHost reference through ShowDevTools');
+assert.match(task, /CanShowDevTools\(tab_id_, browser_->GetIdentifier\(\),\s*generation_\)/,
+  'stale tasks are gated against the current target and generation');
+assert.match(task, /host_->ShowDevTools\(/,
+  'the queued task owns the actual CEF ShowDevTools call');
+assert.match(task, /OnDevToolsShowCallReturned\(tab_id_, generation_, false\)/,
+  'a stale task releases opening state without claiming a CEF call');
+assert.match(task, /OnDevToolsShowCallReturned\(tab_id_, generation_, true\)/,
+  'a returned CEF call releases opening state and can be verified in CI');
 
 console.log('DevTools bridge reentrancy regression test passed');

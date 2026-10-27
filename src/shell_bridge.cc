@@ -53,76 +53,9 @@ class DevToolsBrowserClient final : public CefClient {
   IMPLEMENT_REFCOUNTING(DevToolsBrowserClient);
 };
 
-class ShowDevToolsReturnedTask : public CefTask {
- public:
-  ShowDevToolsReturnedTask(std::string tab_id,
-                           std::uint64_t generation,
-                           bool did_call)
-      : tab_id_(std::move(tab_id)),
-        generation_(generation),
-        did_call_(did_call) {}
-
-  void Execute() override {
-    CEF_REQUIRE_UI_THREAD();
-    Shell::Get().OnDevToolsShowCallReturned(tab_id_, generation_, did_call_);
-  }
-
- private:
-  std::string tab_id_;
-  std::uint64_t generation_ = 0;
-  bool did_call_ = false;
-  IMPLEMENT_REFCOUNTING(ShowDevToolsReturnedTask);
-};
-
-// The CEF API is thread-safe and posts its actual Views creation back to UI
-// when called off-UI. Keep all refs alive across that dispatch and report back
-// only after the internal UI task was queued ahead of this completion task.
-class ShowDevToolsCallTask : public CefTask {
- public:
-  ShowDevToolsCallTask(CefRefPtr<CefBrowser> browser,
-                       CefRefPtr<CefBrowserHost> host,
-                       CefRefPtr<CefClient> devtools_client,
-                       std::string tab_id,
-                       std::uint64_t generation,
-                       const CefPoint& inspect_element_at,
-                       bool inspect)
-      : browser_(std::move(browser)),
-        host_(std::move(host)),
-        devtools_client_(std::move(devtools_client)),
-        tab_id_(std::move(tab_id)),
-        generation_(generation),
-        inspect_element_at_(inspect_element_at),
-        inspect_(inspect) {}
-
-  void Execute() override {
-    CEF_REQUIRE_FILE_USER_VISIBLE_THREAD();
-    if (!browser_ || !host_ || !devtools_client_) {
-      CefPostTask(TID_UI, new ShowDevToolsReturnedTask(
-                              tab_id_, generation_, false));
-      return;
-    }
-    CefWindowInfo window_info;
-    CefBrowserSettings settings;
-    host_->ShowDevTools(window_info, devtools_client_, settings,
-                        inspect_ ? inspect_element_at_ : CefPoint());
-    CefPostTask(TID_UI, new ShowDevToolsReturnedTask(
-                            tab_id_, generation_, true));
-  }
-
- private:
-  CefRefPtr<CefBrowser> browser_;
-  CefRefPtr<CefBrowserHost> host_;
-  CefRefPtr<CefClient> devtools_client_;
-  std::string tab_id_;
-  std::uint64_t generation_ = 0;
-  CefPoint inspect_element_at_;
-  bool inspect_ = false;
-  IMPLEMENT_REFCOUNTING(ShowDevToolsCallTask);
-};
-
-// Defer until the cefQuery callback has returned, validate the current target
-// on UI, then call the CEF API from its thread-safe worker entry point. A stale
-// popup is still rejected by OnDevToolsPopupBrowserViewCreated.
+// Defer ShowDevTools until the cefQuery callback has returned, and keep both the
+// browser and host references alive for the full task. The target/generation
+// check drops stale requests when the user switches tabs or closes the panel.
 class ShowDevToolsTask : public CefTask {
  public:
   ShowDevToolsTask(CefRefPtr<CefBrowser> browser,
@@ -146,15 +79,12 @@ class ShowDevToolsTask : public CefTask {
       Shell::Get().OnDevToolsShowCallReturned(tab_id_, generation_, false);
       return;
     }
+    CefWindowInfo window_info;
+    CefBrowserSettings settings;
     CefRefPtr<CefClient> devtools_client = new DevToolsBrowserClient();
-    if (!CefPostTask(
-            TID_FILE_USER_VISIBLE,
-            new ShowDevToolsCallTask(
-                std::move(browser_), std::move(host_),
-                std::move(devtools_client), tab_id_, generation_,
-                inspect_element_at_, inspect_))) {
-      Shell::Get().OnDevToolsShowCallReturned(tab_id_, generation_, false);
-    }
+    host_->ShowDevTools(window_info, devtools_client, settings,
+                        inspect_ ? inspect_element_at_ : CefPoint());
+    Shell::Get().OnDevToolsShowCallReturned(tab_id_, generation_, true);
   }
 
  private:

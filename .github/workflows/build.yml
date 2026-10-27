@@ -92,6 +92,20 @@ jobs:
             }
           }
 
+      - name: Configure Windows crash dumps
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $dumpDir = Join-Path $env:RUNNER_TEMP "shelter-crash-dumps"
+          New-Item -ItemType Directory -Force -Path $dumpDir | Out-Null
+          $werKey = "HKCU:\Software\Microsoft\Windows\Windows Error Reporting\LocalDumps\Shelter.exe"
+          New-Item -Path $werKey -Force | Out-Null
+          New-ItemProperty -Path $werKey -Name DumpFolder -PropertyType ExpandString -Value $dumpDir -Force | Out-Null
+          New-ItemProperty -Path $werKey -Name DumpType -PropertyType DWord -Value 1 -Force | Out-Null
+          New-ItemProperty -Path $werKey -Name DumpCount -PropertyType DWord -Value 4 -Force | Out-Null
+          "SHELTER_WER_DUMP_DIR=$dumpDir" >> $env:GITHUB_ENV
+          "SHELTER_ACCEPTANCE_STARTED_AT=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" >> $env:GITHUB_ENV
+
       - name: Geometry and DevTools acceptance (CI hooks)
         shell: bash
         run: |
@@ -107,6 +121,13 @@ jobs:
           $env:PYTHONIOENCODING = "utf-8"
           python tools/acceptance_smoke.py "$PWD\build-ci\Release\Shelter.exe" --expected-version $version 2>&1 | Tee-Object -FilePath acceptance-ci.log
           if ($LASTEXITCODE -ne 0) { throw "CI-hook Windows runtime acceptance failed" }
+
+      - name: Collect Windows crash dumps
+        if: failure()
+        shell: pwsh
+        run: |
+          python tools/collect_crash_reports.py --platform windows --source-dir $env:SHELTER_WER_DUMP_DIR --output-dir ci-crash-reports/windows --since-epoch $env:SHELTER_ACCEPTANCE_STARTED_AT
+          if ($LASTEXITCODE -ne 0) { throw "Windows crash dump collection failed" }
 
       - name: Build installer (Inno Setup)
         shell: pwsh
@@ -211,6 +232,7 @@ jobs:
             install.log
             geometry.log
             geometry-app.log
+            ci-crash-reports/windows/**
             acceptance-ci.log
             smoke-run.log
             acceptance-app.log
@@ -277,6 +299,9 @@ jobs:
           security list-keychains -d user -s "$ci_keychain"
           security default-keychain -d user -s "$ci_keychain"
 
+      - name: Mark macOS native acceptance start
+        run: echo "SHELTER_ACCEPTANCE_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Geometry and DevTools acceptance (CI hooks)
         run: |
           set -euo pipefail
@@ -302,6 +327,16 @@ jobs:
             sleep 30
           done
           [[ "$acceptance_ok" == 1 ]]
+
+      - name: Collect macOS crash reports
+        if: failure()
+        run: |
+          set -euo pipefail
+          python3 tools/collect_crash_reports.py --platform macos \
+            --source-dir "$HOME/Library/Logs/DiagnosticReports" \
+            --source-dir "/Library/Logs/DiagnosticReports" \
+            --output-dir ci-crash-reports/macos \
+            --since-epoch "${SHELTER_ACCEPTANCE_STARTED_AT:-0}"
 
       - name: Package DMG
         run: |
@@ -416,6 +451,7 @@ jobs:
             packaged-dmg-acceptance.log
             geometry.log
             geometry-app.log
+            ci-crash-reports/macos/**
             acceptance-ci.log
             smoke-run.log
             acceptance-app.log
@@ -427,6 +463,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: CI crash diagnostic collection tests
+        run: python3 tests/ci_crash_diagnostics_test.py
       - name: DevTools UI and bridge regression tests
         run: node tests/ui_devtools_test.js && node tests/devtools_bridge_reentrancy_test.js && node tests/devtools_client_test.js && node tests/devtools_dock_test.js
       - name: Download UI regression test

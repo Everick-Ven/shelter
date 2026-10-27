@@ -308,7 +308,7 @@ jobs:
           python3 -m venv .venv
           . .venv/bin/activate
           python -m pip install --disable-pip-version-check websocket-client
-          python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
+          SHELTER_USE_LLDB=1 python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
 
       - name: CI-hook runtime acceptance
         timeout-minutes: 12
@@ -464,7 +464,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: CI crash diagnostic collection tests
-        run: python3 tests/ci_crash_diagnostics_test.py && python3 tests/ci_crash_report_summary_test.py
+        run: python3 tests/ci_crash_diagnostics_test.py && python3 tests/ci_crash_report_summary_test.py && python3 tests/ci_lldb_launcher_test.py
       - name: DevTools UI and bridge regression tests
         run: node tests/ui_devtools_test.js && node tests/devtools_bridge_reentrancy_test.js && node tests/devtools_client_test.js && node tests/devtools_dock_test.js
       - name: Download UI regression test

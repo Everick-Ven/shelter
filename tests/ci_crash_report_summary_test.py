@@ -132,6 +132,30 @@ Thread 1:
             self.assertIn("CefBrowserHost%3A%3AShowDevTools", result.stdout)
             self.assertIn("CefBrowserHost::ShowDevTools", summary_file.read_text(encoding="utf-8"))
 
+    def test_lldb_backtrace_is_included_even_when_buried_in_app_log(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            log = root / "geometry-app.log"
+            log.write_text(
+                "Process 123 stopped\n"
+                "* thread #1, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS\n"
+                "  frame #0: 0x0000000100123456 libcef.dylib`CefBrowserHost::ShowDevTools\n"
+                "  frame #1: 0x0000000100001234 Shelter`shell::OpenDevTools\n"
+                + "\n".join(f"routine cleanup line {index}" for index in range(20)),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "tools" / "report_ci_failure.py"), str(log)],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            self.assertIn("frame #0", result.stdout)
+            self.assertIn("CefBrowserHost%3A%3AShowDevTools", result.stdout)
+
 
 class NativeCrashReportWorkflowTest(unittest.TestCase):
     def test_native_report_directories_are_passed_to_failure_reporter(self) -> None:
@@ -141,6 +165,7 @@ class NativeCrashReportWorkflowTest(unittest.TestCase):
         self.assertIn("ci-crash-reports/windows", workflow[windows:])
         self.assertIn("ci-crash-reports/macos", workflow[macos:])
         self.assertIn("tests/ci_crash_report_summary_test.py", workflow)
+        self.assertIn("tests/ci_lldb_launcher_test.py", workflow)
 
 
 if __name__ == "__main__":

@@ -13,12 +13,15 @@ import json
 import os
 import platform
 import re
+import shutil
 import socket
 import subprocess
 import sys
 import time
 import urllib.request
 from typing import Any, Dict, List, Optional
+
+from ci_lldb_launcher import wrap_command
 
 try:
     import websocket
@@ -247,6 +250,22 @@ def main() -> int:
         "--remote-debugging-address=127.0.0.1",
         "--remote-allow-origins=*",
     ]
+    debug_with_lldb = os.environ.get("SHELTER_USE_LLDB") == "1"
+    if debug_with_lldb and platform.system() != "Darwin":
+        out("SHELTER_USE_LLDB=1 is supported only on macOS")
+        return 2
+    try:
+        command = wrap_command(
+            command,
+            enabled=debug_with_lldb,
+            platform_name=platform.system(),
+            lldb_path=shutil.which("lldb") or "",
+        )
+    except ValueError as exc:
+        out("native debugger setup failed:", exc)
+        return 2
+    if debug_with_lldb:
+        out("native crash diagnostics: LLDB thread backtraces enabled")
     env = dict(os.environ)
     env["SHELTER_DIAG"] = "1"
     out("launch:", executable)
@@ -264,7 +283,7 @@ def main() -> int:
     try:
         process = subprocess.Popen(
             command,
-            stdout=subprocess.DEVNULL,
+            stdout=stderr_stream if debug_with_lldb else subprocess.DEVNULL,
             stderr=stderr_stream,
             env=env,
         )

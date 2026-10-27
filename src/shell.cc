@@ -501,7 +501,9 @@ class ShellWindowDelegate : public CefWindowDelegate {
     return CefSize(kMinWidth, kMinHeight);
   }
   cef_runtime_style_t GetWindowRuntimeStyle() override {
-    return CEF_RUNTIME_STYLE_ALLOY;
+    // Chrome-style DevTools BrowserViews can be hosted only by Chrome-style
+    // Views windows. The SHELTER UI and tab BrowserViews remain Alloy style.
+    return CEF_RUNTIME_STYLE_CHROME;
   }
 
  private:
@@ -564,7 +566,8 @@ class PopupWindowDelegate : public CefWindowDelegate {
     return CefSize(1000, 720);
   }
   cef_runtime_style_t GetWindowRuntimeStyle() override {
-    return CEF_RUNTIME_STYLE_ALLOY;
+    return is_devtools_ ? CEF_RUNTIME_STYLE_CHROME
+                        : CEF_RUNTIME_STYLE_ALLOY;
   }
 
  private:

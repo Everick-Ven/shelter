@@ -14,7 +14,26 @@ const shell = read('src/shell.cc');
 const header = read('src/shell.h');
 
 // CEF Views callback consumes DevTools popups in the main window; ordinary
-// page popups keep their existing standalone-window behavior.
+// page popups keep their existing standalone-window behavior. DevTools itself
+// must use Chrome runtime style even though SHELTER tabs use Alloy style.
+const viewDelegate = header.slice(header.indexOf('class ShellBrowserViewDelegate'));
+assert.match(viewDelegate, /GetDelegateForPopupBrowserView\([\s\S]*?bool is_devtools\)[\s\S]*?if \(is_devtools\)[\s\S]*?CEF_RUNTIME_STYLE_CHROME/);
+assert.match(viewDelegate, /return new ShellBrowserViewDelegate\(CEF_RUNTIME_STYLE_CHROME\)/);
+assert.match(viewDelegate, /return this;/);
+assert.match(viewDelegate, /cef_runtime_style_t GetBrowserRuntimeStyle\(\) override \{\s*return runtime_style_;\s*\}/);
+const mainWindowDelegate = shell.slice(
+  shell.indexOf('class ShellWindowDelegate'),
+  shell.indexOf('// Окно для popup')
+);
+assert.match(mainWindowDelegate, /GetWindowRuntimeStyle\(\) override \{[\s\S]*?return CEF_RUNTIME_STYLE_CHROME;/,
+  'the dock host window must support the Chrome-style DevTools BrowserView');
+const popupWindowDelegate = shell.slice(
+  shell.indexOf('class PopupWindowDelegate'),
+  shell.indexOf('// ---- расширения')
+);
+assert.match(popupWindowDelegate,
+  /GetWindowRuntimeStyle\(\) override \{\s*return is_devtools_ \? CEF_RUNTIME_STYLE_CHROME\s*: CEF_RUNTIME_STYLE_ALLOY;/,
+  'detached DevTools uses a Chrome-style window while ordinary popups stay Alloy');
 assert.match(shell, /if \(is_devtools && Shell::Get\(\)\.OnDevToolsPopupBrowserViewCreated\(\s*browser_view, popup_browser_view\)\)/);
 assert.match(shell, /AddOverlayView\(\s*popup_browser_view,\s*CEF_DOCKING_MODE_CUSTOM,\s*true\)/);
 assert.match(shell, /devtools_overlay_->SetBounds\(devtools_rect_\)/);

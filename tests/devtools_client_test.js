@@ -1,8 +1,9 @@
 'use strict';
 
-// The DevTools popup is a CEF-managed browser. Passing a null CefClient while
-// BrowserApp has no GetDefaultClient() leaves it unmanaged; keep the concrete
-// browser-host call on the safe, explicit-client path.
+// CEF lifecycle-contract guard: BrowserApp has no GetDefaultClient(), so a null
+// client would leave the popup unmanaged. This source check complements the
+// platform runtime smoke; it does not claim that an explicit client alone
+// fixes every crash in ShowDevTools.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');

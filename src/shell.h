@@ -468,20 +468,33 @@ class Shell {
 // Сравнение адресов без учёта схемы, www, завершающего '/' и регистра.
 bool SameUrl(const std::string& a, const std::string& b);
 
-// Общий делегат BrowserView: Alloy-стиль + всплывающие окна (popup/DevTools).
+// Делегат BrowserView: Alloy для UI/вкладок, Chrome для DevTools-popup.
 class ShellBrowserViewDelegate : public CefBrowserViewDelegate {
  public:
-  ShellBrowserViewDelegate() = default;
+  explicit ShellBrowserViewDelegate(
+      cef_runtime_style_t runtime_style = CEF_RUNTIME_STYLE_ALLOY)
+      : runtime_style_(runtime_style) {}
+  CefRefPtr<CefBrowserViewDelegate> GetDelegateForPopupBrowserView(
+      CefRefPtr<CefBrowserView>, const CefBrowserSettings&,
+      CefRefPtr<CefClient>, bool is_devtools) override {
+    if (is_devtools) {
+      // CEF DevTools popups require Chrome style, even when the opener uses
+      // Alloy style. Give only the DevTools popup a matching delegate.
+      return new ShellBrowserViewDelegate(CEF_RUNTIME_STYLE_CHROME);
+    }
+    return this;
+  }
   bool OnPopupBrowserViewCreated(CefRefPtr<CefBrowserView> browser_view,
                                  CefRefPtr<CefBrowserView> popup_browser_view,
                                  bool is_devtools) override;
   void OnBrowserDestroyed(CefRefPtr<CefBrowserView> browser_view,
                           CefRefPtr<CefBrowser> browser) override;
   cef_runtime_style_t GetBrowserRuntimeStyle() override {
-    return CEF_RUNTIME_STYLE_ALLOY;
+    return runtime_style_;
   }
 
  private:
+  const cef_runtime_style_t runtime_style_;
   IMPLEMENT_REFCOUNTING(ShellBrowserViewDelegate);
   DISALLOW_COPY_AND_ASSIGN(ShellBrowserViewDelegate);
 };

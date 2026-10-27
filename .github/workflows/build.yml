@@ -178,7 +178,7 @@ jobs:
       - name: Report Windows failure diagnostics
         if: failure()
         shell: pwsh
-        run: python tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log install.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
+        run: python tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log install.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log ci-crash-reports/windows
 
       - name: Portable zip
         shell: pwsh
@@ -421,7 +421,7 @@ jobs:
 
       - name: Report macOS failure diagnostics
         if: failure()
-        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log packaged-dmg-acceptance.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log
+        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log packaged-dmg-acceptance.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log ci-crash-reports/macos
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -464,7 +464,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: CI crash diagnostic collection tests
-        run: python3 tests/ci_crash_diagnostics_test.py
+        run: python3 tests/ci_crash_diagnostics_test.py && python3 tests/ci_crash_report_summary_test.py
       - name: DevTools UI and bridge regression tests
         run: node tests/ui_devtools_test.js && node tests/devtools_bridge_reentrancy_test.js && node tests/devtools_client_test.js && node tests/devtools_dock_test.js
       - name: Download UI regression test

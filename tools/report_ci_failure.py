@@ -14,6 +14,8 @@ import re
 import sys
 from pathlib import Path
 
+from crash_report_summary import is_native_report, summarize_native_report
+
 ERROR_RE = re.compile(
     r"\b(error|fatal|FAILED|undefined reference|cannot open|No such file"
     r"|CMake Error|is not recognized|Traceback)\b|:\s*error\b",
@@ -68,23 +70,36 @@ def main() -> int:
     emitted = False
     chunks: list[str] = []
     for raw_path in sys.argv[1:]:
-        path = Path(raw_path)
-        if not path.is_file():
+        input_path = Path(raw_path)
+        if input_path.is_dir():
+            paths = sorted(
+                path for path in input_path.rglob("*")
+                if path.is_file() and is_native_report(path)
+            )
+        elif input_path.is_file():
+            paths = [input_path]
+        else:
             continue
-        try:
-            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-        except OSError as exc:
-            lines = [f"Could not read {path}: {exc}"]
-        if not lines:
-            continue
-        text = f"{path.name}:\n{summarize(lines)}"
-        print(
-            "::error title=SHELTER build diagnostics::"
-            + escape_command_data(text),
-            flush=True,
-        )
-        chunks.append(text)
-        emitted = True
+
+        for path in paths:
+            if is_native_report(path):
+                text = f"{path.name}:\n{summarize_native_report(path)}"
+                title = "SHELTER native crash report"
+            else:
+                try:
+                    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+                except OSError as exc:
+                    lines = [f"Could not read {path}: {exc}"]
+                if not lines:
+                    continue
+                text = f"{path.name}:\n{summarize(lines)}"
+                title = "SHELTER build diagnostics"
+            print(
+                f"::error title={title}::" + escape_command_data(text),
+                flush=True,
+            )
+            chunks.append(text)
+            emitted = True
     if not emitted:
         print(
             "::error title=SHELTER build diagnostics::"

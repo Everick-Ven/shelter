@@ -42,37 +42,63 @@ class CloseAfterUserDataDeleteTask : public CefTask {
   IMPLEMENT_REFCOUNTING(CloseAfterUserDataDeleteTask);
 };
 
-// ShowDevTools can synchronously create/focus a Views browser. The Inspect path
-// reaches TabAction from CefMessageRouter::OnQuery, so defer that window work
-// until the current cefQuery callback has returned to CEF.
+// ShowDevTools can synchronously create a Views browser. Defer it until the
+// cefQuery callback has returned, and keep both the browser and host references
+// alive for the full task. The target/generation check drops stale requests when
+// the user switches tabs or closes the panel before this task runs.
 class ShowDevToolsTask : public CefTask {
  public:
   ShowDevToolsTask(CefRefPtr<CefBrowser> browser,
-                   const CefPoint& inspect_element_at)
-      : browser_(std::move(browser)), inspect_element_at_(inspect_element_at) {}
+                   CefRefPtr<CefBrowserHost> host,
+                   std::string tab_id,
+                   std::uint64_t generation,
+                   const CefPoint& inspect_element_at,
+                   bool inspect)
+      : browser_(std::move(browser)),
+        host_(std::move(host)),
+        tab_id_(std::move(tab_id)),
+        generation_(generation),
+        inspect_element_at_(inspect_element_at),
+        inspect_(inspect) {}
 
   void Execute() override {
-    if (!browser_ || !browser_->IsValid()) return;
-    CefRefPtr<CefBrowserHost> host = browser_->GetHost();
-    if (!host) return;
+    CEF_REQUIRE_UI_THREAD();
+    if (!browser_ || !browser_->IsValid() || !host_ ||
+        !Shell::Get().CanShowDevTools(tab_id_, browser_->GetIdentifier(),
+                                      generation_)) {
+      Shell::Get().OnDevToolsShowCallReturned(tab_id_, generation_);
+      return;
+    }
     CefWindowInfo window_info;
     CefBrowserSettings settings;
-    host->ShowDevTools(window_info, nullptr, settings, inspect_element_at_);
+    host_->ShowDevTools(window_info, nullptr, settings,
+                        inspect_ ? inspect_element_at_ : CefPoint());
+    Shell::Get().OnDevToolsShowCallReturned(tab_id_, generation_);
   }
 
  private:
   CefRefPtr<CefBrowser> browser_;
+  CefRefPtr<CefBrowserHost> host_;
+  std::string tab_id_;
+  std::uint64_t generation_ = 0;
   CefPoint inspect_element_at_;
+  bool inspect_ = false;
   IMPLEMENT_REFCOUNTING(ShowDevToolsTask);
 };
 
 void PostShowDevTools(CefRefPtr<CefBrowser> browser,
-                      const CefPoint& inspect_element_at) {
+                      const std::string& tab_id,
+                      std::uint64_t generation,
+                      const CefPoint& inspect_element_at,
+                      bool inspect) {
   if (!browser || !browser->IsValid()) return;
+  CefRefPtr<CefBrowserHost> host = browser->GetHost();
+  if (!host) return;
   // Do not fall back to a synchronous call if the application is already
   // shutting down; that would reintroduce the callback re-entrancy risk.
-  CefPostTask(TID_UI,
-              new ShowDevToolsTask(std::move(browser), inspect_element_at));
+  CefPostTask(TID_UI, new ShowDevToolsTask(
+                          std::move(browser), std::move(host), tab_id,
+                          generation, inspect_element_at, inspect));
 }
 
 double Num(CefRefPtr<CefDictionaryValue> d, const char* key, double def = 0) {
@@ -88,6 +114,21 @@ double Num(CefRefPtr<CefDictionaryValue> d, const char* key, double def = 0) {
 bool Flag(CefRefPtr<CefDictionaryValue> d, const char* key, bool def) {
   if (!d || !d->HasKey(key)) return def;
   return d->GetType(key) == VTYPE_BOOL ? d->GetBool(key) : Num(d, key) != 0;
+}
+
+CefRect DevToolsRectOf(CefRefPtr<CefDictionaryValue> args) {
+  if (!args || !args->HasKey("rect") ||
+      args->GetType("rect") != VTYPE_DICTIONARY) {
+    return CefRect();
+  }
+  CefRefPtr<CefDictionaryValue> rect = args->GetDictionary("rect");
+  const int x = static_cast<int>(std::lround(Num(rect, "x", 0)));
+  const int y = static_cast<int>(std::lround(Num(rect, "y", 0)));
+  const int width = static_cast<int>(std::lround(
+      Num(rect, "width", Num(rect, "w", 0))));
+  const int height = static_cast<int>(std::lround(
+      Num(rect, "height", Num(rect, "h", 0))));
+  return CefRect(x, y, std::max(0, width), std::max(0, height));
 }
 
 std::string Str(CefRefPtr<CefDictionaryValue> d, const char* key) {
@@ -773,6 +814,10 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
       navigated = true;
     }
     active_tab_ = id;
+    // The real DevTools frontend is scoped to the active web tab. Rebind only
+    // after the destination view is known, and let OnTabCreated finish the
+    // request if this tab's profile is still starting.
+    if (devtools_open_) SetDevToolsTarget(id, false, CefPoint(), false, false);
     const bool view_visible = Flag(a, "visible", true);
     LayoutTab(t, RectOf(a), view_visible);
     if (!view_visible) HideInactiveTabs(t);
@@ -831,6 +876,13 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   }
   if (m == "view.hide") {
     HideAllTabs();
+    const std::string id = Str(a, "tabId");
+    if (!id.empty()) active_tab_ = id;
+    if (Flag(a, "internal", false) && devtools_open_ && !id.empty()) {
+      // Внутренние страницы не инспектируем: DevTools view закрывается, а UI
+      // оставляет в доке штатную заглушку до перехода на веб-страницу.
+      SetDevToolsTarget(id, true, CefPoint(), false, false);
+    }
     if (ui_view_) ui_view_->RequestFocus();  // клавиатура — обратно в UI
     cb->Success("{}");
     return true;
@@ -901,19 +953,42 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
     return true;
   }
   if (m == "devtools") {
-    // Настоящий Chromium DevTools в отдельном окне для активной вкладки.
-    // Повторный вызов выводит уже открытое окно на передний план (ShowDevTools
-    // не плодит копии). Док-режим (встроенная панель) здесь не реализован:
-    // act=dock/close отвечают честным ok:false.
     const std::string act = Str(a, "act");
-    Tab* devtools_tab = active_tab_.empty() ? nullptr : FindTab(active_tab_);
-    if ((act == "window" || act == "open") && devtools_tab &&
-        devtools_tab->browser) {
-      TabAction(active_tab_, "devtools", "");
+    if (act == "layout") {
+      LayoutDevTools(DevToolsRectOf(a), Flag(a, "visible", false));
       cb->Success("{\"ok\":true}");
-    } else {
-      cb->Success("{\"ok\":false}");
+      return true;
     }
+    if (act == "close") {
+      CloseDevToolsPanel();
+      cb->Success("{\"ok\":true}");
+      return true;
+    }
+    if (act == "undock") {
+      UndockDevTools();
+      cb->Success(devtools_open_ ? "{\"ok\":true}" : "{\"ok\":false}");
+      return true;
+    }
+    if (act == "dock" || act == "open" || act == "window") {
+      std::string id = Str(a, "tabId");
+      if (id.empty()) id = active_tab_;
+      if (id.empty()) {
+        cb->Success("{\"ok\":false}");
+        return true;
+      }
+      active_tab_ = id;
+      devtools_open_ = true;
+      devtools_docked_ = true;
+      LayoutDevTools(DevToolsRectOf(a), true);
+      const CefPoint point(
+          std::max(0, static_cast<int>(std::lround(Num(a, "x", 0)))),
+          std::max(0, static_cast<int>(std::lround(Num(a, "y", 0)))));
+      SetDevToolsTarget(id, Flag(a, "internal", false), point,
+                        Flag(a, "inspect", false), true);
+      cb->Success("{\"ok\":true}");
+      return true;
+    }
+    cb->Success("{\"ok\":false}");
     return true;
   }
 
@@ -1143,6 +1218,133 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
   return false;
 }
 
+void Shell::ResetDevToolsView(bool close_browser) {
+  CEF_REQUIRE_UI_THREAD();
+  CefRefPtr<CefBrowser> target = devtools_target_browser_;
+  CefRefPtr<CefBrowserView> view = devtools_view_;
+  CefRefPtr<CefOverlayController> overlay = devtools_overlay_;
+  (void)view;  // Hold the CEF view until its host's CloseDevTools request runs.
+  devtools_overlay_ = nullptr;
+  devtools_view_ = nullptr;
+  devtools_view_tab_.clear();
+  devtools_view_docked_ = false;
+  if (overlay && overlay->IsValid()) overlay->Destroy();
+  if (close_browser && target && target->IsValid()) {
+    CefRefPtr<CefBrowserHost> host = target->GetHost();
+    if (host) host->CloseDevTools();
+  }
+}
+
+void Shell::LayoutDevTools(const CefRect& rect, bool visible) {
+  CEF_REQUIRE_UI_THREAD();
+  devtools_rect_ = CefRect(rect.x, rect.y, std::max(0, rect.width),
+                           std::max(0, rect.height));
+  devtools_rect_visible_ = visible && devtools_rect_.width > 0 &&
+                           devtools_rect_.height > 0;
+  if (!devtools_overlay_ || !devtools_overlay_->IsValid()) return;
+  devtools_overlay_->SetBounds(devtools_rect_);
+  devtools_overlay_->SetVisible(devtools_open_ && devtools_docked_ &&
+                                devtools_rect_visible_);
+}
+
+void Shell::CloseDevToolsPanel() {
+  CEF_REQUIRE_UI_THREAD();
+  ++devtools_generation_;
+  devtools_open_ = false;
+  devtools_opening_ = false;
+  devtools_inspect_ = false;
+  devtools_rect_visible_ = false;
+  ResetDevToolsView(true);
+  devtools_target_browser_ = nullptr;
+  devtools_target_tab_.clear();
+  devtools_target_internal_ = false;
+}
+
+void Shell::SetDevToolsTarget(const std::string& id, bool internal,
+                              const CefPoint& inspect_element_at,
+                              bool inspect, bool focus) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!devtools_open_ || id.empty()) return;
+
+  const bool same_target = id == devtools_target_tab_ &&
+                           internal == devtools_target_internal_;
+  const bool mode_changed = devtools_view_ &&
+                            devtools_view_docked_ != devtools_docked_;
+  if (same_target && !internal && !mode_changed && devtools_view_) {
+    devtools_target_browser_ = FindTab(id) ? FindTab(id)->browser : nullptr;
+    if (inspect && devtools_target_browser_) {
+      devtools_inspect_ = true;
+      devtools_inspect_point_ = inspect_element_at;
+      PostShowDevTools(devtools_target_browser_, id, devtools_generation_,
+                       inspect_element_at, true);
+    } else if (focus && devtools_view_->IsValid()) {
+      devtools_view_->RequestFocus();
+    }
+    return;
+  }
+  if (same_target && internal && !devtools_view_ && !devtools_opening_) return;
+  if (same_target && !internal && !mode_changed && devtools_opening_ &&
+      !inspect) {
+    return;
+  }
+
+  const bool target_changed = id != devtools_target_tab_;
+  const bool internal_changed = internal != devtools_target_internal_;
+  if (target_changed || internal_changed || mode_changed) {
+    ++devtools_generation_;
+    devtools_opening_ = false;
+    ResetDevToolsView(true);
+  }
+  devtools_target_tab_ = id;
+  devtools_target_internal_ = internal;
+  devtools_inspect_ = inspect;
+  devtools_inspect_point_ = inspect ? inspect_element_at : CefPoint();
+  Tab* target = internal ? nullptr : FindTab(id);
+  devtools_target_browser_ = target ? target->browser : nullptr;
+  if (!internal) MaybeOpenDevToolsForTab(id);
+}
+
+void Shell::MaybeOpenDevToolsForTab(const std::string& id) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!devtools_open_ || devtools_target_internal_ || id.empty() ||
+      id != devtools_target_tab_ || closing_) {
+    return;
+  }
+  Tab* target = FindTab(id);
+  if (!target || !target->browser || !target->browser->IsValid()) return;
+  devtools_target_browser_ = target->browser;
+  if (devtools_view_ && devtools_view_tab_ == id &&
+      devtools_view_docked_ == devtools_docked_) {
+    devtools_opening_ = false;
+    return;
+  }
+  if (devtools_opening_) return;
+  devtools_opening_ = true;
+  PostShowDevTools(target->browser, id, devtools_generation_,
+                   devtools_inspect_point_, devtools_inspect_);
+}
+
+bool Shell::CanShowDevTools(const std::string& id, int browser_id,
+                            std::uint64_t generation) {
+  CEF_REQUIRE_UI_THREAD();
+  if (!devtools_open_ || devtools_target_internal_ || id.empty() ||
+      id != devtools_target_tab_ || generation != devtools_generation_) {
+    return false;
+  }
+  Tab* target = FindTab(id);
+  return target && target->browser && target->browser->IsValid() &&
+         target->browser_id == browser_id;
+}
+
+void Shell::OnDevToolsShowCallReturned(const std::string& id,
+                                       std::uint64_t generation) {
+  CEF_REQUIRE_UI_THREAD();
+  if (generation == devtools_generation_ && id == devtools_target_tab_ &&
+      (!devtools_view_ || devtools_view_tab_ != id)) {
+    devtools_opening_ = false;
+  }
+}
+
 // ---- действия над вкладкой -------------------------------------------------
 
 void Shell::TabAction(const std::string& id, const std::string& act,
@@ -1166,17 +1368,21 @@ void Shell::TabAction(const std::string& id, const std::string& act,
   } else if (act == "print") {
     b->GetHost()->Print();
   } else if (act == "devtools") {
-    PostShowDevTools(b, CefPoint());
+    UiEvent("devtools.request", "{\"tabId\":" + JsString(id) +
+                ",\"internal\":false}");
   } else if (act == "inspect") {
-    // «Инспектировать»: DevTools открывается сразу на элементе под курсором.
-    // Координаты — «x,y» в DIP относительно вида вкладки (из события ctx).
+    // «Инспектировать»: UI открывает dock и после применения его геометрии
+    // передаёт точку в DIP относительно вида вкладки.
     int x = 0, y = 0;
     const size_t comma = url.find(',');
     if (comma != std::string::npos) {
       x = std::atoi(url.substr(0, comma).c_str());
       y = std::atoi(url.substr(comma + 1).c_str());
     }
-    PostShowDevTools(b, CefPoint(std::max(0, x), std::max(0, y)));
+    UiEvent("devtools.request", "{\"tabId\":" + JsString(id) +
+                ",\"internal\":false,\"inspect\":true,\"x\":" +
+                std::to_string(std::max(0, x)) + ",\"y\":" +
+                std::to_string(std::max(0, y)) + "}");
   } else if (act == "cut") {
     f->Cut();
   } else if (act == "copy") {

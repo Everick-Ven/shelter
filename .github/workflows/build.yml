@@ -428,7 +428,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: DevTools UI and bridge regression tests
-        run: node tests/ui_devtools_test.js && node tests/devtools_bridge_reentrancy_test.js
+        run: node tests/ui_devtools_test.js && node tests/devtools_bridge_reentrancy_test.js && node tests/devtools_dock_test.js
       - name: Download UI regression test
         run: node tests/download_ui_test.js
       - name: Tracker/ad statistics regression test

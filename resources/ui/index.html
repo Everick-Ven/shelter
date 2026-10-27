@@ -690,8 +690,11 @@ body.tab-fs .stage{border-radius:0;border:0}
 .viewport{container-type:inline-size;container-name:shelter}
 .stage[data-device="tablet"] .viewport{top:40px;bottom:18px;left:max(18px,calc(50% - 410px));right:max(18px,calc(50% - 410px));border-radius:calc(26px*var(--rs));border:1px solid var(--line-2);box-shadow:var(--sh-lg)}
 .stage[data-device="phone"] .viewport{top:40px;bottom:18px;left:max(18px,calc(50% - 195px));right:max(18px,calc(50% - 195px));border-radius:calc(40px*var(--rs));border:1px solid var(--line-2);box-shadow:var(--sh-lg)}
-.stage.dt-open .viewport{bottom:268px}
-.stage.dt-open[data-device] .viewport{bottom:286px}
+.stage.dt-open .viewport{bottom:var(--dt-size,280px)}
+.stage.dt-open[data-device] .viewport{bottom:calc(var(--dt-size,280px) + 18px)}
+.stage.dt-open.dt-right .viewport{right:var(--dt-size,360px);bottom:0}
+.stage[data-device="tablet"].dt-open.dt-right .viewport{right:calc(max(18px,calc(50% - 410px)) + var(--dt-size,360px));bottom:18px}
+.stage[data-device="phone"].dt-open.dt-right .viewport{right:calc(max(18px,calc(50% - 195px)) + var(--dt-size,360px));bottom:18px}
 .emu-label{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:4;display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-3);opacity:0;transition:opacity .3s}
 .emu-label .i{width:14px;height:14px}
 .stage[data-device="tablet"] .emu-label,.stage[data-device="phone"] .emu-label{opacity:1}
@@ -1015,17 +1018,17 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 ::highlight(find){background-color:rgb(var(--ga)/.28);color:inherit}
 ::highlight(find-cur){background-color:rgb(var(--ga)/.75);color:#fff}
 
-/* 1.0.144: панель DevTools — оболочка для НАСТОЯЩЕГО Chromium DevTools-фронтенда
-   Заготовка под встроенный (док) режим: сейчас не открывается — DevTools работает в отдельном окне,
-   см. openDevtools(). Размеры/позиция остаются, чтобы док можно было включить без переделки вёрстки. */
-.stage.dt-open .viewport{bottom:268px}
-.stage.dt-open[data-device] .viewport{bottom:286px}
-.devtools{position:absolute;left:0;right:0;bottom:0;height:268px;z-index:22;display:flex;flex-direction:column;background:var(--card);border-top:1px solid var(--line-2);
-  transform:translate3d(0,102%,0);transition:transform .5s var(--ease);box-shadow:0 -20px 40px -30px rgba(0,0,0,.5)}
-.stage.dt-open .devtools{transform:none}
-.dt-h{display:flex;align-items:center;gap:8px;height:44px;padding:0 8px 0 14px;border-bottom:1px solid var(--line);flex:none}
-.dt-own{font-size:12.5px;color:var(--text-2);font-weight:640;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}
-.dt-b{position:relative;flex:1;min-height:0}
+/* Stage 2: native CEF Views DevTools browser view occupies this panel's body. */
+.devtools{position:absolute;left:0;right:0;bottom:0;height:var(--dt-size,280px);z-index:22;display:flex;flex-direction:column;background:var(--card);border-top:1px solid var(--line-2);
+  opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s var(--ease);box-shadow:0 -20px 40px -30px rgba(0,0,0,.5)}
+.stage.dt-open .devtools{opacity:1;visibility:visible;pointer-events:auto}
+.stage.dt-right .devtools{left:auto;top:0;right:0;bottom:0;width:var(--dt-size,360px);height:auto;border-top:0;border-left:1px solid var(--line-2);box-shadow:-20px 0 40px -30px rgba(0,0,0,.5)}
+.stage.dt-open.dt-right .devtools{opacity:1;visibility:visible;pointer-events:auto}
+.dt-resize{position:absolute;z-index:3;top:-5px;left:0;right:0;height:10px;cursor:ns-resize;touch-action:none;user-select:none}
+.stage.dt-open.dt-right .dt-resize{top:0;right:auto;bottom:0;left:-5px;width:10px;height:auto;cursor:ew-resize}
+.dt-h{display:flex;align-items:center;gap:6px;height:44px;padding:0 8px 0 14px;border-bottom:1px solid var(--line);flex:none}
+.dt-own{font-size:12.5px;color:var(--text-2);font-weight:640;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42%}
+.dt-b{position:relative;flex:1;min-height:0;overflow:hidden}
 .dt-stub{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center;padding:18px 34px;pointer-events:none}
 .dt-stub .i{width:32px;height:32px;color:var(--text-3)}
 .dt-stub b{font-size:15px;color:var(--text)}
@@ -5244,8 +5247,12 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
       </div>
 
       <div class="devtools" id="devtools" aria-label="Инструменты разработчика">
+        <div class="dt-resize" id="dtResize" role="separator" aria-label="Изменить размер панели DevTools" aria-orientation="horizontal"></div>
         <div class="dt-h">
           <span class="dt-own" id="dtOwner">DevTools</span>
+          <button class="icon-btn" data-act="devtoolsDockBottom" data-tip="Прикрепить снизу" aria-label="Прикрепить DevTools снизу"><svg class="i"><use href="#i-columns"/></svg></button>
+          <button class="icon-btn" data-act="devtoolsDockRight" data-tip="Прикрепить справа" aria-label="Прикрепить DevTools справа"><svg class="i"><use href="#i-sidebar"/></svg></button>
+          <button class="icon-btn" data-act="devtoolsUndock" data-tip="Открепить в окно" aria-label="Открепить DevTools в отдельное окно"><svg class="i"><use href="#i-arrow-ur"/></svg></button>
           <span style="flex:1"></span>
           <button class="icon-btn" data-act="devtoolsClose" data-tip="Закрыть" aria-label="Закрыть инструменты разработчика"><svg class="i"><use href="#i-x"/></svg></button>
         </div>
@@ -5565,6 +5572,12 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
         case 'window-state':
           document.body.classList.toggle('is-maximized', !!d.maximized);
           document.body.classList.toggle('is-fullscreen', !!d.fullscreen);
+          break;
+        case 'devtools.request':
+          if (typeof window.shelterOpenDevtools === 'function') window.shelterOpenDevtools(d);
+          break;
+        case 'devtools.closed':
+          if (typeof window.shelterDevtoolsClosed === 'function') window.shelterDevtoolsClosed();
           break;
         case 'fullscreen': {
           // Контент вкладки вошёл/вышел из полноэкранного режима (видео и т.п.)
@@ -8833,21 +8846,25 @@ let pageTimers = [];
 const pageTimer = (f, ms, interval) => { const id = interval ? setInterval(f, ms) : setTimeout(f, ms); pageTimers.push([id, interval]); return id; };
 function clearPageTimers() { pageTimers.forEach(([id, iv]) => iv ? clearInterval(id) : clearTimeout(id)); pageTimers = []; }
 
-function hideNativeView() {
-  try { if (typeof window.shelterShowChrome === 'function') window.shelterShowChrome(); } catch (e) {}
+function hideNativeView(internal = false, tabId = '') {
+  try {
+    if (typeof window.shelterShowChrome === 'function')
+      window.shelterShowChrome({ internal: !!internal, tabId: tabId || '' });
+  } catch (e) {}
 }
 function renderView(animate = true, dir = 1) {
   try { if (urlMeta(curTab().url).page !== 'deepthink' && T.dt && T.dt.timer) DT_CLEANUP(); } catch (_) {}
 
   const t = curTab(); if (!t) return;
   const m = urlMeta(t.url);
+  dtUpdateHeader(t);
   clearPageTimers(); closeFind(true);
   updateToolbar(); updateNavActive(m.kind === 'internal' ? m.page : null);
   try { if (typeof window.shelterIsLoading === 'function') setStopUI(window.shelterIsLoading()); } catch (_) {}
   const page = $('#page'), hero = $('#hero');
   const dy = (dir >= 0 ? 12 : -12) + 'px';
   if (m.page === 'start') {
-    hideNativeView();
+    hideNativeView(true, t.id);
     page.hidden = true; page.innerHTML = '';
     const was = hero.hidden; hero.hidden = false;
     renderHeroBits();
@@ -8862,7 +8879,7 @@ function renderView(animate = true, dir = 1) {
     let handled = false; try { handled = !!window.shelterOpen(t.url, { reveal: true }); } catch (e) {}
     if (handled) { page.innerHTML = ''; return; }
   }
-  hideNativeView();
+  hideNativeView(m.kind === 'internal', t.id);
   page.innerHTML = (RENDER[m.page] || RENDER.site)(m, t);
   page.scrollTop = 0;
   if (animate && !REDUCED()) { page.style.setProperty('--dy', dy); page.classList.remove('enter'); void page.offsetWidth; page.classList.add('enter'); }
@@ -13870,26 +13887,191 @@ function initFind() {
 }
 
 /* =========================================================
-   DevTools, эмуляция устройств, масштаб
+   DevTools dock, эмуляция устройств, масштаб
    ========================================================= */
-/* DevTools: настоящий Chromium DevTools в отдельном окне (CefBrowserHost::ShowDevTools).
-   Док-панель #devtools осталась заготовкой под встроенный режим и сейчас не открывается;
-   прежний Electron-код дока (<webview>) удалён — в CEF он не работал. */
-function dtDevSend(m) { try { if (NAT && NAT.devTools) return NAT.devTools(m); } catch (_) {} return null; }
-function dtCanInspect() {
-  const t = curTab(), m = t ? urlMeta(t.url || '') : null;
-  if (!NAT || !NAT.devTools) { toast('Инструменты разработчика доступны в приложении SHELTER', { icon: 'code' }); return false; }
-  if (!t || (m && m.kind === 'internal')) { toast('Внутренние страницы SHELTER не инспектируются — откройте сайт', { icon: 'code' }); return false; }
-  return true;
+function dtDevSend(message) {
+  try { if (NAT && typeof NAT.devTools === 'function') return NAT.devTools(message); } catch (_) {}
+  return Promise.resolve(null);
 }
-/* Открыть DevTools для активной вкладки (повторный вызов выводит окно вперёд). */
-function openDevtools() {
-  if (!dtCanInspect()) return;
-  const p = dtDevSend({ act: 'open' });
-  if (p && typeof p.then === 'function') {
-    p.then(r => { if (!(r && r.ok)) toast('Не удалось открыть инструменты разработчика', { icon: 'code' }); }).catch(() => {});
+let dtLastLayout = '', dtRequestToken = 0;
+function dtDockSide() { return S.ui && S.ui.devtoolsDock === 'right' ? 'right' : 'bottom'; }
+function dtClampSize(value, side) {
+  const stage = $('#stage');
+  const box = stage ? stage.getBoundingClientRect() : { width: innerWidth, height: innerHeight };
+  const min = side === 'right' ? 240 : 160;
+  const extent = side === 'right' ? box.width : box.height;
+  const max = Math.max(min, Math.floor(Math.max(extent, min) * .75));
+  return clamp(Math.round(+value || (side === 'right' ? 360 : 280)), min, max);
+}
+function dtStoredSize(side) {
+  const key = side === 'right' ? 'devtoolsWidth' : 'devtoolsHeight';
+  return dtClampSize(S.ui && S.ui[key], side);
+}
+function dtApplyDockStyles() {
+  const stage = $('#stage');
+  if (!stage) return;
+  const side = dtDockSide();
+  stage.style.setProperty('--dt-size', dtStoredSize(side) + 'px');
+  stage.classList.toggle('dt-right', side === 'right');
+  const resize = $('#dtResize');
+  if (resize) resize.setAttribute('aria-orientation', side === 'right' ? 'vertical' : 'horizontal');
+  const bottom = $('[data-act="devtoolsDockBottom"]');
+  const right = $('[data-act="devtoolsDockRight"]');
+  if (bottom) bottom.setAttribute('aria-pressed', String(side === 'bottom'));
+  if (right) right.setAttribute('aria-pressed', String(side === 'right'));
+}
+function dtFindTab(id) {
+  if (!id || id === S.activeTabId) return curTab();
+  for (const space of Object.values(S.spaces || {})) {
+    const tab = (space.tabs || []).find(item => item.id === id);
+    if (tab) return tab;
   }
+  return curTab();
 }
+function dtUpdateHeader(tab) {
+  const stage = $('#stage'), stub = $('#dtStub'), owner = $('#dtOwner');
+  const active = tab || curTab();
+  const meta = active ? urlMeta(active.url || '') : null;
+  const internal = !!(meta && meta.kind === 'internal');
+  if (owner) owner.textContent = internal ? 'Внутренняя страница SHELTER' : (active && (active.title || meta.host) || 'DevTools');
+  if (stub) stub.hidden = !(stage && stage.classList.contains('dt-open') && internal);
+}
+function dtReadRect() {
+  const stage = $('#stage'), body = $('#dtBody');
+  const open = !!(stage && body && stage.classList.contains('dt-open'));
+  if (!open) return { open: false, rect: { x: 0, y: 0, width: 0, height: 0 } };
+  const r = body.getBoundingClientRect();
+  return { open: true, rect: {
+    x: Math.round(r.left), y: Math.round(r.top),
+    width: Math.max(0, Math.round(r.width)), height: Math.max(0, Math.round(r.height))
+  } };
+}
+function dtSyncRect(force) {
+  const state = dtReadRect(), r = state.rect;
+  const sig = [state.open ? 1 : 0, r.x, r.y, r.width, r.height].join(',');
+  if (!force && sig === dtLastLayout) return Promise.resolve(null);
+  dtLastLayout = sig;
+  return dtDevSend({ act: 'layout', rect: r, visible: state.open });
+}
+function dtCurrentRequest(tab, options) {
+  const meta = tab ? urlMeta(tab.url || '') : null;
+  const point = options.point || {};
+  return {
+    act: 'dock',
+    tabId: String(options.tabId || (tab && tab.id) || ''),
+    internal: options.internal == null ? !!(meta && meta.kind === 'internal') : !!options.internal,
+    inspect: !!options.inspect,
+    x: Math.max(0, Math.round(+((options.x == null) ? point.x : options.x) || 0)),
+    y: Math.max(0, Math.round(+((options.y == null) ? point.y : options.y) || 0)),
+    rect: dtReadRect().rect
+  };
+}
+function openDevtools(options = {}) {
+  const tab = dtFindTab(options.tabId);
+  if (!NAT || typeof NAT.devTools !== 'function') {
+    toast('Инструменты разработчика доступны в приложении SHELTER', { icon: 'code' });
+    return;
+  }
+  if (!tab) { toast('Нет активной вкладки для DevTools', { icon: 'code' }); return; }
+  const stage = $('#stage');
+  if (!stage) return;
+  const token = ++dtRequestToken;
+  dtApplyDockStyles();
+  stage.classList.add('dt-open');
+  dtUpdateHeader(tab);
+  requestAnimationFrame(() => {
+    if (token !== dtRequestToken || !stage.classList.contains('dt-open')) return;
+    const layout = dtSyncRect(true);
+    const request = dtCurrentRequest(tab, options);
+    Promise.resolve(layout).then(() => {
+      if (token !== dtRequestToken || !stage.classList.contains('dt-open')) return null;
+      return dtDevSend(request);
+    }).then(result => {
+      if (token === dtRequestToken && result && result.ok === false) {
+        closeDevtools(false);
+        toast('Не удалось открыть инструменты разработчика', { icon: 'code' });
+      }
+    }).catch(() => {});
+  });
+}
+function closeDevtools(notifyNative = true) {
+  const stage = $('#stage');
+  ++dtRequestToken;
+  if (stage) stage.classList.remove('dt-open');
+  dtUpdateHeader(curTab());
+  const layout = dtSyncRect(true);
+  if (notifyNative) Promise.resolve(layout).then(() => dtDevSend({ act: 'close' })).catch(() => {});
+}
+function undockDevtools() {
+  const stage = $('#stage');
+  if (!stage || !stage.classList.contains('dt-open')) return;
+  ++dtRequestToken;
+  stage.classList.remove('dt-open');
+  dtUpdateHeader(curTab());
+  const layout = dtSyncRect(true);
+  Promise.resolve(layout).then(() => dtDevSend({ act: 'undock' })).then(result => {
+    if (result && result.ok === false) toast('Не удалось открепить DevTools', { icon: 'code' });
+  }).catch(() => {});
+}
+function setDevtoolsDock(side) {
+  if (side !== 'bottom' && side !== 'right') return;
+  if (!S.ui) S.ui = {};
+  S.ui.devtoolsDock = side;
+  dtLastLayout = '';
+  dtApplyDockStyles();
+  persist();
+  dtSyncRect(true);
+}
+function initDevtoolsDock() {
+  if (!S.ui) S.ui = {};
+  if (S.ui.devtoolsDock !== 'right') S.ui.devtoolsDock = 'bottom';
+  S.ui.devtoolsHeight = dtClampSize(S.ui.devtoolsHeight, 'bottom');
+  S.ui.devtoolsWidth = dtClampSize(S.ui.devtoolsWidth, 'right');
+  dtApplyDockStyles();
+  const handle = $('#dtResize');
+  if (handle) {
+    let drag = null, queued = false;
+    const syncDuringDrag = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; dtSyncRect(false); });
+    };
+    handle.addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const side = dtDockSide();
+      drag = { side, x: event.clientX, y: event.clientY, size: dtStoredSize(side) };
+      document.body.classList.add('dt-resizing');
+      try { handle.setPointerCapture(event.pointerId); } catch (_) {}
+    });
+    handle.addEventListener('pointermove', event => {
+      if (!drag) return;
+      const delta = drag.side === 'right' ? drag.x - event.clientX : drag.y - event.clientY;
+      const key = drag.side === 'right' ? 'devtoolsWidth' : 'devtoolsHeight';
+      S.ui[key] = dtClampSize(drag.size + delta, drag.side);
+      dtApplyDockStyles();
+      syncDuringDrag();
+    });
+    const endDrag = event => {
+      if (!drag) return;
+      drag = null;
+      document.body.classList.remove('dt-resizing');
+      try { if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId); } catch (_) {}
+      persist();
+      dtSyncRect(true);
+    };
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
+    handle.addEventListener('lostpointercapture', endDrag);
+  }
+  window.addEventListener('resize', () => {
+    dtApplyDockStyles();
+    dtSyncRect(false);
+  }, { passive: true });
+}
+window.shelterOpenDevtools = options => openDevtools(options || {});
+window.shelterDevtoolsClosed = () => closeDevtools(false);
+
 function setDevice(v) {
   S.ui.device = v; persist();
   const st = $('#stage'); if (v === 'desktop') st.removeAttribute('data-device'); else st.setAttribute('data-device', v);
@@ -14114,7 +14296,7 @@ const ACT = {
   cert: el => certPop(el), star: () => toggleBookmarkCurrent(), shield: el => shieldPop(el), more: el => moreMenu(el), quick: el => quickPanel(el), ghost: () => toggleGhost(), fire: () => fire(),
   heroMode: el => heroModeMenu(el), heroEngine: el => engineMenu(el), heroSend: () => heroSubmit(),
   open: (el, e) => navigate(el.dataset.url, { newTab: e.metaKey || e.ctrlKey }), addBookmarkDlg: () => addBookmarkDlg(),
-  findPrev: () => findStep(-1), findNext: () => findStep(1), findClose: () => closeFind(), devtools: () => openDevtools(), devtoolsClose: () => {}, deviceOff: () => setDevice('desktop'),
+  findPrev: () => findStep(-1), findNext: () => findStep(1), findClose: () => closeFind(), devtools: () => openDevtools(), devtoolsClose: () => closeDevtools(), devtoolsDockBottom: () => setDevtoolsDock('bottom'), devtoolsDockRight: () => setDevtoolsDock('right'), devtoolsUndock: () => undockDevtools(), deviceOff: () => setDevice('desktop'),
   dashExport: () => dashExport(),
   histDay: el => histSelectDay(el.dataset.day), histMonth: el => histMonth(+el.dataset.d), histClear: el => histClearMenu(el), histMenuMore: el => histMoreMenu(el), cbdOpen: () => clearBrowsingDlg(), visMenu: el => visMenu(el),
   histWeek: el => { const H = H0(), d = parseKey(H.sel); d.setDate(d.getDate() + +el.dataset.d); const k = dayKey(Math.min(d.getTime(), Date.now())); H.sel = k; H.month = new Date(parseKey(k).getFullYear(), parseKey(k).getMonth(), 1); histRerender(); },
@@ -14517,6 +14699,7 @@ window.shelter = { version: VERSION, theme: k => setTheme(k), ghost: () => toggl
    ========================================================= */
 function init() {
   load();
+  initDevtoolsDock();
   document.documentElement.setAttribute('data-theme', S.theme);
   applyGfx(); applyGlassOp(); applyRadius(); applyGlowPrefs(); installFontScale();
   const app = $('#app');

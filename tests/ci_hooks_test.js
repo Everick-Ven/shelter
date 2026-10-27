@@ -79,6 +79,8 @@ for (const [name, source] of [['Windows', win], ['macOS', mac]]) {
 assertHookGuard(mac, 'g_forced_key', 'macOS forced-key counter');
 assertHookGuard(mac, 'g_redirected', 'macOS redirected-event counter');
 assertHookGuard(mac, 'DumpView(', 'macOS diagnostic view dump');
+assertHookGuard(bridge, 'ci: devtools ShowDevTools returned', 'DevTools runtime-call marker');
+assertHookGuard(shell, 'ci: devtools dock overlay attached', 'DevTools Views-popup marker');
 for (const [file, source] of [['src/browser_app.cc', browser], ['src/shell.cc', shell],
                               ['src/shell_bridge.cc', bridge], ['src/platform.h', platformHeader]]) {
   assertPreprocessorBalanced(source, file);
@@ -86,6 +88,7 @@ for (const [file, source] of [['src/browser_app.cc', browser], ['src/shell.cc', 
 
 assert.match(workflow, /-DSHELTER_CI_HOOKS=OFF/);
 assert.match(workflow, /-DSHELTER_CI_HOOKS=ON/);
+assert.match(workflow, /node tests\/devtools_client_test\.js/);
 assert.match(workflow, /check_ci_hooks\.py build off/);
 assert.match(workflow, /check_ci_hooks\.py build-ci on/);
 assert.match(workflow, /check_geometry\.py build-ci/);
@@ -120,11 +123,15 @@ assert.match(geometry, /import websocket/);
 assert.match(geometry, /window\.shelter\.navigate\('https:\/\/example\.com\/'\)/);
 assert.match(geometry, /shelterCefRequest\('view\.open'/);
 assert.match(geometry, /persist:space-/);
+assert.match(geometry, /window\.shelterOpenDevtools/);
+assert.match(geometry, /inspect: true, x: 12, y: 12/);
+assert.match(geometry, /ci: devtools ShowDevTools returned/);
+assert.match(geometry, /ci: devtools dock overlay attached/);
 assert.match(geometry, /native_open_attempts/);
 assert.match(geometry, /shell: content bounds/);
 assert.match(geometry, /dbg\.window/);
 assert.match(geometry, /window-state-v2/);
-const geometrySteps = workflow.match(/- name: Geometry acceptance \(CI hooks\)[\s\S]*?(?=\n      - name: )/g) || [];
+const geometrySteps = workflow.match(/- name: Geometry and DevTools acceptance \(CI hooks\)[\s\S]*?(?=\n      - name: )/g) || [];
 assert.equal(geometrySteps.length, 2, 'geometry acceptance must run on both target platforms');
 for (const step of geometrySteps) {
   assert.match(step, /check_geometry\.py/);

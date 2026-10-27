@@ -26,7 +26,9 @@ assert.match(source, /CanShowDevTools\(tab_id_, browser_->GetIdentifier\(\),\s*g
   'stale tasks are gated against the current target and generation');
 assert.match(source, /host_->ShowDevTools\(/,
   'the queued task owns the actual CEF ShowDevTools call');
-assert.match(source, /OnDevToolsShowCallReturned\(tab_id_, generation_\)/,
-  'the opening state is released if CEF does not synchronously create the popup');
+assert.match(source, /OnDevToolsShowCallReturned\(tab_id_, generation_, false\)/,
+  'a stale task releases the opening state without claiming a CEF call');
+assert.match(source, /OnDevToolsShowCallReturned\(tab_id_, generation_, true\)/,
+  'a completed CEF call releases the opening state and can be verified in CI');
 
 console.log('DevTools bridge reentrancy regression test passed');

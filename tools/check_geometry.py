@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Строгая приёмка геометрии нативной вкладки SHELTER.
+"""Приёмка геометрии вкладки и native DevTools dock SHELTER.
 
 Запускает CI-сборку, через локальный CEF DevTools открывает реальный сайт во
 вкладке приложения и ждёт маркер «shell: content bounds» в shelter.log.
-Проверяет, что область сайта остаётся внутри интерфейса браузера.
+Проверяет, что область сайта остаётся внутри интерфейса браузера, затем
+поведенчески открывает CEF DevTools в dock и передаёт Inspect-точку.
 """
 from __future__ import annotations
 
@@ -473,6 +474,72 @@ def main() -> int:
         if read_window_state_mode(state_file) != "maximized":
             raise GeometryError("saved window mode was overwritten during startup")
         out("saved window mode intact: maximized")
+
+        # Exercise the real CEF path that the source-only regression tests
+        # cannot cover: create the docked Views popup, then request an element
+        # inspection against the same already-open DevTools browser.
+        devtools_log_start = len(read_lines(logfile))
+
+        def devtools_marker_count(marker: str) -> int:
+            lines = read_lines(logfile)
+            fresh = (
+                lines[devtools_log_start:]
+                if len(lines) >= devtools_log_start
+                else lines
+            )
+            return sum(marker in entry for entry in fresh)
+
+        devtools_deadline = time.monotonic() + min(20, max(5, budget // 3))
+        open_result = cdp.evaluate("""(() => {
+          const id = typeof window.getActiveTabId === 'function'
+            ? window.getActiveTabId() : null;
+          if (!id || typeof window.shelterOpenDevtools !== 'function') {
+            return {accepted: false, reason: 'DevTools UI entry point unavailable', id: id};
+          }
+          window.shelterOpenDevtools({tabId: id});
+          return {accepted: true, id: id};
+        })()""")
+        if not isinstance(open_result, dict) or open_result.get("accepted") is not True:
+            raise GeometryError(
+                "DevTools dock request was rejected: "
+                + json.dumps(open_result, ensure_ascii=False)
+            )
+        out("DevTools dock requested:", json.dumps(open_result, ensure_ascii=False))
+        wait_until(
+            lambda: devtools_marker_count("ci: devtools ShowDevTools returned") >= 1,
+            "CEF ShowDevTools to return for the dock request",
+            process,
+            devtools_deadline,
+        )
+        wait_until(
+            lambda: devtools_marker_count("ci: devtools dock overlay attached") >= 1,
+            "the DevTools BrowserView to attach to the CEF Views dock",
+            process,
+            devtools_deadline,
+        )
+
+        inspect_result = cdp.evaluate("""(() => {
+          const id = typeof window.getActiveTabId === 'function'
+            ? window.getActiveTabId() : null;
+          if (!id || typeof window.shelterOpenDevtools !== 'function') {
+            return {accepted: false, reason: 'DevTools Inspect entry point unavailable', id: id};
+          }
+          window.shelterOpenDevtools({tabId: id, inspect: true, x: 12, y: 12});
+          return {accepted: true, id: id, x: 12, y: 12};
+        })()""")
+        if not isinstance(inspect_result, dict) or inspect_result.get("accepted") is not True:
+            raise GeometryError(
+                "DevTools Inspect request was rejected: "
+                + json.dumps(inspect_result, ensure_ascii=False)
+            )
+        out("DevTools Inspect requested:", json.dumps(inspect_result, ensure_ascii=False))
+        wait_until(
+            lambda: devtools_marker_count("ci: devtools ShowDevTools returned") >= 2,
+            "CEF ShowDevTools to return for the Inspect request",
+            process,
+            devtools_deadline,
+        )
+        out("OK: docked DevTools opened and Inspect returned without crashing")
         return 0
     except Exception as exc:
         diagnostic_state = json.dumps(last_ui_state[0], ensure_ascii=False)

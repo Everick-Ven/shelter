@@ -174,7 +174,7 @@ class Shell {
   bool CanShowDevTools(const std::string& id, int browser_id,
                        std::uint64_t generation);
   void OnDevToolsShowCallReturned(const std::string& id,
-                                  std::uint64_t generation);
+                                  std::uint64_t generation, bool did_call);
   void LayoutDevTools(const CefRect& rect, bool visible);
   void CloseDevToolsPanel();
   void UndockDevTools();

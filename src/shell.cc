@@ -1370,6 +1370,9 @@ bool Shell::OnDevToolsPopupBrowserViewCreated(
   const bool visible = devtools_open_ && devtools_rect_visible_ &&
                       devtools_rect_.width > 0 && devtools_rect_.height > 0;
   devtools_overlay_->SetVisible(visible);
+#if defined(SHELTER_CI_HOOKS)
+  Log("ci: devtools dock overlay attached");
+#endif
   if (visible) popup_browser_view->RequestFocus();
   return true;
 }

@@ -42,10 +42,20 @@ class CloseAfterUserDataDeleteTask : public CefTask {
   IMPLEMENT_REFCOUNTING(CloseAfterUserDataDeleteTask);
 };
 
-// ShowDevTools can synchronously create a Views browser. Defer it until the
-// cefQuery callback has returned, and keep both the browser and host references
-// alive for the full task. The target/generation check drops stale requests when
-// the user switches tabs or closes the panel before this task runs.
+// ShowDevTools can synchronously create a Views browser. A null client with no
+// CefBrowserProcessHandler::GetDefaultClient leaves that browser unmanaged, so
+// provide a dedicated no-op client rather than reusing the source TabClient.
+class DevToolsBrowserClient final : public CefClient {
+ public:
+  DevToolsBrowserClient() = default;
+
+ private:
+  IMPLEMENT_REFCOUNTING(DevToolsBrowserClient);
+};
+
+// Defer ShowDevTools until the cefQuery callback has returned, and keep both the
+// browser and host references alive for the full task. The target/generation
+// check drops stale requests when the user switches tabs or closes the panel.
 class ShowDevToolsTask : public CefTask {
  public:
   ShowDevToolsTask(CefRefPtr<CefBrowser> browser,
@@ -66,14 +76,15 @@ class ShowDevToolsTask : public CefTask {
     if (!browser_ || !browser_->IsValid() || !host_ ||
         !Shell::Get().CanShowDevTools(tab_id_, browser_->GetIdentifier(),
                                       generation_)) {
-      Shell::Get().OnDevToolsShowCallReturned(tab_id_, generation_);
+      Shell::Get().OnDevToolsShowCallReturned(tab_id_, generation_, false);
       return;
     }
     CefWindowInfo window_info;
     CefBrowserSettings settings;
-    host_->ShowDevTools(window_info, nullptr, settings,
+    CefRefPtr<CefClient> devtools_client = new DevToolsBrowserClient();
+    host_->ShowDevTools(window_info, devtools_client, settings,
                         inspect_ ? inspect_element_at_ : CefPoint());
-    Shell::Get().OnDevToolsShowCallReturned(tab_id_, generation_);
+    Shell::Get().OnDevToolsShowCallReturned(tab_id_, generation_, true);
   }
 
  private:
@@ -1337,8 +1348,14 @@ bool Shell::CanShowDevTools(const std::string& id, int browser_id,
 }
 
 void Shell::OnDevToolsShowCallReturned(const std::string& id,
-                                       std::uint64_t generation) {
+                                       std::uint64_t generation,
+                                       bool did_call) {
   CEF_REQUIRE_UI_THREAD();
+  if (did_call) {
+#if defined(SHELTER_CI_HOOKS)
+    Log("ci: devtools ShowDevTools returned");
+#endif
+  }
   if (generation == devtools_generation_ && id == devtools_target_tab_ &&
       (!devtools_view_ || devtools_view_tab_ != id)) {
     devtools_opening_ = false;

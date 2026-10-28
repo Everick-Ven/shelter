@@ -435,6 +435,8 @@ bool SameUrl(const std::string& a, const std::string& b);
 // BrowserView popup handling for regular page windows.
 class ShellBrowserViewDelegate : public CefBrowserViewDelegate {
  public:
+  ShellBrowserViewDelegate() = default;
+
   CefRefPtr<CefBrowserViewDelegate> GetDelegateForPopupBrowserView(
       CefRefPtr<CefBrowserView>, const CefBrowserSettings&,
       CefRefPtr<CefClient>, bool) override {

@@ -551,8 +551,37 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           const r = el.getBoundingClientRect();
           return [Math.round(r.left), Math.round(r.right), Math.round(r.width)];
         };
+        const windowControlsGeometry = {};
+        const isNativeWindows = !!window.shelterNative && window.shelterNative.platform === 'win32';
+        let windowControlsSameAcrossGfxModes = !isNativeWindows;
+        if (isNativeWindows && windowControls && !windowControls.hidden &&
+            window.shelterTest && typeof window.shelterTest.setGfxMode === 'function') {
+          const originalGfx = document.body.dataset.gfx || 'balance';
+          const rectBox = el => {
+            const r = el.getBoundingClientRect();
+            return [r.left, r.top, r.right, r.bottom];
+          };
+          try {
+            for (const mode of ['balance', 'beauty', 'perf']) {
+              window.shelterTest.setGfxMode(mode, {persist:false, notify:false});
+              await frame();
+              windowControlsGeometry[mode] = rectBox(windowControls);
+            }
+          } finally {
+            window.shelterTest.setGfxMode(originalGfx, {persist:false, notify:false});
+            await frame();
+          }
+          const balanceRect = windowControlsGeometry.balance;
+          windowControlsSameAcrossGfxModes = !!balanceRect &&
+            balanceRect[2] > balanceRect[0] && balanceRect[3] > balanceRect[1] &&
+            ['beauty', 'perf'].every(mode => {
+              const rect = windowControlsGeometry[mode];
+              return !!rect && rect[2] > rect[0] && rect[3] > rect[1] &&
+                rect.every((value, index) => Math.abs(value - balanceRect[index]) <= 1);
+            });
+        }
         /* Glass shadows can extend the scrollable overflow box without moving
-           controls outside the toolbar; validate actual visible element bounds. */
+           toolbar controls; check their bounds separately from fixed window controls. */
         const visuallyOutOfHeader = Array.from(header.querySelectorAll('*')).filter(el => {
           const style = getComputedStyle(el), r = el.getBoundingClientRect();
           return style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0 &&
@@ -583,6 +612,7 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           extraGapBeforeQuick: quickRect.left - extRect.right >= 20,
           quickLabelUpdated: quick.dataset.tip === 'Оформление и вкладки' &&
             quick.getAttribute('aria-label') === 'Оформление и вкладки',
+          windowControlsSameAcrossGfxModes: windowControlsSameAcrossGfxModes,
           noHorizontalOverflow: headerRect.left >= -1 && headerRect.right <= innerWidth + 1 &&
             visuallyOutOfHeader.length === 0,
           sidebarClean: !document.querySelector('#sb [data-act="schemeMode"], #sb #swatches, #sb [data-act="settings"], #sb [data-act="account"]')
@@ -635,6 +665,7 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
             left: rectSummary(header.querySelector('.tb-g')),
             address: rectSummary(document.getElementById('omniTb')),
             actions: rectSummary(document.querySelector('.tb-actions')),
+            windowControlsGeometry: windowControlsGeometry,
             outside: visuallyOutOfHeader.slice(0, 6).map(el => [el.id || el.className || el.tagName, rectSummary(el)])
           },
           menuLabels: labels,

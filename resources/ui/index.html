@@ -5177,14 +5177,14 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
         <button class="tb-btn" id="settingsBtn" data-act="settings" data-tip="Настройки  ⌘," aria-label="Настройки"><svg class="i"><use href="#i-gear"/></svg></button>
         <button class="tb-btn" id="moreBtn" data-act="more" data-tip="Меню" aria-label="Меню"><svg class="i"><use href="#i-dots"/></svg></button>
       </div>
-      <!-- Fixed to the window corner, but kept inside the toolbar's drag-region
-           tree so CEF applies this later no-drag exclusion to native hit-testing. -->
-      <div class="wctl win-ctls" id="winCtl" hidden role="group" aria-label="Управление окном">
-        <button type="button" class="wc wc-min" data-w="minimize" data-tip="Свернуть окно" aria-label="Свернуть окно"><svg class="i" aria-hidden="true"><use href="#i-minus"/></svg></button>
-        <button type="button" class="wc wc-max" data-w="maximize" data-tip="Развернуть окно" aria-label="Развернуть окно" aria-pressed="false"><svg class="i win-maximize-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="3.75" y="3.75" width="12.5" height="12.5" rx="1.5"/></svg><svg class="i win-restore-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 6.5V4.75c0-.7.55-1.25 1.25-1.25h7c.7 0 1.25.55 1.25 1.25v7c0 .7-.55 1.25-1.25 1.25H13"/><path d="M4.75 7.5h7c.7 0 1.25.55 1.25 1.25v7c0 .7-.55 1.25-1.25 1.25h-7c-.7 0-1.25-.55-1.25-1.25v-7c0-.7.55-1.25 1.25-1.25Z"/></svg></button>
-        <button type="button" class="wc wc-close" data-w="close" data-tip="Закрыть окно" aria-label="Закрыть окно"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
-      </div>
     </header>
+    <!-- Keep fixed controls outside the blurred toolbar so Visual mode
+         cannot change their containing block; remain after its drag region for CEF. -->
+    <div class="wctl win-ctls" id="winCtl" hidden role="group" aria-label="Управление окном">
+      <button type="button" class="wc wc-min" data-w="minimize" data-tip="Свернуть окно" aria-label="Свернуть окно"><svg class="i" aria-hidden="true"><use href="#i-minus"/></svg></button>
+      <button type="button" class="wc wc-max" data-w="maximize" data-tip="Развернуть окно" aria-label="Развернуть окно" aria-pressed="false"><svg class="i win-maximize-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="3.75" y="3.75" width="12.5" height="12.5" rx="1.5"/></svg><svg class="i win-restore-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 6.5V4.75c0-.7.55-1.25 1.25-1.25h7c.7 0 1.25.55 1.25 1.25v7c0 .7-.55 1.25-1.25 1.25H13"/><path d="M4.75 7.5h7c.7 0 1.25.55 1.25 1.25v7c0 .7-.55 1.25-1.25 1.25h-7c-.7 0-1.25-.55-1.25-1.25v-7c0-.7.55-1.25 1.25-1.25Z"/></svg></button>
+      <button type="button" class="wc wc-close" data-w="close" data-tip="Закрыть окно" aria-label="Закрыть окно"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
 
     <div class="bm-mount bm-top" id="bmTop" hidden></div>
 

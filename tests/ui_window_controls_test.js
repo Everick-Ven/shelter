@@ -25,15 +25,19 @@ assert.match(html, /const label = maximized \? 'Восстановить окн�
   'the accessible label follows the actual native maximize state');
 assert.match(html, /--window-control-gap:var\(--toolbar-gap\)/);
 assert.match(html, /\.tab-mount\{display:flex;align-items:center;gap:var\(--toolbar-gap\)/);
-// Keep controls at the same viewport corner, but nest them after the toolbar's
-// drag region. CEF applies draggable/no-drag rectangles in order; placing this
-// no-drag sibling before .tb lets the later toolbar union cover the buttons.
+// The Visual toolbar has backdrop-filter, which creates a containing block for
+// fixed descendants. Keep #winCtl outside that toolbar, but after its drag region
+// so CEF applies the no-drag exclusion after the draggable region.
 const toolbarStart = html.indexOf('<header class="tb">');
 const actionsStart = html.indexOf('<div class="tb-g tb-actions">', toolbarStart);
-const controlsStart = html.indexOf('<div class="wctl win-ctls" id="winCtl"', toolbarStart);
 const toolbarEnd = html.indexOf('</header>', toolbarStart);
-assert(toolbarStart >= 0 && actionsStart > toolbarStart && controlsStart > actionsStart && controlsStart < toolbarEnd,
-  'the no-drag window controls must follow the draggable toolbar in CEF region order');
+const controlsStart = html.indexOf('<div class="wctl win-ctls" id="winCtl"', toolbarEnd);
+const bookmarksTopStart = html.indexOf('<div class="bm-mount bm-top"', toolbarEnd);
+assert(toolbarStart >= 0 && actionsStart > toolbarStart && toolbarEnd > actionsStart &&
+    controlsStart > toolbarEnd && controlsStart < bookmarksTopStart,
+  'fixed window controls must be a sibling after the toolbar drag region');
+assert(!html.slice(toolbarStart, toolbarEnd).includes('id="winCtl"'),
+  'fixed window controls must not be inside the Visual toolbar backdrop-filter containing block');
 assert.doesNotMatch(html, /<div class="app" id="app">\s*<!--[^>]*-->\s*<div class="wctl win-ctls" id="winCtl"/,
   'the window controls must not precede and be covered by the later toolbar drag region');
 assert.doesNotMatch(html, /tm\.appendChild\(ctl\)|home\.appendChild\(ctl\)/,
@@ -92,5 +96,7 @@ assert.match(acceptance, /fireActionTile: controls\.children\.length === 2[\s\S]
   'runtime acceptance must validate both the session-clear control and the new global Pomodoro indicator');
 assert.match(acceptance, /noHorizontalOverflow:[\s\S]*?visuallyOutOfHeader\.length === 0/,
   'runtime acceptance checks visible toolbar bounds rather than counting glass-shadow overflow');
+assert.match(acceptance, /windowControlsSameAcrossGfxModes:[\s\S]*?windowControlsGeometry/,
+  'runtime acceptance verifies fixed Windows controls keep the same bounds in Visual, Balance, and Speed');
 
 console.log('Windows window-control styling, platform gating, placement, and native state tests passed');

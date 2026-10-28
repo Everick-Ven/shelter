@@ -73,13 +73,15 @@ def inferior_pid_from_process_list(
     return None
 
 
-def attach_command(pid: int, *, lldb_path: str) -> list[str]:
-    """Attach LLDB to an already-running process and keep it monitoring crashes."""
+def attach_command(
+    pid: int, *, lldb_path: str, sudo_path: str = ""
+) -> list[str]:
+    """Attach LLDB to a ready process and keep it monitoring native crashes."""
     if pid <= 0:
         raise ValueError("LLDB attach requires a positive process ID")
     if not lldb_path:
         raise ValueError("LLDB attach requested but lldb was not found on PATH")
-    return [
+    command = [
         lldb_path,
         "--batch",
         "--no-lldbinit",
@@ -92,6 +94,7 @@ def attach_command(pid: int, *, lldb_path: str) -> list[str]:
         "-o",
         "continue",
     ]
+    return [sudo_path, "-n", *command] if sudo_path else command
 
 
 def wrap_command(

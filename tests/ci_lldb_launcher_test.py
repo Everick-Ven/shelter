@@ -71,6 +71,11 @@ class LLDBLauncherTest(unittest.TestCase):
                 "SHELTER_LLDB_ATTACH_READY\nProcess 4567 stopped\n", 4567
             )
         )
+        elevated = launcher.attach_command(
+            4567, lldb_path="/usr/bin/lldb", sudo_path="/usr/bin/sudo"
+        )
+        self.assertEqual(elevated[:3], ["/usr/bin/sudo", "-n", "/usr/bin/lldb"])
+        self.assertEqual(elevated[-1], "continue")
         with self.assertRaises(ValueError):
             launcher.attach_command(0, lldb_path="/usr/bin/lldb")
         with self.assertRaises(ValueError):

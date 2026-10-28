@@ -148,10 +148,15 @@ def kill(process: Optional[subprocess.Popen]) -> None:
 
 def attach_lldb_to_process(pid: int, lldb_path: str, output_file: str) -> subprocess.Popen:
     """Attach to the ready app immediately before the DevTools call."""
+    sudo_path = shutil.which("sudo") or ""
     try:
-        command = attach_command(pid, lldb_path=lldb_path)
+        command = attach_command(
+            pid, lldb_path=lldb_path, sudo_path=sudo_path
+        )
     except ValueError as exc:
         raise GeometryError(f"native debugger setup failed: {exc}") from exc
+    if sudo_path:
+        out("LLDB attach: using non-interactive sudo for task-for-pid access")
     try:
         with open(output_file, "w", encoding="utf-8", errors="replace") as stream:
             debugger = subprocess.Popen(

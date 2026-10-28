@@ -113,7 +113,10 @@ class LLDBLauncherTest(unittest.TestCase):
         self.assertNotIn("SHELTER_USE_LLDB=1", workflow[geometry:retry])
         self.assertIn("if: failure() && steps.macos_geometry.outcome == 'failure'", workflow[retry:runtime])
         self.assertIn("SHELTER_USE_LLDB=1", workflow[retry:runtime])
+        self.assertIn("set +e", workflow[retry:runtime])
         self.assertIn("geometry-lldb.log", workflow[retry:runtime])
+        self.assertIn("Report macOS LLDB retry stack", workflow[retry:runtime])
+        self.assertIn("geometry-lldb-app.log", workflow[retry:runtime])
         self.assertNotIn("SHELTER_USE_LLDB=1", workflow[:macos])
 
 

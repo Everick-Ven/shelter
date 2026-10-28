@@ -314,14 +314,20 @@ jobs:
       - name: Retry macOS geometry with LLDB for crash diagnostics
         if: failure() && steps.macos_geometry.outcome == 'failure'
         run: |
-          set -uo pipefail
+          set -euo pipefail
           . .venv/bin/activate
           mv geometry-app.log geometry-direct-app.log 2>/dev/null || true
+          set +e
           SHELTER_USE_LLDB=1 python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry-lldb.log
           diagnostic_status=${PIPESTATUS[0]}
+          set -e
           mv geometry-app.log geometry-lldb-app.log 2>/dev/null || true
           echo "LLDB diagnostic retry exited with status $diagnostic_status" | tee -a geometry-lldb.log
           exit 0
+
+      - name: Report macOS LLDB retry stack
+        if: always() && steps.macos_geometry.outcome == 'failure'
+        run: python3 tools/report_ci_failure.py geometry-lldb.log geometry-lldb-app.log
 
       - name: CI-hook runtime acceptance
         timeout-minutes: 12

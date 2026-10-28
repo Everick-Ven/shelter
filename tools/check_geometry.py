@@ -219,7 +219,10 @@ def start_native_sample(
     sudo_path = shutil.which("sudo") or ""
     try:
         command = sample_command(
-            pid, sample_path=sample_path, sudo_path=sudo_path
+            pid,
+            sample_path=sample_path,
+            output_file=os.path.abspath(output_file),
+            sudo_path=sudo_path,
         )
     except ValueError as exc:
         out(f"native sample unavailable: {exc}")
@@ -231,14 +234,13 @@ def start_native_sample(
         with open(log_file, "w", encoding="utf-8", errors="replace") as metadata_stream:
             metadata_stream.write(f"target PID: {pid}\n")
             metadata_stream.write(f"command: {json.dumps(command)}\n")
-        with open(output_file, "w", encoding="utf-8", errors="replace") as report_stream:
-            with open(log_file, "a", encoding="utf-8", errors="replace") as log_stream:
-                sampler = subprocess.Popen(
-                    command,
-                    stdin=subprocess.DEVNULL,
-                    stdout=report_stream,
-                    stderr=log_stream,
-                )
+        with open(log_file, "a", encoding="utf-8", errors="replace") as log_stream:
+            sampler = subprocess.Popen(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=log_stream,
+                stderr=subprocess.STDOUT,
+            )
     except OSError as exc:
         out(f"could not start native sample: {exc}")
         return None

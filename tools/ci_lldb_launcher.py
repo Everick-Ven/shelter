@@ -83,14 +83,20 @@ def inferior_pid_from_process_list(
 
 
 def sample_command(
-    pid: int, *, sample_path: str, sudo_path: str = ""
+    pid: int,
+    *,
+    sample_path: str,
+    output_file: str,
+    sudo_path: str = "",
 ) -> list[str]:
-    """Build a bounded macOS sample command for a process under test."""
+    """Build a bounded macOS sample command that preserves reports if the app exits."""
     if pid <= 0:
         raise ValueError("native sample requires a positive process ID")
     if not sample_path:
         raise ValueError("native sample requested but sample was not found on PATH")
-    command = [sample_path, str(pid), "5"]
+    if not output_file:
+        raise ValueError("native sample requires an output file")
+    command = [sample_path, "-mayDie", "-file", output_file, str(pid), "5"]
     return [sudo_path, "-n", *command] if sudo_path else command
 
 

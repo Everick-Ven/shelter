@@ -91,6 +91,10 @@ def tail_lines(path: str, count: int = 80) -> List[str]:
     return read_lines(path)[-count:]
 
 
+def head_lines(path: str, count: int = 80) -> List[str]:
+    return read_lines(path)[:count]
+
+
 def dump_diagnostics(
     logfile: str,
     stderr_file: str,
@@ -122,8 +126,8 @@ def dump_diagnostics(
         for line in tail_lines(native_sample_log):
             out(line)
     if native_sample_file:
-        out("--- native sample stack ---")
-        for line in tail_lines(native_sample_file, 160):
+        out("--- native sample stack (report header and leading call graph) ---")
+        for line in head_lines(native_sample_file, 200):
             out(line)
     if platform.system() == "Darwin":
         reports = []
@@ -215,39 +219,52 @@ def start_native_sample(
     sudo_path = shutil.which("sudo") or ""
     try:
         command = sample_command(
-            pid,
-            sample_path=sample_path,
-            output_file=os.path.abspath(output_file),
-            sudo_path=sudo_path,
+            pid, sample_path=sample_path, sudo_path=sudo_path
         )
     except ValueError as exc:
         out(f"native sample unavailable: {exc}")
         return None
     if sudo_path:
         out("native sample: using non-interactive sudo for task access")
+    out(f"native sample command: {json.dumps(command)}")
     try:
-        with open(log_file, "w", encoding="utf-8", errors="replace") as stream:
-            sampler = subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=stream,
-                stderr=subprocess.STDOUT,
-            )
+        with open(log_file, "w", encoding="utf-8", errors="replace") as metadata_stream:
+            metadata_stream.write(f"target PID: {pid}\n")
+            metadata_stream.write(f"command: {json.dumps(command)}\n")
+        with open(output_file, "w", encoding="utf-8", errors="replace") as report_stream:
+            with open(log_file, "a", encoding="utf-8", errors="replace") as log_stream:
+                sampler = subprocess.Popen(
+                    command,
+                    stdin=subprocess.DEVNULL,
+                    stdout=report_stream,
+                    stderr=log_stream,
+                )
     except OSError as exc:
         out(f"could not start native sample: {exc}")
         return None
-    out(f"native sample started for PID {pid} (PID {sampler.pid})")
+    out(f"native sample started for target PID {pid} (sampler PID {sampler.pid})")
     return sampler
 
 
-def wait_for_native_sample(sampler: Optional[subprocess.Popen]) -> None:
-    if sampler is None or sampler.poll() is not None:
+def wait_for_native_sample(
+    sampler: Optional[subprocess.Popen], report_file: str, log_file: str
+) -> None:
+    if sampler is None:
         return
+    if sampler.poll() is None:
+        try:
+            sampler.wait(timeout=7)
+        except subprocess.TimeoutExpired:
+            out("native sample exceeded its 7s capture budget; terminating sampler")
+            kill(sampler)
     try:
-        sampler.wait(timeout=7)
-    except subprocess.TimeoutExpired:
-        out("native sample exceeded its 7s capture budget; terminating sampler")
-        kill(sampler)
+        report_size = os.path.getsize(report_file)
+    except OSError:
+        report_size = 0
+    out(
+        f"native sample finished: exit={sampler.poll()}, "
+        f"report_bytes={report_size}, stderr_log={log_file}"
+    )
 
 
 def cleanup_lldb_debuggee(
@@ -813,7 +830,10 @@ def main() -> int:
             stderr_stream.flush()
         except OSError:
             pass
-        wait_for_native_sample(native_sampler)
+        wait_for_native_sample(
+            native_sampler, native_sample_file, native_sample_log
+        )
+        native_sampler = None
         dump_diagnostics(
             logfile,
             stderr_file,
@@ -823,7 +843,9 @@ def main() -> int:
         )
         return 1
     finally:
-        wait_for_native_sample(native_sampler)
+        wait_for_native_sample(
+            native_sampler, native_sample_file, native_sample_log
+        )
         if cdp is not None:
             cdp.close()
         if native_debugger is not None:

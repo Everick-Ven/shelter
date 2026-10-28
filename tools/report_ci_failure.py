@@ -19,7 +19,8 @@ from crash_report_summary import is_native_report, summarize_native_report
 ERROR_RE = re.compile(
     r"\b(error|fatal|FAILED|undefined reference|cannot open|No such file"
     r"|CMake Error|is not recognized|Traceback|EXC_BAD_ACCESS|EXC_BREAKPOINT"
-    r"|SIGSEGV|SIGTRAP)\b|stop reason|thread #\d+|frame #\d+|:\s*error\b",
+    r"|SIGSEGV|SIGTRAP|Sampling process|Call graph|native sample stack)\b|"
+    r"stop reason|thread #\d+|frame #\d+|:\s*error\b",
     re.IGNORECASE,
 )
 

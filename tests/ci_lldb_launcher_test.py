@@ -80,29 +80,19 @@ class LLDBLauncherTest(unittest.TestCase):
             launcher.sample_command(
                 4567,
                 sample_path="/usr/bin/sample",
-                output_file="/tmp/geometry-native-sample.txt",
             ),
-            [
-                "/usr/bin/sample",
-                "4567",
-                "5",
-                "-file",
-                "/tmp/geometry-native-sample.txt",
-            ],
+            ["/usr/bin/sample", "4567", "5"],
         )
         self.assertEqual(
             launcher.sample_command(
                 4567,
                 sample_path="/usr/bin/sample",
-                output_file="/tmp/geometry-native-sample.txt",
                 sudo_path="/usr/bin/sudo",
             )[:3],
             ["/usr/bin/sudo", "-n", "/usr/bin/sample"],
         )
         with self.assertRaises(ValueError):
-            launcher.sample_command(
-                4567, sample_path="", output_file="/tmp/sample.txt"
-            )
+            launcher.sample_command(4567, sample_path="")
         elevated = launcher.attach_command(
             4567, lldb_path="/usr/bin/lldb", sudo_path="/usr/bin/sudo"
         )
@@ -166,6 +156,8 @@ class LLDBLauncherTest(unittest.TestCase):
         self.assertIn("SHELTER_ATTACH_LLDB_ON_DEVTOOLS", source)
         self.assertIn("continuing DevTools reproduction", source)
         self.assertIn("start_native_sample", source)
+        self.assertIn("stdout=report_stream", source)
+        self.assertIn("native sample finished: exit=", source)
         attach_call = source.index("native_debugger = attach_lldb_to_process(")
         sample_call = source.index("native_sampler = start_native_sample(")
         devtools_request = source.index("open_result = cdp.evaluate")

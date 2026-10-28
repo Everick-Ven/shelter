@@ -132,6 +132,26 @@ Thread 1:
             self.assertIn("CefBrowserHost%3A%3AShowDevTools", result.stdout)
             self.assertIn("CefBrowserHost::ShowDevTools", summary_file.read_text(encoding="utf-8"))
 
+    def test_native_sample_call_graph_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            report = Path(temporary) / "geometry-native-sample.txt"
+            report.write_text(
+                "Sampling process 4567 for 5 seconds\n"
+                "Call graph:\n"
+                "  0 Shelter`CefBrowserHost::ShowDevTools\n"
+                "  1 libcef.dylib`DevToolsWindowRunner::Show\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "tools" / "report_ci_failure.py"), str(report)],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            self.assertIn("Call graph%3A", result.stdout)
+            self.assertIn("CefBrowserHost%3A%3AShowDevTools", result.stdout)
+
     def test_lldb_backtrace_is_included_even_when_buried_in_app_log(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

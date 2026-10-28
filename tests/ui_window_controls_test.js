@@ -44,11 +44,18 @@ assert.doesNotMatch(html, /tm\.appendChild\(ctl\)|home\.appendChild\(ctl\)/,
   'applyTabPos must not move the window controls between containers');
 assert.match(html, /#winCtl\.win-ctls\{position:fixed;top:var\(--wc-top\);right:var\(--wc-right\);/,
   'the window controls use fixed window-corner positioning');
-assert.match(html, /\.host-win32 \.app\[data-tabpos="top"\] #tabTop\{padding-right:var\(--wc-reserve\)\}/);
-assert.match(html, /\.host-win32 \.app\[data-tabpos="left"\] \.tb,\.host-win32 \.app\[data-tabpos="bottom"\] \.tb\{padding-right:var\(--wc-reserve\)\}/);
-assert.match(html, /\.host-win32 \.app\[data-tabpos="right"\] \.tab-rail\{padding-top:/);
+assert.match(html, /\.app\{--wc-w:[^;]+;--wc-right:22px;--wc-top:20px;/,
+  'the window controls use one window-relative top offset');
+assert.doesNotMatch(html, /\.app\[data-tabpos="(?:top|right)"\][^{]*\{[^}]*--wc-top:/,
+  'moving the tab strip cannot move the window controls');
+assert.match(html, /\.app:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos="top"\] #tabTop\{padding-right:var\(--wc-reserve\)\}/);
+assert.match(html, /\.app:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos="left"\] \.tb,\.app:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos="bottom"\] \.tb\{padding-right:var\(--wc-reserve\)\}/);
+assert.match(html, /\.app:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos="right"\] \.tab-rail\{padding-top:/);
+assert.match(html, /\.app:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos="right"\]:has\(#tabRight\.is-collapsed\) \.tb\{padding-right:calc\(var\(--wc-reserve\) - var\(--sb-wc\)\)\}/);
 assert.match(html, /if \(n\.platform !== 'win32'\) \{ ctl\.hidden = true; return; \}/,
   'the replacement controls are shown only on Windows');
+assert.doesNotMatch(html, /classList\.(?:add|toggle)\(['"]host-win32['"]|className\s*=\s*['"][^'"]*host-win32/,
+  'the rejected global Windows toolbar class remains disabled');
 assert.match(html, /if \(n\.platform === 'darwin'\) \{[\s\S]*?lights\.classList\.add\('live'\)/,
   'the existing macOS traffic-light controls remain intact');
 const initStart = html.indexOf('function initWinLights() {');
@@ -96,7 +103,9 @@ assert.match(acceptance, /fireActionTile: controls\.children\.length === 2[\s\S]
   'runtime acceptance must validate both the session-clear control and the new global Pomodoro indicator');
 assert.match(acceptance, /noHorizontalOverflow:[\s\S]*?visuallyOutOfHeader\.length === 0/,
   'runtime acceptance checks visible toolbar bounds rather than counting glass-shadow overflow');
-assert.match(acceptance, /windowControlsSameAcrossGfxModes:[\s\S]*?windowControlsGeometry/,
-  'runtime acceptance verifies fixed Windows controls keep the same bounds in Visual, Balance, and Speed');
+assert.match(acceptance, /windowControlsStableAcrossTabPositionsAndGfxModes:[\s\S]*?windowControlsGeometry/,
+  'runtime acceptance verifies fixed Windows controls stay put across tab positions and graphics modes');
+assert.match(acceptance, /windowControlsDoNotOverlapToolbar:/,
+  'runtime acceptance checks that window controls do not cover toolbar actions');
 
 console.log('Windows window-control styling, platform gating, placement, and native state tests passed');

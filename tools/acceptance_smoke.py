@@ -515,7 +515,7 @@ def sidebar_scroll_probe(ui: Cdp, width: int, height: int) -> Dict[str, Any]:
 
 
 def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
-    """Verify that toolbar actions and the trimmed overflow menu stay in place."""
+    """Verify toolbar geometry, fixed Windows controls, and the trimmed menu."""
     expression = r"""
       (async function() {
         /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
@@ -552,33 +552,86 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           return [Math.round(r.left), Math.round(r.right), Math.round(r.width)];
         };
         const windowControlsGeometry = {};
+        const windowControlsOverlaps = {};
         const isNativeWindows = !!window.shelterNative && window.shelterNative.platform === 'win32';
-        let windowControlsSameAcrossGfxModes = !isNativeWindows;
+        let windowControlsStableAcrossTabPositionsAndGfxModes = !isNativeWindows;
+        let windowControlsDoNotOverlapToolbar = !isNativeWindows;
         if (isNativeWindows && windowControls && !windowControls.hidden &&
-            window.shelterTest && typeof window.shelterTest.setGfxMode === 'function') {
+            window.shelterTest && typeof window.shelterTest.setGfxMode === 'function' &&
+            typeof window.shelterTest.setTabPos === 'function') {
+          const app = document.getElementById('app');
           const originalGfx = document.body.dataset.gfx || 'balance';
+          const originalTabPos = app && app.dataset.tabpos || 'left';
           const rectBox = el => {
             const r = el.getBoundingClientRect();
             return [r.left, r.top, r.right, r.bottom];
           };
+          const intersects = (a, b) => a.left < b.right - 1 && a.right > b.left + 1 &&
+            a.top < b.bottom - 1 && a.bottom > b.top + 1;
+          const visibleRect = el => {
+            const bounds = el.getBoundingClientRect();
+            const rect = {left:bounds.left, top:bounds.top, right:bounds.right, bottom:bounds.bottom};
+            for (let parent = el.parentElement; parent; parent = parent.parentElement) {
+              const style = getComputedStyle(parent), p = parent.getBoundingClientRect();
+              const clipX = ['auto', 'scroll', 'hidden', 'clip'].includes(style.overflowX);
+              const clipY = ['auto', 'scroll', 'hidden', 'clip'].includes(style.overflowY);
+              if (clipX) {
+                const left = p.left + parent.clientLeft;
+                rect.left = Math.max(rect.left, left);
+                rect.right = Math.min(rect.right, left + parent.clientWidth);
+              }
+              if (clipY) {
+                const top = p.top + parent.clientTop;
+                rect.top = Math.max(rect.top, top);
+                rect.bottom = Math.min(rect.bottom, top + parent.clientHeight);
+              }
+            }
+            rect.left = Math.max(rect.left, 0);
+            rect.top = Math.max(rect.top, 0);
+            rect.right = Math.min(rect.right, innerWidth);
+            rect.bottom = Math.min(rect.bottom, innerHeight);
+            return rect.right > rect.left && rect.bottom > rect.top ? rect : null;
+          };
+          const overlappingControls = () => {
+            const controlsRect = windowControls.getBoundingClientRect();
+            return Array.from(document.querySelectorAll(
+              '.tb button, .tab-mount button, .tab-mount .tab, .tab-rail button, .tab-rail .tab, #tabList .tab, #spaceRow button'))
+              .filter(el => !windowControls.contains(el))
+              .filter(el => {
+                const style = getComputedStyle(el), rect = visibleRect(el);
+                return style.display !== 'none' && style.visibility !== 'hidden' &&
+                  style.pointerEvents !== 'none' && rect && intersects(controlsRect, rect);
+              })
+              .map(el => el.id || el.dataset.act || el.className || el.tagName);
+          };
           try {
-            for (const mode of ['balance', 'beauty', 'perf']) {
-              window.shelterTest.setGfxMode(mode, {persist:false, notify:false});
+            for (const position of ['left', 'top', 'right', 'bottom']) {
+              window.shelterTest.setTabPos(position);
               await frame();
-              windowControlsGeometry[mode] = rectBox(windowControls);
+              for (const mode of ['balance', 'beauty', 'perf']) {
+                window.shelterTest.setGfxMode(mode, {persist:false, notify:false});
+                await frame();
+                const key = position + ':' + mode;
+                windowControlsGeometry[key] = rectBox(windowControls);
+                windowControlsOverlaps[key] = overlappingControls();
+              }
             }
           } finally {
+            window.shelterTest.setTabPos(originalTabPos);
             window.shelterTest.setGfxMode(originalGfx, {persist:false, notify:false});
             await frame();
           }
-          const balanceRect = windowControlsGeometry.balance;
-          windowControlsSameAcrossGfxModes = !!balanceRect &&
-            balanceRect[2] > balanceRect[0] && balanceRect[3] > balanceRect[1] &&
-            ['beauty', 'perf'].every(mode => {
-              const rect = windowControlsGeometry[mode];
-              return !!rect && rect[2] > rect[0] && rect[3] > rect[1] &&
-                rect.every((value, index) => Math.abs(value - balanceRect[index]) <= 1);
+          const layoutKeys = Object.keys(windowControlsGeometry);
+          const baseRect = windowControlsGeometry['left:balance'];
+          const validRect = rect => !!rect && rect[2] > rect[0] && rect[3] > rect[1];
+          windowControlsStableAcrossTabPositionsAndGfxModes = layoutKeys.length === 12 &&
+            validRect(baseRect) && layoutKeys.every(key => {
+              const rect = windowControlsGeometry[key];
+              return validRect(rect) && rect.every((value, index) =>
+                Math.abs(value - baseRect[index]) <= 1);
             });
+          windowControlsDoNotOverlapToolbar = layoutKeys.length === 12 &&
+            layoutKeys.every(key => windowControlsOverlaps[key].length === 0);
         }
         /* Glass shadows can extend the scrollable overflow box without moving
            toolbar controls; check their bounds separately from fixed window controls. */
@@ -612,7 +665,8 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           extraGapBeforeQuick: quickRect.left - extRect.right >= 20,
           quickLabelUpdated: quick.dataset.tip === 'Оформление и вкладки' &&
             quick.getAttribute('aria-label') === 'Оформление и вкладки',
-          windowControlsSameAcrossGfxModes: windowControlsSameAcrossGfxModes,
+          windowControlsStableAcrossTabPositionsAndGfxModes: windowControlsStableAcrossTabPositionsAndGfxModes,
+          windowControlsDoNotOverlapToolbar: windowControlsDoNotOverlapToolbar,
           noHorizontalOverflow: headerRect.left >= -1 && headerRect.right <= innerWidth + 1 &&
             visuallyOutOfHeader.length === 0,
           sidebarClean: !document.querySelector('#sb [data-act="schemeMode"], #sb #swatches, #sb [data-act="settings"], #sb [data-act="account"]')
@@ -666,6 +720,7 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
             address: rectSummary(document.getElementById('omniTb')),
             actions: rectSummary(document.querySelector('.tb-actions')),
             windowControlsGeometry: windowControlsGeometry,
+            windowControlsOverlaps: windowControlsOverlaps,
             outside: visuallyOutOfHeader.slice(0, 6).map(el => [el.id || el.className || el.tagName, rectSummary(el)])
           },
           menuLabels: labels,

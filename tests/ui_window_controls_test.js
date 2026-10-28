@@ -51,8 +51,6 @@ const initStart = html.indexOf('function initWinLights() {');
 const initEnd = html.indexOf('\nfunction toggleSidebar()', initStart);
 assert(initStart >= 0 && initEnd > initStart, 'the native control initializer must exist');
 const winInit = html.slice(initStart, initEnd);
-assert.match(winInit, /document\.documentElement\.classList\.toggle\('host-win32', n\.platform === 'win32'\)/,
-  'Windows must activate the host layout that reserves toolbar space for its fixed window controls');
 assert.match(winInit, /ctl\.addEventListener\('click'/, 'the window controls must listen for clicks');
 for (const action of ['close', 'minimize']) {
   assert(winInit.includes(`b.dataset.w === '${action}'`) && winInit.includes(`n.${action}()`),

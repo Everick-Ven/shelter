@@ -465,8 +465,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: CI crash diagnostic collection tests
         run: python3 tests/ci_crash_diagnostics_test.py && python3 tests/ci_crash_report_summary_test.py && python3 tests/ci_lldb_launcher_test.py
-      - name: Removed DevTools UI regression test
-        run: node tests/devtools_removed_test.js
+      - name: DevTools stub regression test
+        run: node tests/devtools_stub_test.js
       - name: Download UI regression test
         run: node tests/download_ui_test.js
       - name: Tracker/ad statistics regression test

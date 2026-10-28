@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-H17nwrYdYj9OeFo+b7BhaMuVSIRDD0UTF2e9k8tQ514=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-4gyTlZuWYyzg+4Wv0mOoixmsZ411E6dxKQI1m79sn98=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -690,6 +690,8 @@ body.tab-fs .stage{border-radius:0;border:0}
 .viewport{container-type:inline-size;container-name:shelter}
 .stage[data-device="tablet"] .viewport{top:40px;bottom:18px;left:max(18px,calc(50% - 410px));right:max(18px,calc(50% - 410px));border-radius:calc(26px*var(--rs));border:1px solid var(--line-2);box-shadow:var(--sh-lg)}
 .stage[data-device="phone"] .viewport{top:40px;bottom:18px;left:max(18px,calc(50% - 195px));right:max(18px,calc(50% - 195px));border-radius:calc(40px*var(--rs));border:1px solid var(--line-2);box-shadow:var(--sh-lg)}
+.stage.dt-open .viewport{bottom:268px}
+.stage.dt-open[data-device] .viewport{bottom:286px}
 .emu-label{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:4;display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-3);opacity:0;transition:opacity .3s}
 .emu-label .i{width:14px;height:14px}
 .stage[data-device="tablet"] .emu-label,.stage[data-device="phone"] .emu-label{opacity:1}
@@ -1012,6 +1014,17 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .findbar .cnt{font-size:12px;color:var(--text-3);min-width:44px;text-align:right;padding-right:6px;font-variant-numeric:tabular-nums}
 ::highlight(find){background-color:rgb(var(--ga)/.28);color:inherit}
 ::highlight(find-cur){background-color:rgb(var(--ga)/.75);color:#fff}
+
+/* Панель-заглушка инструментов разработчика; нативный frontend не создаётся. */
+.devtools{position:absolute;left:0;right:0;bottom:0;height:268px;z-index:22;display:flex;flex-direction:column;background:var(--card);border-top:1px solid var(--line-2);
+  transform:translate3d(0,102%,0);transition:transform .5s var(--ease);box-shadow:0 -20px 40px -30px rgba(0,0,0,.5)}
+.stage.dt-open .devtools{transform:none}
+.dt-h{display:flex;align-items:center;gap:8px;height:44px;padding:0 8px 0 14px;border-bottom:1px solid var(--line);flex:none}
+.dt-own{font-size:12.5px;color:var(--text-2);font-weight:640;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}
+.dt-b{position:relative;flex:1;min-height:0}
+.dt-stub{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center;padding:18px 34px;pointer-events:none}
+.dt-stub .i{width:32px;height:32px;color:var(--text-3)}
+.dt-stub span{font-size:14px;line-height:1.55;color:var(--text-3);max-width:480px}
 
 /* =========================================================
    Страницы
@@ -2073,6 +2086,10 @@ body[data-gfx="balance"] .pdot::after{animation:none !important}
   background:var(--glass-menu); border:1px solid var(--glass-border);
   box-shadow:var(--glow-lift-lg); backdrop-filter:var(--bf-menu);
 }
+.devtools{
+  background:var(--glass-solid); backdrop-filter:var(--bf-menu);
+  border-top:1px solid var(--glass-border);
+}
 
 /* ---------- 4 · Кнопки, поля, переключатели — единый язык (без рывков и конфликтов) ---------- */
 .btn{
@@ -2811,7 +2828,8 @@ body[data-gfx="perf"] .tip{
   border-color:var(--line-2) !important;
 }
 body[data-gfx="perf"] .modal,
-body[data-gfx="perf"] .settings{
+body[data-gfx="perf"] .settings,
+body[data-gfx="perf"] .devtools{
   background:var(--card) !important;
   border-color:var(--line-2) !important;
 }
@@ -2874,7 +2892,8 @@ body.native-content-visible:not([data-gfx="perf"]) .pomo-notice{
   text-shadow:0 1px 2px rgba(0,0,0,.22);
 }
 body.native-content-visible:not([data-gfx="perf"]) .modal,
-body.native-content-visible:not([data-gfx="perf"]) .settings{
+body.native-content-visible:not([data-gfx="perf"]) .settings,
+body.native-content-visible:not([data-gfx="perf"]) .devtools{
   background-color:var(--native-popup-card);
   background-image:linear-gradient(var(--native-contrast-card-veil),var(--native-contrast-card-veil)),linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03) 32%,transparent 72%);
   border-color:color-mix(in srgb,var(--glass-border) 84%,rgb(var(--ga)/.28));
@@ -3428,7 +3447,8 @@ body.native-content-visible:not([data-gfx="perf"]) .pomo-notice{
   text-shadow:0 1px 2px rgba(0,0,0,.22);
 }
 body.native-content-visible:not([data-gfx="perf"]) .modal,
-body.native-content-visible:not([data-gfx="perf"]) .settings{
+body.native-content-visible:not([data-gfx="perf"]) .settings,
+body.native-content-visible:not([data-gfx="perf"]) .devtools{
   background-color:var(--native-popup-card);
   background-image:linear-gradient(var(--native-contrast-card-veil),var(--native-contrast-card-veil)),linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03) 32%,transparent 72%);
   border-color:color-mix(in srgb,var(--glass-border) 84%,rgb(var(--ga)/.28));
@@ -5218,6 +5238,20 @@ html[data-theme="graphite"] .wp-month-mini-day.is-today .wp-month-mini-num{color
         <button class="icon-btn" data-act="findClose" aria-label="Закрыть"><svg class="i"><use href="#i-x"/></svg></button>
       </div>
 
+      <div class="devtools" id="devtools" aria-label="Инструменты разработчика">
+        <div class="dt-h">
+          <span class="dt-own" id="dtOwner">Инструменты разработчика</span>
+          <span style="flex:1"></span>
+          <button class="icon-btn" data-act="devtoolsClose" data-tip="Закрыть" aria-label="Закрыть инструменты разработчика"><svg class="i"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="dt-b" id="dtBody">
+          <div class="dt-stub" id="dtStub" hidden>
+            <svg class="i"><use href="#i-code"/></svg>
+            <span>Встроенные инструменты разработчика сейчас недоступны.</span>
+          </div>
+        </div>
+      </div>
+
     </section>
     <div class="bm-mount bm-bottom" id="bmBottom" hidden></div>
     <div class="tab-mount" id="tabBottom" hidden><div class="tabs-scroll" hidden><i></i></div></div>
@@ -5995,7 +6029,7 @@ const PREF_DEFAULTS = {
   ruca: true, rucaupd: true, gostbadge: true,
   pinnedProtect: true, dragTabs: true, hoverPreview: false, lazyTabs: true, memSaver: true,
   suggestHistory: true, checkUpdates: true, startup: 'ntp', dns: 'cf', lang: 'ru', motion: 'full', glow: true, glowAnimation: true, gfx: 'balance', askDownload: false,
-  menuAdapt: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true, persets: {}, cleanSurf: false, glassOp: 82, radius: 16,
+  menuAdapt: true, menuDev: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true, persets: {}, cleanSurf: false, glassOp: 82, radius: 16,
   uiScale: 100, fontScaleI: 100, fontScaleD: 100, fontScaleM: 100,
   glowMode: 'theme', glowColor: '#5E8BFF', glowIntensity: 45, glowSat: 60
 };
@@ -7076,6 +7110,7 @@ const PREF_TOAST = { trackers: ['Блокировка трекеров вклю�
   glow: ['Свечение включено', 'Свечение выключено', 'sparkles'],
   glowAnimation: ['Анимация подсветки включена', 'Анимация подсветки выключена', 'sparkles'],
   menuAdapt: ['«Адаптация» показана в меню «...»', '«Адаптация» скрыта в меню «...»', 'monitor'],
+  menuDev: ['DevTools-пункт показан в меню «...»', 'DevTools-пункт скрыт в меню «...»', 'code'],
   menuZoom: ['Масштаб страницы показан в меню «...»', 'Масштаб страницы скрыт в меню «...»', 'search'],
   tbQuick: ['Кнопка «Анимации и вкладки» показана', 'Кнопка «Анимации и вкладки» скрыта', 'layers'],
   tbExt: ['Панель расширений показана', 'Панель расширений скрыта', 'ext'],
@@ -7109,12 +7144,12 @@ function toggleSetting(key, el) {
 }
 
 /* ===== Персонализация — профили (составы по исследованию UI-потребностей), кастомные пресеты, видимость элементов ===== */
-const PERS_K = ['menuAdapt', 'menuZoom', 'tbQuick', 'tbExt', 'showTips', 'sbBadges'];
+const PERS_K = ['menuAdapt', 'menuDev', 'menuZoom', 'tbQuick', 'tbExt', 'showTips', 'sbBadges'];
 const PERSONA = {
-  'pers-surf': { label: 'Сёрфинг', d: 'Простой интерфейс: без эмуляции устройств; подсказки и счётчики включены', p: { menuAdapt: false, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true } },
-  'pers-dev': { label: 'Разработчик', d: 'Эмуляция и расширения включены; подсказки и счётчики отключены', p: { menuAdapt: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: false, sbBadges: false } },
-  'pers-design': { label: 'Дизайнер', d: 'Эмуляция для вёрстки; счётчики проектов остались, подсказки отключены', p: { menuAdapt: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: false, sbBadges: true } },
-  'pers-reset': { label: 'По умолчанию', d: 'Все элементы интерфейса включены', p: { menuAdapt: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true } }
+  'pers-surf': { label: 'Сёрфинг', d: 'Простой интерфейс: без инструментов разработчика и эмуляции устройств; подсказки и счётчики включены', p: { menuAdapt: false, menuDev: false, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true } },
+  'pers-dev': { label: 'Разработчик', d: 'Заглушка инструментов разработчика, эмуляция и расширения включены; подсказки и счётчики отключены', p: { menuAdapt: true, menuDev: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: false, sbBadges: false } },
+  'pers-design': { label: 'Дизайнер', d: 'Заглушка инструментов разработчика и эмуляция для вёрстки; счётчики проектов остались, подсказки отключены', p: { menuAdapt: true, menuDev: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: false, sbBadges: true } },
+  'pers-reset': { label: 'По умолчанию', d: 'Все элементы интерфейса включены', p: { menuAdapt: true, menuDev: true, menuZoom: true, tbQuick: true, tbExt: true, showTips: true, sbBadges: true } }
 };
 function applyPersona(key) {
   const pr = PERSONA[key]; if (!pr) return;
@@ -8796,6 +8831,7 @@ function renderView(animate = true, dir = 1) {
 
   const t = curTab(); if (!t) return;
   const m = urlMeta(t.url);
+  dtUpdateHeader(t);
   clearPageTimers(); closeFind(true);
   updateToolbar(); updateNavActive(m.kind === 'internal' ? m.page : null);
   try { if (typeof window.shelterIsLoading === 'function') setStopUI(window.shelterIsLoading()); } catch (_) {}
@@ -9985,6 +10021,9 @@ window.shelterCtxMenu = function (d) {
     items.push({ label: 'Обновить', icon: 'ref', run: () => { try { if (wv && wv.reload) wv.reload(); else ACT.reload(); } catch (_) {} } });
     items.push('-');
     items.push({ label: 'Печать…', icon: 'printer', run: () => { try { if (wv && wv.print) wv.print(); else act('print'); } catch (_) {} } });
+    if (S.prefs.menuDev !== false) {
+      items.push({ label: 'Инспектировать', icon: 'code', run: () => toggleDevtools(true) });
+    }
     while (items.length > 1 && items[items.length - 1] === '-') items.pop();
     openMenu(null, items, { point: d.point });
   } catch (_) {}
@@ -13196,7 +13235,7 @@ AFTER.deepthink = m => {
    НАСТРОЙКИ
    ========================================================= */
 const SET_SECTIONS = [['general', 'Общие', 'gear'], ['look', 'Внешний вид', 'palette'], ['fonts', 'Шрифты', 'book'], ['pers', 'Персонализация', 'user'], ['tabs', 'Вкладки', 'layers'], ['search', 'Поиск', 'search'], ['privacy', 'Приватность', 'shield'], ['ruca', 'Сертификаты РФ', 'award'], ['ext', 'Расширения', 'puzzle'], ['net', 'Сеть', 'wifi'], ['lang', 'Язык', 'lang'], ['data', 'Данные', 'db'], ['keys', 'Горячие клавиши', 'keyboard'], ['about', 'О SHELTER', 'info']];
-const SHORTCUTS = [['Новая вкладка', '⌘T'], ['Закрыть вкладку', '⌘W'], ['Следующая вкладка', '⌘Tab'], ['Вернуть закрытую', '⌘⇧T'], ['Поиск по браузеру', '⌘K'], ['Адресная строка', '⌘L'], ['Найти на странице', '⌘F'], ['Режим «Призрак»', '⌘⇧P'], ['История', '⌘Y'], ['В закладки', '⌘D'], ['Боковая панель', '⌘\\'], ['Пространства 1–4', '⌘1 … ⌘4'], ['Масштаб', '⌘+  ⌘−  ⌘0'], ['Открыть файл', '⌘O'], ['Настройки', '⌘,'], ['Закрыть меню, окно или остановить загрузку', 'Esc']];
+const SHORTCUTS = [['Новая вкладка', '⌘T'], ['Закрыть вкладку', '⌘W'], ['Следующая вкладка', '⌘Tab'], ['Вернуть закрытую', '⌘⇧T'], ['Поиск по браузеру', '⌘K'], ['Адресная строка', '⌘L'], ['Найти на странице', '⌘F'], ['Режим «Призрак»', '⌘⇧P'], ['История', '⌘Y'], ['В закладки', '⌘D'], ['Боковая панель', '⌘\\'], ['Пространства 1–4', '⌘1 … ⌘4'], ['Масштаб', '⌘+  ⌘−  ⌘0'], ['Инструменты разработчика', '⌥⌘I'], ['Открыть файл', '⌘O'], ['Настройки', '⌘,'], ['Закрыть меню, окно или остановить загрузку', 'Esc']];
 const kbdGrid = () => `<div class="kbd-grid">${SHORTCUTS.map(s => `<div><span>${s[0]}</span><span class="kbd">${esc(kb(s[1]))}</span></div>`).join('')}</div>`;
 function showShortcuts() { const m = openModal({ width: 640, html: `<div class="modal-h"><div class="mi-ic">${ico('keyboard')}</div><h3>Горячие клавиши</h3><button class="icon-btn" data-x="1" aria-label="Закрыть">${ico('x')}</button></div><div class="modal-b">${kbdGrid()}<p class="muted" style="font-size:12px;margin-top:14px">${IS_MAC ? 'На Windows и Linux вместо ⌘ используйте Ctrl.' : 'На macOS вместо Ctrl используйте ⌘.'}</p></div>` }); m.scrim.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(m); }); }
 async function requestUserDataDeletion() {
@@ -13276,6 +13315,7 @@ function settingsHtml() {
         <div class="set-row"><div class="tx"><b>Профиль интерфейса</b><span id="persHint">Готовый набор элементов — или всё вручную ниже</span></div><select class="select" id="persSelect" aria-label="Профиль интерфейса">${persOptionsHtml()}</select></div>
         <div class="set-row"><div class="tx"><b>Свой пресет</b><span>Сохранить текущие переключатели под своим именем</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="input" id="persName" placeholder="Название пресета" maxlength="40" hidden style="height:30px;width:180px;border-radius:calc(9px*var(--rs));font-size:12px;padding:0 10px"><button class="btn sm" data-set="pers-save" id="persSaveBtn">Сохранить…</button><button class="btn sm ghost" data-set="pers-del" id="persDelBtn" hidden>Удалить</button></div></div>
         ${row('Адаптация в меню «...»', 'Эмуляция экрана: ПК / Планшет / Мобильная', sw('menuAdapt'))}
+        ${row('Инструменты разработчика в меню «...»', 'Показывать пункт-заглушку «Инструменты разработчика»', sw('menuDev'))}
         ${row('Масштаб страницы в меню «...»', 'Ползунок масштаба и сброс к 100 %', sw('menuZoom'))}
         ${row('Кнопка «Анимации и вкладки»', 'Панель инструментов слева от меню «...»', sw('tbQuick'))}
         ${row('Панель расширений', 'Иконки включённых расширений в панели инструментов', sw('tbExt'))}
@@ -13820,8 +13860,23 @@ function initFind() {
 }
 
 /* =========================================================
-   Эмуляция устройств и масштаб
+   Заглушка инструментов разработчика, эмуляция устройств, масштаб
    ========================================================= */
+function dtUpdateHeader(tab) {
+  const owner = $('#dtOwner');
+  const selected = tab || curTab();
+  if (owner) owner.textContent = (selected && (selected.title || selected.url)) || 'Инструменты разработчика';
+}
+function toggleDevtools(force) {
+  const stage = $('#stage');
+  if (!stage) return;
+  const open = typeof force === 'boolean' ? force : !stage.classList.contains('dt-open');
+  stage.classList.toggle('dt-open', open);
+  const stub = $('#dtStub');
+  if (stub) stub.hidden = !open;
+  dtUpdateHeader(curTab());
+  setTimeout(() => { try { Hero.relayout(); } catch (_) {} }, 540);
+}
 function setDevice(v) {
   S.ui.device = v; persist();
   const st = $('#stage'); if (v === 'desktop') st.removeAttribute('data-device'); else st.setAttribute('data-device', v);
@@ -13990,6 +14045,9 @@ function moreMenu(anchor) {
       { html: `<div class="mrow"><span class="lb" style="display:flex;align-items:center;gap:11px">${ico('search')}Масштаб</span><button class="icon-btn" data-z="-10" aria-label="Уменьшить">${ico('minus')}</button><span class="zoomv" id="menuZoom">${S.ui.zoom}%</span><button class="icon-btn" data-z="10" aria-label="Увеличить">${ico('plus')}</button></div>` }
     ] : []),
     { label: 'Найти на странице', icon: 'search', kbd: '⌘F', run: openFind },
+    ...(S.prefs.menuDev !== false ? [
+      { label: 'Инструменты разработчика', icon: 'code', kbd: IS_MAC ? '⌥⌘I' : 'F12', run: () => toggleDevtools() }
+    ] : []),
     ...(S.prefs.menuAdapt !== false ? [
       { html: `<div class="mrow"><span class="lb" style="display:flex;align-items:center;gap:11px">${ico('monitor')}Адаптация</span>${segHtml('device', [['desktop', 'ПК'], ['tablet', 'Планшет'], ['phone', 'Мобильная']], S.ui.device, 'sm')}</div>` }
     ] : []),
@@ -14043,7 +14101,7 @@ const ACT = {
   cert: el => certPop(el), star: () => toggleBookmarkCurrent(), shield: el => shieldPop(el), more: el => moreMenu(el), quick: el => quickPanel(el), ghost: () => toggleGhost(), fire: () => fire(),
   heroMode: el => heroModeMenu(el), heroEngine: el => engineMenu(el), heroSend: () => heroSubmit(),
   open: (el, e) => navigate(el.dataset.url, { newTab: e.metaKey || e.ctrlKey }), addBookmarkDlg: () => addBookmarkDlg(),
-  findPrev: () => findStep(-1), findNext: () => findStep(1), findClose: () => closeFind(), deviceOff: () => setDevice('desktop'),
+  findPrev: () => findStep(-1), findNext: () => findStep(1), findClose: () => closeFind(), devtools: () => toggleDevtools(), devtoolsClose: () => toggleDevtools(false), deviceOff: () => setDevice('desktop'),
   dashExport: () => dashExport(),
   histDay: el => histSelectDay(el.dataset.day), histMonth: el => histMonth(+el.dataset.d), histClear: el => histClearMenu(el), histMenuMore: el => histMoreMenu(el), cbdOpen: () => clearBrowsingDlg(), visMenu: el => visMenu(el),
   histWeek: el => { const H = H0(), d = parseKey(H.sel); d.setDate(d.getDate() + +el.dataset.d); const k = dayKey(Math.min(d.getTime(), Date.now())); H.sel = k; H.month = new Date(parseKey(k).getFullYear(), parseKey(k).getMonth(), 1); histRerender(); },
@@ -14233,11 +14291,13 @@ document.addEventListener('keydown', e => {
     if (OV.menu) { closeMenu(); return; }
     if (OV.stack.length) { const top = OV.stack[OV.stack.length - 1]; if (top.dismiss) closeModal(top); return; }
     if (!$('#findbar').hidden) { closeFind(); return; }
+    if ($('#stage').classList.contains('dt-open')) { toggleDevtools(false); return; }
     if ($('#app').classList.contains('sb-open')) { $('#app').classList.remove('sb-open'); return; }
     if (typeof window.shelterStopLoad === 'function' && window.shelterStopLoad()) return;
     if (typing) ae.blur();
     return;
   }
+  if (e.key === 'F12') { e.preventDefault(); toggleDevtools(); return; }
   if (OV.stack.length && !(mod && e.code === 'KeyK')) return;
   if (!mod) {
     if (!typing && e.altKey && e.code === 'ArrowLeft') { e.preventDefault(); ACT.back(); return; }
@@ -14256,6 +14316,8 @@ document.addEventListener('keydown', e => {
   else if (K === 'KeyY') { e.preventDefault(); openPage('history'); }
   else if (K === 'KeyD') { e.preventDefault(); toggleBookmarkCurrent(); }
   else if (K === 'KeyO') { e.preventDefault(); openFileDlg(); }
+  else if (K === 'KeyI' && e.shiftKey) { e.preventDefault(); toggleDevtools(); }
+  else if (K === 'KeyI' && e.altKey && e.metaKey) { e.preventDefault(); toggleDevtools(); }
   else if (K === 'Comma') { e.preventDefault(); openSettings(); }
   else if (K === 'Backslash') { e.preventDefault(); toggleSidebar(); }
   else if (K === 'Equal' || K === 'NumpadAdd') { e.preventDefault(); setZoom(S.ui.zoom + 10); }
@@ -14273,7 +14335,11 @@ window.shelterUpdateTitle = (a, b) => {
   const all = Object.values(S.spaces).reduce((r, s) => r.concat(s.tabs), []);
   let tab = curTab(), title = a;
   if (b !== undefined) { const byId = all.find(t => t.id === a); if (byId) { tab = byId; title = b; } }
-  if (tab && title) { tab.title = String(title); persist(); renderTabs(); }
+  if (tab && title) {
+    tab.title = String(title);
+    persist(); renderTabs();
+    if (tab.id === S.activeTabId) dtUpdateHeader(tab);
+  }
 };
 window.getSpaceTabs = () => curSpace().tabs.map(t => ({ id: t.id, title: t.title, url: t.url, pinned: !!t.pinned }));
 function cycleTab(dir) {

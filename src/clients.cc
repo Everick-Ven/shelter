@@ -341,6 +341,10 @@ class UiClient::BridgeHandler : public CefMessageRouterBrowserSide::Handler {
     // остальные (иначе наблюдатели дали бы поток 404-ошибок).
     if (!d->HasKey("m")) {
       const std::string cmd = d->GetString("cmd").ToString();
+      if (cmd == "devtools" || cmd == "devtools.ctl" || cmd == "devtools:ctl") {
+        callback->Success("{\"ok\":false}");
+        return true;
+      }
       if (cmd == "ui:ready") {
         Shell::Get().OnUiReady(d->GetString("version").ToString());
       } else if (cmd == "tab:reload") {

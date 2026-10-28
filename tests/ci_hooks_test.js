@@ -86,7 +86,7 @@ for (const [file, source] of [['src/browser_app.cc', browser], ['src/shell.cc', 
 
 assert.match(workflow, /-DSHELTER_CI_HOOKS=OFF/);
 assert.match(workflow, /-DSHELTER_CI_HOOKS=ON/);
-assert.match(workflow, /node tests\/devtools_removed_test\.js/);
+assert.match(workflow, /node tests\/devtools_stub_test\.js/);
 assert.match(workflow, /check_ci_hooks\.py build off/);
 assert.match(workflow, /check_ci_hooks\.py build-ci on/);
 assert.match(workflow, /check_geometry\.py build-ci/);

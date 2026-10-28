@@ -546,6 +546,12 @@ bool Shell::HandleBridge(CefRefPtr<CefBrowser> browser, const std::string& m,
                          CefRefPtr<CefDictionaryValue> a,
                          CefRefPtr<Callback> cb) {
   CEF_REQUIRE_UI_THREAD();
+  // Compatibility aliases are deliberately rejected: no caller can revive
+  // the native DevTools frontend through either bridge spelling.
+  if (m == "devtools" || m == "devtools.ctl") {
+    cb->Success("{\"ok\":false}");
+    return true;
+  }
   // Centralize the renderer-to-host trust boundary so new bridge methods
   // cannot accidentally omit the UI-browser authorization check.
   if (!IsUiBrowser(browser)) {

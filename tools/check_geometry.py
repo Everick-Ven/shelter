@@ -22,7 +22,11 @@ import time
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from ci_lldb_launcher import inferior_pid_from_output, wrap_command
+from ci_lldb_launcher import (
+    inferior_pid_from_output,
+    inferior_pid_from_process_list,
+    wrap_command,
+)
 
 try:
     import websocket
@@ -125,7 +129,11 @@ def kill(process: Optional[subprocess.Popen]) -> None:
 
 
 def cleanup_lldb_debuggee(
-    process: Optional[subprocess.Popen], stderr_file: str, acceptance_succeeded: bool
+    process: Optional[subprocess.Popen],
+    stderr_file: str,
+    executable: str,
+    port: int,
+    acceptance_succeeded: bool,
 ) -> None:
     """Stop LLDB's inferior before terminating LLDB so the app cannot linger."""
     if process is None or process.poll() is not None:
@@ -144,7 +152,19 @@ def cleanup_lldb_debuggee(
         output = ""
     inferior_pid = inferior_pid_from_output(output)
     if inferior_pid is None:
-        out("LLDB cleanup: inferior PID was not present in debugger output")
+        try:
+            process_list = subprocess.run(
+                ["ps", "-axo", "pid=,command="],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            ).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            process_list = ""
+        inferior_pid = inferior_pid_from_process_list(process_list, executable, port)
+    if inferior_pid is None:
+        out("LLDB cleanup: inferior PID was not present in debugger output or process list")
         return
     try:
         os.kill(inferior_pid, signal.SIGKILL)
@@ -631,7 +651,9 @@ def main() -> int:
         if cdp is not None:
             cdp.close()
         if debug_with_lldb:
-            cleanup_lldb_debuggee(process, stderr_file, acceptance_succeeded)
+            cleanup_lldb_debuggee(
+                process, stderr_file, executable, port, acceptance_succeeded
+            )
         kill(process)
         try:
             os.remove(state_file)

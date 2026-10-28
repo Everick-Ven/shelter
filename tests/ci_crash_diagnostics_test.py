@@ -24,6 +24,7 @@ class WorkflowCrashCaptureTest(unittest.TestCase):
         collect = workflow.index("- name: Collect Windows crash dumps")
         self.assertLess(configure, geometry)
         self.assertLess(geometry, collect)
+        self.assertIn("HKLM:\\SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps\\Shelter.exe", workflow[configure:geometry])
         self.assertIn("DumpType -PropertyType DWord -Value 1", workflow[configure:geometry])
         self.assertIn("SHELTER_ACCEPTANCE_STARTED_AT", workflow[configure:geometry])
         self.assertIn("--platform windows", workflow[collect:])

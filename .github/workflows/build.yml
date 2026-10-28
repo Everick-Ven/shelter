@@ -98,7 +98,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           $dumpDir = Join-Path $env:RUNNER_TEMP "shelter-crash-dumps"
           New-Item -ItemType Directory -Force -Path $dumpDir | Out-Null
-          $werKey = "HKCU:\Software\Microsoft\Windows\Windows Error Reporting\LocalDumps\Shelter.exe"
+          $werKey = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\Shelter.exe"
           New-Item -Path $werKey -Force | Out-Null
           New-ItemProperty -Path $werKey -Name DumpFolder -PropertyType ExpandString -Value $dumpDir -Force | Out-Null
           New-ItemProperty -Path $werKey -Name DumpType -PropertyType DWord -Value 1 -Force | Out-Null

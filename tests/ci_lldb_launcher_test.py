@@ -62,6 +62,18 @@ class LLDBLauncherTest(unittest.TestCase):
         self.assertEqual(launcher.inferior_pid_from_output(output), 4567)
         self.assertIsNone(launcher.inferior_pid_from_output("no inferior started"))
 
+    def test_inferior_pid_fallback_selects_only_the_main_app_command(self) -> None:
+        port_argument = "--remote-debugging-" + "port=1234"
+        process_list = (
+            f"101 /usr/bin/lldb --batch -- /tmp/SHELTER {port_argument}\n"
+            f"102 /tmp/SHELTER --type=renderer {port_argument}\n"
+            f"103 /tmp/SHELTER {port_argument} --remote-allow-origins=*\n"
+        )
+        self.assertEqual(
+            launcher.inferior_pid_from_process_list(process_list, "/tmp/SHELTER", 1234),
+            103,
+        )
+
     def test_workflow_enables_lldb_only_for_macos_geometry_acceptance(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
         macos = workflow.index("  macos:")

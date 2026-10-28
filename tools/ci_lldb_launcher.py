@@ -16,6 +16,27 @@ def inferior_pid_from_output(output: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def inferior_pid_from_process_list(
+    process_list: str, executable: str, port: int
+) -> int | None:
+    """Find the main SHELTER process without matching LLDB or CEF children."""
+    prefixes = (
+        f"{executable} --remote-debugging-port={port}",
+        f'"{executable}" --remote-debugging-port={port}',
+    )
+    for line in process_list.splitlines():
+        fields = line.strip().split(None, 1)
+        if len(fields) != 2:
+            continue
+        try:
+            pid = int(fields[0])
+        except ValueError:
+            continue
+        if fields[1].strip().startswith(prefixes):
+            return pid
+    return None
+
+
 def wrap_command(
     command: Sequence[str],
     *,

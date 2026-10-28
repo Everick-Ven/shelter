@@ -8,6 +8,35 @@ import re
 _LAUNCHED_PID_RE = re.compile(
     r"^Process\s+(\d+)(?:\s+\([^)]*\))?\s+launched:", re.MULTILINE
 )
+_THREAD_HEADER_RE = re.compile(r"^\s*\*?\s*thread #\d+\b", re.IGNORECASE)
+_FRAME_RE = re.compile(r"\bframe #\d+:")
+
+
+def faulting_thread_summary(output: str, max_frames: int = 16) -> list[str]:
+    """Keep the stop-reason thread and its leading frames, excluding workers."""
+    lines = output.splitlines()
+    thread_index = None
+    for index, line in enumerate(lines):
+        if _THREAD_HEADER_RE.search(line) and "stop reason" in line.casefold():
+            thread_index = index
+            break
+    if thread_index is None:
+        thread_index = next(
+            (index for index, line in enumerate(lines) if _THREAD_HEADER_RE.search(line)),
+            None,
+        )
+    if thread_index is None:
+        return [line.strip() for line in lines if _FRAME_RE.search(line)][:max_frames]
+
+    summary = [lines[thread_index].strip()]
+    for line in lines[thread_index + 1:]:
+        if _THREAD_HEADER_RE.search(line):
+            break
+        if _FRAME_RE.search(line):
+            summary.append(line.strip())
+            if len(summary) > max_frames:
+                break
+    return summary
 
 
 def inferior_pid_from_output(output: str) -> int | None:

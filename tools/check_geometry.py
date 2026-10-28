@@ -23,6 +23,7 @@ import urllib.request
 from typing import Any, Dict, List, Optional
 
 from ci_lldb_launcher import (
+    faulting_thread_summary,
     inferior_pid_from_output,
     inferior_pid_from_process_list,
     wrap_command,
@@ -93,6 +94,12 @@ def dump_diagnostics(logfile: str, stderr_file: str) -> None:
     out("--- app stderr tail ---")
     for line in tail_lines(stderr_file):
         out(line)
+    if os.environ.get("SHELTER_USE_LLDB") == "1" and platform.system() == "Darwin":
+        summary = faulting_thread_summary("\n".join(read_lines(stderr_file)))
+        if summary:
+            out("--- LLDB faulting-thread backtrace ---")
+            for line in summary:
+                out(line)
     if platform.system() == "Darwin":
         reports = []
         for directory in (

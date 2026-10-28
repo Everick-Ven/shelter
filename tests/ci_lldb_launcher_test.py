@@ -57,6 +57,27 @@ class LLDBLauncherTest(unittest.TestCase):
             command,
         )
 
+    def test_faulting_thread_summary_keeps_frame_zero_and_excludes_workers(self) -> None:
+        transcript = (
+            "Process 4567 stopped\n"
+            "* thread #2, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS\n"
+            "  * frame #0: 0x0000000100123456 libcef.dylib`CefBrowserHost::ShowDevTools\n"
+            "    frame #1: 0x0000000100001234 Shelter`shell::OpenDevTools\n"
+            "  thread #3, name = 'ThreadPoolForegroundWorker'\n"
+            "    frame #0: 0x0000000180000000 libsystem_kernel.dylib`mach_msg2_trap\n"
+        )
+        summary = launcher.faulting_thread_summary(transcript)
+        self.assertEqual(len(summary), 3)
+        self.assertIn("stop reason = EXC_BAD_ACCESS", summary[0])
+        self.assertIn("CefBrowserHost::ShowDevTools", summary[1])
+        self.assertIn("shell::OpenDevTools", summary[2])
+        self.assertNotIn("ThreadPoolForegroundWorker", "\n".join(summary))
+
+    def test_geometry_failure_emits_faulting_thread_summary(self) -> None:
+        source = (ROOT / "tools" / "check_geometry.py").read_text(encoding="utf-8")
+        self.assertIn("faulting_thread_summary(", source)
+        self.assertIn("LLDB faulting-thread backtrace", source)
+
     def test_inferior_pid_is_parsed_for_cleanup(self) -> None:
         output = "LLDB attached\nProcess 4567 launched: '/tmp/Shelter' (x86_64)\n"
         self.assertEqual(launcher.inferior_pid_from_output(output), 4567)

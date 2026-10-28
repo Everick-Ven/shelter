@@ -71,6 +71,38 @@ class LLDBLauncherTest(unittest.TestCase):
                 "SHELTER_LLDB_ATTACH_READY\nProcess 4567 stopped\n", 4567
             )
         )
+        self.assertFalse(
+            launcher.attach_is_resuming(
+                "(lldb) process attach --pid 4567\n", 4567
+            )
+        )
+        self.assertEqual(
+            launcher.sample_command(
+                4567,
+                sample_path="/usr/bin/sample",
+                output_file="/tmp/geometry-native-sample.txt",
+            ),
+            [
+                "/usr/bin/sample",
+                "4567",
+                "5",
+                "-file",
+                "/tmp/geometry-native-sample.txt",
+            ],
+        )
+        self.assertEqual(
+            launcher.sample_command(
+                4567,
+                sample_path="/usr/bin/sample",
+                output_file="/tmp/geometry-native-sample.txt",
+                sudo_path="/usr/bin/sudo",
+            )[:3],
+            ["/usr/bin/sudo", "-n", "/usr/bin/sample"],
+        )
+        with self.assertRaises(ValueError):
+            launcher.sample_command(
+                4567, sample_path="", output_file="/tmp/sample.txt"
+            )
         elevated = launcher.attach_command(
             4567, lldb_path="/usr/bin/lldb", sudo_path="/usr/bin/sudo"
         )
@@ -96,6 +128,21 @@ class LLDBLauncherTest(unittest.TestCase):
             command,
         )
 
+    def test_attach_stop_is_not_reported_as_a_crash(self) -> None:
+        transcript = (
+            "Process 4567 stopped\n"
+            "* thread #1, queue = 'com.apple.main-thread', stop reason = signal SIGSTOP\n"
+            "  * frame #0: 0x0000000100123456 Shelter`main\n"
+        )
+        self.assertFalse(launcher.has_native_crash_stop(transcript))
+        self.assertEqual(launcher.faulting_thread_summary(transcript), [])
+        self.assertTrue(
+            launcher.has_native_crash_stop(
+                "* thread #1, stop reason = signal SIGSEGV\n"
+                "  * frame #0: 0x0000000100123456 Shelter`CefBrowserHost::ShowDevTools\n"
+            )
+        )
+
     def test_faulting_thread_summary_keeps_frame_zero_and_excludes_workers(self) -> None:
         transcript = (
             "Process 4567 stopped\n"
@@ -117,9 +164,13 @@ class LLDBLauncherTest(unittest.TestCase):
         self.assertIn("faulting_thread_summary(", source)
         self.assertIn("LLDB faulting-thread backtrace", source)
         self.assertIn("SHELTER_ATTACH_LLDB_ON_DEVTOOLS", source)
+        self.assertIn("continuing DevTools reproduction", source)
+        self.assertIn("start_native_sample", source)
         attach_call = source.index("native_debugger = attach_lldb_to_process(")
+        sample_call = source.index("native_sampler = start_native_sample(")
         devtools_request = source.index("open_result = cdp.evaluate")
-        self.assertLess(attach_call, devtools_request)
+        self.assertLess(attach_call, sample_call)
+        self.assertLess(sample_call, devtools_request)
 
     def test_inferior_pid_is_parsed_for_cleanup(self) -> None:
         output = "LLDB attached\nProcess 4567 launched: '/tmp/Shelter' (x86_64)\n"
@@ -162,6 +213,8 @@ class LLDBLauncherTest(unittest.TestCase):
         self.assertIn("geometry-lldb-trace.log", workflow[retry:runtime])
         self.assertIn("Report macOS LLDB retry stack", workflow[retry:runtime])
         self.assertIn("geometry-lldb-app.log", workflow[retry:runtime])
+        self.assertIn("geometry-native-sample.log", workflow[retry:runtime])
+        self.assertIn("geometry-native-sample.txt", workflow[retry:runtime])
         self.assertNotIn("SHELTER_USE_LLDB=1", workflow[:macos])
 
 

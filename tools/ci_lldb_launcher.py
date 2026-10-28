@@ -10,23 +10,32 @@ _LAUNCHED_PID_RE = re.compile(
 )
 _THREAD_HEADER_RE = re.compile(r"^\s*\*?\s*thread #\d+\b", re.IGNORECASE)
 _FRAME_RE = re.compile(r"\bframe #\d+:")
+_NATIVE_CRASH_STOP_RE = re.compile(
+    r"\bstop reason\s*=\s*(?:EXC_[A-Z0-9_]+|"
+    r"signal\s+SIG(?:ABRT|BUS|FPE|ILL|SEGV|TRAP|SYS))\b",
+    re.IGNORECASE,
+)
+
+
+def has_native_crash_stop(output: str) -> bool:
+    """Ignore LLDB's expected SIGSTOP when attaching to a live process."""
+    return any(_NATIVE_CRASH_STOP_RE.search(line) for line in output.splitlines())
 
 
 def faulting_thread_summary(output: str, max_frames: int = 16) -> list[str]:
-    """Keep the stop-reason thread and its leading frames, excluding workers."""
+    """Keep frames only for a native exception/signal, excluding attach stops."""
     lines = output.splitlines()
-    thread_index = None
-    for index, line in enumerate(lines):
-        if _THREAD_HEADER_RE.search(line) and "stop reason" in line.casefold():
-            thread_index = index
-            break
+    thread_index = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if _THREAD_HEADER_RE.search(line)
+            and _NATIVE_CRASH_STOP_RE.search(line)
+        ),
+        None,
+    )
     if thread_index is None:
-        thread_index = next(
-            (index for index, line in enumerate(lines) if _THREAD_HEADER_RE.search(line)),
-            None,
-        )
-    if thread_index is None:
-        return [line.strip() for line in lines if _FRAME_RE.search(line)][:max_frames]
+        return []
 
     summary = [lines[thread_index].strip()]
     for line in lines[thread_index + 1:]:
@@ -71,6 +80,24 @@ def inferior_pid_from_process_list(
         if fields[1].strip().startswith(prefixes):
             return pid
     return None
+
+
+def sample_command(
+    pid: int,
+    *,
+    sample_path: str,
+    output_file: str,
+    sudo_path: str = "",
+) -> list[str]:
+    """Build a bounded macOS sample command for a process under test."""
+    if pid <= 0:
+        raise ValueError("native sample requires a positive process ID")
+    if not sample_path:
+        raise ValueError("native sample requested but sample was not found on PATH")
+    if not output_file:
+        raise ValueError("native sample requires an output file")
+    command = [sample_path, str(pid), "5", "-file", output_file]
+    return [sudo_path, "-n", *command] if sudo_path else command
 
 
 def attach_command(

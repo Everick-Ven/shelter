@@ -26,6 +26,8 @@ from ci_lldb_launcher import (
     attach_command,
     attach_is_resuming,
     faulting_thread_summary,
+    has_native_crash_stop,
+    sample_command,
     inferior_pid_from_output,
     inferior_pid_from_process_list,
     wrap_command,
@@ -90,7 +92,11 @@ def tail_lines(path: str, count: int = 80) -> List[str]:
 
 
 def dump_diagnostics(
-    logfile: str, stderr_file: str, lldb_trace_file: str = ""
+    logfile: str,
+    stderr_file: str,
+    lldb_trace_file: str = "",
+    native_sample_file: str = "",
+    native_sample_log: str = "",
 ) -> None:
     out("--- shelter.log tail ---")
     for line in tail_lines(logfile):
@@ -111,6 +117,14 @@ def dump_diagnostics(
             out("--- LLDB faulting-thread backtrace ---")
             for line in summary:
                 out(line)
+    if native_sample_log:
+        out("--- native sample command output ---")
+        for line in tail_lines(native_sample_log):
+            out(line)
+    if native_sample_file:
+        out("--- native sample stack ---")
+        for line in tail_lines(native_sample_file, 160):
+            out(line)
     if platform.system() == "Darwin":
         reports = []
         for directory in (
@@ -147,7 +161,7 @@ def kill(process: Optional[subprocess.Popen]) -> None:
 
 
 def attach_lldb_to_process(pid: int, lldb_path: str, output_file: str) -> subprocess.Popen:
-    """Attach to the ready app immediately before the DevTools call."""
+    """Start an LLDB attach attempt without blocking the crash reproduction."""
     sudo_path = shutil.which("sudo") or ""
     try:
         command = attach_command(
@@ -157,6 +171,8 @@ def attach_lldb_to_process(pid: int, lldb_path: str, output_file: str) -> subpro
         raise GeometryError(f"native debugger setup failed: {exc}") from exc
     if sudo_path:
         out("LLDB attach: using non-interactive sudo for task-for-pid access")
+    debugger_env = dict(os.environ)
+    debugger_env["TERM"] = "dumb"
     try:
         with open(output_file, "w", encoding="utf-8", errors="replace") as stream:
             debugger = subprocess.Popen(
@@ -164,25 +180,74 @@ def attach_lldb_to_process(pid: int, lldb_path: str, output_file: str) -> subpro
                 stdin=subprocess.DEVNULL,
                 stdout=stream,
                 stderr=subprocess.STDOUT,
+                env=debugger_env,
             )
     except OSError as exc:
         raise GeometryError(f"could not start LLDB attach: {exc}") from exc
 
-    deadline = time.monotonic() + 15
+    deadline = time.monotonic() + 2
     while time.monotonic() < deadline:
         transcript = "\n".join(read_lines(output_file))
         if attach_is_resuming(transcript, pid):
+            out(f"LLDB attach confirmed for PID {pid}")
             return debugger
         if debugger.poll() is not None:
             detail = " | ".join(read_lines(output_file)[-12:])
-            raise GeometryError(
-                f"LLDB attach exited with status {debugger.returncode}; {detail}"
+            out(
+                f"LLDB attach exited with status {debugger.returncode} before readiness; "
+                f"continuing DevTools reproduction; {detail}"
             )
+            return debugger
         time.sleep(0.1)
 
     detail = " | ".join(read_lines(output_file)[-12:])
-    kill(debugger)
-    raise GeometryError(f"LLDB attach did not become ready within 15s; {detail}")
+    out(
+        "LLDB attach remained pending after 2s; continuing DevTools reproduction "
+        f"without confirmed debugger readiness; {detail}"
+    )
+    return debugger
+
+
+def start_native_sample(
+    pid: int, sample_path: str, output_file: str, log_file: str
+) -> Optional[subprocess.Popen]:
+    """Collect a short native stack sample concurrently with the DevTools call."""
+    sudo_path = shutil.which("sudo") or ""
+    try:
+        command = sample_command(
+            pid,
+            sample_path=sample_path,
+            output_file=os.path.abspath(output_file),
+            sudo_path=sudo_path,
+        )
+    except ValueError as exc:
+        out(f"native sample unavailable: {exc}")
+        return None
+    if sudo_path:
+        out("native sample: using non-interactive sudo for task access")
+    try:
+        with open(log_file, "w", encoding="utf-8", errors="replace") as stream:
+            sampler = subprocess.Popen(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=stream,
+                stderr=subprocess.STDOUT,
+            )
+    except OSError as exc:
+        out(f"could not start native sample: {exc}")
+        return None
+    out(f"native sample started for PID {pid} (PID {sampler.pid})")
+    return sampler
+
+
+def wait_for_native_sample(sampler: Optional[subprocess.Popen]) -> None:
+    if sampler is None or sampler.poll() is not None:
+        return
+    try:
+        sampler.wait(timeout=7)
+    except subprocess.TimeoutExpired:
+        out("native sample exceeded its 7s capture budget; terminating sampler")
+        kill(sampler)
 
 
 def cleanup_lldb_debuggee(
@@ -350,6 +415,8 @@ def main() -> int:
     logfile = os.path.join(user_data_dir(), "shelter.log")
     stderr_file = "geometry-app.log"
     native_trace_file = "geometry-lldb-trace.log"
+    native_sample_file = "geometry-native-sample.txt"
+    native_sample_log = "geometry-native-sample.log"
     try:
         state_file = write_window_state(user_data_dir())
     except OSError as exc:
@@ -398,6 +465,7 @@ def main() -> int:
 
     process = None
     native_debugger = None
+    native_sampler = None
     cdp = None
     last_ui_state: List[Any] = [None]
     native_open_state: List[Any] = [None]
@@ -642,17 +710,22 @@ def main() -> int:
                 process.pid, lldb_path, native_trace_file
             )
             native_trace_line_start = len(read_lines(native_trace_file))
-            out(f"LLDB attached to PID {process.pid} before DevTools request")
+            native_sampler = start_native_sample(
+                process.pid,
+                shutil.which("sample") or "",
+                native_sample_file,
+                native_sample_log,
+            )
+            out(
+                f"DevTools crash reproduction proceeding with LLDB PID "
+                f"{native_debugger.pid}; readiness is monitored in the trace"
+            )
 
         def devtools_or_native_stop():
             if native_debugger is not None:
                 trace_lines = read_lines(native_trace_file)
                 new_lines = trace_lines[native_trace_line_start:]
-                if any(
-                    "stop reason" in entry.casefold()
-                    or re.search(r"\bframe #0:", entry)
-                    for entry in new_lines
-                ):
+                if has_native_crash_stop("\n".join(new_lines)):
                     return "native-stop"
             return devtools_marker_count("ci: devtools ShowDevTools returned") >= 1
 
@@ -740,13 +813,17 @@ def main() -> int:
             stderr_stream.flush()
         except OSError:
             pass
+        wait_for_native_sample(native_sampler)
         dump_diagnostics(
             logfile,
             stderr_file,
             native_trace_file if attach_lldb_before_devtools else "",
+            native_sample_file if attach_lldb_before_devtools else "",
+            native_sample_log if attach_lldb_before_devtools else "",
         )
         return 1
     finally:
+        wait_for_native_sample(native_sampler)
         if cdp is not None:
             cdp.close()
         if native_debugger is not None:

@@ -327,7 +327,7 @@ jobs:
 
       - name: Report macOS LLDB retry stack
         if: always() && steps.macos_geometry.outcome == 'failure'
-        run: python3 tools/report_ci_failure.py geometry-lldb.log geometry-lldb-app.log geometry-lldb-trace.log
+        run: python3 tools/report_ci_failure.py geometry-lldb.log geometry-lldb-app.log geometry-lldb-trace.log geometry-native-sample.log geometry-native-sample.txt
 
       - name: CI-hook runtime acceptance
         timeout-minutes: 12
@@ -440,7 +440,7 @@ jobs:
 
       - name: Report macOS failure diagnostics
         if: failure()
-        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log packaged-dmg-acceptance.log geometry.log geometry-app.log geometry-direct-app.log geometry-lldb.log geometry-lldb-app.log geometry-lldb-trace.log acceptance-ci.log smoke-run.log acceptance-app.log ci-crash-reports/macos
+        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log packaged-dmg-acceptance.log geometry.log geometry-app.log geometry-direct-app.log geometry-lldb.log geometry-lldb-app.log geometry-lldb-trace.log geometry-native-sample.log geometry-native-sample.txt acceptance-ci.log smoke-run.log acceptance-app.log ci-crash-reports/macos
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -474,6 +474,8 @@ jobs:
             geometry-lldb.log
             geometry-lldb-app.log
             geometry-lldb-trace.log
+            geometry-native-sample.log
+            geometry-native-sample.txt
             ci-crash-reports/macos/**
             acceptance-ci.log
             smoke-run.log

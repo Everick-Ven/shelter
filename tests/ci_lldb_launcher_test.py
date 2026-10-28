@@ -169,9 +169,12 @@ class LLDBLauncherTest(unittest.TestCase):
         self.assertIn("start_native_sample", source)
         self.assertIn("output_file=os.path.abspath(output_file)", source)
         self.assertIn("native sample finished: exit=", source)
-        attach_call = source.index("native_debugger = attach_lldb_to_process(")
+        attach_call = source.index(
+            "native_debugger, native_debugger_ready = attach_lldb_to_process("
+        )
         sample_call = source.index("native_sampler = start_native_sample(")
         devtools_request = source.index("open_result = cdp.evaluate")
+        self.assertLess(attach_call, source.index("kill(native_debugger)", attach_call))
         self.assertLess(attach_call, sample_call)
         self.assertLess(sample_call, devtools_request)
 
@@ -211,6 +214,7 @@ class LLDBLauncherTest(unittest.TestCase):
         self.assertIn("failure() && steps.macos_geometry.outcome == 'failure'", workflow[retry:runtime])
         self.assertIn("github.event_name == 'workflow_dispatch'", workflow[retry:runtime])
         self.assertIn("inputs.native_devtools_diagnostics", workflow[retry:runtime])
+        self.assertIn("[native-devtools-diag]", workflow[retry:runtime])
         self.assertIn("steps.macos_geometry.outcome == 'success'", workflow[retry:runtime])
         self.assertIn("SHELTER_ATTACH_LLDB_ON_DEVTOOLS=1", workflow[retry:runtime])
         self.assertNotIn("SHELTER_USE_LLDB=1", workflow[retry:runtime])

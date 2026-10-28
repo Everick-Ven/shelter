@@ -164,8 +164,10 @@ def kill(process: Optional[subprocess.Popen]) -> None:
         out("kill error:", exc)
 
 
-def attach_lldb_to_process(pid: int, lldb_path: str, output_file: str) -> subprocess.Popen:
-    """Start an LLDB attach attempt without blocking the crash reproduction."""
+def attach_lldb_to_process(
+    pid: int, lldb_path: str, output_file: str
+) -> tuple[subprocess.Popen, bool]:
+    """Start LLDB and report whether it resumed before the diagnostic deadline."""
     sudo_path = shutil.which("sudo") or ""
     try:
         command = attach_command(
@@ -194,14 +196,14 @@ def attach_lldb_to_process(pid: int, lldb_path: str, output_file: str) -> subpro
         transcript = "\n".join(read_lines(output_file))
         if attach_is_resuming(transcript, pid):
             out(f"LLDB attach confirmed for PID {pid}")
-            return debugger
+            return debugger, True
         if debugger.poll() is not None:
             detail = " | ".join(read_lines(output_file)[-12:])
             out(
                 f"LLDB attach exited with status {debugger.returncode} before readiness; "
                 f"continuing DevTools reproduction; {detail}"
             )
-            return debugger
+            return debugger, False
         time.sleep(0.1)
 
     detail = " | ".join(read_lines(output_file)[-12:])
@@ -209,7 +211,7 @@ def attach_lldb_to_process(pid: int, lldb_path: str, output_file: str) -> subpro
         "LLDB attach remained pending after 2s; continuing DevTools reproduction "
         f"without confirmed debugger readiness; {detail}"
     )
-    return debugger
+    return debugger, False
 
 
 def start_native_sample(
@@ -725,20 +727,28 @@ def main() -> int:
         if attach_lldb_before_devtools:
             if process is None:
                 raise GeometryError("cannot attach LLDB before the app process starts")
-            native_debugger = attach_lldb_to_process(
+            native_debugger, native_debugger_ready = attach_lldb_to_process(
                 process.pid, lldb_path, native_trace_file
             )
             native_trace_line_start = len(read_lines(native_trace_file))
-            native_sampler = start_native_sample(
-                process.pid,
-                shutil.which("sample") or "",
-                native_sample_file,
-                native_sample_log,
-            )
-            out(
-                f"DevTools crash reproduction proceeding with LLDB PID "
-                f"{native_debugger.pid}; readiness is monitored in the trace"
-            )
+            if native_debugger_ready:
+                out(
+                    f"DevTools crash reproduction proceeding under LLDB PID "
+                    f"{native_debugger.pid}"
+                )
+            else:
+                kill(native_debugger)
+                native_debugger = None
+                out(
+                    "LLDB did not become ready; stopped its pending attach before "
+                    "starting the native sample fallback"
+                )
+                native_sampler = start_native_sample(
+                    process.pid,
+                    shutil.which("sample") or "",
+                    native_sample_file,
+                    native_sample_log,
+                )
 
         def devtools_or_native_stop():
             if native_debugger is not None:

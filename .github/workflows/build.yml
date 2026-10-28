@@ -318,7 +318,10 @@ jobs:
           python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
 
       - name: Retry macOS geometry with LLDB for crash diagnostics
-        if: failure() && steps.macos_geometry.outcome == 'failure' || (github.event_name == 'workflow_dispatch' && inputs.native_devtools_diagnostics && steps.macos_geometry.outcome == 'success')
+        if: >-
+          failure() && steps.macos_geometry.outcome == 'failure' ||
+          (github.event_name == 'workflow_dispatch' && inputs.native_devtools_diagnostics && steps.macos_geometry.outcome == 'success') ||
+          (github.event_name == 'push' && contains(github.event.head_commit.message, '[native-devtools-diag]') && steps.macos_geometry.outcome == 'success')
         run: |
           set -euo pipefail
           . .venv/bin/activate
@@ -332,7 +335,12 @@ jobs:
           exit 0
 
       - name: Report macOS LLDB retry stack
-        if: always() && (steps.macos_geometry.outcome == 'failure' || (github.event_name == 'workflow_dispatch' && inputs.native_devtools_diagnostics && steps.macos_geometry.outcome == 'success'))
+        if: >-
+          always() && (
+            steps.macos_geometry.outcome == 'failure' ||
+            (github.event_name == 'workflow_dispatch' && inputs.native_devtools_diagnostics && steps.macos_geometry.outcome == 'success') ||
+            (github.event_name == 'push' && contains(github.event.head_commit.message, '[native-devtools-diag]') && steps.macos_geometry.outcome == 'success')
+          )
         run: python3 tools/report_ci_failure.py geometry-lldb.log geometry-lldb-app.log geometry-lldb-trace.log geometry-native-sample.log geometry-native-sample.txt
 
       - name: CI-hook runtime acceptance

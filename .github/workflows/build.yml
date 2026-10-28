@@ -5,12 +5,6 @@ on:
     branches: [main, 'arena/**']
     tags: ['v*']
   workflow_dispatch:
-    inputs:
-      native_devtools_diagnostics:
-        description: Run a second macOS DevTools acceptance with LLDB and sample tracing
-        type: boolean
-        required: false
-        default: false
 # NOTE: no `pull_request` trigger on purpose — with both `push` and
 # `pull_request` every push to a PR branch built twice (push + synchronize).
 # Push builds already report commit checks on same-repo PRs, so one run is enough.
@@ -112,7 +106,7 @@ jobs:
           "SHELTER_WER_DUMP_DIR=$dumpDir" >> $env:GITHUB_ENV
           "SHELTER_ACCEPTANCE_STARTED_AT=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" >> $env:GITHUB_ENV
 
-      - name: Geometry and DevTools acceptance (CI hooks)
+      - name: Geometry acceptance (CI hooks)
         shell: bash
         run: |
           set -euo pipefail
@@ -308,40 +302,13 @@ jobs:
       - name: Mark macOS native acceptance start
         run: echo "SHELTER_ACCEPTANCE_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
-      - name: Geometry and DevTools acceptance (CI hooks)
-        id: macos_geometry
+      - name: Geometry acceptance (CI hooks)
         run: |
           set -euo pipefail
           python3 -m venv .venv
           . .venv/bin/activate
           python -m pip install --disable-pip-version-check websocket-client
           python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
-
-      - name: Retry macOS geometry with LLDB for crash diagnostics
-        if: >-
-          failure() && steps.macos_geometry.outcome == 'failure' ||
-          (github.event_name == 'workflow_dispatch' && inputs.native_devtools_diagnostics && steps.macos_geometry.outcome == 'success') ||
-          (github.event_name == 'push' && contains(github.event.head_commit.message, '[native-devtools-diag]') && steps.macos_geometry.outcome == 'success')
-        run: |
-          set -euo pipefail
-          . .venv/bin/activate
-          mv geometry-app.log geometry-direct-app.log 2>/dev/null || true
-          set +e
-          SHELTER_ATTACH_LLDB_ON_DEVTOOLS=1 python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry-lldb.log
-          diagnostic_status=${PIPESTATUS[0]}
-          set -e
-          mv geometry-app.log geometry-lldb-app.log 2>/dev/null || true
-          echo "LLDB diagnostic retry exited with status $diagnostic_status" | tee -a geometry-lldb.log
-          exit 0
-
-      - name: Report macOS LLDB retry stack
-        if: >-
-          always() && (
-            steps.macos_geometry.outcome == 'failure' ||
-            (github.event_name == 'workflow_dispatch' && inputs.native_devtools_diagnostics && steps.macos_geometry.outcome == 'success') ||
-            (github.event_name == 'push' && contains(github.event.head_commit.message, '[native-devtools-diag]') && steps.macos_geometry.outcome == 'success')
-          )
-        run: python3 tools/report_ci_failure.py geometry-lldb.log geometry-lldb-app.log geometry-lldb-trace.log geometry-native-sample.log geometry-native-sample.txt
 
       - name: CI-hook runtime acceptance
         timeout-minutes: 12
@@ -454,7 +421,7 @@ jobs:
 
       - name: Report macOS failure diagnostics
         if: failure()
-        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log packaged-dmg-acceptance.log geometry.log geometry-app.log geometry-direct-app.log geometry-lldb.log geometry-lldb-app.log geometry-lldb-trace.log geometry-native-sample.log geometry-native-sample.txt acceptance-ci.log smoke-run.log acceptance-app.log ci-crash-reports/macos
+        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log packaged-dmg-acceptance.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log ci-crash-reports/macos
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -484,12 +451,6 @@ jobs:
             packaged-dmg-acceptance.log
             geometry.log
             geometry-app.log
-            geometry-direct-app.log
-            geometry-lldb.log
-            geometry-lldb-app.log
-            geometry-lldb-trace.log
-            geometry-native-sample.log
-            geometry-native-sample.txt
             ci-crash-reports/macos/**
             acceptance-ci.log
             smoke-run.log
@@ -504,8 +465,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: CI crash diagnostic collection tests
         run: python3 tests/ci_crash_diagnostics_test.py && python3 tests/ci_crash_report_summary_test.py && python3 tests/ci_lldb_launcher_test.py
-      - name: DevTools UI and bridge regression tests
-        run: node tests/ui_devtools_test.js && node tests/devtools_bridge_reentrancy_test.js && node tests/devtools_client_test.js && node tests/devtools_dock_test.js
+      - name: Removed DevTools UI regression test
+        run: node tests/devtools_removed_test.js
       - name: Download UI regression test
         run: node tests/download_ui_test.js
       - name: Tracker/ad statistics regression test

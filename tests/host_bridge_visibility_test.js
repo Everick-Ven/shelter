@@ -64,29 +64,31 @@ const overlappingToast = runEvaluate({ visible: true, overlayRect: bounds(250, 1
 assert.equal(overlappingToast.intersects, true, 'an overlay intersecting the site viewport remains detectable');
 assert.equal(overlappingToast.calls.freeze, 1, 'a toast covering the site tab still starts the required snapshot freeze');
 
-const chromeMatch = bridge.match(/  window\.shelterShowChrome = function \(\) \{([\s\S]*?)\n  \};/);
+const chromeMatch = bridge.match(/  window\.shelterShowChrome = function \([^)]*\) \{([\s\S]*?)\n  \};/);
 assert.ok(chromeMatch, 'the UI-to-internal-page visibility hook must exist');
-function runChromeHook(visible, frozen) {
+function runChromeHook(visible, frozen, tabId = '') {
   const state = { epoch: 0, visible, frozen, busy: false };
   const calls = [];
   const hook = new Function('st', 'resetFreezeRetry', 'setNativeContentClass', 'stopClipLoop', 'dropSnap', 'q',
-    `return function shelterShowChrome() {${chromeMatch[1]}\n};`)(
+    `return function shelterShowChrome(tabId) {${chromeMatch[1]}\n};`)(
     state,
     () => calls.push(['retry-reset']),
     () => calls.push(['class', state.visible]),
     () => calls.push(['clip-stop']),
     () => calls.push(['snapshot-drop']),
-    method => { calls.push([method, state.visible]); return Promise.resolve({}); }
+    (method, args) => { calls.push([method, args, state.visible]); return Promise.resolve({}); }
   );
-  hook();
+  hook(tabId);
   return { state, calls };
 }
 const hiddenChrome = runChromeHook(false, false);
 assert.equal(hiddenChrome.calls.some(call => typeof call[0] === 'string' && call[0].startsWith('view.')), false,
   'showing the Tasks page while already hidden must not call view.*');
-const leavingSite = runChromeHook(true, true);
+const leavingSite = runChromeHook(true, true, 'internal-tab');
 const hideCall = leavingSite.calls.find(call => call[0] === 'view.hide');
-assert.ok(hideCall && hideCall[1] === true, 'the native view is hidden while the site is still marked visible, then visibility changes');
+assert.deepEqual(hideCall && hideCall[1], { tabId: 'internal-tab' },
+  'hiding a native view for an internal page keeps the selected tab synchronized');
+assert.equal(hideCall[2], true, 'the native view is hidden while the site is still marked visible, then visibility changes');
 assert.equal(leavingSite.state.visible, false);
 
 const zoomMatch = bridge.match(/  window\.shelterSetZoomAll = function \(f\) \{([\s\S]*?)\n  \};/);
@@ -103,7 +105,7 @@ zoomState.visible = true;
 setZoom(1.5);
 assert.deepEqual(zoomCalls, [['view.zoom', { factor: 1.5 }]], 'a visible site tab receives the latest zoom value');
 assert.equal(zoomState.zoomPending, false);
-const openSource = extract(bridge, '  window.shelterOpen = function (url, opts) {', '  window.shelterShowChrome = function () {', 'site-tab open hook');
+const openSource = extract(bridge, '  window.shelterOpen = function (url, opts) {', '  window.shelterShowChrome = function (tabId) {', 'site-tab open hook');
 assert.ok(openSource.indexOf('st.visible = true') < openSource.indexOf("q('view.open'"),
   'opening a native site view must first mark the site tab visible');
 assert.match(openSource, /if \(st\.zoomPending\)[\s\S]*opened\.then[\s\S]*st\.visible && st\.tabId === id[\s\S]*q\('view\.zoom'/,

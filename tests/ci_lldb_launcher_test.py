@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests the macOS CI-only LLDB wrapper used to capture DevTools crash stacks."""
+"""Tests the macOS CI-only LLDB launcher used for native crash diagnostics."""
 from __future__ import annotations
 
 import importlib.util
@@ -160,23 +160,15 @@ class LLDBLauncherTest(unittest.TestCase):
         self.assertIn("shell::OpenDevTools", summary[2])
         self.assertNotIn("ThreadPoolForegroundWorker", "\n".join(summary))
 
-    def test_geometry_failure_attaches_before_devtools_and_emits_trace(self) -> None:
+    def test_geometry_acceptance_checks_native_view_without_devtools(self) -> None:
         source = (ROOT / "tools" / "check_geometry.py").read_text(encoding="utf-8")
         self.assertIn("faulting_thread_summary(", source)
         self.assertIn("LLDB faulting-thread backtrace", source)
-        self.assertIn("SHELTER_ATTACH_LLDB_ON_DEVTOOLS", source)
-        self.assertIn("continuing DevTools reproduction", source)
-        self.assertIn("start_native_sample", source)
-        self.assertIn("output_file=os.path.abspath(output_file)", source)
-        self.assertIn("native sample finished: exit=", source)
-        attach_call = source.index(
-            "native_debugger, native_debugger_ready = attach_lldb_to_process("
-        )
-        sample_call = source.index("native_sampler = start_native_sample(")
-        devtools_request = source.index("open_result = cdp.evaluate")
-        self.assertLess(attach_call, source.index("kill(native_debugger)", attach_call))
-        self.assertLess(attach_call, sample_call)
-        self.assertLess(sample_call, devtools_request)
+        self.assertIn("shelterCefRequest('view.open'", source)
+        self.assertIn("shell: content bounds", source)
+        self.assertNotIn("shelterOpenDevtools", source)
+        self.assertNotIn("ShowDevTools", source)
+        self.assertNotIn("SHELTER_ATTACH_LLDB_ON_DEVTOOLS", source)
 
     def test_inferior_pid_is_parsed_for_cleanup(self) -> None:
         output = "LLDB attached\nProcess 4567 launched: '/tmp/Shelter' (x86_64)\n"
@@ -195,37 +187,20 @@ class LLDBLauncherTest(unittest.TestCase):
             103,
         )
 
-    def test_lldb_attaches_only_as_a_failure_diagnostic_retry(self) -> None:
+    def test_removed_devtools_has_no_ci_acceptance_or_retry(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
-        macos = workflow.index("  macos:")
-        macos_end = workflow.index("  security-unit:", macos)
-        geometry = workflow.index(
-            "- name: Geometry and DevTools acceptance (CI hooks)", macos, macos_end
-        )
-        retry = workflow.index(
-            "- name: Retry macOS geometry with LLDB for crash diagnostics",
-            geometry,
-            macos_end,
-        )
-        runtime = workflow.index(
-            "- name: CI-hook runtime acceptance", retry, macos_end
-        )
-        self.assertNotIn("SHELTER_USE_LLDB=1", workflow[geometry:retry])
-        self.assertIn("failure() && steps.macos_geometry.outcome == 'failure'", workflow[retry:runtime])
-        self.assertIn("github.event_name == 'workflow_dispatch'", workflow[retry:runtime])
-        self.assertIn("inputs.native_devtools_diagnostics", workflow[retry:runtime])
-        self.assertIn("[native-devtools-diag]", workflow[retry:runtime])
-        self.assertIn("steps.macos_geometry.outcome == 'success'", workflow[retry:runtime])
-        self.assertIn("SHELTER_ATTACH_LLDB_ON_DEVTOOLS=1", workflow[retry:runtime])
-        self.assertNotIn("SHELTER_USE_LLDB=1", workflow[retry:runtime])
-        self.assertIn("set +e", workflow[retry:runtime])
-        self.assertIn("geometry-lldb.log", workflow[retry:runtime])
-        self.assertIn("geometry-lldb-trace.log", workflow[retry:runtime])
-        self.assertIn("Report macOS LLDB retry stack", workflow[retry:runtime])
-        self.assertIn("geometry-lldb-app.log", workflow[retry:runtime])
-        self.assertIn("geometry-native-sample.log", workflow[retry:runtime])
-        self.assertIn("geometry-native-sample.txt", workflow[retry:runtime])
-        self.assertNotIn("SHELTER_USE_LLDB=1", workflow[:macos])
+        self.assertIn("- name: Geometry acceptance (CI hooks)", workflow)
+        self.assertIn("check_geometry.py", workflow)
+        for removed in (
+            "native_devtools_diagnostics",
+            "[native-devtools-diag]",
+            "SHELTER_ATTACH_LLDB_ON_DEVTOOLS",
+            "Geometry and DevTools acceptance",
+            "Retry macOS geometry with LLDB",
+            "Report macOS LLDB retry stack",
+        ):
+            self.assertNotIn(removed, workflow)
+
 
 
 if __name__ == "__main__":

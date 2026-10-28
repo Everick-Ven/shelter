@@ -30,13 +30,13 @@
     'ext.setMode', 'ext.install', 'ext.remove', 'ext.pick', 'file.open',
     'win.openPlain', 'view.open', 'view.layout', 'view.clip', 'view.hide',
     'view.show', 'tabs.sync', 'view.act', 'ctx.act', 'view.snap', 'view.zoom',
-    'find', 'devtools', 'clip.read', 'clip.write', 'theme.scheme', 'shell.show',
+    'find', 'clip.read', 'clip.write', 'theme.scheme', 'shell.show',
     'block.setEnabled', 'fp.setEnabled', 'cookie.setEnabled', 'https.setEnabled',
     'dns.setProvider', 'strict.setEnabled', 'strict.allow', 'ghost.setEnabled',
     'shell.filestate', 'dl.decision', 'dl.control', 'privacy.clear',
     'dbg.protections', 'dbg.hit', 'dbg.clip', 'window.minimize',
     'window.maximize', 'window.close', 'window.openPlain', 'theme.scheme',
-    'privacy.clear', 'auth.open', 'devtools.ctl', 'ai.test', 'ai.chat',
+    'privacy.clear', 'auth.open', 'ai.test', 'ai.chat',
     'clipboard.read', 'clipboard.write', 'tab.captureThumbs', 'tab.hideContent',
     'tab.navigate', 'tab.reload', 'tab.stop', 'tab.zoom', 'ui.ready',
     'viewport.sync', 'diag.performance', 'ui.longtask', 'freeze.snapshot',
@@ -598,36 +598,7 @@
 
   /* ---------- раскладка ---------- */
   var layoutQueued = false;
-  var devtoolsLayoutQueued = false;
-  var devtoolsLayoutKey = '';
-  function syncDevToolsLayout(force) {
-    var stage = byId('stage'), body = byId('dtBody');
-    if (!stage || !body) return Promise.resolve(null);
-    var visible = stage.classList.contains('dt-open');
-    var rect = { x: 0, y: 0, width: 0, height: 0 };
-    if (visible) {
-      var r = body.getBoundingClientRect();
-      rect = {
-        x: Math.round(r.left), y: Math.round(r.top),
-        width: Math.max(0, Math.round(r.width)),
-        height: Math.max(0, Math.round(r.height))
-      };
-    }
-    var key = [visible ? 1 : 0, rect.x, rect.y, rect.width, rect.height].join(',');
-    if (!force && key === devtoolsLayoutKey) return Promise.resolve(null);
-    devtoolsLayoutKey = key;
-    return q('devtools', { act: 'layout', rect: rect, visible: visible });
-  }
-  function scheduleDevToolsLayout() {
-    if (devtoolsLayoutQueued) return;
-    devtoolsLayoutQueued = true;
-    requestAnimationFrame(function () {
-      devtoolsLayoutQueued = false;
-      syncDevToolsLayout(false);
-    });
-  }
   function relayout() {
-    scheduleDevToolsLayout();
     perf.layoutChecks++;
     if (!st.visible || st.frozen || st.busy) return;
     var r = vpRect();
@@ -682,13 +653,10 @@
     scheduleEval();
     return true;
   };
-  window.shelterShowChrome = function (options) {
-    options = options || {};
-    var internalArgs = options.internal ? {
-      tabId: options.tabId || activeId(), internal: true
-    } : null;
+  window.shelterShowChrome = function (tabId) {
+    var hideArgs = tabId ? { tabId: String(tabId) } : undefined;
     if (!st.visible) {
-      if (internalArgs) q('view.hide', internalArgs);
+      if (hideArgs) q('view.hide', hideArgs);
       st.epoch++;
       st.frozen = false;
       resetFreezeRetry();
@@ -698,7 +666,7 @@
       return;
     }
     st.epoch++;
-    q('view.hide', internalArgs || undefined);
+    q('view.hide', hideArgs);
     st.visible = false;
     st.frozen = false;
     resetFreezeRetry();
@@ -804,7 +772,6 @@
     // запуска — аргумент командной строки фиксируется до старта CEF.
     extSetMode: function (engine) { return q('ext.setMode', { engine: !!engine }); },
     fileOpen: function () { return q('file.open'); },  // Ctrl+O: диалог ОС -> file-open
-    devTools: function (msg) { return q('devtools', msg || {}); },  // CEF Views DevTools dock/window actions
     // Внешний ИИ-агент: проверка подключения и чат через нативный HTTPS
     // (ai.test/ai.chat). Без этих методов диалог отдавал «Нет доступа».
     testAgent: function (cfg) { return q('ai.test', cfg || {}); },
@@ -874,7 +841,6 @@
       window.shelterCtxMenu({
         params: p.params || {}, wv: wv, gid: id, partition: p.partition,
         point: { x: vp.x + (p.x || 0), y: vp.y + (p.y || 0) },
-        local: { x: p.x || 0, y: p.y || 0 }  // координаты в виде вкладки — для «Инспектировать»
       });
     },
     found: function (p) {
@@ -1038,15 +1004,8 @@
   function startObservers() {
     watchFindbar();
     var vp = byId('viewport'), stage = byId('stage'), app = byId('app'), main = vp && vp.closest('.main');
-    var dtBody = byId('dtBody');
     if (window.ResizeObserver && vp) new ResizeObserver(scheduleRelayout).observe(vp);
-    if (window.ResizeObserver && dtBody) new ResizeObserver(scheduleDevToolsLayout).observe(dtBody);
-    if (stage) new MutationObserver(scheduleDevToolsLayout).observe(stage, {
-      attributes: true, attributeFilter: ['class', 'style']
-    });
     window.addEventListener('resize', scheduleRelayout, { passive: true });
-    window.addEventListener('resize', scheduleDevToolsLayout, { passive: true });
-    setTimeout(function () { syncDevToolsLayout(true); }, 60);
     [vp, stage, app, main].forEach(function (node) {
       if (!node) return;
       node.addEventListener('transitionrun', viewportMotion);

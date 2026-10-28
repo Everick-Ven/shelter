@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Приёмка геометрии вкладки и native DevTools dock SHELTER.
+"""Приёмка геометрии окна и встроенного CEF-вида вкладки SHELTER.
 
-Запускает CI-сборку, через локальный CEF DevTools открывает реальный сайт во
-вкладке приложения и ждёт маркер «shell: content bounds» в shelter.log.
-Проверяет, что область сайта остаётся внутри интерфейса браузера, затем
-поведенчески открывает CEF DevTools в dock и передаёт Inspect-точку.
+Через локальный CEF/CDP-канал автоматизации открывает реальный сайт во вкладке
+и проверяет, что нативная область сайта остаётся внутри интерфейса браузера,
+а сохранённое состояние окна не меняется при запуске.
 """
 from __future__ import annotations
 
@@ -23,11 +22,7 @@ import urllib.request
 from typing import Any, Dict, List, Optional
 
 from ci_lldb_launcher import (
-    attach_command,
-    attach_is_resuming,
     faulting_thread_summary,
-    has_native_crash_stop,
-    sample_command,
     inferior_pid_from_output,
     inferior_pid_from_process_list,
     wrap_command,
@@ -91,44 +86,19 @@ def tail_lines(path: str, count: int = 80) -> List[str]:
     return read_lines(path)[-count:]
 
 
-def head_lines(path: str, count: int = 80) -> List[str]:
-    return read_lines(path)[:count]
-
-
-def dump_diagnostics(
-    logfile: str,
-    stderr_file: str,
-    lldb_trace_file: str = "",
-    native_sample_file: str = "",
-    native_sample_log: str = "",
-) -> None:
+def dump_diagnostics(logfile: str, stderr_file: str) -> None:
     out("--- shelter.log tail ---")
     for line in tail_lines(logfile):
         out(line)
     out("--- app stderr tail ---")
     for line in tail_lines(stderr_file):
         out(line)
-    native_trace_file = lldb_trace_file
-    if not native_trace_file and os.environ.get("SHELTER_USE_LLDB") == "1":
-        native_trace_file = stderr_file
-    if native_trace_file and platform.system() == "Darwin":
-        if native_trace_file != stderr_file:
-            out("--- LLDB attach output tail ---")
-            for line in tail_lines(native_trace_file):
-                out(line)
-        summary = faulting_thread_summary("\n".join(read_lines(native_trace_file)))
+    if platform.system() == "Darwin" and os.environ.get("SHELTER_USE_LLDB") == "1":
+        summary = faulting_thread_summary("\n".join(read_lines(stderr_file)))
         if summary:
             out("--- LLDB faulting-thread backtrace ---")
             for line in summary:
                 out(line)
-    if native_sample_log:
-        out("--- native sample command output ---")
-        for line in tail_lines(native_sample_log):
-            out(line)
-    if native_sample_file:
-        out("--- native sample stack (report header and leading call graph) ---")
-        for line in head_lines(native_sample_file, 200):
-            out(line)
     if platform.system() == "Darwin":
         reports = []
         for directory in (
@@ -162,113 +132,6 @@ def kill(process: Optional[subprocess.Popen]) -> None:
                 process.wait(timeout=4)
     except Exception as exc:
         out("kill error:", exc)
-
-
-def attach_lldb_to_process(
-    pid: int, lldb_path: str, output_file: str
-) -> tuple[subprocess.Popen, bool]:
-    """Start LLDB and report whether it resumed before the diagnostic deadline."""
-    sudo_path = shutil.which("sudo") or ""
-    try:
-        command = attach_command(
-            pid, lldb_path=lldb_path, sudo_path=sudo_path
-        )
-    except ValueError as exc:
-        raise GeometryError(f"native debugger setup failed: {exc}") from exc
-    if sudo_path:
-        out("LLDB attach: using non-interactive sudo for task-for-pid access")
-    debugger_env = dict(os.environ)
-    debugger_env["TERM"] = "dumb"
-    try:
-        with open(output_file, "w", encoding="utf-8", errors="replace") as stream:
-            debugger = subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=stream,
-                stderr=subprocess.STDOUT,
-                env=debugger_env,
-            )
-    except OSError as exc:
-        raise GeometryError(f"could not start LLDB attach: {exc}") from exc
-
-    deadline = time.monotonic() + 2
-    while time.monotonic() < deadline:
-        transcript = "\n".join(read_lines(output_file))
-        if attach_is_resuming(transcript, pid):
-            out(f"LLDB attach confirmed for PID {pid}")
-            return debugger, True
-        if debugger.poll() is not None:
-            detail = " | ".join(read_lines(output_file)[-12:])
-            out(
-                f"LLDB attach exited with status {debugger.returncode} before readiness; "
-                f"continuing DevTools reproduction; {detail}"
-            )
-            return debugger, False
-        time.sleep(0.1)
-
-    detail = " | ".join(read_lines(output_file)[-12:])
-    out(
-        "LLDB attach remained pending after 2s; continuing DevTools reproduction "
-        f"without confirmed debugger readiness; {detail}"
-    )
-    return debugger, False
-
-
-def start_native_sample(
-    pid: int, sample_path: str, output_file: str, log_file: str
-) -> Optional[subprocess.Popen]:
-    """Collect a short native stack sample concurrently with the DevTools call."""
-    sudo_path = shutil.which("sudo") or ""
-    try:
-        command = sample_command(
-            pid,
-            sample_path=sample_path,
-            output_file=os.path.abspath(output_file),
-            sudo_path=sudo_path,
-        )
-    except ValueError as exc:
-        out(f"native sample unavailable: {exc}")
-        return None
-    if sudo_path:
-        out("native sample: using non-interactive sudo for task access")
-    out(f"native sample command: {json.dumps(command)}")
-    try:
-        with open(log_file, "w", encoding="utf-8", errors="replace") as metadata_stream:
-            metadata_stream.write(f"target PID: {pid}\n")
-            metadata_stream.write(f"command: {json.dumps(command)}\n")
-        with open(log_file, "a", encoding="utf-8", errors="replace") as log_stream:
-            sampler = subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=log_stream,
-                stderr=subprocess.STDOUT,
-            )
-    except OSError as exc:
-        out(f"could not start native sample: {exc}")
-        return None
-    out(f"native sample started for target PID {pid} (sampler PID {sampler.pid})")
-    return sampler
-
-
-def wait_for_native_sample(
-    sampler: Optional[subprocess.Popen], report_file: str, log_file: str
-) -> None:
-    if sampler is None:
-        return
-    if sampler.poll() is None:
-        try:
-            sampler.wait(timeout=7)
-        except subprocess.TimeoutExpired:
-            out("native sample exceeded its 7s capture budget; terminating sampler")
-            kill(sampler)
-    try:
-        report_size = os.path.getsize(report_file)
-    except OSError:
-        report_size = 0
-    out(
-        f"native sample finished: exit={sampler.poll()}, "
-        f"report_bytes={report_size}, stderr_log={log_file}"
-    )
 
 
 def cleanup_lldb_debuggee(
@@ -435,9 +298,6 @@ def main() -> int:
 
     logfile = os.path.join(user_data_dir(), "shelter.log")
     stderr_file = "geometry-app.log"
-    native_trace_file = "geometry-lldb-trace.log"
-    native_sample_file = "geometry-native-sample.txt"
-    native_sample_log = "geometry-native-sample.log"
     try:
         state_file = write_window_state(user_data_dir())
     except OSError as exc:
@@ -454,15 +314,9 @@ def main() -> int:
         "--remote-allow-origins=*",
     ]
     debug_with_lldb = os.environ.get("SHELTER_USE_LLDB") == "1"
-    attach_lldb_before_devtools = (
-        os.environ.get("SHELTER_ATTACH_LLDB_ON_DEVTOOLS") == "1"
-    )
     lldb_path = shutil.which("lldb") or ""
-    if (debug_with_lldb or attach_lldb_before_devtools) and platform.system() != "Darwin":
+    if debug_with_lldb and platform.system() != "Darwin":
         out("LLDB diagnostics are supported only on macOS")
-        return 2
-    if debug_with_lldb and attach_lldb_before_devtools:
-        out("choose either LLDB launch mode or LLDB attach mode, not both")
         return 2
     try:
         command = wrap_command(
@@ -476,17 +330,13 @@ def main() -> int:
         return 2
     if debug_with_lldb:
         out("native crash diagnostics: LLDB thread backtraces enabled")
-    if attach_lldb_before_devtools:
-        out("native crash diagnostics: LLDB will attach immediately before DevTools")
     env = dict(os.environ)
     env["SHELTER_DIAG"] = "1"
     out("launch:", executable)
-    out("DevTools port:", port)
+    out("CDP port:", port)
     out("log:", logfile)
 
     process = None
-    native_debugger = None
-    native_sampler = None
     cdp = None
     last_ui_state: List[Any] = [None]
     native_open_state: List[Any] = [None]
@@ -513,7 +363,7 @@ def main() -> int:
                 ),
                 None,
             ),
-            "the SHELTER UI DevTools target",
+            "the SHELTER UI target",
             process,
             deadline,
         )
@@ -709,123 +559,6 @@ def main() -> int:
             raise GeometryError("saved window mode was overwritten during startup")
         out("saved window mode intact: maximized")
 
-        # Exercise the real CEF path that the source-only regression tests
-        # cannot cover: create the docked Views popup, then request an element
-        # inspection against the same already-open DevTools browser.
-        devtools_log_start = len(read_lines(logfile))
-
-        def devtools_marker_count(marker: str) -> int:
-            lines = read_lines(logfile)
-            fresh = (
-                lines[devtools_log_start:]
-                if len(lines) >= devtools_log_start
-                else lines
-            )
-            return sum(marker in entry for entry in fresh)
-
-        native_trace_line_start = 0
-        if attach_lldb_before_devtools:
-            if process is None:
-                raise GeometryError("cannot attach LLDB before the app process starts")
-            native_debugger, native_debugger_ready = attach_lldb_to_process(
-                process.pid, lldb_path, native_trace_file
-            )
-            native_trace_line_start = len(read_lines(native_trace_file))
-            if native_debugger_ready:
-                out(
-                    f"DevTools crash reproduction proceeding under LLDB PID "
-                    f"{native_debugger.pid}"
-                )
-            else:
-                kill(native_debugger)
-                native_debugger = None
-                out(
-                    "LLDB did not become ready; stopped its pending attach before "
-                    "starting the native sample fallback"
-                )
-                native_sampler = start_native_sample(
-                    process.pid,
-                    shutil.which("sample") or "",
-                    native_sample_file,
-                    native_sample_log,
-                )
-
-        def devtools_or_native_stop():
-            if native_debugger is not None:
-                trace_lines = read_lines(native_trace_file)
-                new_lines = trace_lines[native_trace_line_start:]
-                if has_native_crash_stop("\n".join(new_lines)):
-                    return "native-stop"
-            return devtools_marker_count("ci: devtools ShowDevTools returned") >= 1
-
-        devtools_deadline = time.monotonic() + min(20, max(5, budget // 3))
-        open_result = cdp.evaluate("""(() => {
-          const id = typeof window.getActiveTabId === 'function'
-            ? window.getActiveTabId() : null;
-          if (!id || typeof window.shelterOpenDevtools !== 'function') {
-            return {accepted: false, reason: 'DevTools UI entry point unavailable', id: id};
-          }
-          window.shelterOpenDevtools({tabId: id});
-          return {accepted: true, id: id};
-        })()""")
-        if not isinstance(open_result, dict) or open_result.get("accepted") is not True:
-            raise GeometryError(
-                "DevTools dock request was rejected: "
-                + json.dumps(open_result, ensure_ascii=False)
-            )
-        out("DevTools dock requested:", json.dumps(open_result, ensure_ascii=False))
-        devtools_wait_result = wait_until(
-            devtools_or_native_stop,
-            "CEF ShowDevTools to return for the dock request",
-            process,
-            devtools_deadline,
-        )
-        if devtools_wait_result == "native-stop":
-            raise GeometryError(
-                "LLDB observed a native stop while waiting for CEF ShowDevTools; "
-                "faulting-thread backtrace follows"
-            )
-        wait_until(
-            lambda: devtools_marker_count("ci: devtools dock overlay attached") >= 1,
-            "the DevTools BrowserView to attach to the CEF Views dock",
-            process,
-            devtools_deadline,
-        )
-        wait_until(
-            lambda: devtools_marker_count("ci: devtools dock focus requested") >= 1,
-            "the docked DevTools BrowserView to receive focus after ShowDevTools returns",
-            process,
-            devtools_deadline,
-        )
-
-        inspect_result = cdp.evaluate("""(() => {
-          const id = typeof window.getActiveTabId === 'function'
-            ? window.getActiveTabId() : null;
-          if (!id || typeof window.shelterOpenDevtools !== 'function') {
-            return {accepted: false, reason: 'DevTools Inspect entry point unavailable', id: id};
-          }
-          window.shelterOpenDevtools({tabId: id, inspect: true, x: 12, y: 12});
-          return {accepted: true, id: id, x: 12, y: 12};
-        })()""")
-        if not isinstance(inspect_result, dict) or inspect_result.get("accepted") is not True:
-            raise GeometryError(
-                "DevTools Inspect request was rejected: "
-                + json.dumps(inspect_result, ensure_ascii=False)
-            )
-        out("DevTools Inspect requested:", json.dumps(inspect_result, ensure_ascii=False))
-        wait_until(
-            lambda: devtools_marker_count("ci: devtools ShowDevTools returned") >= 2,
-            "CEF ShowDevTools to return for the Inspect request",
-            process,
-            devtools_deadline,
-        )
-        wait_until(
-            lambda: devtools_marker_count("ci: devtools dock focus requested") >= 2,
-            "the docked DevTools BrowserView to receive focus after Inspect",
-            process,
-            devtools_deadline,
-        )
-        out("OK: docked DevTools opened and Inspect returned without crashing")
         acceptance_succeeded = True
         return 0
     except Exception as exc:
@@ -842,26 +575,11 @@ def main() -> int:
             stderr_stream.flush()
         except OSError:
             pass
-        wait_for_native_sample(
-            native_sampler, native_sample_file, native_sample_log
-        )
-        native_sampler = None
-        dump_diagnostics(
-            logfile,
-            stderr_file,
-            native_trace_file if attach_lldb_before_devtools else "",
-            native_sample_file if attach_lldb_before_devtools else "",
-            native_sample_log if attach_lldb_before_devtools else "",
-        )
+        dump_diagnostics(logfile, stderr_file)
         return 1
     finally:
-        wait_for_native_sample(
-            native_sampler, native_sample_file, native_sample_log
-        )
         if cdp is not None:
             cdp.close()
-        if native_debugger is not None:
-            kill(native_debugger)
         if debug_with_lldb:
             cleanup_lldb_debuggee(
                 process, stderr_file, executable, port, acceptance_succeeded

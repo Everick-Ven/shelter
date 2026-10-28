@@ -164,24 +164,6 @@ class Shell {
   // Нужен событиям статистики, которые приходят асинхронно с IO-потока.
   std::string TabIdForBrowser(int browser_id);
   void OnTabCreated(CefRefPtr<CefBrowser> browser, const std::string& id);
-  // DevTools lifecycle is owned by the active tab. Views popups are either
-  // attached to the main window as an overlay or moved to a standalone Views
-  // window when the user undocks them.
-  void SetDevToolsTarget(const std::string& id, bool internal,
-                         const CefPoint& inspect_element_at, bool inspect,
-                         bool focus = false);
-  void MaybeOpenDevToolsForTab(const std::string& id);
-  bool CanShowDevTools(const std::string& id, int browser_id,
-                       std::uint64_t generation);
-  void OnDevToolsShowCallReturned(const std::string& id,
-                                  std::uint64_t generation, bool did_call);
-  void LayoutDevTools(const CefRect& rect, bool visible);
-  void CloseDevToolsPanel();
-  void UndockDevTools();
-  bool OnDevToolsPopupBrowserViewCreated(
-      CefRefPtr<CefBrowserView> browser_view,
-      CefRefPtr<CefBrowserView> popup_browser_view);
-  void OnBrowserViewDestroyed(CefRefPtr<CefBrowserView> browser_view);
   void OnTabAddress(CefRefPtr<CefBrowser> browser, const std::string& url);
   void OnTabTitle(CefRefPtr<CefBrowser> browser, const std::string& title);
   void OnTabLoading(CefRefPtr<CefBrowser> browser, bool loading);
@@ -338,7 +320,6 @@ class Shell {
   void HideAllTabs();
   void HideInactiveTabs(Tab* active);
   void LayoutTab(Tab* tab, const CefRect& rect, bool visible);
-  void ResetDevToolsView(bool close_browser);
   void SetOverlayVisibility(Tab* tab, bool visible);
   CefRefPtr<CefBrowser> ActiveBrowser();
   void CaptureSnapshot(const std::string& tab_id, int quality,
@@ -355,7 +336,7 @@ class Shell {
                     CefRefPtr<CefMessageRouterBrowserSide::Callback> cb);
 
  public:
-  // Действие над вкладкой (reload/devtools/...); публично — вызывается
+  // Действие над вкладкой (reload/...); публично — вызывается
   // легаси-адаптером моста для команд вида tab:reload.
   void TabAction(const std::string& id,
                  const std::string& act,
@@ -371,23 +352,6 @@ class Shell {
   CefRefPtr<CefWindow> window_;
   CefRefPtr<CefBrowserView> ui_view_;
   CefRefPtr<CefBrowser> ui_browser_;
-  // There is one DevTools frontend at a time. The target follows the active
-  // tab; the frontend view itself is a Views overlay until explicitly detached.
-  CefRect devtools_rect_;
-  bool devtools_rect_visible_ = false;
-  bool devtools_open_ = false;
-  bool devtools_docked_ = true;
-  bool devtools_target_internal_ = false;
-  bool devtools_opening_ = false;
-  bool devtools_view_docked_ = false;
-  bool devtools_inspect_ = false;
-  std::uint64_t devtools_generation_ = 0;
-  std::string devtools_target_tab_;
-  std::string devtools_view_tab_;
-  CefPoint devtools_inspect_point_;
-  CefRefPtr<CefBrowser> devtools_target_browser_;
-  CefRefPtr<CefBrowserView> devtools_view_;
-  CefRefPtr<CefOverlayController> devtools_overlay_;
   std::atomic<int> ui_browser_id_{-1};  // Published for IO-thread scheme checks.
   bool ui_http_cache_cleared_ = false;
   std::vector<CefDraggableRegion> drag_regions_;
@@ -468,33 +432,22 @@ class Shell {
 // Сравнение адресов без учёта схемы, www, завершающего '/' и регистра.
 bool SameUrl(const std::string& a, const std::string& b);
 
-// Делегат BrowserView: Alloy для UI/вкладок, Chrome для DevTools-popup.
+// BrowserView popup handling for regular page windows.
 class ShellBrowserViewDelegate : public CefBrowserViewDelegate {
  public:
-  explicit ShellBrowserViewDelegate(
-      cef_runtime_style_t runtime_style = CEF_RUNTIME_STYLE_ALLOY)
-      : runtime_style_(runtime_style) {}
   CefRefPtr<CefBrowserViewDelegate> GetDelegateForPopupBrowserView(
       CefRefPtr<CefBrowserView>, const CefBrowserSettings&,
-      CefRefPtr<CefClient>, bool is_devtools) override {
-    if (is_devtools) {
-      // CEF DevTools popups require Chrome style, even when the opener uses
-      // Alloy style. Give only the DevTools popup a matching delegate.
-      return new ShellBrowserViewDelegate(CEF_RUNTIME_STYLE_CHROME);
-    }
+      CefRefPtr<CefClient>, bool) override {
     return this;
   }
   bool OnPopupBrowserViewCreated(CefRefPtr<CefBrowserView> browser_view,
                                  CefRefPtr<CefBrowserView> popup_browser_view,
-                                 bool is_devtools) override;
-  void OnBrowserDestroyed(CefRefPtr<CefBrowserView> browser_view,
-                          CefRefPtr<CefBrowser> browser) override;
+                                 bool) override;
   cef_runtime_style_t GetBrowserRuntimeStyle() override {
-    return runtime_style_;
+    return CEF_RUNTIME_STYLE_ALLOY;
   }
 
  private:
-  const cef_runtime_style_t runtime_style_;
   IMPLEMENT_REFCOUNTING(ShellBrowserViewDelegate);
   DISALLOW_COPY_AND_ASSIGN(ShellBrowserViewDelegate);
 };

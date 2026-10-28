@@ -534,15 +534,15 @@ class ShellWindowDelegate : public CefWindowDelegate {
   DISALLOW_COPY_AND_ASSIGN(ShellWindowDelegate);
 };
 
-// Окно для popup'ов страниц и DevTools.
+// Окно для popup'ов обычных страниц.
 class PopupWindowDelegate : public CefWindowDelegate {
  public:
-  PopupWindowDelegate(CefRefPtr<CefBrowserView> view, bool is_devtools)
-      : view_(view), is_devtools_(is_devtools) {}
+  explicit PopupWindowDelegate(CefRefPtr<CefBrowserView> view)
+      : view_(view) {}
 
   void OnWindowCreated(CefRefPtr<CefWindow> window) override {
     window->AddChildView(view_);
-    if (!is_devtools_ && view_) {
+    if (view_) {
       CefRefPtr<CefBrowser> browser = view_->GetBrowser();
       CefRefPtr<CefFrame> frame = browser ? browser->GetMainFrame() : nullptr;
       const std::string url = frame ? frame->GetURL().ToString() : "";
@@ -564,13 +564,11 @@ class PopupWindowDelegate : public CefWindowDelegate {
     return CefSize(1000, 720);
   }
   cef_runtime_style_t GetWindowRuntimeStyle() override {
-    return is_devtools_ ? CEF_RUNTIME_STYLE_CHROME
-                        : CEF_RUNTIME_STYLE_ALLOY;
+    return CEF_RUNTIME_STYLE_ALLOY;
   }
 
  private:
   CefRefPtr<CefBrowserView> view_;
-  bool is_devtools_ = false;
   IMPLEMENT_REFCOUNTING(PopupWindowDelegate);
   DISALLOW_COPY_AND_ASSIGN(PopupWindowDelegate);
 };
@@ -1307,126 +1305,11 @@ std::string JsonStringArray(const std::vector<std::string>& values) {
 }  // namespace
 
 bool ShellBrowserViewDelegate::OnPopupBrowserViewCreated(
-    CefRefPtr<CefBrowserView> browser_view,
-    CefRefPtr<CefBrowserView> popup_browser_view, bool is_devtools) {
+    CefRefPtr<CefBrowserView>,
+    CefRefPtr<CefBrowserView> popup_browser_view, bool) {
   if (!popup_browser_view) return false;
-  if (is_devtools && Shell::Get().OnDevToolsPopupBrowserViewCreated(
-                         browser_view, popup_browser_view)) {
-    return true;
-  }
-  CefWindow::CreateTopLevelWindow(
-      new PopupWindowDelegate(popup_browser_view, is_devtools));
+  CefWindow::CreateTopLevelWindow(new PopupWindowDelegate(popup_browser_view));
   return true;
-}
-
-void ShellBrowserViewDelegate::OnBrowserDestroyed(
-    CefRefPtr<CefBrowserView> browser_view, CefRefPtr<CefBrowser> browser) {
-  (void)browser;
-  Shell::Get().OnBrowserViewDestroyed(browser_view);
-}
-
-bool Shell::OnDevToolsPopupBrowserViewCreated(
-    CefRefPtr<CefBrowserView> browser_view,
-    CefRefPtr<CefBrowserView> popup_browser_view) {
-  CEF_REQUIRE_UI_THREAD();
-#if defined(SHELTER_CI_HOOKS)
-  Log("ci: devtools popup callback entered");
-#endif
-  if (!popup_browser_view) return true;
-  CefRefPtr<CefBrowser> source_browser =
-      browser_view ? browser_view->GetBrowser() : nullptr;
-  CefRefPtr<CefBrowser> popup_browser = popup_browser_view->GetBrowser();
-  Tab* target = source_browser
-                    ? FindTabByBrowser(source_browser->GetIdentifier())
-                    : nullptr;
-  if (!devtools_open_ || devtools_target_internal_ || !target ||
-      target->id != devtools_target_tab_ || !devtools_target_browser_ ||
-      !popup_browser || !popup_browser->IsValid() ||
-      source_browser->GetIdentifier() !=
-          devtools_target_browser_->GetIdentifier()) {
-    // The request became stale while CEF was creating the popup (for example,
-    // the user switched tabs). Consume it rather than creating a surprise
-    // standalone DevTools window for the old page.
-    if (popup_browser && popup_browser->IsValid()) {
-      CefRefPtr<CefBrowserHost> popup_host = popup_browser->GetHost();
-      if (popup_host) popup_host->CloseBrowser(false);
-    }
-    return true;
-  }
-
-  devtools_view_ = popup_browser_view;
-  devtools_view_tab_ = target->id;
-  devtools_opening_ = false;
-  devtools_view_docked_ = devtools_docked_;
-  if (!devtools_docked_) return false;
-  if (!window_) {
-    devtools_view_docked_ = false;
-    return false;
-  }
-  devtools_overlay_ = window_->AddOverlayView(
-      popup_browser_view, CEF_DOCKING_MODE_CUSTOM, true);
-#if defined(SHELTER_CI_HOOKS)
-  Log("ci: devtools AddOverlayView returned");
-#endif
-  if (!devtools_overlay_ || !devtools_overlay_->IsValid()) {
-    devtools_overlay_ = nullptr;
-    devtools_view_docked_ = false;
-    return false;
-  }
-  devtools_overlay_->SetBounds(devtools_rect_);
-#if defined(SHELTER_CI_HOOKS)
-  Log("ci: devtools overlay bounds set");
-#endif
-  const bool visible = devtools_open_ && devtools_rect_visible_ &&
-                      devtools_rect_.width > 0 && devtools_rect_.height > 0;
-  devtools_overlay_->SetVisible(visible);
-#if defined(SHELTER_CI_HOOKS)
-  Log("ci: devtools dock overlay attached");
-#endif
-  return true;
-}
-
-void Shell::OnBrowserViewDestroyed(CefRefPtr<CefBrowserView> browser_view) {
-  CEF_REQUIRE_UI_THREAD();
-  if (!browser_view || !devtools_view_ ||
-      !browser_view->IsSame(devtools_view_)) {
-    return;
-  }
-  const bool was_current = devtools_view_tab_ == devtools_target_tab_;
-  CefRefPtr<CefOverlayController> overlay = devtools_overlay_;
-  devtools_overlay_ = nullptr;
-  devtools_view_ = nullptr;
-  devtools_view_tab_.clear();
-  devtools_view_docked_ = false;
-  devtools_opening_ = false;
-  if (overlay && overlay->IsValid()) overlay->Destroy();
-  if (was_current && devtools_open_ && !devtools_target_internal_) {
-    // A detached window can be closed by its titlebar. Reflect that close in
-    // the session state; a later F12 starts a fresh docked frontend.
-    devtools_open_ = false;
-    devtools_target_tab_.clear();
-    devtools_target_browser_ = nullptr;
-    devtools_rect_visible_ = false;
-    UiEvent("devtools.closed", "{}");
-  }
-}
-
-void Shell::UndockDevTools() {
-  CEF_REQUIRE_UI_THREAD();
-  if (!devtools_open_) return;
-  devtools_docked_ = false;
-  devtools_rect_visible_ = false;
-  if (!devtools_view_ || !devtools_overlay_ ||
-      !devtools_overlay_->IsValid()) {
-    devtools_view_docked_ = false;
-    return;  // A pending ShowDevTools callback will create the popup window.
-  }
-  CefRefPtr<CefBrowserView> view = devtools_view_;
-  CefRefPtr<CefOverlayController> overlay = devtools_overlay_;
-  devtools_overlay_ = nullptr;
-  devtools_view_docked_ = false;
-  overlay->Destroy();
-  CefWindow::CreateTopLevelWindow(new PopupWindowDelegate(view, true));
 }
 
 // ============================================================================
@@ -1513,7 +1396,6 @@ bool Shell::CanCloseWindow() {
   CEF_REQUIRE_UI_THREAD();
   if (!closing_) {
     closing_ = true;
-    CloseDevToolsPanel();
     std::vector<std::string> ids;
     for (auto& kv : tabs_) ids.push_back(kv.first);
     for (auto& id : ids) DestroyTab(id);
@@ -1936,21 +1818,11 @@ void Shell::OnTabCreated(CefRefPtr<CefBrowser> browser, const std::string& id) {
     browser->GetMainFrame()->LoadURL(t->pending_url);
     t->pending_url.clear();
   }
-  MaybeOpenDevToolsForTab(id);
 }
 
 void Shell::DestroyTab(const std::string& id) {
   auto it = tabs_.find(id);
   if (it == tabs_.end()) return;
-  if (devtools_open_ && devtools_target_tab_ == id) {
-    // Keep the dock session alive for a replacement BrowserView (for example
-    // after a profile/ghost switch), but invalidate any queued request against
-    // the browser that is about to be destroyed.
-    ++devtools_generation_;
-    devtools_opening_ = false;
-    ResetDevToolsView(true);
-    devtools_target_browser_ = nullptr;
-  }
   Tab tab = std::move(it->second);
   const bool was_active = tab.id == active_tab_;
   tab.view_visible = false;
@@ -2213,17 +2085,6 @@ bool Shell::OnTabKey(CefRefPtr<CefBrowser> browser, const CefKeyEvent& e) {
   Tab* t = FindTabByBrowser(browser->GetIdentifier());
   if (!t) return false;
 
-  // Нативные действия над страницей. DevTools: F12 и Ctrl+Shift+I везде,
-  // ⌥⌘I — только на macOS (на Windows Ctrl+Alt — это AltGr и печатает символы).
-#if defined(OS_MAC)
-  const bool mac_devtools = mod && alt && !shift && code == "KeyI";
-#else
-  const bool mac_devtools = false;
-#endif
-  if (code == "F12" || (mod && shift && code == "KeyI") || mac_devtools) {
-    TabAction(t->id, "devtools", "");
-    return true;
-  }
   if (code == "F5" || (mod && !shift && !alt && code == "KeyR")) {
     TabAction(t->id, "reload", "");
     return true;
@@ -2241,7 +2102,7 @@ bool Shell::OnTabKey(CefRefPtr<CefBrowser> browser, const CefKeyEvent& e) {
   // Горячие клавиши, которые понимает UI (см. keydown в index.html).
   static const std::set<std::string> kForward = {
       "KeyK", "KeyL", "KeyF", "KeyP", "KeyT", "KeyW", "KeyY", "KeyD", "KeyO",
-      "KeyI", "Comma", "Backslash", "Equal", "Minus", "NumpadAdd",
+      "Comma", "Backslash", "Equal", "Minus", "NumpadAdd",
       "NumpadSubtract", "Digit0", "Digit1", "Digit2", "Digit3", "Digit4",
       "Tab", "ArrowLeft", "ArrowRight"};
   if (!kForward.count(code)) return false;

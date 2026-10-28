@@ -114,7 +114,8 @@ assert.ok(popupWindow.indexOf('SetTitle(PopupWindowTitleForDisplay') <
           popupWindow.indexOf('window->Show()'));
 const popupView = from(shell, 'bool ShellBrowserViewDelegate::OnPopupBrowserViewCreated(',
                        '// ============================================================================\n// Shell');
-assert.match(popupView, /new PopupWindowDelegate\(popup_browser_view, is_devtools\)/);
+assert.match(popupView, /new PopupWindowDelegate\(popup_browser_view\)/);
+assert.doesNotMatch(popupView, /is_devtools|OnDevToolsPopupBrowserViewCreated/);
 assert.match(popupView, /return true/);
 
 // H3: жест открытия пробрасывается в событие newtab — нежестовые window.open

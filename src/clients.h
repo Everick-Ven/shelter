@@ -21,7 +21,6 @@ class UiClient : public CefClient,
                  public CefRequestHandler,
                  public CefDragHandler,
                  public CefContextMenuHandler,
-                 public CefKeyboardHandler,
                  public CefDownloadHandler {
  public:
   UiClient();
@@ -34,7 +33,6 @@ class UiClient : public CefClient,
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override {
     return this;
   }
-  CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
   bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                 CefRefPtr<CefFrame> frame,
@@ -80,12 +78,6 @@ class UiClient : public CefClient,
                            CefRefPtr<CefFrame> frame,
                            CefRefPtr<CefContextMenuParams> params,
                            CefRefPtr<CefMenuModel> model) override;
-
-  // CefKeyboardHandler — F12 открывает DevTools UI при запуске с --ui-devtools.
-  bool OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
-                     const CefKeyEvent& event,
-                     CefEventHandle os_event,
-                     bool* is_keyboard_shortcut) override;
 
   // Файлы, созданные интерфейсом (например, зашифрованный экспорт задач),
   // сохраняются через системный диалог выбора места.
@@ -275,7 +267,7 @@ class TabClient : public CefClient,
 std::string PopupWindowTitleForDisplay(const std::string& url,
                                        const std::string& page_title);
 
-// Клиент всплывающих окон (window.open с features, DevTools).
+// Клиент всплывающих окон, открытых обычными веб-страницами.
 class PopupClient : public CefClient,
                     public CefLifeSpanHandler,
                     public CefDisplayHandler,

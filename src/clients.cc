@@ -455,22 +455,6 @@ void UiClient::OnBeforeContextMenu(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
   model->Clear();
 }
 
-bool UiClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
-                             const CefKeyEvent& event, CefEventHandle,
-                             bool*) {
-  if (event.type == KEYEVENT_RAWKEYDOWN && event.windows_key_code == 0x7B) {
-    static const bool enabled =
-        CefCommandLine::GetGlobalCommandLine()->HasSwitch("ui-devtools");
-    if (enabled) {
-      CefWindowInfo wi;
-      CefBrowserSettings bs;
-      browser->GetHost()->ShowDevTools(wi, nullptr, bs, CefPoint());
-      return true;
-    }
-  }
-  return false;
-}
-
 bool UiClient::OnBeforeDownload(
     CefRefPtr<CefBrowser> browser, CefRefPtr<CefDownloadItem> item,
     const CefString& suggested_name,

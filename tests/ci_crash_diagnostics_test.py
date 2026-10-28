@@ -20,7 +20,7 @@ class WorkflowCrashCaptureTest(unittest.TestCase):
     def test_windows_dumps_are_enabled_before_geometry_acceptance(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
         configure = workflow.index("- name: Configure Windows crash dumps")
-        geometry = workflow.index("- name: Geometry and DevTools acceptance (CI hooks)")
+        geometry = workflow.index("- name: Geometry acceptance (CI hooks)")
         collect = workflow.index("- name: Collect Windows crash dumps")
         self.assertLess(configure, geometry)
         self.assertLess(geometry, collect)
@@ -35,7 +35,7 @@ class WorkflowCrashCaptureTest(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
         macos = workflow.index("  macos:")
         geometry = workflow.index(
-            "- name: Geometry and DevTools acceptance (CI hooks)", macos
+            "- name: Geometry acceptance (CI hooks)", macos
         )
         collect = workflow.index("- name: Collect macOS crash reports", geometry)
         upload = workflow.index("name: SHELTER-macos-ci-logs", collect)

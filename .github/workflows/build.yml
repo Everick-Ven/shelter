@@ -303,12 +303,25 @@ jobs:
         run: echo "SHELTER_ACCEPTANCE_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Geometry and DevTools acceptance (CI hooks)
+        id: macos_geometry
         run: |
           set -euo pipefail
           python3 -m venv .venv
           . .venv/bin/activate
           python -m pip install --disable-pip-version-check websocket-client
-          SHELTER_USE_LLDB=1 python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
+          python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
+
+      - name: Retry macOS geometry with LLDB for crash diagnostics
+        if: failure() && steps.macos_geometry.outcome == 'failure'
+        run: |
+          set -uo pipefail
+          . .venv/bin/activate
+          mv geometry-app.log geometry-direct-app.log 2>/dev/null || true
+          SHELTER_USE_LLDB=1 python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry-lldb.log
+          diagnostic_status=${PIPESTATUS[0]}
+          mv geometry-app.log geometry-lldb-app.log 2>/dev/null || true
+          echo "LLDB diagnostic retry exited with status $diagnostic_status" | tee -a geometry-lldb.log
+          exit 0
 
       - name: CI-hook runtime acceptance
         timeout-minutes: 12
@@ -421,7 +434,7 @@ jobs:
 
       - name: Report macOS failure diagnostics
         if: failure()
-        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log packaged-dmg-acceptance.log geometry.log geometry-app.log acceptance-ci.log smoke-run.log acceptance-app.log ci-crash-reports/macos
+        run: python3 tools/report_ci_failure.py configure.log configure-ci.log build.log build-ci.log fixture-setup.log crx3-fixtures.log crx3-test-build.log reveal-test-build.log platform-tests.log package.log packaged-dmg-acceptance.log geometry.log geometry-app.log geometry-direct-app.log geometry-lldb.log geometry-lldb-app.log acceptance-ci.log smoke-run.log acceptance-app.log ci-crash-reports/macos
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -451,6 +464,9 @@ jobs:
             packaged-dmg-acceptance.log
             geometry.log
             geometry-app.log
+            geometry-direct-app.log
+            geometry-lldb.log
+            geometry-lldb-app.log
             ci-crash-reports/macos/**
             acceptance-ci.log
             smoke-run.log

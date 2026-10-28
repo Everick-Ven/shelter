@@ -95,17 +95,25 @@ class LLDBLauncherTest(unittest.TestCase):
             103,
         )
 
-    def test_workflow_enables_lldb_only_for_macos_geometry_acceptance(self) -> None:
+    def test_lldb_runs_only_as_a_failure_diagnostic_retry(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
         macos = workflow.index("  macos:")
         macos_end = workflow.index("  security-unit:", macos)
         geometry = workflow.index(
             "- name: Geometry and DevTools acceptance (CI hooks)", macos, macos_end
         )
-        runtime = workflow.index(
-            "- name: CI-hook runtime acceptance", geometry, macos_end
+        retry = workflow.index(
+            "- name: Retry macOS geometry with LLDB for crash diagnostics",
+            geometry,
+            macos_end,
         )
-        self.assertIn("SHELTER_USE_LLDB=1", workflow[geometry:runtime])
+        runtime = workflow.index(
+            "- name: CI-hook runtime acceptance", retry, macos_end
+        )
+        self.assertNotIn("SHELTER_USE_LLDB=1", workflow[geometry:retry])
+        self.assertIn("if: failure() && steps.macos_geometry.outcome == 'failure'", workflow[retry:runtime])
+        self.assertIn("SHELTER_USE_LLDB=1", workflow[retry:runtime])
+        self.assertIn("geometry-lldb.log", workflow[retry:runtime])
         self.assertNotIn("SHELTER_USE_LLDB=1", workflow[:macos])
 
 

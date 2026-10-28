@@ -57,10 +57,20 @@ expectMatch(html, /data-act="devtoolsClose"/);
 expectNoMatch(html, /<webview\b|setDevToolsWebContents|getDevToolsRect|devtools\/layout/i,
   'the UI contains no webview, old DevTools contents API, geometry hook, or layout IPC');
 
-// Keep the Windows buttons in the toolbar, after tb-actions and outside the stage.
-const header = section(html, '<header class="tb">', '</header>', 'toolbar');
-assert.ok(header.indexOf('class="tb-actions"') < header.indexOf('id="winCtl"'),
-  '#winCtl remains after .tb-actions');
+// Keep the fixed Windows controls after the blurred toolbar, outside its
+// containing block, and outside the stage.
+const toolbarStart = html.indexOf('<header class="tb">');
+const toolbarEnd = html.indexOf('</header>', toolbarStart);
+const toolbar = html.slice(toolbarStart, toolbarEnd);
+assert.ok(toolbar.includes('class="tb-g tb-actions"'), 'the toolbar retains its action group');
+assert.ok(!toolbar.includes('id="winCtl"'), '#winCtl stays outside the Visual toolbar backdrop-filter');
+const controlsStart = html.indexOf('<div class="wctl win-ctls" id="winCtl"', toolbarEnd);
+const stageStart = html.indexOf('<section class="stage" id="stage">', toolbarEnd);
+const mainStart = html.indexOf('<main class="main">');
+const mainEnd = html.indexOf('</main>', mainStart);
+assert.ok(mainStart >= 0 && toolbarStart > mainStart && controlsStart > toolbarEnd &&
+    controlsStart < stageStart && stageStart < mainEnd,
+  '#winCtl remains in the main area, after the toolbar drag region and before the stage');
 const stage = section(html, '<section class="stage" id="stage">', '</section>', 'stage');
 expectNoMatch(stage, /id="winCtl"/, '#winCtl is not moved into or covered by the stub panel');
 expectMatch(html, /#winCtl\.win-ctls\{[^}]*position:fixed[^}]*z-index:40[^}]*-webkit-app-region:no-drag/,

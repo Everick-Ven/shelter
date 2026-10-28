@@ -42,6 +42,40 @@ class LLDBLauncherTest(unittest.TestCase):
             ],
         )
 
+    def test_attach_command_monitors_a_ready_process_for_crashes(self) -> None:
+        self.assertEqual(
+            launcher.attach_command(4567, lldb_path="/usr/bin/lldb"),
+            [
+                "/usr/bin/lldb",
+                "--batch",
+                "--no-lldbinit",
+                "--one-line-on-crash",
+                "thread backtrace all",
+                "--attach-pid",
+                "4567",
+                "-o",
+                "script print('SHELTER_LLDB_ATTACH_READY')",
+                "-o",
+                "continue",
+            ],
+        )
+        self.assertTrue(
+            launcher.attach_is_resuming(
+                "Process 4567 stopped\nSHELTER_LLDB_ATTACH_READY\n"
+                "Process 4567 resuming\n",
+                4567,
+            )
+        )
+        self.assertFalse(
+            launcher.attach_is_resuming(
+                "SHELTER_LLDB_ATTACH_READY\nProcess 4567 stopped\n", 4567
+            )
+        )
+        with self.assertRaises(ValueError):
+            launcher.attach_command(0, lldb_path="/usr/bin/lldb")
+        with self.assertRaises(ValueError):
+            launcher.attach_command(4567, lldb_path="")
+
     def test_disabled_or_non_macos_launch_keeps_native_command(self) -> None:
         command = ["Shelter.exe", "--test-argument"]
         self.assertEqual(
@@ -73,10 +107,14 @@ class LLDBLauncherTest(unittest.TestCase):
         self.assertIn("shell::OpenDevTools", summary[2])
         self.assertNotIn("ThreadPoolForegroundWorker", "\n".join(summary))
 
-    def test_geometry_failure_emits_faulting_thread_summary(self) -> None:
+    def test_geometry_failure_attaches_before_devtools_and_emits_trace(self) -> None:
         source = (ROOT / "tools" / "check_geometry.py").read_text(encoding="utf-8")
         self.assertIn("faulting_thread_summary(", source)
         self.assertIn("LLDB faulting-thread backtrace", source)
+        self.assertIn("SHELTER_ATTACH_LLDB_ON_DEVTOOLS", source)
+        attach_call = source.index("native_debugger = attach_lldb_to_process(")
+        devtools_request = source.index("open_result = cdp.evaluate")
+        self.assertLess(attach_call, devtools_request)
 
     def test_inferior_pid_is_parsed_for_cleanup(self) -> None:
         output = "LLDB attached\nProcess 4567 launched: '/tmp/Shelter' (x86_64)\n"
@@ -95,7 +133,7 @@ class LLDBLauncherTest(unittest.TestCase):
             103,
         )
 
-    def test_lldb_runs_only_as_a_failure_diagnostic_retry(self) -> None:
+    def test_lldb_attaches_only_as_a_failure_diagnostic_retry(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
         macos = workflow.index("  macos:")
         macos_end = workflow.index("  security-unit:", macos)
@@ -112,9 +150,11 @@ class LLDBLauncherTest(unittest.TestCase):
         )
         self.assertNotIn("SHELTER_USE_LLDB=1", workflow[geometry:retry])
         self.assertIn("if: failure() && steps.macos_geometry.outcome == 'failure'", workflow[retry:runtime])
-        self.assertIn("SHELTER_USE_LLDB=1", workflow[retry:runtime])
+        self.assertIn("SHELTER_ATTACH_LLDB_ON_DEVTOOLS=1", workflow[retry:runtime])
+        self.assertNotIn("SHELTER_USE_LLDB=1", workflow[retry:runtime])
         self.assertIn("set +e", workflow[retry:runtime])
         self.assertIn("geometry-lldb.log", workflow[retry:runtime])
+        self.assertIn("geometry-lldb-trace.log", workflow[retry:runtime])
         self.assertIn("Report macOS LLDB retry stack", workflow[retry:runtime])
         self.assertIn("geometry-lldb-app.log", workflow[retry:runtime])
         self.assertNotIn("SHELTER_USE_LLDB=1", workflow[:macos])

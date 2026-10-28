@@ -39,6 +39,13 @@ def faulting_thread_summary(output: str, max_frames: int = 16) -> list[str]:
     return summary
 
 
+def attach_is_resuming(output: str, pid: int) -> bool:
+    """Require both the post-attach marker and LLDB's resume confirmation."""
+    return "SHELTER_LLDB_ATTACH_READY" in output and bool(
+        re.search(rf"\bProcess\s+{pid}\s+resuming\b", output)
+    )
+
+
 def inferior_pid_from_output(output: str) -> int | None:
     """Return the PID of the debugged app reported by LLDB, if present."""
     match = _LAUNCHED_PID_RE.search(output)
@@ -64,6 +71,27 @@ def inferior_pid_from_process_list(
         if fields[1].strip().startswith(prefixes):
             return pid
     return None
+
+
+def attach_command(pid: int, *, lldb_path: str) -> list[str]:
+    """Attach LLDB to an already-running process and keep it monitoring crashes."""
+    if pid <= 0:
+        raise ValueError("LLDB attach requires a positive process ID")
+    if not lldb_path:
+        raise ValueError("LLDB attach requested but lldb was not found on PATH")
+    return [
+        lldb_path,
+        "--batch",
+        "--no-lldbinit",
+        "--one-line-on-crash",
+        "thread backtrace all",
+        "--attach-pid",
+        str(pid),
+        "-o",
+        "script print('SHELTER_LLDB_ATTACH_READY')",
+        "-o",
+        "continue",
+    ]
 
 
 def wrap_command(

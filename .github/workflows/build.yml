@@ -5,6 +5,12 @@ on:
     branches: [main, 'arena/**']
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      native_devtools_diagnostics:
+        description: Run a second macOS DevTools acceptance with LLDB and sample tracing
+        type: boolean
+        required: false
+        default: false
 # NOTE: no `pull_request` trigger on purpose — with both `push` and
 # `pull_request` every push to a PR branch built twice (push + synchronize).
 # Push builds already report commit checks on same-repo PRs, so one run is enough.
@@ -312,7 +318,7 @@ jobs:
           python tools/check_geometry.py build-ci/Release/SHELTER.app/Contents/MacOS/Shelter 2>&1 | tee geometry.log
 
       - name: Retry macOS geometry with LLDB for crash diagnostics
-        if: failure() && steps.macos_geometry.outcome == 'failure'
+        if: failure() && steps.macos_geometry.outcome == 'failure' || (github.event_name == 'workflow_dispatch' && inputs.native_devtools_diagnostics && steps.macos_geometry.outcome == 'success')
         run: |
           set -euo pipefail
           . .venv/bin/activate
@@ -326,7 +332,7 @@ jobs:
           exit 0
 
       - name: Report macOS LLDB retry stack
-        if: always() && steps.macos_geometry.outcome == 'failure'
+        if: always() && (steps.macos_geometry.outcome == 'failure' || (github.event_name == 'workflow_dispatch' && inputs.native_devtools_diagnostics && steps.macos_geometry.outcome == 'success'))
         run: python3 tools/report_ci_failure.py geometry-lldb.log geometry-lldb-app.log geometry-lldb-trace.log geometry-native-sample.log geometry-native-sample.txt
 
       - name: CI-hook runtime acceptance

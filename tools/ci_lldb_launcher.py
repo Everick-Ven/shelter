@@ -3,6 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import re
+
+_LAUNCHED_PID_RE = re.compile(
+    r"^Process\s+(\d+)(?:\s+\([^)]*\))?\s+launched:", re.MULTILINE
+)
+
+
+def inferior_pid_from_output(output: str) -> int | None:
+    """Return the PID of the debugged app reported by LLDB, if present."""
+    match = _LAUNCHED_PID_RE.search(output)
+    return int(match.group(1)) if match else None
 
 
 def wrap_command(
@@ -21,10 +32,10 @@ def wrap_command(
         lldb_path,
         "--batch",
         "--no-lldbinit",
+        "--one-line-on-crash",
+        "thread backtrace all",
         "-o",
         "run",
-        "-o",
-        "thread backtrace all",
         "-o",
         "process kill",
         "--",

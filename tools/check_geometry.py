@@ -14,6 +14,7 @@ import os
 import platform
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -21,7 +22,7 @@ import time
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from ci_lldb_launcher import wrap_command
+from ci_lldb_launcher import inferior_pid_from_output, wrap_command
 
 try:
     import websocket
@@ -121,6 +122,42 @@ def kill(process: Optional[subprocess.Popen]) -> None:
                 process.wait(timeout=4)
     except Exception as exc:
         out("kill error:", exc)
+
+
+def cleanup_lldb_debuggee(
+    process: Optional[subprocess.Popen], stderr_file: str, acceptance_succeeded: bool
+) -> None:
+    """Stop LLDB's inferior before terminating LLDB so the app cannot linger."""
+    if process is None or process.poll() is not None:
+        return
+    if not acceptance_succeeded:
+        try:
+            process.wait(timeout=2)
+            return
+        except subprocess.TimeoutExpired:
+            pass
+
+    try:
+        with open(stderr_file, "r", encoding="utf-8", errors="replace") as stream:
+            output = stream.read()
+    except OSError:
+        output = ""
+    inferior_pid = inferior_pid_from_output(output)
+    if inferior_pid is None:
+        out("LLDB cleanup: inferior PID was not present in debugger output")
+        return
+    try:
+        os.kill(inferior_pid, signal.SIGKILL)
+        out(f"LLDB cleanup: terminated inferior PID {inferior_pid}")
+    except ProcessLookupError:
+        return
+    except OSError as exc:
+        out(f"LLDB cleanup: could not terminate inferior PID {inferior_pid}: {exc}")
+        return
+    try:
+        process.wait(timeout=8)
+    except subprocess.TimeoutExpired:
+        kill(process)
 
 
 def reserve_port() -> int:
@@ -278,6 +315,7 @@ def main() -> int:
     native_open_state: List[Any] = [None]
     native_open_attempts = 0
     native_open_accepted = False
+    acceptance_succeeded = False
     stderr_stream = open(stderr_file, "w", encoding="utf-8", errors="replace")
     deadline = time.monotonic() + budget
     try:
@@ -571,6 +609,7 @@ def main() -> int:
             devtools_deadline,
         )
         out("OK: docked DevTools opened and Inspect returned without crashing")
+        acceptance_succeeded = True
         return 0
     except Exception as exc:
         diagnostic_state = json.dumps(last_ui_state[0], ensure_ascii=False)
@@ -591,6 +630,8 @@ def main() -> int:
     finally:
         if cdp is not None:
             cdp.close()
+        if debug_with_lldb:
+            cleanup_lldb_debuggee(process, stderr_file, acceptance_succeeded)
         kill(process)
         try:
             os.remove(state_file)

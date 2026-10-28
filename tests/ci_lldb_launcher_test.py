@@ -31,10 +31,10 @@ class LLDBLauncherTest(unittest.TestCase):
                 "/usr/bin/lldb",
                 "--batch",
                 "--no-lldbinit",
+                "--one-line-on-crash",
+                "thread backtrace all",
                 "-o",
                 "run",
-                "-o",
-                "thread backtrace all",
                 "-o",
                 "process kill",
                 "--",
@@ -56,6 +56,11 @@ class LLDBLauncherTest(unittest.TestCase):
             ),
             command,
         )
+
+    def test_inferior_pid_is_parsed_for_cleanup(self) -> None:
+        output = "LLDB attached\nProcess 4567 launched: '/tmp/Shelter' (x86_64)\n"
+        self.assertEqual(launcher.inferior_pid_from_output(output), 4567)
+        self.assertIsNone(launcher.inferior_pid_from_output("no inferior started"))
 
     def test_workflow_enables_lldb_only_for_macos_geometry_acceptance(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")

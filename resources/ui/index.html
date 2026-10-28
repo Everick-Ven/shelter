@@ -7643,6 +7643,7 @@ function initWinLights() {
   const lights = document.getElementById('winLights');
   const top = document.getElementById('sbTop');
   if (!n || !n.isNative) return;
+  document.documentElement.classList.toggle('host-win32', n.platform === 'win32');
   const doMax = () => { try { n.maximize(); } catch (_) {} };
   if (top) top.addEventListener('dblclick', doMax);
   const tb = document.querySelector('.tb');

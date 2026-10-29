@@ -736,6 +736,179 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
     return json.loads(raw)
 
 
+def window_titlebar_probe(ui: Cdp) -> Dict[str, Any]:
+    """Check normal titlebar layout, overlay reveal/hide, and macOS removal."""
+    expression = r"""
+      (async function() {
+        const bar = document.getElementById('winTitle');
+        const controls = document.getElementById('winCtl');
+        const app = document.getElementById('app');
+        const lights = document.getElementById('winLights');
+        const native = window.shelterNative;
+        const platform = native && native.isNative ? String(native.platform || '') : 'preview';
+        if (native && native.isNative && platform !== 'win32') {
+          return JSON.stringify({
+            platform: platform,
+            titlebarPresent: !!bar,
+            macTrafficLightsLive: !!lights && lights.classList.contains('live')
+          });
+        }
+        if (!bar || !controls || controls.hidden || !app)
+          throw new Error('Windows titlebar markup or controls are missing');
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const frame = () => new Promise(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          requestAnimationFrame(() => requestAnimationFrame(finish));
+          setTimeout(finish, 300);
+        });
+        const settle = async () => { await frame(); await pause(280); };
+        const stateClasses = ['is-maximized', 'is-fullscreen', 'tab-fs'];
+        const original = Object.fromEntries(stateClasses.map(name => [name, document.body.classList.contains(name)]));
+        const originalShown = document.body.classList.contains('win-title-shown');
+        const originalCollapsed = app.classList.contains('collapsed');
+        const box = el => {
+          const r = el.getBoundingClientRect();
+          return {left:r.left, top:r.top, right:r.right, bottom:r.bottom, width:r.width, height:r.height};
+        };
+        const overlayStates = {};
+        let normal;
+        let hiddenOnMaximized;
+        let revealed;
+        let hiddenAfterLeave;
+        try {
+          stateClasses.forEach(name => document.body.classList.remove(name));
+          document.body.classList.remove('win-title-shown');
+          await settle();
+          const titleRect = box(bar), controlRect = box(controls);
+          const appStyle = getComputedStyle(app);
+          const titleStyle = getComputedStyle(bar);
+          const toolbarRect = box(document.querySelector('.tb'));
+          const sidebarRect = box(document.getElementById('sb'));
+          const controlsBeforeSidebarToggle = box(controls);
+          app.classList.toggle('collapsed', !originalCollapsed);
+          await settle();
+          const controlsAfterSidebarToggle = box(controls);
+          app.classList.toggle('collapsed', originalCollapsed);
+          await settle();
+          const sidebarStable = ['left', 'top', 'right', 'bottom', 'width', 'height']
+            .every(key => Math.abs(controlsBeforeSidebarToggle[key] - controlsAfterSidebarToggle[key]) <= 1);
+          normal = {
+            rect:titleRect,
+            controls:controlRect,
+            appPaddingTop:appStyle.paddingTop,
+            display:titleStyle.display,
+            position:titleStyle.position,
+            sidebarCollapsedControlsStable:sidebarStable,
+            pass:sidebarStable && Math.abs(titleRect.height - 42) <= 1 &&
+              Math.abs(parseFloat(appStyle.paddingTop) - 42) <= 1 &&
+              titleStyle.display === 'flex' && titleStyle.position === 'fixed' &&
+              Math.abs(controlRect.right - (innerWidth - 10)) <= 2 &&
+              toolbarRect.top >= titleRect.bottom - 1 && sidebarRect.top >= titleRect.bottom - 1
+          };
+          for (const name of stateClasses) {
+            document.body.classList.add(name);
+            await settle();
+            const r = box(bar), style = getComputedStyle(bar);
+            overlayStates[name] = {
+              bodyClass:document.body.classList.contains('win-title-overlay'),
+              appPaddingTop:getComputedStyle(app).paddingTop,
+              rect:r,
+              opacity:style.opacity,
+              pointerEvents:style.pointerEvents,
+              pass:document.body.classList.contains('win-title-overlay') &&
+                getComputedStyle(app).paddingTop === '0px' &&
+                Math.abs(r.top + r.height) <= 1 &&
+                style.opacity === '0' && style.pointerEvents === 'none'
+            };
+            document.body.classList.remove(name);
+            await settle();
+          }
+          document.body.classList.add('is-maximized');
+          await settle();
+          hiddenOnMaximized = {
+            classShown:document.body.classList.contains('win-title-shown'),
+            rect:box(bar),
+            opacity:getComputedStyle(bar).opacity
+          };
+          document.dispatchEvent(new MouseEvent('mousemove', {
+            bubbles:true, clientX:Math.round(innerWidth / 2), clientY:1
+          }));
+          await pause(260);
+          revealed = {
+            classShown:document.body.classList.contains('win-title-shown'),
+            rect:box(bar),
+            opacity:getComputedStyle(bar).opacity,
+            pointerEvents:getComputedStyle(bar).pointerEvents
+          };
+          document.dispatchEvent(new MouseEvent('mousemove', {
+            bubbles:true, clientX:Math.round(innerWidth / 2), clientY:600
+          }));
+          await pause(400);
+          hiddenAfterLeave = {
+            classShown:document.body.classList.contains('win-title-shown'),
+            rect:box(bar),
+            opacity:getComputedStyle(bar).opacity,
+            pointerEvents:getComputedStyle(bar).pointerEvents
+          };
+        } finally {
+          app.classList.toggle('collapsed', originalCollapsed);
+          stateClasses.forEach(name => document.body.classList.toggle(name, original[name]));
+          document.body.classList.toggle('win-title-shown', originalShown);
+          await settle();
+        }
+        return JSON.stringify({
+          platform:platform,
+          titlebarPresent:true,
+          normal:normal,
+          overlayStates:overlayStates,
+          hiddenOnMaximized:hiddenOnMaximized,
+          revealed:revealed,
+          hiddenAfterLeave:hiddenAfterLeave
+        });
+      })()
+    """
+    raw = ui.evaluate(expression, timeout=20)
+    if not raw:
+        raise AcceptanceError("Windows titlebar probe returned no result")
+    result = json.loads(raw)
+    if result.get("platform") == "darwin":
+        if result.get("titlebarPresent") or not result.get("macTrafficLightsLive"):
+            raise AcceptanceError(f"macOS titlebar removal or traffic lights regressed: {result}")
+        return result
+    if result.get("platform") not in ("win32", "preview"):
+        if result.get("titlebarPresent"):
+            raise AcceptanceError(f"Non-Windows native platform retained the titlebar: {result}")
+        return result
+    if not result.get("normal", {}).get("pass"):
+        raise AcceptanceError(f"Normal Windows titlebar geometry is incorrect: {result}")
+    overlay_states = result.get("overlayStates", {})
+    if set(overlay_states) != {"is-maximized", "is-fullscreen", "tab-fs"} or not all(
+        state.get("pass") for state in overlay_states.values()
+    ):
+        raise AcceptanceError(f"Titlebar overlay mode shifted content or remained interactive: {result}")
+    hidden = result.get("hiddenOnMaximized", {})
+    if hidden.get("classShown") or hidden.get("opacity") != "0":
+        raise AcceptanceError(f"Maximized titlebar did not start hidden: {result}")
+    revealed = result.get("revealed", {})
+    if (
+        not revealed.get("classShown")
+        or revealed.get("pointerEvents") != "auto"
+        or abs(revealed.get("rect", {}).get("top", 999)) > 1
+    ):
+        raise AcceptanceError(f"Top-edge hover did not reveal the titlebar: {result}")
+    hidden_after_leave = result.get("hiddenAfterLeave", {})
+    hidden_rect = hidden_after_leave.get("rect", {})
+    if (
+        hidden_after_leave.get("classShown")
+        or hidden_after_leave.get("opacity") != "0"
+        or hidden_after_leave.get("pointerEvents") != "none"
+        or abs(hidden_rect.get("top", 0) + hidden_rect.get("height", 0)) > 1
+    ):
+        raise AcceptanceError(f"Titlebar did not hide after the 320ms leave delay: {result}")
+    return result
+
+
 def performance_mode_probe(ui: Cdp) -> Dict[str, Any]:
     """Exercise the six ordered mode transitions, preference persistence, and both controls."""
     expression = r"""
@@ -2724,6 +2897,9 @@ def main() -> int:
                     f"Native secret crypto bridge failed or exposed key material: {secret_probe!r}"
                 )
             print(f"SHELTER_ACCEPTANCE_UI_READY version={version}", flush=True)
+            titlebar_probe = window_titlebar_probe(ui)
+            print("SHELTER_ACCEPTANCE_WINDOW_TITLEBAR " + json.dumps(titlebar_probe, ensure_ascii=False), flush=True)
+            print("SHELTER_ACCEPTANCE_WINDOW_TITLEBAR_PASS", flush=True)
             original_gfx = ui.evaluate("window.shelterTest.state().prefs.gfx || 'balance'")
             if original_gfx not in ("beauty", "balance", "perf"):
                 original_gfx = "balance"

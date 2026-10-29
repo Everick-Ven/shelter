@@ -25,37 +25,32 @@ assert.match(html, /const label = maximized \? 'Восстановить окн�
   'the accessible label follows the actual native maximize state');
 assert.match(html, /--window-control-gap:var\(--toolbar-gap\)/);
 assert.match(html, /\.tab-mount\{display:flex;align-items:center;gap:var\(--toolbar-gap\)/);
-// The Visual toolbar has backdrop-filter, which creates a containing block for
-// fixed descendants. Keep #winCtl outside that toolbar, but after its drag region
-// so CEF applies the no-drag exclusion after the draggable region.
+// The Windows titlebar owns #winCtl outside .app. This keeps the drag region
+// out of all toolbar transforms/filters and gives the controls one stable row.
+const titlebarComment = html.indexOf('<!-- ============ ВЕРХНЯЯ СТРОКА ОКНА (Windows)');
+const titlebarStart = html.indexOf('<div class="win-title" id="winTitle"', titlebarComment);
+const controlsStart = html.indexOf('<div class="wctl win-ctls" id="winCtl"');
+const appStart = html.indexOf('<div class="app" id="app">');
 const toolbarStart = html.indexOf('<header class="tb">');
 const actionsStart = html.indexOf('<div class="tb-g tb-actions">', toolbarStart);
 const toolbarEnd = html.indexOf('</header>', toolbarStart);
-const controlsStart = html.indexOf('<div class="wctl win-ctls" id="winCtl"', toolbarEnd);
-const bookmarksTopStart = html.indexOf('<div class="bm-mount bm-top"', toolbarEnd);
-assert(toolbarStart >= 0 && actionsStart > toolbarStart && toolbarEnd > actionsStart &&
-    controlsStart > toolbarEnd && controlsStart < bookmarksTopStart,
-  'fixed window controls must be a sibling after the toolbar drag region');
+assert(titlebarComment >= 0 && titlebarStart > titlebarComment &&
+    controlsStart > titlebarStart && controlsStart < appStart && appStart > 0,
+  'the titlebar and window controls must be before and outside .app');
+assert(toolbarStart > appStart && actionsStart > toolbarStart && toolbarEnd > actionsStart,
+  'the regular toolbar remains inside .app below the titlebar');
 assert(!html.slice(toolbarStart, toolbarEnd).includes('id="winCtl"'),
-  'fixed window controls must not be inside the Visual toolbar backdrop-filter containing block');
-assert.doesNotMatch(html, /<div class="app" id="app">\s*<!--[^>]*-->\s*<div class="wctl win-ctls" id="winCtl"/,
-  'the window controls must not precede and be covered by the later toolbar drag region');
+  'window controls must not be inside the Visual toolbar backdrop-filter containing block');
+assert.doesNotMatch(html, /<!-- Keep fixed controls outside the blurred toolbar/,
+  'the old fixed-control placement comment is removed');
 assert.doesNotMatch(html, /tm\.appendChild\(ctl\)|home\.appendChild\(ctl\)/,
   'applyTabPos must not move the window controls between containers');
-assert.match(html, /#winCtl\.win-ctls\{position:fixed;top:var\(--wc-top\);right:var\(--wc-right\);/,
-  'the window controls use fixed window-corner positioning');
-assert.match(html, /\.app\{--wc-w:[^;]+;--wc-right:22px;--wc-top:20px;/,
-  'the window controls use one window-relative top offset');
-assert.doesNotMatch(html, /\.app\[data-tabpos="(?:top|right)"\][^{]*\{[^}]*--wc-top:/,
-  'moving the tab strip cannot move the window controls');
-assert.match(html, /\.app:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos="top"\] #tabTop\{padding-right:var\(--wc-reserve\)\}/);
-assert.match(html, /\.app:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos="left"\] \.tb,\.app:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos="bottom"\] \.tb\{padding-right:var\(--wc-reserve\)\}/);
-assert.match(html, /\.app:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos="right"\] \.tab-rail\{padding-top:/);
-assert.match(html, /\.app:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos="right"\]:has\(#tabRight\.is-collapsed\) \.tb\{padding-right:calc\(var\(--wc-reserve\) - var\(--sb-wc\)\)\}/);
+assert.doesNotMatch(html, /Кнопки окна Windows \(#winCtl\) не переносятся: они position:fixed/,
+  'the stale fixed-position explanation is removed from applyTabPos');
 assert.match(html, /if \(n\.platform !== 'win32'\) \{ ctl\.hidden = true; return; \}/,
-  'the replacement controls are shown only on Windows');
+  'the existing window controls are shown only on Windows');
 assert.doesNotMatch(html, /classList\.(?:add|toggle)\(['"]host-win32['"]|className\s*=\s*['"][^'"]*host-win32/,
-  'the rejected global Windows toolbar class remains disabled');
+  'index.html does not force-enable the global Windows toolbar class');
 assert.match(html, /if \(n\.platform === 'darwin'\) \{[\s\S]*?lights\.classList\.add\('live'\)/,
   'the existing macOS traffic-light controls remain intact');
 const initStart = html.indexOf('function initWinLights() {');
@@ -68,14 +63,67 @@ for (const action of ['close', 'minimize']) {
     `${action} must reach its native window action`);
 }
 assert.match(winInit, /else toggleMaximize\(\)/, 'the maximize button toggles the native state');
+assert.match(winInit, /n\.getWindowState\(\)/,
+  'the native maximize state is queried from the platform bridge');
+assert.match(winInit, /window\.addEventListener\('resize', syncWindowState/);
+assert.match(winInit, /window\.addEventListener\('focus', syncWindowState/);
 
+const titlebarScriptStart = html.lastIndexOf('<script>');
+const titlebarScriptClose = html.lastIndexOf('</script>');
+const bodyClose = html.lastIndexOf('</body>');
+assert(titlebarScriptStart >= 0 && titlebarScriptClose > titlebarScriptStart && titlebarScriptClose < bodyClose,
+  'the Windows titlebar controller is the final inline script');
+assert.strictEqual(html.slice(titlebarScriptClose + '</script>'.length, bodyClose).trim(), '',
+  'the titlebar controller is immediately before body close');
+const titlebarScript = html.slice(titlebarScriptStart + '<script>'.length, titlebarScriptClose);
+assert(titlebarScript.includes("if (native && platform !== 'win32')") &&
+    titlebarScript.includes('bar.parentNode.removeChild(bar)'),
+  'the titlebar is removed from the DOM on macOS and other native platforms');
+assert(titlebarScript.indexOf('if (ctl.dataset.controlsBound) return;') >= 0 &&
+    titlebarScript.indexOf('if (ctl.dataset.controlsBound) return;') <
+      titlebarScript.indexOf('if (ctl.dataset.titlebarBound) return;'),
+  'the titlebar controller never double-binds the native button handlers');
+assert(titlebarScript.includes('var HIDE_DELAY = 320'));
+assert(titlebarScript.includes('if (y <= HOT) { reveal(); return; }'));
+assert(titlebarScript.includes("if (bar.matches(':hover')) return;"),
+  'the hidden timer does not dismiss the bar while the pointer is over it');
+assert(titlebarScript.includes("a.matches(':focus-visible')"),
+  'only keyboard-visible focus keeps the titlebar open');
+assert(titlebarScript.includes('obs.disconnect();') && titlebarScript.includes('watch();'),
+  'self-authored body classes are kept out of the mutation observer loop');
+assert(titlebarScript.includes("bar.addEventListener('dblclick'"),
+  'double-clicking the titlebar toggles the window without binding button double-clicks');
 const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(match => match[1]).join('\n');
 assert.match(css, /--toolbar-gap:8px;/);
 assert.match(css, /--window-control-size:32px;/);
 assert.match(css, /--window-control-icon-size:14px;/);
+assert.match(css, /--titlebar-h:calc\(var\(--window-control-size\) \+ 10px\);/,
+  'the separate titlebar is 42px high with the current control size');
+assert.match(css, /--titlebar-pad:10px;/);
+assert.match(css, /\.win-title\{\s*position:fixed;top:0;left:0;right:0;height:var\(--titlebar-h\);z-index:60;/,
+  'the Windows titlebar is fixed across the full window width');
+assert.match(css, /\.win-title\{[^}]*-webkit-app-region:drag/,
+  'the titlebar remains a CEF drag region');
+assert.match(css, /#winCtl\.win-ctls\{position:static;display:flex;align-items:center;gap:var\(--window-control-gap\);flex:none;margin:0;padding:0;-webkit-app-region:no-drag\}/,
+  'the controls are no-drag children of the independent titlebar');
+assert.match(css, /body\.has-win-title \.win-title\{display:flex\}/);
+assert.match(css, /body\.has-win-title:not\(\.win-title-overlay\) \.app\{padding-top:var\(--titlebar-h\)\}/,
+  'the app begins below the titlebar only in ordinary window mode');
+assert.match(css, /body\.win-title-overlay \.win-title\{transform:translateY\(-100%\);opacity:0;pointer-events:none\}/);
+assert.match(css, /body\.win-title-overlay\.win-title-shown \.win-title\{/,
+  'the overlay titlebar can reappear over fullscreen content');
+assert.match(css, /body\.has-win-title \.sb-top\{display:none\}/,
+  'the Windows sidebar header is removed when the separate titlebar is present');
+assert.match(css, /\.app\{--wc-edge:10px\}/,
+  'the app no longer reserves a corner for fixed window controls');
+assert.doesNotMatch(css, /--wc-(?:top|right|w|reserve)\b/,
+  'the old fixed-position and toolbar-reservation variables are removed');
+assert.doesNotMatch(css, /:has\(#winCtl:not\(\[hidden\]\)\)\[data-tabpos=/,
+  'tab-position-specific window-control reservations are removed');
+assert.doesNotMatch(css, /#winCtl\.win-ctls\{[^}]*position:fixed/,
+  'the control group is no longer fixed to the viewport corner');
 assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?border-radius:[^;]+;[\s\S]*?background:[^;]+;[\s\S]*?box-shadow:var\(--glass-shadow-md\)/,
-  'Windows keys use the glass control material');
-assert.match(css, /#winCtl\.win-ctls\{position:fixed;[^}]*display:flex;align-items:center;gap:var\(--window-control-gap\);/);
+  'Windows keys use the existing glass control material');
 assert.match(css, /#winCtl\.win-ctls \.wc\{[\s\S]*?width:var\(--window-control-size\);height:var\(--window-control-size\)/);
 assert.match(css, /#winCtl\.win-ctls \.wc:hover\{/,
   'all three controls provide visible hover feedback');
@@ -104,8 +152,14 @@ assert.match(acceptance, /fireActionTile: controls\.children\.length === 2[\s\S]
 assert.match(acceptance, /noHorizontalOverflow:[\s\S]*?visuallyOutOfHeader\.length === 0/,
   'runtime acceptance checks visible toolbar bounds rather than counting glass-shadow overflow');
 assert.match(acceptance, /windowControlsStableAcrossTabPositionsAndGfxModes:[\s\S]*?windowControlsGeometry/,
-  'runtime acceptance verifies fixed Windows controls stay put across tab positions and graphics modes');
+  'runtime acceptance verifies Windows titlebar controls stay put across tab positions and graphics modes');
 assert.match(acceptance, /windowControlsDoNotOverlapToolbar:/,
   'runtime acceptance checks that window controls do not cover toolbar actions');
+assert.match(acceptance, /sidebarCollapsedControlsStable:/,
+  'runtime acceptance checks the titlebar controls remain fixed when the sidebar collapses');
+assert.match(acceptance, /def window_titlebar_probe\(/,
+  'runtime acceptance exercises normal and overlay titlebar states');
+assert.match(acceptance, /SHELTER_ACCEPTANCE_WINDOW_TITLEBAR_PASS/,
+  'CI reports the Windows titlebar behavior probe');
 
 console.log('Windows window-control styling, platform gating, placement, and native state tests passed');

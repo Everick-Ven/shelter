@@ -920,9 +920,14 @@ def window_titlebar_probe(ui: Cdp) -> Dict[str, Any]:
         hidden_raw = ui.evaluate(r"""
           (async function() {
             await new Promise(resolve => setTimeout(resolve, 450));
+            const afterDelay = {
+              classShown:document.body.classList.contains('win-title-shown')
+            };
+            await new Promise(resolve => setTimeout(resolve, 300));
             const bar = document.getElementById('winTitle');
             const rect = bar.getBoundingClientRect();
             return JSON.stringify({
+              afterDelay:afterDelay,
               classShown:document.body.classList.contains('win-title-shown'),
               rect:{top:rect.top, bottom:rect.bottom, height:rect.height},
               opacity:getComputedStyle(bar).opacity,
@@ -935,13 +940,17 @@ def window_titlebar_probe(ui: Cdp) -> Dict[str, Any]:
         hidden_after_leave = result["hiddenAfterLeave"]
         hidden_rect = hidden_after_leave.get("rect", {})
         if (
-            hidden_after_leave.get("classShown")
+            hidden_after_leave.get("afterDelay", {}).get("classShown")
+            or hidden_after_leave.get("classShown")
             or hidden_after_leave.get("opacity") != "0"
             or hidden_after_leave.get("pointerEvents") != "none"
             or hidden_after_leave.get("pointerHovered")
             or abs(hidden_rect.get("top", 0) + hidden_rect.get("height", 0)) > 1
         ):
-            raise AcceptanceError(f"Titlebar did not hide after the 320ms leave delay: {result}")
+            raise AcceptanceError(
+                "Titlebar hide timing or transition mismatch: "
+                + json.dumps({"revealed": result.get("revealed"), "hiddenAfterLeave": hidden_after_leave})
+            )
         return result
     finally:
         ui.evaluate(cleanup_expression, timeout=12)

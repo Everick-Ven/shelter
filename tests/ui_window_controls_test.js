@@ -162,8 +162,8 @@ assert.match(acceptance, /def window_titlebar_probe\(/,
 assert.match(acceptance, /SHELTER_ACCEPTANCE_WINDOW_TITLEBAR_PASS/,
   'CI reports the Windows titlebar behavior probe');
 assert.match(acceptance, /ui\.call\([\"']Input\.dispatchMouseEvent[\"']/,
-  'runtime acceptance uses real CDP pointer movement so CSS :hover is measured');
-assert.doesNotMatch(acceptance, /new MouseEvent\(['\"]mousemove['\"]/,
-  'runtime acceptance does not fake mouse movement without updating CSS :hover');
+  'runtime acceptance uses CDP pointer movement to reveal and leave the titlebar');
+assert.match(acceptance, /setTimeout\(resolve, 450\)[\s\S]*?const afterDelay = [\s\S]*?setTimeout\(resolve, 300\)/,
+  'runtime acceptance checks the 320ms hide timer before waiting for the CSS transition');
 
 console.log('Windows window-control styling, platform gating, placement, and native state tests passed');

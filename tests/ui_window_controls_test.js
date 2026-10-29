@@ -5,9 +5,10 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.join(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'resources/ui/index.html'), 'utf8');
-const host = fs.readFileSync(path.join(root, 'resources/ui/host-bridge.js'), 'utf8');
-const native = fs.readFileSync(path.join(root, 'src/shell_bridge.cc'), 'utf8');
+const readText = file => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n?/g, '\n');
+const html = readText('resources/ui/index.html');
+const host = readText('resources/ui/host-bridge.js');
+const native = readText('src/shell_bridge.cc');
 const policy = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/);
 assert(policy, 'the UI Content Security Policy must exist');
 const inlineScripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)]

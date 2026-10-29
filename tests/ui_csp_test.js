@@ -6,8 +6,9 @@ const fs = require('fs');
 const path = require('path');
 
 const uiDir = path.join(__dirname, '..', 'resources', 'ui');
-const html = fs.readFileSync(path.join(uiDir, 'index.html'), 'utf8');
-const bridge = fs.readFileSync(path.join(uiDir, 'host-bridge.js'), 'utf8');
+const readText = file => fs.readFileSync(file, 'utf8').replace(/\r\n?/g, '\n');
+const html = readText(path.join(uiDir, 'index.html'));
+const bridge = readText(path.join(uiDir, 'host-bridge.js'));
 const csp = html.match(/<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]*)"/i);
 assert(csp, 'CSP meta tag is required');
 const scriptSrc = csp[1].split(';').map(x => x.trim()).find(x => /^script-src\s/.test(x));

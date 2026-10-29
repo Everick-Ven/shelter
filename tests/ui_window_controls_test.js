@@ -161,5 +161,9 @@ assert.match(acceptance, /def window_titlebar_probe\(/,
   'runtime acceptance exercises normal and overlay titlebar states');
 assert.match(acceptance, /SHELTER_ACCEPTANCE_WINDOW_TITLEBAR_PASS/,
   'CI reports the Windows titlebar behavior probe');
+assert.match(acceptance, /ui\.call\([\"']Input\.dispatchMouseEvent[\"']/,
+  'runtime acceptance uses real CDP pointer movement so CSS :hover is measured');
+assert.doesNotMatch(acceptance, /new MouseEvent\(['\"]mousemove['\"]/,
+  'runtime acceptance does not fake mouse movement without updating CSS :hover');
 
 console.log('Windows window-control styling, platform gating, placement, and native state tests passed');

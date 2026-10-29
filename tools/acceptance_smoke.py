@@ -515,7 +515,7 @@ def sidebar_scroll_probe(ui: Cdp, width: int, height: int) -> Dict[str, Any]:
 
 
 def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
-    """Verify toolbar geometry, fixed Windows controls, and the trimmed menu."""
+    """Verify toolbar geometry, first-row window controls, and the trimmed menu."""
     expression = r"""
       (async function() {
         /* Ждём кадр, но не бесконечно: в невидимом окне (удалённый раннер)
@@ -554,8 +554,8 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
         const windowControlsGeometry = {};
         const windowControlsOverlaps = {};
         const isNativeWindows = !!window.shelterNative && window.shelterNative.platform === 'win32';
-        let windowControlsStableAcrossTabPositionsAndGfxModes = !isNativeWindows;
-        let windowControlsDoNotOverlapToolbar = !isNativeWindows;
+        let windowControlsFollowFirstRowAcrossTabPositionsAndGfxModes = !isNativeWindows;
+        let windowControlsDoNotOverlapRowActions = !isNativeWindows;
         if (isNativeWindows && windowControls && !windowControls.hidden &&
             window.shelterTest && typeof window.shelterTest.setGfxMode === 'function' &&
             typeof window.shelterTest.setTabPos === 'function') {
@@ -612,7 +612,14 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
                 window.shelterTest.setGfxMode(mode, {persist:false, notify:false});
                 await frame();
                 const key = position + ':' + mode;
-                windowControlsGeometry[key] = rectBox(windowControls);
+                const parent = windowControls.parentElement;
+                const inFirstRow = position === 'top'
+                  ? !!parent && parent.id === 'tabTop'
+                  : !!parent && parent.classList.contains('tb-actions');
+                windowControlsGeometry[key] = {
+                  rect:rectBox(windowControls),
+                  inFirstRow:inFirstRow
+                };
                 windowControlsOverlaps[key] = overlappingControls();
               }
             }
@@ -622,19 +629,23 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
             await frame();
           }
           const layoutKeys = Object.keys(windowControlsGeometry);
-          const baseRect = windowControlsGeometry['left:balance'];
+          const positions = ['left', 'top', 'right', 'bottom'];
+          const modes = ['balance', 'beauty', 'perf'];
           const validRect = rect => !!rect && rect[2] > rect[0] && rect[3] > rect[1];
-          windowControlsStableAcrossTabPositionsAndGfxModes = layoutKeys.length === 12 &&
-            validRect(baseRect) && layoutKeys.every(key => {
-              const rect = windowControlsGeometry[key];
-              return validRect(rect) && rect.every((value, index) =>
-                Math.abs(value - baseRect[index]) <= 1);
+          windowControlsFollowFirstRowAcrossTabPositionsAndGfxModes = layoutKeys.length === 12 &&
+            positions.every(position => {
+              const base = windowControlsGeometry[position + ':balance'];
+              return !!base && base.inFirstRow && validRect(base.rect) && modes.every(mode => {
+                const sample = windowControlsGeometry[position + ':' + mode];
+                return !!sample && sample.inFirstRow && validRect(sample.rect) &&
+                  sample.rect.every((value, index) => Math.abs(value - base.rect[index]) <= 1);
+              });
             });
-          windowControlsDoNotOverlapToolbar = layoutKeys.length === 12 &&
+          windowControlsDoNotOverlapRowActions = layoutKeys.length === 12 &&
             layoutKeys.every(key => windowControlsOverlaps[key].length === 0);
         }
-        /* Glass shadows can extend the scrollable overflow box without moving
-           toolbar controls; check their bounds separately from fixed window controls. */
+        /* Glass shadows can extend the scrollable overflow box; keep visible
+           toolbar children within the header while #winCtl follows the first row. */
         const visuallyOutOfHeader = Array.from(header.querySelectorAll('*')).filter(el => {
           const style = getComputedStyle(el), r = el.getBoundingClientRect();
           return style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0 &&
@@ -665,8 +676,8 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
           extraGapBeforeQuick: quickRect.left - extRect.right >= 20,
           quickLabelUpdated: quick.dataset.tip === 'Оформление и вкладки' &&
             quick.getAttribute('aria-label') === 'Оформление и вкладки',
-          windowControlsStableAcrossTabPositionsAndGfxModes: windowControlsStableAcrossTabPositionsAndGfxModes,
-          windowControlsDoNotOverlapToolbar: windowControlsDoNotOverlapToolbar,
+          windowControlsFollowFirstRowAcrossTabPositionsAndGfxModes: windowControlsFollowFirstRowAcrossTabPositionsAndGfxModes,
+          windowControlsDoNotOverlapRowActions: windowControlsDoNotOverlapRowActions,
           noHorizontalOverflow: headerRect.left >= -1 && headerRect.right <= innerWidth + 1 &&
             visuallyOutOfHeader.length === 0,
           sidebarClean: !document.querySelector('#sb [data-act="schemeMode"], #sb #swatches, #sb [data-act="settings"], #sb [data-act="account"]')
@@ -736,224 +747,82 @@ def toolbar_menu_measurement(ui: Cdp) -> Dict[str, Any]:
     return json.loads(raw)
 
 
-def window_titlebar_probe(ui: Cdp) -> Dict[str, Any]:
-    """Check normal titlebar layout, overlay reveal/hide, and macOS removal."""
+def window_controls_probe(ui: Cdp) -> Dict[str, Any]:
+    """Check the Windows controls stay at the end of the original first row."""
     expression = r"""
-      (async function() {
-        const bar = document.getElementById('winTitle');
+      (function() {
         const controls = document.getElementById('winCtl');
+        const toolbar = document.querySelector('.tb');
+        const actions = document.querySelector('.tb-actions');
+        const tabTop = document.getElementById('tabTop');
+        const more = document.getElementById('moreBtn');
         const app = document.getElementById('app');
         const lights = document.getElementById('winLights');
         const native = window.shelterNative;
         const platform = native && native.isNative ? String(native.platform || '') : 'preview';
-        if (native && native.isNative && platform !== 'win32') {
-          return JSON.stringify({
-            platform: platform,
-            titlebarPresent: !!bar,
-            macTrafficLightsLive: !!lights && lights.classList.contains('live')
-          });
-        }
-        if (!bar || !controls || controls.hidden || !app)
-          throw new Error('Windows titlebar markup or controls are missing');
-        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-        const frame = () => new Promise(resolve => {
-          let done = false;
-          const finish = () => { if (!done) { done = true; resolve(); } };
-          requestAnimationFrame(() => requestAnimationFrame(finish));
-          setTimeout(finish, 300);
+        const tabPos = app && app.dataset.tabpos || 'left';
+        const expectedRow = tabPos === 'top' ? tabTop : actions;
+        const parent = controls && controls.parentElement;
+        const buttons = controls ? Array.from(controls.querySelectorAll('.wc')) : [];
+        const glassButtons = buttons.map(button => {
+          const style = getComputedStyle(button);
+          return style.borderRadius !== '0px' &&
+            style.backgroundImage.includes('linear-gradient') &&
+            style.borderStyle !== 'none';
         });
-        const settle = async () => { await frame(); await pause(280); };
-        const stateClasses = ['is-maximized', 'is-fullscreen', 'tab-fs'];
-        const original = Object.fromEntries(stateClasses.map(name => [name, document.body.classList.contains(name)]));
-        const originalShown = document.body.classList.contains('win-title-shown');
-        const originalCollapsed = app.classList.contains('collapsed');
-        window.__shelterTitlebarProbeOriginal = {
-          stateClasses:stateClasses,
-          original:original,
-          originalShown:originalShown,
-          originalCollapsed:originalCollapsed
-        };
-        const box = el => {
+        const rect = el => {
+          if (!el) return null;
           const r = el.getBoundingClientRect();
-          return {left:r.left, top:r.top, right:r.right, bottom:r.bottom, width:r.width, height:r.height};
-        };
-        const overlayStates = {};
-        let normal;
-        let hiddenOnMaximized;
-        stateClasses.forEach(name => document.body.classList.remove(name));
-        document.body.classList.remove('win-title-shown');
-        await settle();
-        const titleRect = box(bar), controlRect = box(controls);
-        const appStyle = getComputedStyle(app);
-        const titleStyle = getComputedStyle(bar);
-        const toolbarRect = box(document.querySelector('.tb'));
-        const sidebarRect = box(document.getElementById('sb'));
-        const controlsBeforeSidebarToggle = box(controls);
-        app.classList.toggle('collapsed', !originalCollapsed);
-        await settle();
-        const controlsAfterSidebarToggle = box(controls);
-        app.classList.toggle('collapsed', originalCollapsed);
-        await settle();
-        const sidebarStable = ['left', 'top', 'right', 'bottom', 'width', 'height']
-          .every(key => Math.abs(controlsBeforeSidebarToggle[key] - controlsAfterSidebarToggle[key]) <= 1);
-        normal = {
-          rect:titleRect,
-          controls:controlRect,
-          appPaddingTop:appStyle.paddingTop,
-          display:titleStyle.display,
-          position:titleStyle.position,
-          sidebarCollapsedControlsStable:sidebarStable,
-          pass:sidebarStable && Math.abs(titleRect.height - 42) <= 1 &&
-            Math.abs(parseFloat(appStyle.paddingTop) - 42) <= 1 &&
-            titleStyle.display === 'flex' && titleStyle.position === 'fixed' &&
-            Math.abs(controlRect.right - (innerWidth - 10)) <= 2 &&
-            toolbarRect.top >= titleRect.bottom - 1 && sidebarRect.top >= titleRect.bottom - 1
-        };
-        for (const name of stateClasses) {
-          document.body.classList.add(name);
-          await settle();
-          const r = box(bar), style = getComputedStyle(bar);
-          overlayStates[name] = {
-            bodyClass:document.body.classList.contains('win-title-overlay'),
-            appPaddingTop:getComputedStyle(app).paddingTop,
-            rect:r,
-            opacity:style.opacity,
-            pointerEvents:style.pointerEvents,
-            pass:document.body.classList.contains('win-title-overlay') &&
-              getComputedStyle(app).paddingTop === '0px' &&
-              Math.abs(r.top + r.height) <= 1 &&
-              style.opacity === '0' && style.pointerEvents === 'none'
-          };
-          document.body.classList.remove(name);
-          await settle();
-        }
-        document.body.classList.add('is-maximized');
-        await settle();
-        hiddenOnMaximized = {
-          classShown:document.body.classList.contains('win-title-shown'),
-          rect:box(bar),
-          opacity:getComputedStyle(bar).opacity
+          return {left:r.left, top:r.top, right:r.right, bottom:r.bottom,
+            width:r.width, height:r.height};
         };
         return JSON.stringify({
           platform:platform,
-          titlebarPresent:true,
-          viewportWidth:innerWidth,
-          viewportHeight:innerHeight,
-          normal:normal,
-          overlayStates:overlayStates,
-          hiddenOnMaximized:hiddenOnMaximized
+          tabPos:tabPos,
+          titlebarPresent:!!document.getElementById('winTitle'),
+          controlsPresent:!!controls,
+          controlsVisible:!!controls && !controls.hidden,
+          controlsInFirstRow:!!expectedRow && parent === expectedRow,
+          controlsLastInFirstRow:!!expectedRow && expectedRow.lastElementChild === controls,
+          controlsAfterMoreButton:tabPos !== 'top' && !!more && more.nextElementSibling === controls,
+          glassButtons:glassButtons,
+          controlsRect:rect(controls),
+          firstRowRect:rect(expectedRow),
+          macTrafficLightsLive:!!lights && lights.classList.contains('live')
         });
       })()
     """
-    cleanup_expression = r"""
-      (async function() {
-        const saved = window.__shelterTitlebarProbeOriginal;
-        if (!saved) return true;
-        const body = document.body;
-        const app = document.getElementById('app');
-        if (app) app.classList.toggle('collapsed', saved.originalCollapsed);
-        saved.stateClasses.forEach(name => body.classList.toggle(name, saved.original[name]));
-        body.classList.toggle('win-title-shown', saved.originalShown);
-        delete window.__shelterTitlebarProbeOriginal;
-        await new Promise(resolve => setTimeout(resolve, 340));
-        return true;
-      })()
-    """
-    try:
-        raw = ui.evaluate(expression, timeout=20)
-        if not raw:
-            raise AcceptanceError("Windows titlebar probe returned no result")
-        result = json.loads(raw)
-        if result.get("platform") == "darwin":
-            if result.get("titlebarPresent") or not result.get("macTrafficLightsLive"):
-                raise AcceptanceError(f"macOS titlebar removal or traffic lights regressed: {result}")
-            return result
-        if result.get("platform") not in ("win32", "preview"):
-            if result.get("titlebarPresent"):
-                raise AcceptanceError(f"Non-Windows native platform retained the titlebar: {result}")
-            return result
-        if not result.get("normal", {}).get("pass"):
-            raise AcceptanceError(f"Normal Windows titlebar geometry is incorrect: {result}")
-        overlay_states = result.get("overlayStates", {})
-        if set(overlay_states) != {"is-maximized", "is-fullscreen", "tab-fs"} or not all(
-            state.get("pass") for state in overlay_states.values()
-        ):
-            raise AcceptanceError(f"Titlebar overlay mode shifted content or remained interactive: {result}")
-        hidden = result.get("hiddenOnMaximized", {})
-        if hidden.get("classShown") or hidden.get("opacity") != "0":
-            raise AcceptanceError(f"Maximized titlebar did not start hidden: {result}")
-
-        ui.call("Input.dispatchMouseEvent", {
-            "type": "mouseMoved",
-            "x": int(result["viewportWidth"] / 2),
-            "y": 1,
-        })
-        revealed_raw = ui.evaluate(r"""
-          (async function() {
-            await new Promise(resolve => setTimeout(resolve, 260));
-            const bar = document.getElementById('winTitle');
-            const rect = bar.getBoundingClientRect();
-            return JSON.stringify({
-              classShown:document.body.classList.contains('win-title-shown'),
-              rect:{top:rect.top, bottom:rect.bottom, height:rect.height},
-              opacity:getComputedStyle(bar).opacity,
-              pointerEvents:getComputedStyle(bar).pointerEvents,
-              pointerHovered:bar.matches(':hover')
-            });
-          })()
-        """, timeout=5)
-        result["revealed"] = json.loads(revealed_raw)
-        if (
-            not result["revealed"].get("classShown")
-            or result["revealed"].get("pointerEvents") != "auto"
-            or abs(result["revealed"].get("rect", {}).get("top", 999)) > 1
-        ):
-            raise AcceptanceError(f"Top-edge hover did not reveal the titlebar: {result}")
-
-        viewport_height = max(1, int(result.get("viewportHeight", 720)))
-        leave_y = max(60, min(600, viewport_height - 1))
-        ui.call("Input.dispatchMouseEvent", {
-            "type": "mouseMoved",
-            "x": int(result["viewportWidth"] / 2),
-            "y": leave_y,
-        })
-        hidden_raw = ui.evaluate(r"""
-          (async function() {
-            await new Promise(resolve => setTimeout(resolve, 450));
-            const afterDelay = {
-              classShown:document.body.classList.contains('win-title-shown')
-            };
-            await new Promise(resolve => setTimeout(resolve, 300));
-            const bar = document.getElementById('winTitle');
-            const rect = bar.getBoundingClientRect();
-            return JSON.stringify({
-              afterDelay:afterDelay,
-              classShown:document.body.classList.contains('win-title-shown'),
-              rect:{top:rect.top, bottom:rect.bottom, height:rect.height},
-              opacity:getComputedStyle(bar).opacity,
-              pointerEvents:getComputedStyle(bar).pointerEvents,
-              pointerHovered:bar.matches(':hover')
-            });
-          })()
-        """, timeout=5)
-        result["hiddenAfterLeave"] = json.loads(hidden_raw)
-        hidden_after_leave = result["hiddenAfterLeave"]
-        hidden_rect = hidden_after_leave.get("rect", {})
-        if (
-            hidden_after_leave.get("afterDelay", {}).get("classShown")
-            or hidden_after_leave.get("classShown")
-            or hidden_after_leave.get("opacity") != "0"
-            or hidden_after_leave.get("pointerEvents") != "none"
-            or hidden_after_leave.get("pointerHovered")
-            or abs(hidden_rect.get("top", 0) + hidden_rect.get("height", 0)) > 1
-        ):
-            raise AcceptanceError(
-                "Titlebar hide timing or transition mismatch: "
-                + json.dumps({"revealed": result.get("revealed"), "hiddenAfterLeave": hidden_after_leave})
-            )
+    raw = ui.evaluate(expression, timeout=12)
+    if not raw:
+        raise AcceptanceError("Windows window-control probe returned no result")
+    result = json.loads(raw)
+    if result.get("titlebarPresent"):
+        raise AcceptanceError(f"A separate titlebar changed the original control placement: {result}")
+    if result.get("platform") == "darwin":
+        if not result.get("macTrafficLightsLive") or result.get("controlsVisible"):
+            raise AcceptanceError(f"macOS traffic lights or platform gating regressed: {result}")
         return result
-    finally:
-        ui.evaluate(cleanup_expression, timeout=12)
+    if result.get("platform") == "win32":
+        if not all(result.get(key) for key in (
+            "controlsPresent", "controlsVisible", "controlsInFirstRow",
+            "controlsLastInFirstRow",
+        )) or result.get("glassButtons") != [True, True, True]:
+            raise AcceptanceError(f"Windows controls left their original first-row position or lost glass styling: {result}")
+        if result.get("tabPos") != "top" and not result.get("controlsAfterMoreButton"):
+            raise AcceptanceError(f"Toolbar controls no longer follow the original action order: {result}")
+        controls_rect = result.get("controlsRect") or {}
+        row_rect = result.get("firstRowRect") or {}
+        if not controls_rect or not row_rect or not (
+            controls_rect.get("left", -1) >= row_rect.get("left", 0) and
+            controls_rect.get("right", 0) <= row_rect.get("right", -1) and
+            controls_rect.get("top", -1) >= row_rect.get("top", 0) and
+            controls_rect.get("bottom", 0) <= row_rect.get("bottom", -1)
+        ):
+            raise AcceptanceError(f"Windows controls are outside their original first row: {result}")
+        return result
+    if result.get("controlsVisible"):
+        raise AcceptanceError(f"Non-Windows platform unexpectedly shows Windows controls: {result}")
+    return result
 
 
 def performance_mode_probe(ui: Cdp) -> Dict[str, Any]:
@@ -2944,9 +2813,9 @@ def main() -> int:
                     f"Native secret crypto bridge failed or exposed key material: {secret_probe!r}"
                 )
             print(f"SHELTER_ACCEPTANCE_UI_READY version={version}", flush=True)
-            titlebar_probe = window_titlebar_probe(ui)
-            print("SHELTER_ACCEPTANCE_WINDOW_TITLEBAR " + json.dumps(titlebar_probe, ensure_ascii=False), flush=True)
-            print("SHELTER_ACCEPTANCE_WINDOW_TITLEBAR_PASS", flush=True)
+            window_controls = window_controls_probe(ui)
+            print("SHELTER_ACCEPTANCE_WINDOW_CONTROLS " + json.dumps(window_controls, ensure_ascii=False), flush=True)
+            print("SHELTER_ACCEPTANCE_WINDOW_CONTROLS_PASS", flush=True)
             original_gfx = ui.evaluate("window.shelterTest.state().prefs.gfx || 'balance'")
             if original_gfx not in ("beauty", "balance", "perf"):
                 original_gfx = "balance"

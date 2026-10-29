@@ -16,7 +16,7 @@ assert(!/['"]unsafe-inline['"]/.test(scriptSrc), 'script-src must not allow unsa
 
 const hashes = Array.from(scriptSrc.matchAll(/'sha256-([A-Za-z0-9+/]+={0,2})'/g), m => m[1]);
 const inlineScripts = Array.from(html.matchAll(/<script\b(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script\s*>/gi), m => m[1]);
-assert.strictEqual(inlineScripts.length, 6, 'expected five existing inline scripts plus the Windows titlebar controller');
+assert.strictEqual(inlineScripts.length, 5, 'the original Windows toolbar placement needs no extra titlebar script');
 inlineScripts.forEach((script, i) => new (require('vm').Script)(script, { filename: 'inline' + i + '.js' }));
 assert.strictEqual(hashes.length, inlineScripts.length, 'one CSP hash is required per inline script');
 const expected = inlineScripts.map(script => crypto.createHash('sha256').update(script, 'utf8').digest('base64')).sort();

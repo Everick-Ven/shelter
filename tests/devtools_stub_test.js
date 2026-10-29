@@ -57,25 +57,31 @@ expectMatch(html, /data-act="devtoolsClose"/);
 expectNoMatch(html, /<webview\b|setDevToolsWebContents|getDevToolsRect|devtools\/layout/i,
   'the UI contains no webview, old DevTools contents API, geometry hook, or layout IPC');
 
-// The separate Windows titlebar stays outside the app, toolbar, and DevTools
-// stage so it cannot be clipped or repositioned by interface layout rules.
-const titlebarStart = html.indexOf('<div class="win-title" id="winTitle"');
+// Windows controls stay at the end of the historical first row (toolbar
+// actions, or the top tab row when tabs are positioned above); DevTools never owns them.
 const controlsStart = html.indexOf('<div class="wctl win-ctls" id="winCtl"');
 const appStart = html.indexOf('<div class="app" id="app">');
 const toolbarStart = html.indexOf('<header class="tb">');
 const toolbarEnd = html.indexOf('</header>', toolbarStart);
+const actionsStart = html.indexOf('<div class="tb-g tb-actions"', toolbarStart);
+const moreStart = html.indexOf('id="moreBtn"', actionsStart);
 const toolbar = html.slice(toolbarStart, toolbarEnd);
 assert.ok(toolbar.includes('class="tb-g tb-actions"'), 'the toolbar retains its action group');
-assert.ok(!toolbar.includes('id="winCtl"'), '#winCtl stays outside the Visual toolbar backdrop-filter');
-assert.ok(titlebarStart >= 0 && controlsStart > titlebarStart && controlsStart < appStart &&
-    appStart > 0 && toolbarStart > appStart,
-  '#winCtl is in the standalone titlebar before .app and the toolbar');
+assert.ok(controlsStart > moreStart && controlsStart < toolbarEnd && toolbar.includes('id="winCtl"'),
+  '#winCtl remains the last group on the right of the original toolbar row');
+assert.ok(appStart > 0 && toolbarStart > appStart, 'the toolbar remains inside the app');
+assert.ok(!html.includes('id="winTitle"'), 'no separate titlebar shifts the original controls');
+const applyTabPos = section(html, 'function applyTabPos() {', 'function ensureTabPos()', 'tab-position layout');
+expectMatch(applyTabPos, /if \(pos === 'top'\)[\s\S]*tm\.appendChild\(ctl\)/,
+  'the controls follow the top tab row when it is the first row');
+expectMatch(applyTabPos, /home\.appendChild\(ctl\)/,
+  'the controls return to the toolbar for all other tab positions');
 const stage = section(html, '<section class="stage" id="stage">', '</section>', 'stage');
 expectNoMatch(stage, /id="winCtl"/, '#winCtl is not moved into or covered by the stub panel');
 expectMatch(html, /#winCtl\.win-ctls\{[^}]*position:static[^}]*-webkit-app-region:no-drag/,
-  '#winCtl remains no-drag inside the fixed titlebar');
-expectMatch(html, /\.win-title\{[^}]*position:fixed[^}]*z-index:60/,
-  'the standalone titlebar stays above the DevTools panel');
+  '#winCtl remains a no-drag group in the toolbar');
+expectNoMatch(html, /#winCtl\.win-ctls\{[^}]*position:fixed/,
+  'the controls are not fixed over the DevTools panel');
 
 // Menu preference, developer persona, page context action and shortcuts.
 expectMatch(html, /menuAdapt:\s*true,\s*menuDev:\s*true/,

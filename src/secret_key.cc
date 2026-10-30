@@ -595,8 +595,8 @@ bool HasSecretKeyPassword() {
 
 bool SetSecretKeyPassword(const std::string& password, std::string* error) {
   if (error) error->clear();
-  if (Utf8CodePointCount(password) < 12 || password.size() > 1024) {
-    if (error) *error = "master password must contain at least 12 UTF-8 characters";
+  if (Utf8CodePointCount(password) < 10 || password.size() > 1024) {
+    if (error) *error = "master password must contain at least 10 UTF-8 characters";
     return false;
   }
   std::string master_key;

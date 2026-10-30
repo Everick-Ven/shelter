@@ -178,6 +178,16 @@ int main() {
   const std::string recovery_salt(16, 's');
   const std::string recovery_nonce(12, 'n');
   std::string wrapped_key, unwrapped_key;
+  const std::string minimum_password = "aB3!xY7#qZ";
+  assert(!shelter::secret_crypto::WrapMasterKeyWithPassword(
+      key, minimum_password.substr(0, 9), recovery_salt, recovery_nonce, 2,
+      &wrapped_key));
+  assert(wrapped_key.empty());
+  assert(shelter::secret_crypto::WrapMasterKeyWithPassword(
+      key, minimum_password, recovery_salt, recovery_nonce, 2, &wrapped_key));
+  assert(shelter::secret_crypto::UnwrapMasterKeyWithPassword(
+      minimum_password, wrapped_key, &unwrapped_key, 1));
+  assert(unwrapped_key == key);
   assert(shelter::secret_crypto::WrapMasterKeyWithPassword(
       key, recovery_password, recovery_salt, recovery_nonce, 2, &wrapped_key));
   assert(wrapped_key.rfind("skw1:2:", 0) == 0);

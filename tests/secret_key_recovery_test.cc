@@ -55,7 +55,7 @@ void CreatePasswordWrapper() {
   const std::filesystem::path sample_path = dir / "sample.ss1";
   const std::filesystem::path expected_path = dir / "expected-key.txt";
   std::string key, error, ciphertext;
-  const std::string password = "a long recovery passphrase";
+  const std::string password = "aB3!xY7#qZ";  // Exactly 10 code points: the supported minimum.
 
   assert(shelter::platform::SecretKeyHex(&key, &error));
   assert(key.size() == 64);
@@ -86,7 +86,7 @@ void FirstRunSetupCreatesAndWrapsOneKey() {
   const std::filesystem::path key_path = dir / "secret.key";
   const std::filesystem::path wrapper_path = dir / "secret.key.password";
   std::string key, error, ciphertext, plaintext;
-  const std::string password = "a long recovery passphrase";
+  const std::string password = "aB3!xY7#qZ";  // Exactly 10 code points: the supported minimum.
 
   assert(!std::filesystem::exists(key_path));
   assert(!shelter::platform::SetSecretKeyPassword("пароль123", &error));
@@ -115,7 +115,7 @@ void UnlockFromWrapperWithoutSystemKey() {
   assert(!std::filesystem::exists(key_path));
 
   assert(shelter::platform::UnlockSecretKeyWithPassword(
-      "a long recovery passphrase", &error));
+      "aB3!xY7#qZ", &error));
   assert(shelter::platform::SecretKeyHexForDecrypt(&key, &error));
   assert(ReadFile(expected_path, &expected_key));
   assert(key == expected_key);

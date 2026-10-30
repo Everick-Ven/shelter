@@ -10,13 +10,13 @@ SHELTER continues to encrypt stored secrets with the existing random 256-bit mas
 skw1:<iterations>:<salt-hex>:<ss1-wrapped-key>
 ```
 
-The wrapper stores neither the password nor the plaintext master key. The reader enforces a minimum production KDF cost and a bounded maximum. A long, unique passphrase is recommended; the UI requires at least 12 Unicode characters. A short PIN is not recommended as a replacement for this phrase.
+The wrapper stores neither the password nor the plaintext master key. The reader enforces a minimum production KDF cost and a bounded maximum. A long, unique passphrase is recommended; the UI requires at least 10 Unicode characters. A short PIN is not recommended as a replacement for this phrase.
 
 ## Separate local app PIN lock
 
 SHELTER supports a separate local app-lock PIN. It locks the renderer UI at startup and on demand; it does not replace the master-password phrase, decrypt data, or protect/unwrap the master key. The existing `ss1:` format and board persistence are unchanged by PIN or master-password setup/recovery.
 
-The profile stores a random 16-byte salt and a PBKDF2-HMAC-SHA256 verifier (600,000 iterations), not the PIN itself. The UI accepts 6–12 ASCII digits, rejects obvious repeated/sequential patterns, and persists failed-attempt throttling (30 seconds after the fifth failure, increasing to a 15-minute cap). If the PIN is forgotten, entering the existing master-password phrase resets only the local PIN record; it does not delete or replace the master key, password wrapper, board records, or other user data.
+The profile stores a random 16-byte salt and a PBKDF2-HMAC-SHA256 verifier (600,000 iterations), not the PIN itself. New PINs are exactly four ASCII digits; obvious repeated, sequential, and repeated-pattern values remain rejected. Existing v1 records with 6–12 digits remain usable during migration until the owner changes the PIN. Failed-attempt throttling persists (30 seconds after the fifth failure, increasing to a 15-minute cap). If the PIN is forgotten, entering the existing master-password phrase resets only the local PIN record and offers a new PIN setup; it does not delete or replace the master key, password wrapper, board records, or other user data.
 
 This is deliberately a convenience lock, not a data-at-rest security boundary. A person who can edit the local profile can remove or alter the PIN record, and the low-entropy PIN verifier can be guessed offline despite the KDF. Use the long, unique master-password phrase for recovery; never use the PIN to protect or recover the master key.
 

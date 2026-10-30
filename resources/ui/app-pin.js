@@ -6,14 +6,16 @@
   'use strict';
 
   const ITERATIONS = 600000;
-  const VERSION = 1;
+  const LEGACY_VERSION = 1;
+  const VERSION = 2;
+  const PIN_LENGTH = 4;
   const ALGORITHM = 'PBKDF2-SHA256';
   const SALT_BYTES = 16;
   const VERIFIER_BYTES = 32;
   const MAX_LOCKOUT_MS = 15 * 60 * 1000;
 
-  function validatePin(pin) {
-    if (typeof pin !== 'string' || !/^\d{6,12}$/.test(pin)) return false;
+  function validatePinLength(pin, min, max) {
+    if (typeof pin !== 'string' || !new RegExp('^\\d{' + min + ',' + max + '}$').test(pin)) return false;
     if (/^(\d)\1+$/.test(pin)) return false;
 
     const digits = Array.from(pin, ch => ch.charCodeAt(0) - 48);
@@ -27,6 +29,16 @@
       if (pattern.repeat(pin.length / period) === pin) return false;
     }
     return true;
+  }
+
+  function validatePin(pin) {
+    return validatePinLength(pin, PIN_LENGTH, PIN_LENGTH);
+  }
+
+  // v1 PINs were 6–12 digits. Keep them usable during migration; all newly
+  // created or changed PINs use the exact four-digit v2 format.
+  function validateLegacyPin(pin) {
+    return validatePinLength(pin, 6, 12);
   }
 
   function bytesToHex(bytes) {
@@ -76,7 +88,9 @@
 
   function normalizeRecord(value, now) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-    if (value.version !== VERSION || value.algorithm !== ALGORITHM || value.iterations !== ITERATIONS) return null;
+    const legacy = value.version === LEGACY_VERSION && value.pinLength === undefined;
+    const current = value.version === VERSION && value.pinLength === PIN_LENGTH;
+    if ((!legacy && !current) || value.algorithm !== ALGORITHM || value.iterations !== ITERATIONS) return null;
     if (typeof value.salt !== 'string' || !/^[0-9a-f]{32}$/.test(value.salt)) return null;
     if (typeof value.verifier !== 'string' || !/^[0-9a-f]{64}$/.test(value.verifier)) return null;
     if (!Number.isSafeInteger(value.failures) || value.failures < 0 || value.failures > 1000000) return null;
@@ -84,8 +98,8 @@
 
     const timestamp = Number.isFinite(now) ? now : Date.now();
     const cap = timestamp + MAX_LOCKOUT_MS;
-    return {
-      version: VERSION,
+    const record = {
+      version: value.version,
       algorithm: ALGORITHM,
       iterations: ITERATIONS,
       salt: value.salt,
@@ -93,15 +107,24 @@
       failures: value.failures,
       lockedUntil: Math.min(value.lockedUntil, cap)
     };
+    if (current) record.pinLength = PIN_LENGTH;
+    return record;
+  }
+
+  function validatePinForRecord(pin, record) {
+    const normalized = normalizeRecord(record);
+    if (!normalized) return false;
+    return normalized.version === LEGACY_VERSION ? validateLegacyPin(pin) : validatePin(pin);
   }
 
   async function createRecord(pin, provider) {
-    if (!validatePin(pin)) throw new Error('Use a non-obvious PIN of 6–12 digits.');
+    if (!validatePin(pin)) throw new Error('Use a non-obvious PIN of exactly four digits.');
     const api = cryptoApi(provider);
     const salt = api.getRandomValues(new Uint8Array(SALT_BYTES));
     const verifier = await deriveVerifier(pin, salt, api);
     return {
       version: VERSION,
+      pinLength: PIN_LENGTH,
       algorithm: ALGORITHM,
       iterations: ITERATIONS,
       salt: bytesToHex(salt),
@@ -143,16 +166,17 @@
 
   async function verifyPin(pin, record, provider) {
     const normalized = normalizeRecord(record);
-    if (!normalized || !validatePin(pin) || remainingLockMs(normalized) > 0) return false;
+    if (!normalized || !validatePinForRecord(pin, normalized) || remainingLockMs(normalized) > 0) return false;
     const actual = await deriveVerifier(pin, hexToBytes(normalized.salt), provider);
     return constantTimeHexEqual(actual, normalized.verifier);
   }
 
   global.ShelterAppPin = Object.freeze({
     ITERATIONS,
-    MIN_PIN_LENGTH: 6,
-    MAX_PIN_LENGTH: 12,
+    MIN_PIN_LENGTH: PIN_LENGTH,
+    MAX_PIN_LENGTH: PIN_LENGTH,
     validatePin,
+    validatePinForRecord,
     normalizeRecord,
     createRecord,
     verifyPin,

@@ -12,6 +12,8 @@ assert.match(ui, /<script\s+src="app-pin\.js"><\/script>/,
   'the isolated PIN verifier is loaded as an external same-origin script');
 assert.match(pinModule, /PBKDF2/);
 assert.match(pinModule, /600000/);
+assert.match(pinModule, /const PIN_LENGTH = 4/);
+assert.match(pinModule, /validatePinForRecord/);
 assert.doesNotMatch(pinModule, /secretEnc|secretDec|secretPassword(?:Set|Unlock)|secret\.key/i,
   'the PIN module never encrypts, decrypts, sets, or unwraps the master key');
 
@@ -19,6 +21,12 @@ const pinUiStart = ui.indexOf('function appPinStorageAvailable()');
 const pinUiEnd = ui.indexOf('function settingsHtml()', pinUiStart);
 assert(pinUiStart >= 0 && pinUiEnd > pinUiStart, 'PIN UI implementation is present as a separate section');
 const pinUi = ui.slice(pinUiStart, pinUiEnd);
+assert.match(pinUi, /PIN · 4 цифры/,
+  'new PIN setup and startup prompts use exactly four digits');
+assert(pinUi.includes('pattern="[0-9]{4}" minlength="4" maxlength="4"'),
+  'new PIN inputs enforce exactly four ASCII digits');
+assert(pinUi.includes("appPinRequestSetupOffer();\n      setTimeout(() => window.location.reload(), 80)"),
+  'master-password recovery offers a new PIN after its safe reload');
 assert.match(pinUi, /function appPinCanConfigure\(\)[\s\S]*?S\.masterKeyPasswordAvailable && masterPasswordCanConfigure\(\)/,
   'PIN setup requires readable existing data and the separate master-password wrapper');
 assert.match(pinUi, /masterPasswordNativeCall\('secretPasswordUnlock'/,

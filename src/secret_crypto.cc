@@ -438,7 +438,7 @@ bool WrapMasterKeyWithPassword(const std::string& master_key_hex,
     Wipe(master.data(), master.size());
     return false;
   }
-  if (password.size() < 12 || password.size() > 1024) {
+  if (password.size() < 10 || password.size() > 1024) {
     Wipe(master.data(), master.size());
     return false;
   }
@@ -471,7 +471,7 @@ bool UnwrapMasterKeyWithPassword(const std::string& password,
   if (!master_key_hex) return false;
   Wipe(master_key_hex->data(), master_key_hex->size());
   master_key_hex->clear();
-  if (password.size() < 12 || password.size() > 1024 ||
+  if (password.size() < 10 || password.size() > 1024 ||
       wrapped.size() > 512 || wrapped.rfind(kPasswordWrapPrefix, 0) != 0 ||
       minimum_iterations == 0 ||
       minimum_iterations > kPasswordWrapMaxIterations) {

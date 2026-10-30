@@ -49,6 +49,13 @@ assert(!ui.includes('data-act="masterPasswordUnlock"'),
   'master-key recovery must not depend on the task-store error view');
 assert(!passwordAndPinFlow.includes('persist.flush'),
   'master-password setup and recovery do not rely on a debounce flush to preserve the board');
+assert(setup.includes('Array.from(phrase).length < 10'),
+  'master-password creation requires at least ten Unicode code points');
+assert(setup.includes('не менее 10 символов'),
+  'the creation error message matches the ten-character minimum');
+assert(setup.includes('appPinOfferSetup()'),
+  'completing mandatory master-password setup offers the optional local PIN shortcut');
+
 assert(!ui.includes('master-password-remove'), 'the mandatory password wrapper cannot be removed in UI');
 assert(key.includes('LoadKeyLocked(true, error)'), 'fresh setup may create only the first master key');
 assert(key.includes('g_key_creation_blocked'), 'a prior decrypt failure must prevent replacement-key creation');

@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-CeeIACsCsSwZf+Zd3p1pvEk2PCTrY9CSBHPQH9bwafY=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-VXzZ6glTYdS6OUwRQwW5FzdfqmMYxINycMgBgmvJayQ=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -6066,6 +6066,7 @@ const S = {
 };
 const APP_PIN_STORAGE_KEY = 'shelter:app-pin:v1';
 const APP_PIN_RECOVERY_BYPASS_KEY = 'shelter:app-pin:recovery-bypass';
+const APP_PIN_SETUP_OFFER_KEY = 'shelter:app-pin:setup-offer';
 let APP_PIN = { configured: false, corrupt: false, record: null, locked: false, root: null, countdownTimer: 0, previousAppState: null };
 const T = {}; // временное состояние страниц (не сохраняется)
 
@@ -13317,7 +13318,7 @@ function openMasterPasswordSetup(required = false) {
     : 'Это дополнительная парольная обёртка над тем же случайным мастер-ключом: формат ss1 и существующие записи не меняются. Настраивайте её только когда текущая доска уже открывается. Если старый ключ утрачен, новый пароль не восстановит задачи.';
   const m = openModal({ width: 470, dismiss: !required, html: `<div class="modal-h"><div class="mi-ic">${ico('lock')}</div><h3>${title}</h3>${required ? '' : `<button type="button" class="icon-btn" data-master-pass-close aria-label="Закрыть">${ico('x')}</button>`}</div>
     <div class="modal-b"><p class="wp-form-hint">${description}</p>
-      <label class="field"><span>Длинная парольная фраза · минимум 12 символов</span><input class="input" id="masterPasswordNew" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false"></label>
+      <label class="field"><span>Длинная парольная фраза · минимум 10 символов</span><input class="input" id="masterPasswordNew" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false"></label>
       <label class="field"><span>Повторите фразу</span><input class="input" id="masterPasswordAgain" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false"></label>
       <div id="masterPasswordStatus" role="status" aria-live="polite" style="min-height:18px;margin-top:8px;font-size:12.5px"></div>
     </div><div class="modal-f">${required ? '' : '<button type="button" class="btn ghost" data-master-pass-close>Отмена</button>'}<button type="button" class="btn primary" data-master-pass-save>${ico('lock')}${required ? 'Задать пароль и продолжить' : 'Сохранить'}</button></div>` });
@@ -13326,8 +13327,8 @@ function openMasterPasswordSetup(required = false) {
   async function save(button) {
     let phrase = String(password && password.value || '').normalize('NFC');
     const confirmation = String(again && again.value || '').normalize('NFC');
-    if (Array.from(phrase).length < 12) {
-      if (status) status.textContent = 'Используйте не менее 12 символов.';
+    if (Array.from(phrase).length < 10) {
+      if (status) status.textContent = 'Используйте не менее 10 символов.';
       if (password) password.focus();
       return;
     }
@@ -13348,6 +13349,7 @@ function openMasterPasswordSetup(required = false) {
       closeModal(m);
       if (required) {
         if (APP_PIN.configured) setTimeout(() => appPinLockNow('startup'), 80);
+        else appPinOfferSetup();
         toast('Мастер-пароль задан. SHELTER готов к работе.', { icon: 'check' });
       } else {
         refreshPage('settings');
@@ -13472,6 +13474,23 @@ function appPinSetRecoveryBypass() {
   try { window.sessionStorage.setItem(APP_PIN_RECOVERY_BYPASS_KEY, '1'); return true; }
   catch (_) { return false; }
 }
+function appPinRequestSetupOffer() {
+  try { window.sessionStorage.setItem(APP_PIN_SETUP_OFFER_KEY, '1'); return true; }
+  catch (_) { return false; }
+}
+function appPinConsumeSetupOffer() {
+  try {
+    const storage = window.sessionStorage;
+    if (storage.getItem(APP_PIN_SETUP_OFFER_KEY) !== '1') return false;
+    storage.removeItem(APP_PIN_SETUP_OFFER_KEY);
+    return true;
+  } catch (_) { return false; }
+}
+function appPinOfferSetup() {
+  setTimeout(() => {
+    if (!APP_PIN.configured && !APP_PIN.locked && appPinCanConfigure()) openAppPinSetup();
+  }, 80);
+}
 function appPinLoad() {
   APP_PIN = { configured: false, corrupt: false, record: null, locked: false, root: null, countdownTimer: 0, previousAppState: null, blocker: null };
   let raw = null;
@@ -13541,6 +13560,7 @@ function appPinLockNow(reason = 'manual') {
   APP_PIN.locked = true;
   if (APP_PIN.countdownTimer) clearInterval(APP_PIN.countdownTimer);
   const hasPin = !!(APP_PIN.record && !APP_PIN.corrupt);
+  const legacyPin = hasPin && APP_PIN.record.version === 1;
   const root = document.createElement('section');
   root.className = 'app-pin-lock';
   root.setAttribute('role', 'dialog');
@@ -13551,7 +13571,7 @@ function appPinLockNow(reason = 'manual') {
     <h1 id="appPinTitle">SHELTER заблокирован</h1>
     <p>${reason === 'startup' ? 'Введите локальный PIN, чтобы открыть приложение.' : 'Введите локальный PIN, чтобы продолжить.'}</p>
     <form id="appPinForm" class="app-pin-form" ${hasPin ? '' : 'hidden'}>
-      <label class="field"><span>PIN · 6–12 цифр</span><input class="app-pin-entry" id="appPinEntry" type="password" inputmode="numeric" pattern="[0-9]{6,12}" minlength="6" maxlength="12" autocomplete="off" aria-label="Локальный PIN" required></label>
+      <label class="field"><span>${legacyPin ? 'Старый PIN · 6–12 цифр' : 'PIN · 4 цифры'}</span><input class="app-pin-entry" id="appPinEntry" type="password" inputmode="numeric" pattern="${legacyPin ? '[0-9]{6,12}' : '[0-9]{4}'}" minlength="${legacyPin ? 6 : 4}" maxlength="${legacyPin ? 12 : 4}" autocomplete="off" aria-label="Локальный PIN" required></label>
       <button type="submit" class="btn primary app-pin-submit" data-app-pin-submit>Разблокировать</button>
     </form>
     <div class="app-pin-status" id="appPinStatus" role="status" aria-live="polite"></div>
@@ -13620,7 +13640,11 @@ async function appPinAttemptPin() {
     if (pinApi.remainingLockMs(APP_PIN.record, Date.now()) > 0) { appPinUpdateCountdown(); return; }
     const button = $('[data-app-pin-submit]', APP_PIN.root);
     let pin = String(input.value || '');
-    if (!pinApi.validatePin(pin)) { status.textContent = 'Введите PIN из 6–12 цифр.'; input.focus(); return; }
+    if (!pinApi.validatePinForRecord(pin, APP_PIN.record)) {
+      status.textContent = APP_PIN.record.version === 1
+        ? 'Введите старый PIN из 6–12 цифр.' : 'Введите PIN из 4 цифр.';
+      input.focus(); return;
+    }
     if (button) button.disabled = true;
     let ok = false, cryptoFailed = false;
     try { ok = await pinApi.verifyPin(pin, APP_PIN.record, window.crypto); }
@@ -13629,9 +13653,12 @@ async function appPinAttemptPin() {
     input.value = '';
     if (cryptoFailed) { if (button) button.disabled = false; input.focus(); return; }
     if (ok) {
+      const legacyPin = APP_PIN.record.version === 1;
       try { APP_PIN.record = pinApi.clearFailures(APP_PIN.record, Date.now()); appPinPersistRecord(APP_PIN.record); } catch (_) {}
       appPinUnlockSurface();
-      toast('Локальная блокировка снята', { icon: 'lock-open' });
+      toast(legacyPin
+        ? 'Старый PIN принят. Обновите его в настройках на новый PIN из четырёх цифр.'
+        : 'Локальная блокировка снята', { icon: 'lock-open' });
       return;
     }
     appPinRecordFailure();
@@ -13674,6 +13701,7 @@ async function appPinAttemptMasterPassword() {
         return;
       }
       toast('Мастер-пароль принят. Локальный PIN сброшен; данные и мастер-ключ не удалены.', { icon: 'check' });
+      appPinRequestSetupOffer();
       setTimeout(() => window.location.reload(), 80);
       return;
     }
@@ -13719,11 +13747,12 @@ function openAppPinSetup() {
     return;
   }
   const changing = !!APP_PIN.record;
+  const legacyPin = !!(APP_PIN.record && APP_PIN.record.version === 1);
   const m = openModal({ width: 460, html: `<div class="modal-h"><div class="mi-ic">${ico('lock')}</div><h3>${changing ? 'Изменить локальный PIN' : 'Настроить локальный PIN'}</h3><button type="button" class="icon-btn" data-app-pin-close aria-label="Закрыть">${ico('x')}</button></div>
-    <div class="modal-b"><p class="wp-form-hint">PIN — отдельная блокировка этого интерфейса на устройстве. Он не заменяет длинный мастер-пароль и не защищает мастер-ключ. Для смены подтвердите текущий PIN.</p>
-      ${changing ? '<label class="field"><span>Текущий PIN</span><input class="input" id="appPinCurrent" type="password" inputmode="numeric" maxlength="12" autocomplete="off"></label>' : ''}
-      <label class="field"><span>Новый PIN · 6–12 цифр</span><input class="input" id="appPinNew" type="password" inputmode="numeric" maxlength="12" autocomplete="new-password"></label>
-      <label class="field"><span>Повторите новый PIN</span><input class="input" id="appPinAgain" type="password" inputmode="numeric" maxlength="12" autocomplete="new-password"></label>
+    <div class="modal-b"><p class="wp-form-hint">PIN — быстрый вариант входа при перезапуске и отдельная блокировка этого интерфейса. Он не заменяет мастер-пароль и не защищает мастер-ключ. Забытый PIN можно сбросить мастер-паролем.</p>
+      ${changing ? `<label class="field"><span>Текущий PIN${legacyPin ? ' · старый формат' : ''}</span><input class="input" id="appPinCurrent" type="password" inputmode="numeric" maxlength="12" autocomplete="off"></label>` : ''}
+      <label class="field"><span>Новый PIN · 4 цифры</span><input class="input" id="appPinNew" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password"></label>
+      <label class="field"><span>Повторите новый PIN</span><input class="input" id="appPinAgain" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password"></label>
       <div id="appPinSetupStatus" role="status" aria-live="polite" style="min-height:18px;margin-top:8px;font-size:12.5px"></div>
     </div><div class="modal-f"><button type="button" class="btn ghost" data-app-pin-close>Отмена</button><button type="button" class="btn primary" data-app-pin-save>${ico('lock')}${changing ? 'Сохранить новый PIN' : 'Включить PIN-блокировку'}</button></div>` });
   const root = m.scrim, current = $('#appPinCurrent', root), password = $('#appPinNew', root), again = $('#appPinAgain', root), status = $('#appPinSetupStatus', root);
@@ -13766,7 +13795,7 @@ function openAppPinSetup() {
       const nextPin = String(password && password.value || '');
       const confirmation = String(again && again.value || '');
       if (!window.ShelterAppPin.validatePin(nextPin)) {
-        status.textContent = 'Используйте неочевидный PIN длиной 6–12 цифр.';
+        status.textContent = 'Используйте неочевидный PIN ровно из четырёх цифр.';
         if (password) password.focus();
         return;
       }
@@ -13890,7 +13919,9 @@ function settingsHtml() {
   const appPinInfo = APP_PIN.configured
     ? APP_PIN.corrupt
       ? 'Запись PIN повреждена. Войдите мастер-паролем, чтобы сбросить только локальную блокировку.'
-      : 'Блокируется при запуске и вручную. PIN не заменяет мастер-пароль и не защищает мастер-ключ.'
+      : APP_PIN.record.version === 1
+        ? 'Старый PIN (6–12 цифр) принят для совместимости. Смените его на новый четырёхзначный PIN.'
+        : 'Четырёхзначный PIN блокирует приложение при запуске и вручную; мастер-пароль остаётся способом восстановления.'
     : !appPinStorageAvailable()
       ? 'Локальное хранилище недоступно; PIN нельзя безопасно сохранить на этом устройстве.'
       : !S.masterKeyPasswordAvailable
@@ -15147,6 +15178,7 @@ function init() {
   load();
   appPinLoad();
   const pinRecoveryBypass = appPinConsumeRecoveryBypass();
+  const pinSetupOffer = appPinConsumeSetupOffer();
   const nativePasswordStatusAvailable = !!(window.shelterNative &&
     typeof window.shelterNative.secretPasswordStatus === 'function');
   const passwordStatusNeedsRetry = nativePasswordStatusAvailable &&
@@ -15171,6 +15203,7 @@ function init() {
   const shouldStartPinLocked = APP_PIN.configured && !pinRecoveryBypass && !passwordStatusNeedsRetry && !mandatoryPasswordSetup;
   if (shouldStartPinLocked) appPinLockNow('startup');
   else renderView(true);
+  if (pinSetupOffer) appPinOfferSetup();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { initSegs(); positionNavInd(); syncThemeUI(); Hero.relayout(); });
   window.addEventListener('resize', debounce(() => { positionNavInd(); syncThemeUI(); initSegs(); layoutTabStrip(); tabsScrollSync(); }, 120));
   /* Ширина полосы меняется не только от окна: переключился пространство,

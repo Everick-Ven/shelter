@@ -397,10 +397,28 @@ def complete_master_password_onboarding(
         if (native && typeof native.secretPasswordStatus === 'function')
           configured = native.secretPasswordStatus();
       }} catch (_) {{}}
+      let pinOfferStillOpen = false;
+      if (!stillOpen && configured === true) {{
+        // The product offers an optional PIN modal after setup; decline it so
+        // the acceptance run can proceed to its own overlay lifecycle probes.
+        const pinOfferDeadline = performance.now() + 1200;
+        while (!document.querySelector('[data-app-pin-close]') &&
+               performance.now() < pinOfferDeadline)
+          await new Promise(resolve => setTimeout(resolve, 25));
+        const pinOfferClose = document.querySelector('[data-app-pin-close]');
+        if (pinOfferClose) {{
+          pinOfferClose.click();
+          const modalDeadline = performance.now() + 1200;
+          while (document.querySelector('.scrim') && performance.now() < modalDeadline)
+            await new Promise(resolve => setTimeout(resolve, 25));
+        }}
+        pinOfferStillOpen = !!document.querySelector('.scrim');
+      }}
       return JSON.stringify({{
-        completed: !stillOpen && configured === true,
+        completed: !stillOpen && configured === true && !pinOfferStillOpen,
         configured: configured,
-        reason: stillOpen && statusNode ? statusNode.textContent : 'wrapper not verified'
+        reason: pinOfferStillOpen ? 'optional PIN setup modal remained open' :
+          stillOpen && statusNode ? statusNode.textContent : 'wrapper not verified'
       }});
     }})()"""
     result_raw = ui.evaluate(expression, timeout=45)

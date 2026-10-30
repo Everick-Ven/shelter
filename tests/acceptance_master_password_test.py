@@ -79,6 +79,15 @@ class MasterPasswordAcceptanceTests(unittest.TestCase):
         self.assertIn("getElementById('masterPasswordAgain')", submission)
         self.assertIn("[data-master-pass-save]", submission)
         self.assertIn("secretPasswordStatus", submission)
+        self.assertIn("querySelector('[data-app-pin-close]')", submission,
+                      "the harness must find the optional PIN offer shown after setup")
+        self.assertIn("pinOfferClose.click()", submission,
+                      "the harness must dismiss the optional PIN offer before overlay probes")
+        self.assertIn("querySelector('.scrim')", submission,
+                      "the harness must wait for modal teardown before continuing")
+        self.assertIn("let pinOfferStillOpen = false", submission)
+        self.assertIn("!pinOfferStillOpen", submission,
+                      "a surviving PIN modal must fail acceptance before overlay probes")
 
     def test_missing_form_or_unknown_status_fails_closed(self) -> None:
         helper = getattr(acceptance, "complete_master_password_onboarding", None)

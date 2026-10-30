@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import secrets
 import socket
 import subprocess
 import sys
@@ -315,6 +316,102 @@ class Cdp:
             self.socket.close()
         except Exception:
             pass
+
+
+def complete_master_password_onboarding(
+    ui: Cdp, allow_setup: bool
+) -> Dict[str, Any]:
+    """Finish mandatory onboarding only in an explicitly disposable test profile."""
+    state_raw = ui.evaluate(
+        r"""(async () => {
+          const native = window.shelterNative;
+          let configured = null;
+          try {
+            if (native && typeof native.secretPasswordStatus === 'function')
+              configured = native.secretPasswordStatus();
+          } catch (_) {}
+          const test = window.shelterTest;
+          let appState = test && typeof test.state === 'function' ? test.state() : null;
+          const deadline = performance.now() + 30000;
+          while (appState && appState.taskMigrationPending && performance.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            appState = test.state();
+          }
+          const password = document.getElementById('masterPasswordNew');
+          const confirmation = document.getElementById('masterPasswordAgain');
+          return JSON.stringify({
+            configured: typeof configured === 'boolean' ? configured : null,
+            form_visible: !!(password && confirmation),
+            readable: !!appState && appState.taskMigrationOK !== false &&
+              appState.taskMigrationPending !== true && !window.__shelterSecretFailure
+          });
+        })()""",
+        timeout=35,
+    )
+    try:
+        state = json.loads(state_raw) if isinstance(state_raw, str) else state_raw
+    except (TypeError, ValueError) as exc:
+        raise AcceptanceError("Could not read master-password onboarding state") from exc
+    if not isinstance(state, dict):
+        raise AcceptanceError(f"Invalid master-password onboarding state: {state!r}")
+
+    configured = state.get("configured")
+    form_visible = state.get("form_visible") is True
+    if configured is True:
+        if form_visible:
+            raise AcceptanceError("Master-password setup form conflicts with an existing wrapper")
+        return {"state": "already-configured"}
+    if configured is not False:
+        raise AcceptanceError("Master-password status is unknown; refusing to change key state")
+    if state.get("readable") is not True:
+        raise AcceptanceError("Stored data is unreadable; refusing to create a master-password wrapper")
+    if not form_visible:
+        raise AcceptanceError("Master-password setup is required but its form is unavailable")
+    if not allow_setup:
+        raise AcceptanceError(
+            "Master-password setup is required; use --initialize-master-password only "
+            "with a disposable CI profile"
+        )
+
+    # This random one-run phrase is never logged or stored by the test harness.
+    # The UI stores only its native password wrapper for the disposable CI profile.
+    passphrase = "CI-" + secrets.token_urlsafe(24)
+    expression = f"""(async () => {{
+      const phrase = {json.dumps(passphrase)};
+      const password = document.getElementById('masterPasswordNew');
+      const confirmation = document.getElementById('masterPasswordAgain');
+      const submit = document.querySelector('[data-master-pass-save]');
+      if (!password || !confirmation || !submit || submit.disabled)
+        return JSON.stringify({{completed:false, reason:'setup controls unavailable'}});
+      password.value = phrase;
+      confirmation.value = phrase;
+      submit.click();
+      const deadline = performance.now() + 30000;
+      while (document.getElementById('masterPasswordNew') && performance.now() < deadline)
+        await new Promise(resolve => setTimeout(resolve, 100));
+      const stillOpen = !!document.getElementById('masterPasswordNew');
+      const statusNode = document.getElementById('masterPasswordStatus');
+      let configured = null;
+      try {{
+        const native = window.shelterNative;
+        if (native && typeof native.secretPasswordStatus === 'function')
+          configured = native.secretPasswordStatus();
+      }} catch (_) {{}}
+      return JSON.stringify({{
+        completed: !stillOpen && configured === true,
+        configured: configured,
+        reason: stillOpen && statusNode ? statusNode.textContent : 'wrapper not verified'
+      }});
+    }})()"""
+    result_raw = ui.evaluate(expression, timeout=45)
+    try:
+        result = json.loads(result_raw) if isinstance(result_raw, str) else result_raw
+    except (TypeError, ValueError) as exc:
+        raise AcceptanceError("Master-password onboarding returned invalid status") from exc
+    if not isinstance(result, dict) or result.get("completed") is not True:
+        reason = result.get("reason") if isinstance(result, dict) else result
+        raise AcceptanceError(f"Could not complete master-password onboarding: {reason}")
+    return {"state": "configured"}
 
 
 def wait_until(
@@ -1570,10 +1667,33 @@ def settings_theme_switch_probe(ui: Cdp) -> Dict[str, Any]:
           restoredStored:restoredStored, stateRestored:stateRestored});
       })()
     """
-    raw = ui.evaluate(expression, timeout=30)
-    if not raw:
-        raise AcceptanceError("Settings theme probe returned no result")
-    return json.loads(raw)
+    original_theme = ui.evaluate(
+        "document.documentElement.getAttribute('data-theme')"
+    )
+    try:
+        raw = ui.evaluate(expression, timeout=30)
+        if not raw:
+            raise AcceptanceError("Settings theme probe returned no result")
+        return json.loads(raw)
+    except Exception:
+        # A failing retry must not persist the temporary light theme and make
+        # the next attempt look like a non-fresh installation.
+        if isinstance(original_theme, str) and original_theme:
+            restore_expression = f"""(async () => {{
+              const theme = {json.dumps(original_theme)};
+              if (typeof window.setTheme === 'function') window.setTheme(theme);
+              const deadline = performance.now() + 5000;
+              while (performance.now() < deadline) {{
+                if (document.documentElement.getAttribute('data-theme') === theme) return true;
+                await new Promise(resolve => setTimeout(resolve, 50));
+              }}
+              return false;
+            }})()"""
+            try:
+                ui.evaluate(restore_expression, timeout=6)
+            except Exception:
+                pass
+        raise
 
 def bridge_state(ui: Cdp) -> Dict[str, Any]:
     raw = ui.evaluate(
@@ -2690,6 +2810,11 @@ def main() -> int:
         action="store_true",
         help="skip native debug-hook assertions for packaged release builds",
     )
+    parser.add_argument(
+        "--initialize-master-password",
+        action="store_true",
+        help="complete required onboarding only for a disposable CI profile",
+    )
     args = parser.parse_args()
 
     executable = args.executable.expanduser().resolve()
@@ -2812,6 +2937,14 @@ def main() -> int:
                 raise AcceptanceError(
                     f"Native secret crypto bridge failed or exposed key material: {secret_probe!r}"
                 )
+            master_password = complete_master_password_onboarding(
+                ui, allow_setup=args.initialize_master_password
+            )
+            print(
+                "SHELTER_ACCEPTANCE_MASTER_PASSWORD "
+                + json.dumps(master_password, ensure_ascii=False),
+                flush=True,
+            )
             print(f"SHELTER_ACCEPTANCE_UI_READY version={version}", flush=True)
             window_controls = window_controls_probe(ui)
             print("SHELTER_ACCEPTANCE_WINDOW_CONTROLS " + json.dumps(window_controls, ensure_ascii=False), flush=True)

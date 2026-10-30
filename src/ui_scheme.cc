@@ -85,10 +85,12 @@ bool ReadPostBody(CefRefPtr<CefRequest> request, std::string* body) {
 }
 
 CefRefPtr<CefResourceHandler> SecretResponse(bool ok,
-                                            const std::string& value) {
+                                            const std::string& value,
+                                            const std::string& error = {}) {
   CefRefPtr<CefDictionaryValue> dict = CefDictionaryValue::Create();
   dict->SetBool("ok", ok);
   if (ok) dict->SetString("value", value);
+  else if (!error.empty()) dict->SetString("error", error);
   CefRefPtr<CefValue> json = CefValue::Create();
   json->SetDictionary(dict);
   std::string data = CefWriteJSON(json, JSON_WRITER_DEFAULT).ToString();
@@ -109,28 +111,44 @@ CefRefPtr<CefResourceHandler> HandleSecretRequest(
       request->GetMethod().ToString() != "POST") {
     std::fprintf(stderr, "SHELTER_SECRET_BRIDGE rejected operation=%s\n",
                  operation.c_str());
-    return SecretResponse(false, std::string());
+    return SecretResponse(false, std::string(), "request rejected");
   }
-  std::string input, output;
-  const bool parsed = ReadPostBody(request, &input);
+  std::string input, output, error;
+  const bool no_body_needed = operation == "password-status";
+  const bool parsed = no_body_needed
+      ? (!request->GetPostData() || ReadPostBody(request, &input))
+      : ReadPostBody(request, &input);
   if (!parsed) {
     std::fprintf(stderr, "SHELTER_SECRET_BRIDGE unreadable-post-body operation=%s\n",
                  operation.c_str());
   }
-  const bool ok = parsed &&
-      (operation == "encrypt"
-           ? shelter::secret_crypto::Encrypt(input, &output)
-           : shelter::secret_crypto::Decrypt(input, &output));
-  if (parsed && !ok) {
+  bool ok = false;
+  if (parsed) {
+    if (operation == "encrypt") {
+      ok = shelter::secret_crypto::Encrypt(input, &output);
+    } else if (operation == "decrypt") {
+      ok = shelter::secret_crypto::Decrypt(input, &output);
+    } else if (operation == "password-status") {
+      output = platform::HasSecretKeyPassword() ? "1" : "0";
+      ok = true;
+    } else if (operation == "password-set") {
+      ok = platform::SetSecretKeyPassword(input, &error);
+    } else if (operation == "password-unlock") {
+      ok = platform::UnlockSecretKeyWithPassword(input, &error);
+    }
+  }
+  if (parsed && !ok && operation != "password-set" &&
+      operation != "password-unlock") {
     std::fprintf(stderr, "SHELTER_SECRET_BRIDGE crypto-failed operation=%s\n",
                  operation.c_str());
   }
   std::fill(input.begin(), input.end(), '\0');
-  CefRefPtr<CefResourceHandler> response = SecretResponse(ok, ok ? output : "");
+  CefRefPtr<CefResourceHandler> response =
+      SecretResponse(ok, ok ? output : "", error);
   std::fill(output.begin(), output.end(), '\0');
+  std::fill(error.begin(), error.end(), '\0');
   return response;
 }
-
 // Мост подключается в index.html без правки самого файла: тег <script>
 // вставляется перед самым первым <script>, то есть до кода UI (но после CSP <meta>).
 std::string InjectBridge(std::string html) {
@@ -221,6 +239,15 @@ class UiSchemeHandlerFactory : public CefSchemeHandlerFactory {
     if (rel == "secret/encrypt" || rel == "secret/decrypt") {
       return HandleSecretRequest(browser, frame, request,
                                  rel == "secret/encrypt" ? "encrypt" : "decrypt");
+    }
+    constexpr char kPasswordRoute[] = "secret/password/";
+    if (rel.rfind(kPasswordRoute, 0) == 0) {
+      const std::string action = rel.substr(sizeof(kPasswordRoute) - 1);
+      if (action == "status" || action == "set" || action == "unlock") {
+        return HandleSecretRequest(browser, frame, request,
+                                   "password-" + action);
+      }
+      return NotFound();
     }
 
     std::string data;

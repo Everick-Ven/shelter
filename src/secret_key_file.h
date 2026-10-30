@@ -3,6 +3,7 @@
 #define SHELTER_SECRET_KEY_FILE_H_
 
 #include <cerrno>
+#include <cstdio>
 #include <filesystem>
 #include <string>
 
@@ -154,6 +155,50 @@ inline bool WriteAllExclusive(const std::filesystem::path& path,
   }
   return true;
 #endif
+}
+
+// Атомарно заменяет уже существующий wrapped-key файл. Временный файл должен
+// находиться в том же каталоге и задаваться новым именем; при ошибке записи или
+// rename исходный файл остаётся нетронутым.
+inline bool ReplaceFileAtomically(const std::filesystem::path& target,
+                                  const std::filesystem::path& temporary,
+                                  const std::string& data,
+                                  std::string* error) {
+  if (error) error->clear();
+  if (target.empty() || temporary.empty() || target == temporary ||
+      target.parent_path().lexically_normal() !=
+          temporary.parent_path().lexically_normal()) {
+    if (error) *error = "master-key replacement temp must share its directory";
+    return false;
+  }
+  if (!WriteAllExclusive(temporary, data, error)) return false;
+#if defined(_WIN32)
+  if (!MoveFileExW(temporary.c_str(), target.c_str(),
+                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+    const DWORD code = GetLastError();
+    DeleteFileW(temporary.c_str());
+    if (error) {
+      *error = "master-key replacement failed (os=" +
+               std::to_string(static_cast<unsigned long>(code)) + ")";
+    }
+    return false;
+  }
+#else
+  int result;
+  do {
+    result = ::rename(temporary.c_str(), target.c_str());
+  } while (result != 0 && errno == EINTR);
+  if (result != 0) {
+    const int code = errno;
+    ::unlink(temporary.c_str());
+    if (error) {
+      *error = "master-key replacement failed (errno=" +
+               std::to_string(code) + ")";
+    }
+    return false;
+  }
+#endif
+  return true;
 }
 
 }  // namespace secret_key_storage

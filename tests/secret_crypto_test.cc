@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -11,6 +12,17 @@
 #include <system_error>
 
 namespace {
+
+std::string Hex(const std::string& bytes) {
+  static constexpr char kHex[] = "0123456789abcdef";
+  std::string out;
+  out.reserve(bytes.size() * 2);
+  for (unsigned char byte : bytes) {
+    out.push_back(kHex[byte >> 4]);
+    out.push_back(kHex[byte & 0x0f]);
+  }
+  return out;
+}
 
 void CheckSecretKeyFileStorage() {
   namespace fs = std::filesystem;
@@ -56,6 +68,18 @@ void CheckSecretKeyFileStorage() {
   assert(preserved == key);
   preserved_file.close();
 
+  const fs::path replace_temp = temp / "secret.key.new";
+  error.clear();
+  assert(shelter::platform::secret_key_storage::ReplaceFileAtomically(
+      key_file, replace_temp, "replacement", &error));
+  assert(error.empty());
+  std::ifstream replaced_file(key_file, std::ios::binary);
+  const std::string replaced((std::istreambuf_iterator<char>(replaced_file)),
+                             std::istreambuf_iterator<char>());
+  assert(replaced == "replacement");
+  replaced_file.close();
+  assert(!fs::exists(replace_temp));
+
   const fs::path linked_file = temp / "linked.key";
   ec.clear();
   fs::create_symlink(key_file, linked_file, ec);
@@ -67,7 +91,7 @@ void CheckSecretKeyFileStorage() {
     std::ifstream target_file(key_file, std::ios::binary);
     const std::string target((std::istreambuf_iterator<char>(target_file)),
                              std::istreambuf_iterator<char>());
-    assert(target == key);
+    assert(target == "replacement");
     target_file.close();
   }
 
@@ -85,6 +109,8 @@ namespace platform {
 // are deliberately unavailable in this process.
 bool RandomBytes(size_t, std::string*) { return false; }
 bool SecretKeyHex(std::string*, std::string*) { return false; }
+bool SecretKeyHexForDecrypt(std::string*, std::string*) { return false; }
+void LogSecretKeyDiagnostic(const std::string&) {}
 
 }  // namespace platform
 }  // namespace shelter
@@ -125,11 +151,51 @@ int main() {
   assert(!shelter::secret_crypto::EncryptWithKey(key, plaintext, "short",
                                                   &ciphertext));
 
+
   // Канонические векторы SHA-256 (FIPS 180-4): Sha256Hex используется для
   // отпечатков сертификатов при пининге исключений (L5).
   assert(shelter::secret_crypto::Sha256Hex("") ==
          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
   assert(shelter::secret_crypto::Sha256Hex("abc") ==
          "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+
+  // RFC 7914-style PBKDF2-HMAC-SHA256 vectors; a single iteration makes the
+  // KDF composition test fast while still checking its byte-level semantics.
+  std::string derived;
+  assert(shelter::secret_crypto::Pbkdf2HmacSha256(
+      "password", "salt", 1, 32, &derived));
+  assert(Hex(derived) ==
+         "120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b");
+  assert(shelter::secret_crypto::Pbkdf2HmacSha256(
+      "password", "salt", 2, 32, &derived));
+  assert(Hex(derived) ==
+         "ae4d0c95af6b46d32d0adff928f06dd02a303f8ef3c251dfd6e2d85a95474c43");
+  assert(!shelter::secret_crypto::Pbkdf2HmacSha256(
+      "password", "salt", 0, 32, &derived));
+  assert(derived.empty());
+
+  const std::string recovery_password = "correct horse battery staple";
+  const std::string recovery_salt(16, 's');
+  const std::string recovery_nonce(12, 'n');
+  std::string wrapped_key, unwrapped_key;
+  assert(shelter::secret_crypto::WrapMasterKeyWithPassword(
+      key, recovery_password, recovery_salt, recovery_nonce, 2, &wrapped_key));
+  assert(wrapped_key.rfind("skw1:2:", 0) == 0);
+  assert(!shelter::secret_crypto::UnwrapMasterKeyWithPassword(
+      recovery_password, wrapped_key, &unwrapped_key));
+  assert(unwrapped_key.empty());
+  assert(shelter::secret_crypto::UnwrapMasterKeyWithPassword(
+      recovery_password, wrapped_key, &unwrapped_key, 1));
+  assert(unwrapped_key == key);
+  assert(!shelter::secret_crypto::UnwrapMasterKeyWithPassword(
+      "a different master password", wrapped_key, &unwrapped_key, 1));
+  assert(unwrapped_key.empty());
+  assert(!shelter::secret_crypto::UnwrapMasterKeyWithPassword(
+      recovery_password, "skw1:broken", &unwrapped_key, 1));
+  assert(unwrapped_key.empty());
+  assert(!shelter::secret_crypto::UnwrapMasterKeyWithPassword(
+      recovery_password, "skw1:2000001:00000000000000000000000000000000:bad",
+      &unwrapped_key, 1));
+  assert(unwrapped_key.empty());
   return 0;
 }

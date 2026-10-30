@@ -70,9 +70,22 @@ void UnwatchMainWindow(void* nswindow);
 // OS-CSPRNG, используемый для мастер-ключа и nonce шифрования.
 bool RandomBytes(size_t size, std::string* out);
 
-// Мастер-ключ секретов остаётся в browser process. false означает, что ключ
-// нельзя безопасно прочитать/сохранить; в этом случае его нельзя использовать.
+// Мастер-ключ секретов остаётся в browser process. SecretKeyHex используется
+// только для шифрования и может создать первый ключ; SecretKeyHexForDecrypt
+// никогда не создаёт новый ключ вместо отсутствующего/недоступного старого.
 bool SecretKeyHex(std::string* out, std::string* error);
+bool SecretKeyHexForDecrypt(std::string* out, std::string* error);
+
+// Дополнительная парольная обёртка над тем же случайным мастер-ключом. Это
+// резервный способ разблокировки, не меняющий формат уже сохранённых ss1-блобов.
+bool HasSecretKeyPassword();
+bool SetSecretKeyPassword(const std::string& password, std::string* error);
+bool UnlockSecretKeyWithPassword(const std::string& password,
+                                 std::string* error);
+bool RemoveSecretKeyPassword(std::string* error);
+
+// Диагностическая метка без ключей, паролей и пользовательского содержимого.
+void LogSecretKeyDiagnostic(const std::string& message);
 
 enum class KeychainReadResult { kFound, kMissing, kError };
 

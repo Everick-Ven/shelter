@@ -2,11 +2,12 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-rTEPGWUBZJKiH6ksLw9RlYx1BAZdjL/MaYw9/RyV/a0=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-CeeIACsCsSwZf+Zd3p1pvEk2PCTrY9CSBHPQH9bwafY=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
 <meta name="color-scheme" content="dark light">
+<script src="app-pin.js"></script>
 <script>
 /* ранний выбор темы — без вспышки */
 (function(){try{var t=localStorage.getItem('shelter:theme');var m={light:'ivory',dark:'obsidian',midnight:'amethyst'};t=m[t]||t;if(['obsidian','amethyst','graphite','ivory','porcelain','bordeaux'].indexOf(t)>-1)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
@@ -940,7 +941,7 @@ textarea.input{height:auto;min-height:84px;padding:10px 12px;resize:vertical;lin
 .form-grid .full{grid-column:1/-1}
 
 /* тосты, подсказки */
-.toast-root{position:fixed;left:5px;bottom:5px;z-index:2147483647;display:flex;flex-direction:column;align-items:flex-start;gap:8px;pointer-events:none;max-width:calc(100% - 10px)}
+.toast-root{position:fixed;left:5px;bottom:5px;z-index:2147483646;display:flex;flex-direction:column;align-items:flex-start;gap:8px;pointer-events:none;max-width:calc(100% - 10px)}
 /* Портал уведомлений закрепляется у рабочего поля, но находится вне слоёв приложения. */
 .float-stack{display:flex;flex-direction:column;gap:10px}
 .dl-float{width:298px;background:var(--card);border:1px solid var(--line-2);border-radius:calc(16px*var(--rs));box-shadow:var(--sh-lg);padding:12px 14px 13px;pointer-events:auto;animation:dlfIn .28s cubic-bezier(.22,1,.36,1)}
@@ -3214,6 +3215,23 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
   .bm-mount:not([hidden]){margin-bottom:6px}
 }
 
+.app-pin-lock{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:24px;background:rgba(5,6,10,.92);backdrop-filter:blur(18px);color:var(--text)}
+.app-pin-card{width:min(100%,430px);padding:32px;border:1px solid var(--line-2);border-radius:calc(22px*var(--rs));background:var(--card);box-shadow:0 28px 90px rgba(0,0,0,.48);text-align:center}
+.app-pin-mark{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 18px;border:1px solid var(--line-2);border-radius:calc(17px*var(--rs));background:var(--card-2);color:rgb(var(--accent));font:700 20px var(--font-d);letter-spacing:.12em}
+.app-pin-card h1{font:600 21px/1.25 var(--font-d);letter-spacing:-.02em}
+.app-pin-card>p{margin:10px 0 22px;color:var(--text-2);font:400 13px/1.55 var(--font)}
+.app-pin-form{display:grid;gap:12px;text-align:left}
+.app-pin-form .field{display:grid;gap:7px}
+.app-pin-form .field>span{color:var(--text-2);font:500 12px var(--font)}
+.app-pin-entry{width:100%;height:48px;border:1px solid var(--line-2);border-radius:calc(12px*var(--rs));background:var(--card-2);color:var(--text);font:600 20px var(--mono);letter-spacing:.34em;text-align:center;outline:none}
+.app-pin-entry:focus{border-color:rgb(var(--accent));box-shadow:0 0 0 3px rgb(var(--accent)/.16)}
+.app-pin-entry:disabled{opacity:.55}
+.app-pin-status{min-height:20px;margin:12px 0;color:rgb(var(--warn));font:500 12px/1.45 var(--font)}
+.app-pin-submit{width:100%;justify-content:center}
+.app-pin-fallback-toggle{margin-top:14px;padding:8px;border:0;background:transparent;color:var(--text-2);font:500 12px var(--font);cursor:pointer}
+.app-pin-fallback-toggle:hover{color:var(--text)}
+.app-pin-note{margin:12px 0 0!important;color:var(--text-3)!important;font-size:11px!important}
+@media(max-width:480px){.app-pin-lock{padding:16px}.app-pin-card{padding:24px 20px}}
 </style>
 
 <style id="ux-macos-structure">
@@ -6040,11 +6058,15 @@ const S = {
   spaces: null, currentSpace: 'main', activeTabId: null,
   bookmarks: null, visits: [], board: null, boards: null, boardsMeta: {}, boardId: '', ext: [],
   taskMigrationOK: true, taskMigrationPending: false, taskMigrationError: '', taskMigrationPendingKeys: [], taskMigrationBackupKey: '',
+  masterKeyPasswordAvailable: false, masterKeyPasswordStatusKnown: false,
   extMode: 'engine',  // 'engine' — MV3 грузит движок Chromium, 'shell' — только оболочка
   chats: [], messages: {}, downloads: [], passwords: [], blocks: {},
   prefs: Object.assign({}, PREF_DEFAULTS), ui: Object.assign({}, UI_DEFAULTS),
   account: null, closed: [], ai: null
 };
+const APP_PIN_STORAGE_KEY = 'shelter:app-pin:v1';
+const APP_PIN_RECOVERY_BYPASS_KEY = 'shelter:app-pin:recovery-bypass';
+let APP_PIN = { configured: false, corrupt: false, record: null, locked: false, root: null, countdownTimer: 0, previousAppState: null };
 const T = {}; // временное состояние страниц (не сохраняется)
 
 function newTabObj(url, extra) {
@@ -6355,6 +6377,18 @@ function clearDemo() {
 
 /* ---------- загрузка / сохранение ---------- */
 function load() {
+  S.masterKeyPasswordAvailable = false;
+  S.masterKeyPasswordStatusKnown = false;
+  try {
+    const native = window.shelterNative;
+    if (native && typeof native.secretPasswordStatus === 'function') {
+      const passwordStatus = native.secretPasswordStatus();
+      if (typeof passwordStatus === 'boolean') {
+        S.masterKeyPasswordStatusKnown = true;
+        S.masterKeyPasswordAvailable = passwordStatus;
+      }
+    }
+  } catch (_) {}
   const map = { light: 'ivory', dark: 'obsidian', midnight: 'amethyst' };
   let th = store.get('shelter:theme'); th = map[th] || th; S.theme = THEMES[th] ? th : 'graphite';
   S.ghost = store.get('shelter:ghost') === '1';
@@ -13257,11 +13291,616 @@ async function requestUserDataDeletion() {
 /* Разметка настроек вынесена отдельной функцией: её использует RENDER.settings.
    Страница рисуется один раз при открытии вкладки — холодная раскладка больше
    не прячется за прогревом модального окна. */
+function masterPasswordNativeCall(method, password) {
+  const native = window.shelterNative;
+  if (!native || typeof native[method] !== 'function')
+    return Promise.resolve({ ok: false, error: 'Нативный мост недоступен' });
+  try { return Promise.resolve(native[method](password)); }
+  catch (_) { return Promise.resolve({ ok: false, error: 'Нативный мост недоступен' }); }
+}
+function masterPasswordDataReadable() {
+  return S.taskMigrationOK !== false && !window.__shelterSecretFailure;
+}
+function masterPasswordCanConfigure() {
+  return masterPasswordDataReadable() && !S.taskMigrationPending;
+}
+function openMasterPasswordSetup(required = false) {
+  const canConfigure = required ? masterPasswordDataReadable() : masterPasswordCanConfigure();
+  if (!canConfigure) {
+    toast('Сначала восстановите доступ и убедитесь, что текущая доска открывается. Новый пароль не вернёт уже утраченный ключ.', { icon: 'warn', ms: 9000 });
+    return;
+  }
+  const title = required ? 'Создайте мастер-пароль'
+    : S.masterKeyPasswordAvailable ? 'Сменить мастер-пароль' : 'Настроить мастер-пароль';
+  const description = required
+    ? 'Эта настройка обязательна для продолжения. Фраза создаст дополнительную защищённую копию того же мастер-ключа; формат ss1 и существующие записи не меняются. Используйте длинную уникальную фразу и сохраните её: если она потеряется, новый пароль не восстановит данные.'
+    : 'Это дополнительная парольная обёртка над тем же случайным мастер-ключом: формат ss1 и существующие записи не меняются. Настраивайте её только когда текущая доска уже открывается. Если старый ключ утрачен, новый пароль не восстановит задачи.';
+  const m = openModal({ width: 470, dismiss: !required, html: `<div class="modal-h"><div class="mi-ic">${ico('lock')}</div><h3>${title}</h3>${required ? '' : `<button type="button" class="icon-btn" data-master-pass-close aria-label="Закрыть">${ico('x')}</button>`}</div>
+    <div class="modal-b"><p class="wp-form-hint">${description}</p>
+      <label class="field"><span>Длинная парольная фраза · минимум 12 символов</span><input class="input" id="masterPasswordNew" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false"></label>
+      <label class="field"><span>Повторите фразу</span><input class="input" id="masterPasswordAgain" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false"></label>
+      <div id="masterPasswordStatus" role="status" aria-live="polite" style="min-height:18px;margin-top:8px;font-size:12.5px"></div>
+    </div><div class="modal-f">${required ? '' : '<button type="button" class="btn ghost" data-master-pass-close>Отмена</button>'}<button type="button" class="btn primary" data-master-pass-save>${ico('lock')}${required ? 'Задать пароль и продолжить' : 'Сохранить'}</button></div>` });
+  const root = m.scrim, password = $('#masterPasswordNew', root), again = $('#masterPasswordAgain', root), status = $('#masterPasswordStatus', root);
+  m.onClose = () => { if (password) password.value = ''; if (again) again.value = ''; };
+  async function save(button) {
+    let phrase = String(password && password.value || '').normalize('NFC');
+    const confirmation = String(again && again.value || '').normalize('NFC');
+    if (Array.from(phrase).length < 12) {
+      if (status) status.textContent = 'Используйте не менее 12 символов.';
+      if (password) password.focus();
+      return;
+    }
+    if (phrase !== confirmation) {
+      if (status) status.textContent = 'Фразы не совпадают.';
+      if (again) again.focus();
+      return;
+    }
+    button.disabled = true;
+    if (status) status.textContent = 'Создаю и проверяю зашифрованную обёртку…';
+    const result = await masterPasswordNativeCall('secretPasswordSet', phrase);
+    phrase = '';
+    if (password) password.value = '';
+    if (again) again.value = '';
+    if (result && result.ok) {
+      S.masterKeyPasswordAvailable = true;
+      S.masterKeyPasswordStatusKnown = true;
+      closeModal(m);
+      if (required) {
+        if (APP_PIN.configured) setTimeout(() => appPinLockNow('startup'), 80);
+        toast('Мастер-пароль задан. SHELTER готов к работе.', { icon: 'check' });
+      } else {
+        refreshPage('settings');
+        toast('Парольная защита мастер-ключа включена.', { icon: 'check' });
+      }
+      return;
+    }
+    button.disabled = false;
+    if (status) status.textContent = result && result.error || 'Не удалось сохранить парольную обёртку.';
+    if (password) password.focus();
+  }
+  root.addEventListener('click', event => {
+    const close = event.target.closest('[data-master-pass-close]');
+    if (close) { closeModal(m); return; }
+    const button = event.target.closest('[data-master-pass-save]');
+    if (button && !button.disabled) save(button);
+  });
+  root.addEventListener('keydown', event => {
+    if (event.key !== 'Enter') return;
+    if (event.target === password || event.target === again) {
+      event.preventDefault();
+      const button = $('[data-master-pass-save]', root); if (button && !button.disabled) save(button);
+    }
+  });
+  setTimeout(() => { if (password) password.focus(); }, 50);
+}
+function openMasterPasswordStatusRetry() {
+  const m = openModal({ width: 470, dismiss: false, html: `<div class="modal-h"><div class="mi-ic">${ico('lock')}</div><h3>Не удалось проверить парольную защиту</h3></div>
+    <div class="modal-b"><p class="wp-form-hint">SHELTER не смог определить, настроена ли мастер-фраза. Ключи и данные не менялись. Повторите проверку; если она снова не пройдёт, перезапустите приложение после проверки системного хранилища ключей.</p><div id="masterPasswordCheckStatus" role="status" aria-live="polite" style="min-height:18px;margin-top:8px;font-size:12.5px"></div></div>
+    <div class="modal-f"><button type="button" class="btn primary" data-master-password-check>Повторить проверку</button></div>` });
+  const root = m.scrim, status = $('#masterPasswordCheckStatus', root);
+  async function retry(button) {
+    button.disabled = true;
+    if (status) status.textContent = 'Проверяю…';
+    const native = window.shelterNative;
+    let result = null;
+    try {
+      if (native && typeof native.secretPasswordStatus === 'function')
+        result = native.secretPasswordStatus();
+    } catch (_) {}
+    if (typeof result !== 'boolean') {
+      button.disabled = false;
+      if (status) status.textContent = 'Проверка пока недоступна. Повторите попытку.';
+      return;
+    }
+    S.masterKeyPasswordStatusKnown = true;
+    S.masterKeyPasswordAvailable = result;
+    closeModal(m);
+    if (!result && masterPasswordDataReadable()) openMasterPasswordSetup(true);
+    else if (result && masterPasswordDataReadable()) {
+      if (APP_PIN.configured) appPinLockNow('startup');
+    }
+  }
+  root.addEventListener('click', event => {
+    const button = event.target.closest('[data-master-password-check]');
+    if (button && !button.disabled) retry(button);
+  });
+}
+function openMasterPasswordUnlock() {
+  if (!S.masterKeyPasswordAvailable) {
+    toast('Парольная обёртка мастер-ключа не настроена на этом устройстве.', { icon: 'info' });
+    return;
+  }
+  const m = openModal({ width: 430, html: `<div class="modal-h"><div class="mi-ic">${ico('lock-open')}</div><h3>Разблокировать мастер-ключ</h3><button type="button" class="icon-btn" data-master-unlock-close aria-label="Закрыть">${ico('x')}</button></div>
+    <div class="modal-b"><p class="wp-form-hint">Введите сохранённую парольную фразу. Это сработает только если обёртка была настроена для того же мастер-ключа, которым зашифрованы текущие данные. Если ключ был утрачен до настройки, пароль задачи не восстановит.</p>
+      <label class="field"><span>Мастер-пароль</span><input class="input" id="masterPasswordUnlock" type="password" maxlength="1024" autocomplete="current-password" spellcheck="false"></label>
+      <div id="masterPasswordUnlockStatus" role="status" aria-live="polite" style="min-height:18px;margin-top:8px;font-size:12.5px"></div>
+    </div><div class="modal-f"><button type="button" class="btn ghost" data-master-unlock-close>Отмена</button><button type="button" class="btn primary" data-master-unlock-submit>${ico('lock-open')}Разблокировать</button></div>` });
+  const root = m.scrim, password = $('#masterPasswordUnlock', root), status = $('#masterPasswordUnlockStatus', root);
+  m.onClose = () => { if (password) password.value = ''; };
+  let busy = false;
+  async function unlock(button) {
+    if (busy) return;
+    let phrase = String(password && password.value || '').normalize('NFC');
+    if (!phrase) { if (status) status.textContent = 'Введите парольную фразу.'; if (password) password.focus(); return; }
+    busy = true; button.disabled = true;
+    if (status) status.textContent = 'Проверяю парольную обёртку…';
+    const result = await masterPasswordNativeCall('secretPasswordUnlock', phrase);
+    phrase = '';
+    if (password) password.value = '';
+    if (result && result.ok) {
+      S.masterKeyPasswordAvailable = true;
+      S.masterKeyPasswordStatusKnown = true;
+      window.__shelterSecretFailure = false;
+      closeModal(m);
+      toast('Мастер-ключ разблокирован. Перезагружаю данные…', { icon: 'check' });
+      setTimeout(() => window.location.reload(), 80);
+      return;
+    }
+    busy = false; button.disabled = false;
+    if (status) status.textContent = result && result.error || 'Пароль неверен или обёртка повреждена.';
+    if (password) password.focus();
+  }
+  root.addEventListener('click', event => {
+    const close = event.target.closest('[data-master-unlock-close]');
+    if (close) { closeModal(m); return; }
+    const button = event.target.closest('[data-master-unlock-submit]');
+    if (button && !button.disabled) unlock(button);
+  });
+  root.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.target !== password) return;
+    event.preventDefault();
+    const button = $('[data-master-unlock-submit]', root); if (button && !button.disabled) unlock(button);
+  });
+  setTimeout(() => { if (password) password.focus(); }, 50);
+}
+function appPinStorageAvailable() {
+  try {
+    const storage = window.localStorage;
+    return !!storage && typeof storage.getItem === 'function' && typeof storage.setItem === 'function' && typeof storage.removeItem === 'function';
+  } catch (_) { return false; }
+}
+function appPinConsumeRecoveryBypass() {
+  try {
+    const storage = window.sessionStorage;
+    if (storage.getItem(APP_PIN_RECOVERY_BYPASS_KEY) !== '1') return false;
+    storage.removeItem(APP_PIN_RECOVERY_BYPASS_KEY);
+    return true;
+  } catch (_) { return false; }
+}
+function appPinSetRecoveryBypass() {
+  try { window.sessionStorage.setItem(APP_PIN_RECOVERY_BYPASS_KEY, '1'); return true; }
+  catch (_) { return false; }
+}
+function appPinLoad() {
+  APP_PIN = { configured: false, corrupt: false, record: null, locked: false, root: null, countdownTimer: 0, previousAppState: null, blocker: null };
+  let raw = null;
+  try { raw = window.localStorage.getItem(APP_PIN_STORAGE_KEY); } catch (_) { try { raw = store.get(APP_PIN_STORAGE_KEY); } catch (_) {} }
+  if (raw == null || raw === '') return;
+  APP_PIN.configured = true;
+  try {
+    const parsed = JSON.parse(raw);
+    APP_PIN.record = window.ShelterAppPin && window.ShelterAppPin.normalizeRecord(parsed);
+  } catch (_) { APP_PIN.record = null; }
+  APP_PIN.corrupt = !APP_PIN.record;
+}
+function appPinPersistRecord(record) {
+  const pinApi = window.ShelterAppPin;
+  const normalized = pinApi && pinApi.normalizeRecord(record);
+  if (!normalized || !appPinStorageAvailable()) return false;
+  const raw = JSON.stringify(normalized);
+  try {
+    const storage = window.localStorage;
+    storage.setItem(APP_PIN_STORAGE_KEY, raw);
+    if (storage.getItem(APP_PIN_STORAGE_KEY) !== raw) return false;
+    store.set(APP_PIN_STORAGE_KEY, raw);
+    return true;
+  } catch (_) { return false; }
+}
+function appPinRemoveRecord() {
+  if (!appPinStorageAvailable()) return false;
+  try {
+    const storage = window.localStorage;
+    storage.removeItem(APP_PIN_STORAGE_KEY);
+    if (storage.getItem(APP_PIN_STORAGE_KEY) != null) return false;
+    store.del(APP_PIN_STORAGE_KEY);
+    APP_PIN.configured = false;
+    APP_PIN.corrupt = false;
+    APP_PIN.record = null;
+    return true;
+  } catch (_) { return false; }
+}
+function appPinCanConfigure() {
+  return !!(window.ShelterAppPin && appPinStorageAvailable() && S.masterKeyPasswordAvailable && masterPasswordCanConfigure());
+}
+function appPinRecordFailure() {
+  if (!APP_PIN.record || !window.ShelterAppPin) return;
+  try {
+    APP_PIN.record = window.ShelterAppPin.recordFailure(APP_PIN.record, Date.now());
+    appPinPersistRecord(APP_PIN.record);
+    appPinUpdateCountdown();
+  } catch (_) {}
+}
+function appPinUpdateCountdown() {
+  if (!APP_PIN.locked || !APP_PIN.root || !window.ShelterAppPin) return;
+  const left = APP_PIN.record ? window.ShelterAppPin.remainingLockMs(APP_PIN.record, Date.now()) : 0;
+  const status = $('#appPinStatus', APP_PIN.root);
+  const pinInput = $('#appPinEntry', APP_PIN.root), pinSubmit = $('[data-app-pin-submit]', APP_PIN.root);
+  const masterInput = $('#appPinMasterEntry', APP_PIN.root), masterSubmit = $('[data-app-pin-master-submit]', APP_PIN.root);
+  [pinInput, pinSubmit, masterInput, masterSubmit].forEach(el => { if (el) el.disabled = left > 0; });
+  if (left > 0 && status) {
+    status.dataset.lockout = '1';
+    status.textContent = 'Слишком много попыток. Повторите через ' + Math.ceil(left / 1000) + ' сек.';
+  } else if (status && status.dataset.lockout === '1') {
+    status.textContent = '';
+    delete status.dataset.lockout;
+  }
+}
+function appPinLockNow(reason = 'manual') {
+  if (!APP_PIN.configured || APP_PIN.locked || !document.body) return false;
+  APP_PIN.locked = true;
+  if (APP_PIN.countdownTimer) clearInterval(APP_PIN.countdownTimer);
+  const hasPin = !!(APP_PIN.record && !APP_PIN.corrupt);
+  const root = document.createElement('section');
+  root.className = 'app-pin-lock';
+  root.setAttribute('role', 'dialog');
+  root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-labelledby', 'appPinTitle');
+  root.innerHTML = `<div class="app-pin-card">
+    <div class="app-pin-mark" aria-hidden="true">S</div>
+    <h1 id="appPinTitle">SHELTER заблокирован</h1>
+    <p>${reason === 'startup' ? 'Введите локальный PIN, чтобы открыть приложение.' : 'Введите локальный PIN, чтобы продолжить.'}</p>
+    <form id="appPinForm" class="app-pin-form" ${hasPin ? '' : 'hidden'}>
+      <label class="field"><span>PIN · 6–12 цифр</span><input class="app-pin-entry" id="appPinEntry" type="password" inputmode="numeric" pattern="[0-9]{6,12}" minlength="6" maxlength="12" autocomplete="off" aria-label="Локальный PIN" required></label>
+      <button type="submit" class="btn primary app-pin-submit" data-app-pin-submit>Разблокировать</button>
+    </form>
+    <div class="app-pin-status" id="appPinStatus" role="status" aria-live="polite"></div>
+    <button type="button" class="app-pin-fallback-toggle" data-app-pin-fallback-toggle ${hasPin ? '' : 'hidden'}>Забыли PIN? Войти с мастер-паролем</button>
+    <form id="appPinMasterForm" class="app-pin-form" ${hasPin ? 'hidden' : ''}>
+      <label class="field"><span>Мастер-пароль</span><input class="app-pin-entry" id="appPinMasterEntry" type="password" maxlength="1024" autocomplete="current-password" spellcheck="false" aria-label="Мастер-пароль"></label>
+      <button type="submit" class="btn primary app-pin-submit" data-app-pin-master-submit>Сбросить PIN и продолжить</button>
+    </form>
+    <p class="app-pin-note">PIN блокирует только этот интерфейс. Он не заменяет мастер-пароль и не шифрует мастер-ключ или данные. Вход мастер-паролем сбросит только PIN.</p>
+  </div>`;
+  APP_PIN.root = root;
+  const app = $('#app');
+  if (app) {
+    APP_PIN.previousAppState = { inert: !!app.inert, ariaHidden: app.getAttribute('aria-hidden') };
+    app.inert = true;
+    app.setAttribute('aria-hidden', 'true');
+  }
+  try { const tab = curTab(); hideNativeView(tab && tab.id || ''); } catch (_) { try { hideNativeView(); } catch (_) {} }
+  document.body.appendChild(root);
+  const pinForm = $('#appPinForm', root), masterForm = $('#appPinMasterForm', root);
+  const pinInput = $('#appPinEntry', root), masterInput = $('#appPinMasterEntry', root);
+  if (pinForm) pinForm.addEventListener('submit', event => {
+    event.preventDefault(); event.stopPropagation(); appPinAttemptPin();
+  });
+  if (masterForm) masterForm.addEventListener('submit', event => {
+    event.preventDefault(); event.stopPropagation(); appPinAttemptMasterPassword();
+  });
+  root.addEventListener('click', event => {
+    event.stopPropagation();
+    const toggle = event.target.closest('[data-app-pin-fallback-toggle]');
+    if (toggle) {
+      if (masterForm) masterForm.hidden = !masterForm.hidden;
+      if (masterForm && !masterForm.hidden && masterInput) masterInput.focus();
+      return;
+    }
+  });
+  ['keydown', 'keyup', 'input', 'change', 'pointerdown', 'contextmenu'].forEach(type =>
+    root.addEventListener(type, event => event.stopPropagation()));
+  APP_PIN.blocker = event => {
+    if (!APP_PIN.locked || (APP_PIN.root && APP_PIN.root.contains(event.target))) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  document.addEventListener('keydown', APP_PIN.blocker, true);
+  document.addEventListener('click', APP_PIN.blocker, true);
+  if (APP_PIN.record && window.ShelterAppPin) {
+    APP_PIN.countdownTimer = setInterval(appPinUpdateCountdown, 1000);
+    appPinUpdateCountdown();
+  } else {
+    const status = $('#appPinStatus', root);
+    if (status) status.textContent = 'Запись PIN повреждена. Войдите мастер-паролем, чтобы сбросить локальную блокировку.';
+  }
+  setTimeout(() => {
+    const first = hasPin ? pinInput : masterInput;
+    if (first) first.focus();
+  }, 0);
+  return true;
+}
+async function appPinAttemptPin() {
+  if (APP_PIN.attemptBusy) return;
+  APP_PIN.attemptBusy = true;
+  try {
+    const pinApi = window.ShelterAppPin, input = APP_PIN.root && $('#appPinEntry', APP_PIN.root);
+    const status = APP_PIN.root && $('#appPinStatus', APP_PIN.root);
+    if (!pinApi || !APP_PIN.record || !input || !status) return;
+    if (pinApi.remainingLockMs(APP_PIN.record, Date.now()) > 0) { appPinUpdateCountdown(); return; }
+    const button = $('[data-app-pin-submit]', APP_PIN.root);
+    let pin = String(input.value || '');
+    if (!pinApi.validatePin(pin)) { status.textContent = 'Введите PIN из 6–12 цифр.'; input.focus(); return; }
+    if (button) button.disabled = true;
+    let ok = false, cryptoFailed = false;
+    try { ok = await pinApi.verifyPin(pin, APP_PIN.record, window.crypto); }
+    catch (_) { cryptoFailed = true; status.textContent = 'Криптографическая проверка недоступна. Данные не изменены.'; }
+    pin = '';
+    input.value = '';
+    if (cryptoFailed) { if (button) button.disabled = false; input.focus(); return; }
+    if (ok) {
+      try { APP_PIN.record = pinApi.clearFailures(APP_PIN.record, Date.now()); appPinPersistRecord(APP_PIN.record); } catch (_) {}
+      appPinUnlockSurface();
+      toast('Локальная блокировка снята', { icon: 'lock-open' });
+      return;
+    }
+    appPinRecordFailure();
+    const wait = pinApi.remainingLockMs(APP_PIN.record, Date.now());
+    if (wait > 0) appPinUpdateCountdown();
+    else { status.textContent = 'Неверный PIN. Попробуйте ещё раз.'; if (button) button.disabled = false; }
+    input.focus();
+  } finally { APP_PIN.attemptBusy = false; }
+}
+async function appPinAttemptMasterPassword() {
+  if (APP_PIN.attemptBusy) return;
+  APP_PIN.attemptBusy = true;
+  try {
+    const input = APP_PIN.root && $('#appPinMasterEntry', APP_PIN.root);
+    const status = APP_PIN.root && $('#appPinStatus', APP_PIN.root);
+    const button = APP_PIN.root && $('[data-app-pin-master-submit]', APP_PIN.root);
+    if (!input || !status) return;
+    if (APP_PIN.record && window.ShelterAppPin && window.ShelterAppPin.remainingLockMs(APP_PIN.record, Date.now()) > 0) { appPinUpdateCountdown(); return; }
+    let phrase = String(input.value || '').normalize('NFC');
+    if (!phrase) { status.textContent = 'Введите мастер-пароль.'; input.focus(); return; }
+    if (button) button.disabled = true;
+    status.textContent = 'Проверяю мастер-пароль…';
+    let result = null;
+    try { result = await masterPasswordNativeCall('secretPasswordUnlock', phrase); }
+    catch (_) { result = { ok: false, error: 'Не удалось проверить мастер-пароль.' }; }
+    phrase = '';
+    input.value = '';
+    if (result && result.ok) {
+      S.masterKeyPasswordAvailable = true;
+      S.masterKeyPasswordStatusKnown = true;
+      window.__shelterSecretFailure = false;
+      if (!appPinRemoveRecord()) {
+        if (appPinSetRecoveryBypass()) {
+          toast('Мастер-пароль подтверждён. PIN не удалось удалить, поэтому открываю приложение на один сеанс для восстановления локального хранилища.', { icon: 'warn', ms: 9000 });
+          setTimeout(() => window.location.reload(), 80);
+          return;
+        }
+        appPinUnlockSurface();
+        toast('Мастер-пароль подтверждён. Приложение открыто на этот сеанс, но PIN не удалось удалить из локального хранилища.', { icon: 'warn', ms: 9000 });
+        return;
+      }
+      toast('Мастер-пароль принят. Локальный PIN сброшен; данные и мастер-ключ не удалены.', { icon: 'check' });
+      setTimeout(() => window.location.reload(), 80);
+      return;
+    }
+    appPinRecordFailure();
+    const wait = APP_PIN.record && window.ShelterAppPin
+      ? window.ShelterAppPin.remainingLockMs(APP_PIN.record, Date.now()) : 0;
+    if (wait > 0) appPinUpdateCountdown();
+    else {
+      status.textContent = result && result.error || 'Мастер-пароль неверен.';
+      if (button) button.disabled = false;
+    }
+    input.focus();
+  } finally { APP_PIN.attemptBusy = false; }
+}
+function appPinUnlockSurface() {
+  if (!APP_PIN.locked) return;
+  APP_PIN.locked = false;
+  if (APP_PIN.countdownTimer) clearInterval(APP_PIN.countdownTimer);
+  APP_PIN.countdownTimer = 0;
+  if (APP_PIN.blocker) {
+    document.removeEventListener('keydown', APP_PIN.blocker, true);
+    document.removeEventListener('click', APP_PIN.blocker, true);
+    APP_PIN.blocker = null;
+  }
+  const app = $('#app');
+  if (app && APP_PIN.previousAppState) {
+    app.inert = APP_PIN.previousAppState.inert;
+    if (APP_PIN.previousAppState.ariaHidden == null) app.removeAttribute('aria-hidden');
+    else app.setAttribute('aria-hidden', APP_PIN.previousAppState.ariaHidden);
+  }
+  APP_PIN.previousAppState = null;
+  if (APP_PIN.root) APP_PIN.root.remove();
+  APP_PIN.root = null;
+  try { renderView(false); } catch (_) {}
+}
+function openAppPinSetup() {
+  if (!appPinCanConfigure()) {
+    toast('Сначала настройте мастер-пароль и убедитесь, что текущие данные доступны. PIN не восстанавливает мастер-ключ.', { icon: 'warn', ms: 9000 });
+    return;
+  }
+  if (APP_PIN.corrupt) {
+    toast('Сначала сбросьте повреждённую запись PIN мастер-паролем.', { icon: 'warn' });
+    return;
+  }
+  const changing = !!APP_PIN.record;
+  const m = openModal({ width: 460, html: `<div class="modal-h"><div class="mi-ic">${ico('lock')}</div><h3>${changing ? 'Изменить локальный PIN' : 'Настроить локальный PIN'}</h3><button type="button" class="icon-btn" data-app-pin-close aria-label="Закрыть">${ico('x')}</button></div>
+    <div class="modal-b"><p class="wp-form-hint">PIN — отдельная блокировка этого интерфейса на устройстве. Он не заменяет длинный мастер-пароль и не защищает мастер-ключ. Для смены подтвердите текущий PIN.</p>
+      ${changing ? '<label class="field"><span>Текущий PIN</span><input class="input" id="appPinCurrent" type="password" inputmode="numeric" maxlength="12" autocomplete="off"></label>' : ''}
+      <label class="field"><span>Новый PIN · 6–12 цифр</span><input class="input" id="appPinNew" type="password" inputmode="numeric" maxlength="12" autocomplete="new-password"></label>
+      <label class="field"><span>Повторите новый PIN</span><input class="input" id="appPinAgain" type="password" inputmode="numeric" maxlength="12" autocomplete="new-password"></label>
+      <div id="appPinSetupStatus" role="status" aria-live="polite" style="min-height:18px;margin-top:8px;font-size:12.5px"></div>
+    </div><div class="modal-f"><button type="button" class="btn ghost" data-app-pin-close>Отмена</button><button type="button" class="btn primary" data-app-pin-save>${ico('lock')}${changing ? 'Сохранить новый PIN' : 'Включить PIN-блокировку'}</button></div>` });
+  const root = m.scrim, current = $('#appPinCurrent', root), password = $('#appPinNew', root), again = $('#appPinAgain', root), status = $('#appPinSetupStatus', root);
+  m.onClose = () => { if (current) current.value = ''; if (password) password.value = ''; if (again) again.value = ''; };
+  let saving = false;
+  async function save(button) {
+    if (saving) return;
+    saving = true;
+    if (button) button.disabled = true;
+    try {
+      if (!OV.stack.includes(m)) return;
+      if (changing) {
+        const now = Date.now();
+        if (window.ShelterAppPin.remainingLockMs(APP_PIN.record, now) > 0) {
+          status.textContent = 'Слишком много попыток. Подождите перед сменой PIN.';
+          return;
+        }
+        let oldPin = String(current && current.value || '');
+        let valid = false, cryptoFailed = false;
+        try { valid = await window.ShelterAppPin.verifyPin(oldPin, APP_PIN.record, window.crypto); }
+        catch (_) { cryptoFailed = true; }
+        oldPin = '';
+        if (current) current.value = '';
+        if (!OV.stack.includes(m)) return;
+        if (cryptoFailed) {
+          status.textContent = 'Криптографическая проверка недоступна. Попробуйте позже.';
+          if (current) current.focus();
+          return;
+        }
+        if (!valid) {
+          appPinRecordFailure();
+          const wait = window.ShelterAppPin.remainingLockMs(APP_PIN.record, Date.now());
+          status.textContent = wait > 0
+            ? 'Слишком много попыток. Подождите ' + Math.ceil(wait / 1000) + ' сек.'
+            : 'Текущий PIN неверен.';
+          if (current) current.focus();
+          return;
+        }
+      }
+      const nextPin = String(password && password.value || '');
+      const confirmation = String(again && again.value || '');
+      if (!window.ShelterAppPin.validatePin(nextPin)) {
+        status.textContent = 'Используйте неочевидный PIN длиной 6–12 цифр.';
+        if (password) password.focus();
+        return;
+      }
+      if (nextPin !== confirmation) {
+        status.textContent = 'PIN-коды не совпадают.';
+        if (again) again.focus();
+        return;
+      }
+      status.textContent = 'Создаю локальную проверку PIN…';
+      let record;
+      try { record = await window.ShelterAppPin.createRecord(nextPin, window.crypto); }
+      catch (_) {
+        status.textContent = 'Не удалось создать защищённую проверку PIN. Попробуйте ещё раз.';
+        return;
+      }
+      if (password) password.value = '';
+      if (again) again.value = '';
+      if (!OV.stack.includes(m)) return;
+      if (!appPinPersistRecord(record)) {
+        status.textContent = 'Не удалось записать PIN в локальный профиль. Настройка не включена.';
+        return;
+      }
+      APP_PIN.configured = true;
+      APP_PIN.corrupt = false;
+      APP_PIN.record = window.ShelterAppPin.normalizeRecord(record);
+      closeModal(m);
+      refreshPage('settings');
+      toast(changing ? 'Локальный PIN изменён.' : 'Локальная PIN-блокировка включена.', { icon: 'check' });
+    } finally {
+      saving = false;
+      if (button && button.isConnected) button.disabled = false;
+    }
+  }
+  root.addEventListener('click', event => {
+    const close = event.target.closest('[data-app-pin-close]');
+    if (close) { closeModal(m); return; }
+    const button = event.target.closest('[data-app-pin-save]');
+    if (button && !button.disabled) save(button);
+  });
+  root.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || ![current, password, again].includes(event.target)) return;
+    event.preventDefault();
+    const button = $('[data-app-pin-save]', root); if (button && !button.disabled) save(button);
+  });
+  setTimeout(() => { const first = current || password; if (first) first.focus(); }, 50);
+}
+function openAppPinDisable() {
+  if (!APP_PIN.configured) return;
+  const m = openModal({ width: 440, html: `<div class="modal-h"><div class="mi-ic">${ico('lock-open')}</div><h3>Отключить PIN-блокировку</h3><button type="button" class="icon-btn" data-app-pin-disable-close aria-label="Закрыть">${ico('x')}</button></div>
+    <div class="modal-b"><p class="wp-form-hint">Для отключения подтвердите мастер-пароль. Будет удалена только локальная PIN-блокировка; мастер-ключ, парольная обёртка и данные останутся без изменений.</p>
+      <label class="field"><span>Мастер-пароль</span><input class="input" id="appPinDisablePassword" type="password" maxlength="1024" autocomplete="current-password" spellcheck="false"></label>
+      <div id="appPinDisableStatus" role="status" aria-live="polite" style="min-height:18px;margin-top:8px;font-size:12.5px"></div>
+    </div><div class="modal-f"><button type="button" class="btn ghost" data-app-pin-disable-close>Отмена</button><button type="button" class="btn primary" data-app-pin-disable-submit>Подтвердить и отключить</button></div>` });
+  const root = m.scrim, password = $('#appPinDisablePassword', root), status = $('#appPinDisableStatus', root);
+  m.onClose = () => { if (password) password.value = ''; };
+  let busy = false;
+  async function disable(button) {
+    if (busy) return;
+    if (APP_PIN.record && window.ShelterAppPin) {
+      const wait = window.ShelterAppPin.remainingLockMs(APP_PIN.record, Date.now());
+      if (wait > 0) { status.textContent = 'Слишком много попыток. Повторите через ' + Math.ceil(wait / 1000) + ' сек.'; return; }
+    }
+    let phrase = String(password && password.value || '').normalize('NFC');
+    if (!phrase) { status.textContent = 'Введите мастер-пароль.'; if (password) password.focus(); return; }
+    busy = true; button.disabled = true; status.textContent = 'Проверяю мастер-пароль…';
+    let result = null;
+    try { result = await masterPasswordNativeCall('secretPasswordUnlock', phrase); }
+    catch (_) { result = { ok: false, error: 'Не удалось проверить мастер-пароль.' }; }
+    phrase = ''; if (password) password.value = '';
+    if (!OV.stack.includes(m)) { busy = false; return; }
+    if (!result || !result.ok) {
+      appPinRecordFailure();
+      const wait = APP_PIN.record && window.ShelterAppPin
+        ? window.ShelterAppPin.remainingLockMs(APP_PIN.record, Date.now()) : 0;
+      busy = false; button.disabled = false;
+      status.textContent = wait > 0
+        ? 'Слишком много попыток. Повторите через ' + Math.ceil(wait / 1000) + ' сек.'
+        : result && result.error || 'Мастер-пароль неверен.';
+      if (password) password.focus();
+      return;
+    }
+    S.masterKeyPasswordAvailable = true;
+    S.masterKeyPasswordStatusKnown = true;
+    window.__shelterSecretFailure = false;
+    if (!appPinRemoveRecord()) {
+      busy = false; button.disabled = false;
+      status.textContent = 'Мастер-пароль подтверждён, но PIN не удалось удалить из локального профиля.';
+      return;
+    }
+    closeModal(m);
+    toast('Локальная PIN-блокировка отключена. Мастер-ключ и данные не изменены.', { icon: 'check' });
+    setTimeout(() => window.location.reload(), 80);
+  }
+  root.addEventListener('click', event => {
+    if (event.target.closest('[data-app-pin-disable-close]')) { closeModal(m); return; }
+    const button = event.target.closest('[data-app-pin-disable-submit]');
+    if (button && !button.disabled) disable(button);
+  });
+  root.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.target !== password) return;
+    event.preventDefault(); const button = $('[data-app-pin-disable-submit]', root); if (button && !button.disabled) disable(button);
+  });
+  setTimeout(() => { if (password) password.focus(); }, 50);
+}
+/* Разметка настроек вынесена отдельной функцией: её использует RENDER.settings.
+   Страница рисуется один раз при открытии вкладки — холодная раскладка больше
+   не прячется за прогревом модального окна. */
 function settingsHtml() {
   const P = S.prefs, sw = k => swHtml(k, swState(k));
   const glowOff = P.glow === false || P.gfx === 'perf';
   const row = (t, s, ctl) => `<div class="set-row"><div class="tx"><b>${t}</b>${s ? `<span>${s}</span>` : ''}</div>${ctl}</div>`;
   const btn = (a, l, cls = '') => `<button class="btn sm ${cls}" data-set="${a}">${l}</button>`;
+  const masterPasswordReady = masterPasswordCanConfigure();
+  const masterPasswordInfo = !masterPasswordReady
+    ? 'Сначала восстановите доступ к текущей доске. Новый пароль не вернёт уже утраченный ключ.'
+    : S.masterKeyPasswordAvailable
+      ? 'Дополнительная копия того же мастер-ключа; длинная парольная фраза предпочтительнее короткого PIN.'
+      : 'Настраивайте, только когда существующие задачи уже открываются. Используйте уникальную длинную фразу (не короткий PIN).';
+  const masterPasswordControls = `<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-set="master-password" ${masterPasswordReady ? '' : 'disabled'}>${S.masterKeyPasswordAvailable ? 'Сменить…' : 'Настроить…'}</button>${S.masterKeyPasswordAvailable ? '<button type="button" class="btn sm ghost" data-set="master-password-recovery">Восстановить доступ…</button>' : ''}</div>`;
+  const appPinReady = appPinCanConfigure();
+  const appPinInfo = APP_PIN.configured
+    ? APP_PIN.corrupt
+      ? 'Запись PIN повреждена. Войдите мастер-паролем, чтобы сбросить только локальную блокировку.'
+      : 'Блокируется при запуске и вручную. PIN не заменяет мастер-пароль и не защищает мастер-ключ.'
+    : !appPinStorageAvailable()
+      ? 'Локальное хранилище недоступно; PIN нельзя безопасно сохранить на этом устройстве.'
+      : !S.masterKeyPasswordAvailable
+        ? 'Сначала настройте обязательную парольную обёртку мастер-ключа. PIN не является способом восстановления.'
+        : !appPinReady
+          ? 'Сначала восстановите доступ к данным; PIN нельзя настраивать при ошибке чтения или миграции.'
+          : 'Отдельная локальная блокировка интерфейса. Если PIN забыт, мастер-пароль сбросит только PIN.';
+  const appPinControls = APP_PIN.configured
+    ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-set="app-pin-config" ${APP_PIN.record && appPinReady ? '' : 'disabled'}>Изменить PIN…</button><button type="button" class="btn sm" data-set="app-pin-lock">Заблокировать</button><button type="button" class="btn sm ghost" data-set="app-pin-disable" ${S.masterKeyPasswordAvailable ? '' : 'disabled'}>Отключить…</button></div>`
+    : `<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-set="app-pin-setup" ${appPinReady ? '' : 'disabled'}>Настроить PIN…</button></div>`;
   const html = `<div class="settings settings-page" aria-label="Настройки">
     <nav class="set-nav"><h3>Настройки</h3><label class="search-in">${ico('search')}<input class="input" id="setQ" placeholder="Поиск настроек" autocomplete="off"></label>${SET_SECTIONS.map((s, i) => `<button data-sec="${s[0]}" class="${i === 0 ? 'on' : ''}">${ico(s[2])}${s[1]}</button>`).join('')}</nav>
     <div class="set-pane"><header class="set-head" aria-hidden="true"></header>
@@ -13350,6 +13989,8 @@ function settingsHtml() {
         ${row('Язык интерфейса', 'Проверка орфографии: русский, английский', segHtml('lang', [['ru', 'Русский'], ['en', 'English']], P.lang, 'sm'))}
       </div></section>
       <section class="set-sec" id="set-data"><h4>Данные</h4><div class="set-card">
+        ${row('Локальная блокировка по PIN', appPinInfo, appPinControls)}
+        ${row('Парольная фраза мастер-ключа', masterPasswordInfo, masterPasswordControls)}
         ${row('Резервная копия', 'Пространства, закладки, история и настройки в зашифрованном файле .shelter. Задачи копируются отдельно.', `<div style="display:flex;gap:8px;flex-wrap:wrap">${btn('export', ico('upload') + 'Выгрузить…')}${btn('import', ico('download') + 'Загрузить…')}</div>`)}
         ${row('Демо-данные', 'Помечены отдельно и не смешиваются с вашими', btn('demo-reset', 'Обновить') + btn('demo-clear', 'Удалить', 'ghost'))}
         ${row('Удалить пользовательские данные', 'Локальный профиль, SHELTER ID, история, пароли, cookies и настройки. Файлы в общей папке «Загрузки» останутся.', btn('delete-user-data', 'Удалить и закрыть…', 'danger'))}
@@ -13402,6 +14043,11 @@ AFTER.settings = () => {
     else if (a === 'exts') openPage('extensions');
     else if (a === 'export') shelterExportBackup();
     else if (a === 'import') shelterImportBackup();
+    else if (a === 'master-password') openMasterPasswordSetup();
+    else if (a === 'master-password-recovery') openMasterPasswordUnlock();
+    else if (a === 'app-pin-setup' || a === 'app-pin-config') openAppPinSetup();
+    else if (a === 'app-pin-lock') appPinLockNow('manual');
+    else if (a === 'app-pin-disable') openAppPinDisable();
     else if (a === 'demo-reset') { clearDemo(); seedDemo(); saveNow(); renderAll(); toast('Демо-данные обновлены', { icon: 'ref' }); }
     else if (a === 'demo-clear') { clearDemo(); saveNow(); renderAll(); toast('Демо-данные удалены', { icon: 'trash' }); }
     else if (a === 'reset') { if (await confirmDlg({ title: 'Сбросить SHELTER?', text: 'Все пространства, вкладки, история и настройки вернутся к исходным.', ok: 'Сбросить', danger: true, icon: 'undo' })) { ['theme', 'ghost', 'searchEngine', 'spaces', 'currentSpace', 'activeTabId', 'bookmarks', 'visits', 'board', 'boards', 'ext', 'lux', 'ai', 'planner:sort'].forEach(k => store.del('shelter:' + k)); location.reload(); } }
@@ -14499,6 +15145,16 @@ window.shelter = { version: VERSION, theme: k => setTheme(k), ghost: () => toggl
    ========================================================= */
 function init() {
   load();
+  appPinLoad();
+  const pinRecoveryBypass = appPinConsumeRecoveryBypass();
+  const nativePasswordStatusAvailable = !!(window.shelterNative &&
+    typeof window.shelterNative.secretPasswordStatus === 'function');
+  const passwordStatusNeedsRetry = nativePasswordStatusAvailable &&
+    !S.masterKeyPasswordStatusKnown && masterPasswordDataReadable();
+  const mandatoryPasswordSetup = S.masterKeyPasswordStatusKnown &&
+    !S.masterKeyPasswordAvailable && masterPasswordDataReadable();
+  if (passwordStatusNeedsRetry) openMasterPasswordStatusRetry();
+  else if (mandatoryPasswordSetup) openMasterPasswordSetup(true);
   document.documentElement.setAttribute('data-theme', S.theme);
   applyGfx(); applyGlassOp(); applyRadius(); applyGlowPrefs(); installFontScale();
   const app = $('#app');
@@ -14512,7 +15168,9 @@ function init() {
   if (S.ui.device && S.ui.device !== 'desktop') setDevice(S.ui.device);
   if (S.ui.zoom !== 100) setZoom(S.ui.zoom);
   wpOverdueSweepCommit('init');
-  renderView(true);
+  const shouldStartPinLocked = APP_PIN.configured && !pinRecoveryBypass && !passwordStatusNeedsRetry && !mandatoryPasswordSetup;
+  if (shouldStartPinLocked) appPinLockNow('startup');
+  else renderView(true);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { initSegs(); positionNavInd(); syncThemeUI(); Hero.relayout(); });
   window.addEventListener('resize', debounce(() => { positionNavInd(); syncThemeUI(); initSegs(); layoutTabStrip(); tabsScrollSync(); }, 120));
   /* Ширина полосы меняется не только от окна: переключился пространство,
@@ -14529,7 +15187,9 @@ function init() {
   /* Первая запись (миграция/синхронизация) — вне критического пути загрузки:
      saveNow шифрует историю/чаты (~80-100мс на переполненном профиле),
      выносим до idle, чтобы первый кадр и DOM не ждали. */
-  (window.requestIdleCallback || (f => setTimeout(f, 0)))(saveNow);
+  if (!mandatoryPasswordSetup && !passwordStatusNeedsRetry) {
+    if (!APP_PIN.locked) (window.requestIdleCallback || (f => setTimeout(f, 0)))(saveNow);
+  }
   /* Значки без иконки появляются при смене страницы, модалок и списков:
      наблюдаем за добавлением бейджей и просим недостающие иконки вскоре после
      монтирования (см. ensureFavicons — там же разбор про букву-заглушку). */

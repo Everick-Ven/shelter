@@ -128,6 +128,42 @@
     return '';
   }
 
+  function secretPasswordCall(operation, value) {
+    return new Promise(function (resolve) {
+      try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/secret/password/' + operation, true);
+        xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
+        xhr.onload = function () {
+          var response = {};
+          try { response = JSON.parse(xhr.responseText || '{}') || {}; } catch (_) {}
+          if (xhr.status === 200 && response.ok === true) {
+            resolve({ ok: true, value: typeof response.value === 'string' ? response.value : '' });
+          } else {
+            resolve({ ok: false, error: String(response.error || 'Не удалось выполнить операцию с мастер-паролем') });
+          }
+        };
+        xhr.onerror = function () { resolve({ ok: false, error: 'Нативный мост недоступен' }); };
+        xhr.send(String(value == null ? '' : value));
+      } catch (_) {
+        resolve({ ok: false, error: 'Нативный мост недоступен' });
+      }
+    });
+  }
+  function secretPasswordStatus() {
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/secret/password/status', false);
+      xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
+      xhr.send('');
+      var response = JSON.parse(xhr.responseText || '{}');
+      if (xhr.status !== 200 || !response || response.ok !== true) return null;
+      if (response.value === '1') return true;
+      if (response.value === '0') return false;
+      return null;
+    } catch (_) { return null; }
+  }
+
   /* ---------- состояние ---------- */
   var st = {
     visible: false,     // нативный вид вкладки должен быть показан
@@ -762,6 +798,9 @@
     checkUpdates: function (o) { return q('app.checkUpdates', o || {}); },
     secretEnc: function (t) { return secretCall('encrypt', t); },
     secretDec: function (t) { return secretCall('decrypt', t); },
+    secretPasswordStatus: function () { return secretPasswordStatus(); },
+    secretPasswordSet: function (password) { return secretPasswordCall('set', password); },
+    secretPasswordUnlock: function (password) { return secretPasswordCall('unlock', password); },
     setFullscreen: function (on) { return q('win.fullscreen', { on: !!on }); },
     extList: function () { return q('ext.list'); },
     extInstall: function (src) { return q('ext.install', { src: String(src || '') }); },

@@ -510,6 +510,10 @@ jobs:
         run: node tests/ui_notification_visibility_test.js
       - name: CSP hashes and renderer secret isolation regression test
         run: node tests/ui_csp_test.js
+      - name: Master-password onboarding and data-preservation regression test
+        run: node tests/master_password_onboarding_test.js
+      - name: Separate local PIN lock regression tests
+        run: node tests/app_pin_lock_test.js && node tests/app_pin_ui_integration_test.js
       - name: Central UI bridge authorization regression test
         run: node tests/bridge_authorization_test.js
       - name: AI agent bridge regression test
@@ -537,6 +541,16 @@ jobs:
           set -euo pipefail
           c++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/secret_crypto_test.cc src/secret_crypto.cc -o secret-crypto-test
           ./secret-crypto-test
+      - name: Native master-key recovery integration test
+        run: |
+          set -euo pipefail
+          c++ -O2 -std=c++17 -Wall -Wextra -Werror -fno-exceptions -I. tests/secret_key_recovery_test.cc src/secret_key.cc src/secret_crypto.cc -o secret-key-recovery-test
+          test_root="$(mktemp -d)"
+          trap 'rm -rf "$test_root"' EXIT
+          ./secret-key-recovery-test missing "$test_root/missing"
+          ./secret-key-recovery-test first-run "$test_root/first-run"
+          ./secret-key-recovery-test setup "$test_root/recovery"
+          ./secret-key-recovery-test unlock "$test_root/recovery"
       - name: Window mode persistence source regression test
         run: node tests/window_state_source_test.js
       - name: Compile and run path/archive safety tests

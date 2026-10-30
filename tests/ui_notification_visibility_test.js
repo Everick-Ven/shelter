@@ -30,8 +30,12 @@ assert.ok(toastRootRule, 'Не найден верхнеуровневый CSS-�
 assert.match(toastRootRule[1], /position:fixed/,
   'уведомления должны находиться вне обрезающего контейнера рабочей области');
 const toastZ = Number((toastRootRule[1].match(/z-index:(\d+)/) || [])[1]);
-const otherZ = Array.from(css.replace(toastRootRule[0], '').matchAll(/z-index\s*:\s*(\d+)/g), match => Number(match[1]));
-assert.ok(toastZ > Math.max(...otherZ), 'слой уведомлений должен быть выше всех UI-попапов');
+const pinLockRule = css.match(/\.app-pin-lock\{([^}]*)\}/);
+assert.ok(pinLockRule, 'Не найден верхнеуровневый слой PIN-блокировки');
+const pinLockZ = Number((pinLockRule[1].match(/z-index:(\d+)/) || [])[1]);
+assert.ok(pinLockZ > toastZ, 'экран PIN-блокировки должен перекрывать уведомления');
+const otherZ = Array.from(css.replace(toastRootRule[0], '').replace(pinLockRule[0], '').matchAll(/z-index\s*:\s*(\d+)/g), match => Number(match[1]));
+assert.ok(toastZ > Math.max(...otherZ), 'уведомления должны быть выше обычных UI-попапов, но ниже экрана PIN-блокировки');
 
 const toastMarkupAt = html.indexOf('<div class="toast-root" id="toasts"');
 const appMarkupAt = html.indexOf('<div class="app" id="app">');

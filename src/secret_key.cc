@@ -16,6 +16,7 @@
 #include "src/path_utils.h"
 #include "src/platform.h"
 #include "src/security_paths.h"
+#include "src/secret_crypto.h"
 #include "src/secret_key_file.h"
 
 #if defined(_WIN32)
@@ -34,8 +35,20 @@ constexpr char kKcAccount[] = "master-key";
 
 enum class FileState { kMissing, kRegular, kError };
 
-std::once_flag g_key_once;
+void SecureClear(std::string* value) {
+  if (!value) return;
+  volatile unsigned char* bytes =
+      reinterpret_cast<volatile unsigned char*>(value->data());
+  for (size_t i = 0; i < value->size(); ++i) bytes[i] = 0;
+  value->clear();
+}
+
+std::mutex g_key_mutex;
+bool g_key_attempted = false;
 bool g_key_available = false;
+bool g_key_creation_blocked = false;
+bool g_key_attempt_time_set = false;
+std::chrono::steady_clock::time_point g_key_last_attempt;
 std::string g_key_hex;
 std::string g_key_error;
 
@@ -57,6 +70,32 @@ bool IsHexKey(const std::string& value) {
           (c >= 'A' && c <= 'F'))) return false;
   }
   return true;
+}
+
+size_t Utf8CodePointCount(const std::string& value) {
+  size_t count = 0;
+  for (size_t i = 0; i < value.size();) {
+    const unsigned char lead = static_cast<unsigned char>(value[i]);
+    size_t width = 0;
+    if (lead <= 0x7f) width = 1;
+    else if (lead >= 0xc2 && lead <= 0xdf) width = 2;
+    else if (lead >= 0xe0 && lead <= 0xef) width = 3;
+    else if (lead >= 0xf0 && lead <= 0xf4) width = 4;
+    else return 0;
+    if (i + width > value.size()) return 0;
+    for (size_t j = 1; j < width; ++j) {
+      const unsigned char continuation =
+          static_cast<unsigned char>(value[i + j]);
+      if ((continuation & 0xc0) != 0x80) return 0;
+      if (j == 1 && ((lead == 0xe0 && continuation < 0xa0) ||
+                     (lead == 0xed && continuation >= 0xa0) ||
+                     (lead == 0xf0 && continuation < 0x90) ||
+                     (lead == 0xf4 && continuation > 0x8f))) return 0;
+    }
+    i += width;
+    ++count;
+  }
+  return count;
 }
 
 FileState InspectFile(const std::filesystem::path& path) {
@@ -81,10 +120,16 @@ bool ReadAll(const std::filesystem::path& path, std::string* out) {
   if (!file) return false;
   out->assign(static_cast<size_t>(size), '\0');
   if (size && !file.read(out->data(), static_cast<std::streamsize>(size))) {
+    std::fill(out->begin(), out->end(), '\0');
     out->clear();
     return false;
   }
-  return !file.bad();
+  if (file.bad()) {
+    std::fill(out->begin(), out->end(), '\0');
+    out->clear();
+    return false;
+  }
+  return true;
 }
 
 #if defined(_WIN32)
@@ -360,6 +405,54 @@ bool LoadOrCreateMacKey(const std::filesystem::path& path,
   }
   return false;
 }
+
+// Reads only key material that already exists. The decrypt path must never
+// generate a replacement key when a stored ss1 record cannot be opened.
+bool LoadExistingMacKey(const std::filesystem::path& path,
+                        std::string* key_hex, std::string* error) {
+  if (!key_hex) return false;
+  const FileState file_state = InspectFile(path);
+  if (file_state == FileState::kError) {
+    if (error) *error = "existing master-key file is not a regular readable file";
+    return false;
+  }
+  std::string kc_value;
+  const KeychainReadResult kc = ReadKeychain(kKcService, kKcAccount, &kc_value);
+  if (kc == KeychainReadResult::kFound) {
+    if (!IsHexKey(kc_value)) {
+      if (error) *error = "existing Keychain master key has an invalid format";
+      std::fill(kc_value.begin(), kc_value.end(), '\0');
+      return false;
+    }
+    if (file_state == FileState::kRegular) {
+      std::string mirror;
+      if (!ReadFileKey(path, &mirror, error)) {
+        std::fill(kc_value.begin(), kc_value.end(), '\0');
+        return false;
+      }
+      const bool matches = mirror == kc_value;
+      std::fill(mirror.begin(), mirror.end(), '\0');
+      if (!matches) {
+        if (error) *error = "Keychain and fallback master keys disagree; neither was changed";
+        std::fill(kc_value.begin(), kc_value.end(), '\0');
+        return false;
+      }
+    }
+    *key_hex = kc_value;
+    std::fill(kc_value.begin(), kc_value.end(), '\0');
+    return true;
+  }
+  std::fill(kc_value.begin(), kc_value.end(), '\0');
+  if (file_state == FileState::kRegular) {
+    return ReadFileKey(path, key_hex, error);
+  }
+  if (error) {
+    *error = kc == KeychainReadResult::kError
+        ? "login Keychain is unavailable and no master-key mirror could be read"
+        : "no existing master key was found; refusing to create one for decryption";
+  }
+  return false;
+}
 #endif
 
 bool LoadOrCreateKey(std::string* key_hex, std::string* error) {
@@ -392,23 +485,264 @@ bool LoadOrCreateKey(std::string* key_hex, std::string* error) {
 #endif
 }
 
-void InitializeMasterKey() {
-  g_key_available = LoadOrCreateKey(&g_key_hex, &g_key_error);
-  if (!g_key_available) g_key_hex.clear();
+bool LoadExistingKey(std::string* key_hex, std::string* error) {
+  if (!key_hex) return false;
+  std::filesystem::path dir;
+  if (!EnsureUserDataDir(&dir, error)) return false;
+  const std::filesystem::path path = dir / "secret.key";
+#if defined(__APPLE__)
+  return LoadExistingMacKey(path, key_hex, error);
+#else
+  const FileState state = InspectFile(path);
+  if (state == FileState::kError) {
+    if (error) *error = "existing master-key file is not a regular readable file";
+    return false;
+  }
+  if (state == FileState::kMissing) {
+    if (error) *error = "existing master-key file is missing; refusing to create one for decryption";
+    return false;
+  }
+  return ReadFileKey(path, key_hex, error);
+#endif
+}
+
+constexpr char kPasswordWrapFile[] = "secret.key.password";
+constexpr std::uintmax_t kMaxPasswordWrapBytes = 1024;
+
+std::filesystem::path PasswordWrapPath() {
+  const std::filesystem::path dir = path_utils::PathFromUtf8(UserDataDir());
+  return dir.empty() ? std::filesystem::path() : dir / kPasswordWrapFile;
+}
+
+bool LoadKeyLocked(bool may_create, std::string* error) {
+  if (g_key_available) {
+    if (error) error->clear();
+    return true;
+  }
+  const auto now = std::chrono::steady_clock::now();
+  if (g_key_attempt_time_set && now - g_key_last_attempt <
+          std::chrono::milliseconds(500)) {
+    if (error) *error = g_key_error;
+    return false;
+  }
+  g_key_last_attempt = now;
+  g_key_attempt_time_set = true;
+
+  std::string candidate, load_error;
+  const bool create = may_create && !g_key_attempted && !g_key_creation_blocked;
+  const bool ok = create ? LoadOrCreateKey(&candidate, &load_error)
+                         : LoadExistingKey(&candidate, &load_error);
+  g_key_attempted = true;
+  if (ok && IsHexKey(candidate)) {
+    SecureClear(&g_key_hex);
+    g_key_hex = candidate;
+    g_key_available = true;
+    g_key_creation_blocked = false;
+    g_key_error.clear();
+    SecureClear(&candidate);
+    if (error) error->clear();
+    LogSecretKeyDiagnostic("master key is available; no stored key was replaced");
+    return true;
+  }
+  SecureClear(&candidate);
+  g_key_available = false;
+  if (load_error.empty()) load_error = "master key is unavailable";
+  g_key_error = load_error;
+  LogSecretKeyDiagnostic("master key load failed: " + load_error);
+  if (error) *error = g_key_error;
+  return false;
+}
+
+std::string NewTemporarySuffix() {
+  std::string bytes;
+  if (!RandomBytes(8, &bytes) || bytes.size() != 8) return std::string();
+  const std::string suffix = ToHex(bytes);
+  std::fill(bytes.begin(), bytes.end(), '\0');
+  return suffix;
 }
 
 }  // namespace
 
 bool SecretKeyHex(std::string* out, std::string* error) {
   if (!out) return false;
-  std::call_once(g_key_once, InitializeMasterKey);
-  if (!g_key_available) {
+  std::lock_guard<std::mutex> lock(g_key_mutex);
+  if (!LoadKeyLocked(true, error)) {
     out->clear();
-    if (error) *error = g_key_error;
     return false;
   }
   *out = g_key_hex;
   if (error) error->clear();
+  return true;
+}
+
+bool SecretKeyHexForDecrypt(std::string* out, std::string* error) {
+  if (!out) return false;
+  std::lock_guard<std::mutex> lock(g_key_mutex);
+  if (!LoadKeyLocked(false, error)) {
+    g_key_creation_blocked = true;
+    out->clear();
+    return false;
+  }
+  *out = g_key_hex;
+  if (error) error->clear();
+  return true;
+}
+
+bool HasSecretKeyPassword() {
+  const FileState state = InspectFile(PasswordWrapPath());
+  return state == FileState::kRegular;
+}
+
+bool SetSecretKeyPassword(const std::string& password, std::string* error) {
+  if (error) error->clear();
+  if (Utf8CodePointCount(password) < 12 || password.size() > 1024) {
+    if (error) *error = "master password must contain at least 12 UTF-8 characters";
+    return false;
+  }
+  std::string master_key;
+  {
+    std::lock_guard<std::mutex> lock(g_key_mutex);
+    // On a clean first run there may not be a key yet; create the original
+    // random key before wrapping it. A prior decrypt failure sets
+    // g_key_creation_blocked, so this still cannot replace a missing key.
+    if (!LoadKeyLocked(true, error)) return false;
+    master_key = g_key_hex;
+  }
+
+  std::string salt, nonce;
+  if (!RandomBytes(16, &salt) || salt.size() != 16 ||
+      !RandomBytes(12, &nonce) || nonce.size() != 12) {
+    SecureClear(&master_key);
+    std::fill(salt.begin(), salt.end(), '\0');
+    std::fill(nonce.begin(), nonce.end(), '\0');
+    if (error) *error = "operating system random generator failed";
+    return false;
+  }
+  std::string wrapped;
+  const bool wrapped_ok = secret_crypto::WrapMasterKeyWithPassword(
+      master_key, password, salt, nonce,
+      secret_crypto::kPasswordWrapDefaultIterations, &wrapped);
+  SecureClear(&master_key);
+  std::fill(salt.begin(), salt.end(), '\0');
+  std::fill(nonce.begin(), nonce.end(), '\0');
+  if (!wrapped_ok) {
+    if (error) *error = "master-key password wrapper could not be created";
+    return false;
+  }
+
+  std::filesystem::path dir;
+  if (!EnsureUserDataDir(&dir, error)) {
+    std::fill(wrapped.begin(), wrapped.end(), '\0');
+    return false;
+  }
+  const std::filesystem::path path = dir / kPasswordWrapFile;
+  const FileState state = InspectFile(path);
+  if (state == FileState::kError) {
+    if (error) *error = "existing master-key password file is not a regular file";
+    return false;
+  }
+  bool written = false;
+  std::string write_error;
+  if (state == FileState::kMissing) {
+    written = secret_key_storage::WriteAllExclusive(path, wrapped, &write_error);
+  } else {
+    const std::string suffix = NewTemporarySuffix();
+    if (suffix.empty()) {
+      write_error = "operating system random generator failed";
+    } else {
+      std::filesystem::path temporary = path;
+      temporary += ".tmp-" + suffix;
+      written = secret_key_storage::ReplaceFileAtomically(
+          path, temporary, wrapped, &write_error);
+    }
+  }
+  if (!written) {
+    std::fill(wrapped.begin(), wrapped.end(), '\0');
+    if (error) *error = write_error.empty()
+        ? "master-key password wrapper could not be saved"
+        : write_error;
+    return false;
+  }
+  std::string read_back;
+  const bool verified = ReadAll(path, &read_back) && read_back == wrapped;
+  std::fill(read_back.begin(), read_back.end(), '\0');
+  std::fill(wrapped.begin(), wrapped.end(), '\0');
+  if (!verified) {
+    if (error) *error = "master-key password wrapper failed read-back verification";
+    return false;
+  }
+  LogSecretKeyDiagnostic("master-key password recovery wrapper saved and verified");
+  if (error) error->clear();
+  return true;
+}
+
+bool UnlockSecretKeyWithPassword(const std::string& password,
+                                 std::string* error) {
+  if (error) error->clear();
+  const std::filesystem::path path = PasswordWrapPath();
+  std::string wrapped;
+  if (path.empty() || InspectFile(path) != FileState::kRegular ||
+      !ReadAll(path, &wrapped) ||
+      wrapped.size() > kMaxPasswordWrapBytes) {
+    if (error) *error = "master-key password wrapper is unavailable";
+    return false;
+  }
+  std::string recovered;
+  const bool ok = secret_crypto::UnwrapMasterKeyWithPassword(
+      password, wrapped, &recovered);
+  std::fill(wrapped.begin(), wrapped.end(), '\0');
+  if (!ok || !IsHexKey(recovered)) {
+    SecureClear(&recovered);
+    LogSecretKeyDiagnostic("master-key password unlock failed");
+    if (error) *error = "master-key password was rejected or the wrapper is damaged";
+    return false;
+  }
+  {
+    std::lock_guard<std::mutex> lock(g_key_mutex);
+    SecureClear(&g_key_hex);
+    g_key_hex = recovered;
+    g_key_available = true;
+    g_key_attempted = true;
+    g_key_creation_blocked = false;
+    g_key_error.clear();
+    g_key_attempt_time_set = true;
+    g_key_last_attempt = std::chrono::steady_clock::now();
+  }
+  SecureClear(&recovered);
+  LogSecretKeyDiagnostic("master key unlocked with password wrapper");
+  return true;
+}
+
+bool RemoveSecretKeyPassword(std::string* error) {
+  if (error) error->clear();
+  std::string cached_key;
+  {
+    std::lock_guard<std::mutex> lock(g_key_mutex);
+    if (!LoadKeyLocked(false, error)) return false;
+    cached_key = g_key_hex;
+  }
+  std::string stored_key, stored_error;
+  const bool matching_persistent_key =
+      LoadExistingKey(&stored_key, &stored_error) && stored_key == cached_key;
+  SecureClear(&cached_key);
+  SecureClear(&stored_key);
+  if (!matching_persistent_key) {
+    if (error) *error = "system master-key storage is unavailable or differs; password wrapper was retained";
+    return false;
+  }
+  const std::filesystem::path path = PasswordWrapPath();
+  const FileState state = InspectFile(path);
+  if (state == FileState::kMissing) return true;
+  if (state != FileState::kRegular) {
+    if (error) *error = "master-key password file is not a regular file";
+    return false;
+  }
+  std::error_code ec;
+  if (!std::filesystem::remove(path, ec) || ec) {
+    if (error) *error = "master-key password wrapper could not be removed";
+    return false;
+  }
+  LogSecretKeyDiagnostic("master-key password recovery wrapper removed");
   return true;
 }
 

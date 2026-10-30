@@ -133,6 +133,10 @@ bool KeychainDeleteNoPrompt(const char* service, const char* account) {
 
 }  // namespace
 
+void LogSecretKeyDiagnostic(const std::string& message) {
+  LogKC("secret-key: %s", message.c_str());
+}
+
 KeychainReadResult KeychainGet(const char* service, const char* account,
                                std::string* out) {
   if (!out) return KeychainReadResult::kError;

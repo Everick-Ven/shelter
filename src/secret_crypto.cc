@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "src/platform.h"
@@ -308,6 +309,231 @@ std::string Sha256Hex(const std::string& input) {
   return out;
 }
 
+
+bool Pbkdf2HmacSha256(const std::string& password, const std::string& salt,
+                      std::uint32_t iterations, std::size_t output_bytes,
+                      std::string* key_out) {
+  if (!key_out) return false;
+  Wipe(key_out->data(), key_out->size());
+  key_out->clear();
+  constexpr size_t kMaxPasswordBytes = 1024;
+  constexpr size_t kMaxSaltBytes = 1024;
+  constexpr size_t kMaxOutputBytes = 1024;
+  constexpr std::uint32_t kMaxIterations = 10000000;
+  if (iterations == 0 || iterations > kMaxIterations ||
+      password.size() > kMaxPasswordBytes || salt.size() > kMaxSaltBytes ||
+      output_bytes == 0 || output_bytes > kMaxOutputBytes) {
+    return false;
+  }
+
+  const size_t blocks = (output_bytes + 31u) / 32u;
+  if (blocks > std::numeric_limits<std::uint32_t>::max()) return false;
+  std::vector<Byte> password_bytes = AsBytes(password);
+  std::vector<Byte> salt_bytes = AsBytes(salt);
+  std::string derived;
+  derived.reserve(output_bytes);
+  for (std::uint32_t block = 1; block <= blocks; ++block) {
+    std::vector<Byte> input = salt_bytes;
+    input.push_back(static_cast<Byte>(block >> 24));
+    input.push_back(static_cast<Byte>(block >> 16));
+    input.push_back(static_cast<Byte>(block >> 8));
+    input.push_back(static_cast<Byte>(block));
+    std::array<Byte, 32> u = HmacSha256(password_bytes, input);
+    std::array<Byte, 32> t = u;
+    for (std::uint32_t round = 1; round < iterations; ++round) {
+      std::vector<Byte> previous(u.begin(), u.end());
+      u = HmacSha256(password_bytes, previous);
+      Wipe(previous.data(), previous.size());
+      for (size_t i = 0; i < t.size(); ++i) t[i] ^= u[i];
+    }
+    const size_t take = std::min(t.size(), output_bytes - derived.size());
+    derived.append(reinterpret_cast<const char*>(t.data()), take);
+    Wipe(input.data(), input.size());
+    Wipe(u.data(), u.size());
+    Wipe(t.data(), t.size());
+  }
+  Wipe(password_bytes.data(), password_bytes.size());
+  Wipe(salt_bytes.data(), salt_bytes.size());
+  if (derived.size() != output_bytes) {
+    Wipe(derived.data(), derived.size());
+    return false;
+  }
+  *key_out = std::move(derived);
+  return true;
+}
+
+namespace {
+
+constexpr std::uint32_t kPasswordWrapMaxIterations = 2000000;
+constexpr size_t kPasswordWrapSaltBytes = 16;
+constexpr char kPasswordWrapPrefix[] = "skw1:";
+constexpr char kPasswordWrapDomain[] = "SHELTER-MASTER-KEY-WRAP-v1";
+
+std::string EncodeHex(const Byte* bytes, size_t size) {
+  static constexpr char kHex[] = "0123456789abcdef";
+  std::string out;
+  out.reserve(size * 2);
+  for (size_t i = 0; i < size; ++i) {
+    out.push_back(kHex[bytes[i] >> 4]);
+    out.push_back(kHex[bytes[i] & 0x0f]);
+  }
+  return out;
+}
+
+bool DecodeHexBytes(const std::string& hex, std::vector<Byte>* out) {
+  if (!out || hex.empty() || (hex.size() % 2) != 0) return false;
+  auto digit = [](char c) -> int {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+  };
+  out->clear();
+  out->reserve(hex.size() / 2);
+  for (size_t i = 0; i < hex.size(); i += 2) {
+    const int hi = digit(hex[i]), lo = digit(hex[i + 1]);
+    if (hi < 0 || lo < 0) {
+      out->clear();
+      return false;
+    }
+    out->push_back(static_cast<Byte>((hi << 4) | lo));
+  }
+  return true;
+}
+
+bool DerivePasswordWrapKey(const std::string& password,
+                           const std::string& salt,
+                           std::uint32_t iterations,
+                           std::string* key_hex) {
+  if (!key_hex || salt.size() != kPasswordWrapSaltBytes) return false;
+  Wipe(key_hex->data(), key_hex->size());
+  key_hex->clear();
+  std::string domain_salt(kPasswordWrapDomain,
+                          sizeof(kPasswordWrapDomain) - 1);
+  domain_salt.append(salt);
+  std::string key;
+  const bool ok = Pbkdf2HmacSha256(password, domain_salt, iterations,
+                                   kKeyBytes, &key);
+  Wipe(domain_salt.data(), domain_salt.size());
+  if (!ok) return false;
+  *key_hex = EncodeHex(reinterpret_cast<const Byte*>(key.data()), key.size());
+  Wipe(key.data(), key.size());
+  return true;
+}
+
+}  // namespace
+
+bool WrapMasterKeyWithPassword(const std::string& master_key_hex,
+                               const std::string& password,
+                               const std::string& salt,
+                               const std::string& nonce,
+                               std::uint32_t iterations,
+                               std::string* wrapped) {
+  if (!wrapped) return false;
+  wrapped->clear();
+  std::vector<Byte> master;
+  if (salt.size() != kPasswordWrapSaltBytes || nonce.size() != kNonceBytes ||
+      iterations == 0 || iterations > kPasswordWrapMaxIterations ||
+      !DecodeHexKey(master_key_hex, &master)) {
+    Wipe(master.data(), master.size());
+    return false;
+  }
+  if (password.size() < 12 || password.size() > 1024) {
+    Wipe(master.data(), master.size());
+    return false;
+  }
+  std::string password_key_hex;
+  if (!DerivePasswordWrapKey(password, salt, iterations,
+                             &password_key_hex)) {
+    Wipe(master.data(), master.size());
+    return false;
+  }
+  std::string master_bytes(reinterpret_cast<const char*>(master.data()),
+                           master.size());
+  std::string encrypted;
+  const bool ok = EncryptWithKey(password_key_hex, master_bytes, nonce,
+                                 &encrypted);
+  Wipe(master.data(), master.size());
+  Wipe(master_bytes.data(), master_bytes.size());
+  Wipe(password_key_hex.data(), password_key_hex.size());
+  if (!ok) return false;
+  *wrapped = std::string(kPasswordWrapPrefix) + std::to_string(iterations) +
+      ":" + EncodeHex(reinterpret_cast<const Byte*>(salt.data()), salt.size()) +
+      ":" + encrypted;
+  Wipe(encrypted.data(), encrypted.size());
+  return true;
+}
+
+bool UnwrapMasterKeyWithPassword(const std::string& password,
+                                 const std::string& wrapped,
+                                 std::string* master_key_hex,
+                                 std::uint32_t minimum_iterations) {
+  if (!master_key_hex) return false;
+  Wipe(master_key_hex->data(), master_key_hex->size());
+  master_key_hex->clear();
+  if (password.size() < 12 || password.size() > 1024 ||
+      wrapped.size() > 512 || wrapped.rfind(kPasswordWrapPrefix, 0) != 0 ||
+      minimum_iterations == 0 ||
+      minimum_iterations > kPasswordWrapMaxIterations) {
+    return false;
+  }
+  const size_t iterations_start = sizeof(kPasswordWrapPrefix) - 1;
+  const size_t iterations_separator = wrapped.find(':', iterations_start);
+  if (iterations_separator == std::string::npos ||
+      iterations_separator == iterations_start ||
+      iterations_separator - iterations_start > 8) {
+    return false;
+  }
+  std::uint32_t iterations = 0;
+  for (size_t i = iterations_start; i < iterations_separator; ++i) {
+    const char c = wrapped[i];
+    if (c < '0' || c > '9' ||
+        iterations > (kPasswordWrapMaxIterations -
+                      static_cast<std::uint32_t>(c - '0')) / 10) {
+      return false;
+    }
+    iterations = iterations * 10 + static_cast<std::uint32_t>(c - '0');
+  }
+  if (iterations < minimum_iterations ||
+      iterations > kPasswordWrapMaxIterations ||
+      (iterations_separator - iterations_start > 1 &&
+       wrapped[iterations_start] == '0')) {
+    return false;
+  }
+  const size_t salt_start = iterations_separator + 1;
+  const size_t salt_separator = wrapped.find(':', salt_start);
+  if (salt_separator != salt_start + kPasswordWrapSaltBytes * 2 ||
+      salt_separator == std::string::npos) {
+    return false;
+  }
+  std::vector<Byte> salt_bytes;
+  if (!DecodeHexBytes(wrapped.substr(salt_start, salt_separator - salt_start),
+                      &salt_bytes) ||
+      salt_bytes.size() != kPasswordWrapSaltBytes) {
+    Wipe(salt_bytes.data(), salt_bytes.size());
+    return false;
+  }
+  const std::string salt(reinterpret_cast<const char*>(salt_bytes.data()),
+                         salt_bytes.size());
+  Wipe(salt_bytes.data(), salt_bytes.size());
+  std::string password_key_hex;
+  if (!DerivePasswordWrapKey(password, salt, iterations,
+                             &password_key_hex)) return false;
+  std::string master;
+  const bool ok = DecryptWithKey(password_key_hex,
+                                 wrapped.substr(salt_separator + 1), &master);
+  Wipe(password_key_hex.data(), password_key_hex.size());
+  if (!ok || master.size() != kKeyBytes) {
+    Wipe(master.data(), master.size());
+    return false;
+  }
+  std::vector<Byte> master_bytes(master.begin(), master.end());
+  *master_key_hex = EncodeHex(master_bytes.data(), master_bytes.size());
+  Wipe(master.data(), master.size());
+  Wipe(master_bytes.data(), master_bytes.size());
+  return true;
+}
+
 bool EncryptWithKey(const std::string& key_hex, const std::string& plaintext,
                     const std::string& nonce, std::string* ciphertext) {
   if (!ciphertext) return false;
@@ -443,7 +669,8 @@ bool Decrypt(const std::string& ciphertext, std::string* plaintext) {
   if (!plaintext) return false;
   plaintext->clear();
   std::string key_hex, error;
-  if (!platform::SecretKeyHex(&key_hex, &error)) {
+  if (!platform::SecretKeyHexForDecrypt(&key_hex, &error)) {
+    platform::LogSecretKeyDiagnostic("decrypt failed at master-key: " + error);
     std::fprintf(stderr,
                  "SHELTER_SECRET_CRYPTO decrypt failed at master-key: %s\n",
                  error.c_str());
@@ -451,6 +678,7 @@ bool Decrypt(const std::string& ciphertext, std::string* plaintext) {
   }
   const bool ok = DecryptWithKey(key_hex, ciphertext, plaintext);
   if (!ok) {
+    platform::LogSecretKeyDiagnostic("decrypt failed at ss1-core");
     std::fprintf(stderr, "SHELTER_SECRET_CRYPTO decrypt failed at ss1-core\n");
   }
   Wipe(key_hex.data(), key_hex.size());

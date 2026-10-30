@@ -329,6 +329,11 @@ void UpdateClipMask() {
 
 }  // namespace
 
+void LogSecretKeyDiagnostic(const std::string& message) {
+  const std::string line = "SHELTER_SECRET_KEY: " + message + "\n";
+  OutputDebugStringA(line.c_str());
+}
+
 std::string UiResourceDir() {
   wchar_t buf[MAX_PATH * 2];
   DWORD n = GetModuleFileNameW(nullptr, buf, (DWORD)(sizeof(buf) / sizeof(buf[0])));

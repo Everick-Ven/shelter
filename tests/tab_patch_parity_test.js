@@ -8,10 +8,10 @@
 //      одну и ту же разметку (классы .tab/.active/.pinned/.enter, data-act,
 //      data-tab, draggable, data-tip, значок, заголовок, крестик);
 //   2) при совпадении состава и порядка id переписываются только
-//      изменившиеся узлы (по data-tab); добавление/удаление/перестановка и
-//      enter-анимация — полный рендер;
-//   3) DOM вкладок после патча идентичен DOM после полного рендера
-//      (сравнение outerHTML в пробнике);
+//      изменившиеся узлы (по data-tab); одиночное добавление вставляется
+//      отдельно и сохраняет существующие DOM-узлы;
+//   3) DOM вкладок после точечного патча идентичен полному рендеру
+//      (сравнение outerHTML), а новая вкладка сохраняет enter-анимацию;
 //   4) хвост renderTabs сохранён: layoutTabStrip, tabsScrollSync,
 //      positionNavInd, syncQuickPanel, кнопка «+».
 //
@@ -39,11 +39,13 @@ check('точечный патч сравнивает состав и поряд
   /sameList/.test(render) && /nodes\[i\]\.dataset\.tab === t\.id/.test(render));
 check('патч переписывает только изменившийся узел',
   /nodes\[i\]\.outerHTML = htmls\[i\]/.test(render) && /tHtml\.set\(t\.id, htmls\[i\]\)/.test(render));
-check('полный рендер остаётся для структуры (join + карта шаблонов)',
+check('полный рендер остаётся для структурных изменений (join + карта шаблонов)',
   /tl\.innerHTML = htmls\.join\(''\)/.test(render) &&
   /renderTabs\._html = new Map\(tabs\.map\(\(t, i\) => \[t\.id, htmls\[i\]\]\)\)/.test(render));
-check('enter-анимация просит полный рендер (justAdded)',
-  /!justAdded &&/.test(render) && /t\.id === justAdded \? ' enter' : ''/.test(render));
+check('одиночное добавление вставляется рядом, не пересоздавая весь список',
+  /addedIndex/.test(render) && /insertAdjacentHTML\('beforebegin', htmls\[addedIndex\]\)/.test(render));
+check('enter-анимация остаётся только на новой вкладке',
+  /t\.id === justAdded \? ' enter' : ''/.test(render));
 check('классы .tab/.active/.pinned/.enter не менялись',
   /class="tab\$\{t\.id === S\.activeTabId \? ' active' : ''\}\$\{t\.pinned \? ' pinned' : ''\}\$\{t\.id === justAdded \? ' enter' : ''\}"/.test(render));
 check('conditional draggable сохранён (data-act/data-tab/data-tip тоже)',
@@ -60,8 +62,41 @@ function makeList() {
   const tl = {
     _nodes: [],
     _tail: '',
+    _plus: null,
+    _makeNode(chunk) {
+      const id = (chunk.match(/data-tab="([^"]*)"/) || [])[1];
+      const owner = this;
+      return {
+        dataset: { tab: id },
+        _html: chunk,
+        writes: 0,
+        get outerHTML() { return this._html; },
+        set outerHTML(x) {
+          const index = owner._nodes.indexOf(this);
+          const replacement = owner._makeNode(x);
+          replacement.writes = this.writes + 1;
+          if (index >= 0) owner._nodes[index] = replacement;
+        },
+        insertAdjacentHTML(position, html) {
+          if (position !== 'beforebegin') throw new Error('unsupported tab insertion position');
+          owner._insertAt(owner._nodes.indexOf(this), html);
+        },
+      };
+    },
+    _insertAt(index, html) {
+      const chunks = String(html).match(/<div class="tab[\s\S]*?<\/div>/g) || [];
+      this._nodes.splice(index, 0, ...chunks.map(chunk => this._makeNode(chunk)));
+    },
     querySelectorAll() { return this._nodes.slice(); },
-    querySelector() { return null; },
+    querySelector(selector) {
+      if (selector === '.tab.active') return this._nodes.find(n => /class="tab[^\"]* active/.test(n._html)) || null;
+      if (selector === '.tab.new') return this._plus;
+      return null;
+    },
+    insertAdjacentHTML(position, html) {
+      if (position !== 'beforeend') throw new Error('unsupported list insertion position');
+      this._insertAt(this._nodes.length, html);
+    },
     after() {},
     scrollLeft: 0,
     clientWidth: 0,
@@ -69,20 +104,17 @@ function makeList() {
   Object.defineProperty(tl, 'innerHTML', {
     get() { return this._nodes.map(n => n._html).join('') + this._tail; },
     set(v) {
-      /* Одна вкладка = один <div class="tab ...>...</div>; «+» — хвост. */
+      /* Вкладки — дочерние узлы, кнопка «+» — отдельный хвост списка. */
       const re = /<div class="tab[\s\S]*?<\/div>/g;
       const chunks = v.match(re) || [];
       this._tail = v.replace(re, '');
-      this._nodes = chunks.map(chunk => {
-        const id = (chunk.match(/data-tab="([^"]*)"/) || [])[1];
-        return {
-          dataset: { tab: id },
-          _html: chunk,
-          writes: 0,
-          get outerHTML() { return this._html; },
-          set outerHTML(x) { this._html = x; this.writes++; },
-        };
-      });
+      this._nodes = chunks.map(chunk => this._makeNode(chunk));
+      this._plus = this._tail.includes('class="tab new"') ? {
+        insertAdjacentHTML: (position, html) => {
+          if (position !== 'beforebegin') throw new Error('unsupported plus-button insertion position');
+          this._insertAt(this._nodes.length, html);
+        },
+      } : null;
     },
   });
   return tl;
@@ -162,15 +194,22 @@ check('патч переписывает только изменившийся �
 check('неизменённый узел сохраняет прежний outerHTML',
   w3.tl._nodes[0].outerHTML === clean1[0] && w3.tl._nodes[2].outerHTML === clean1[2]);
 
-// Структура: добавление -> полный рендер с enter-анимацией.
+// Структура: одиночное добавление сохраняет существующие узлы и анимирует
+// только новую вкладку (как при addTab + activateTab в приложении).
 const w4 = makeWorld();
 w4.renderTabs();
+const beforeAdd = w4.tl.querySelectorAll('.tab[data-tab]');
 w4.state.tabs.push({ id: 'd', title: 'Г', url: 'https://d/', pinned: false });
+w4.state.activeTabId = 'd';
 w4.sandbox.justAdded = 'd';
 w4.renderTabs();
-const htmls4 = w4.tl._nodes.map(n => n.outerHTML);
-check('добавление вкладки идёт полным рендером (enter у новой)',
-  htmls4.length === 4 && /class="tab[^"]* enter"/.test(htmls4[3]) && !/enter/.test(htmls4[0]),
+const afterAdd = w4.tl.querySelectorAll('.tab[data-tab]');
+const htmls4 = afterAdd.map(n => n.outerHTML);
+check('добавление сохраняет неизменившиеся прежние узлы',
+  afterAdd.length === 4 && afterAdd[0] === beforeAdd[0] && afterAdd[2] === beforeAdd[2],
+  'old=' + beforeAdd.map(n => n.dataset.tab).join(',') + '; new=' + afterAdd.map(n => n.dataset.tab).join(','));
+check('enter-анимация установлена только на новую вкладку',
+  /class="tab[^\"]* enter"/.test(htmls4[3]) && !/enter/.test(htmls4[0]) && !/enter/.test(htmls4[2]),
   htmls4[3].slice(0, 80));
 check('enter-анимация сбрасывается (justAdded обнуляется)', w4.sandbox.justAdded === null);
 

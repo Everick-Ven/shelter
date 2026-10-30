@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-VXzZ6glTYdS6OUwRQwW5FzdfqmMYxINycMgBgmvJayQ=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-mGWCquyfDf2jQwJTPmNRjglV53ur0PsdKSBFJtS3XIg=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -7520,14 +7520,33 @@ function renderTabs() {
   const htmls = tabs.map(htmlOf);
   const tl = $('#tabList');
   /* Точечный патч (P1-5): обновление заголовка/иконки/состояния одной вкладки
-     не пересобирает список. Полный рендер — для добавления/удаления/
-     перестановки (состав и порядок id не совпали) и для enter-анимации.
-     Разметка та же (общий htmlOf): DOM после патча идентичен полному рендеру. */
+     не пересобирает список. Одиночная добавленная вкладка вставляется рядом
+     с прежними узлами; полный рендер остаётся для удаления/перестановки и
+     других структурных изменений. */
   const tHtml = renderTabs._html || (renderTabs._html = new Map());
   const nodes = tl ? Array.from(tl.querySelectorAll('.tab[data-tab]')) : [];
   const sameList = !justAdded && nodes.length === tabs.length &&
     tabs.every((t, i) => nodes[i].dataset.tab === t.id);
-  if (sameList) {
+  const addedIndex = tl && justAdded && nodes.length + 1 === tabs.length
+    ? tabs.findIndex(t => t.id === justAdded) : -1;
+  const singleAddition = addedIndex >= 0 && tabs.every((t, i) =>
+    i === addedIndex || nodes[i < addedIndex ? i : i - 1].dataset.tab === t.id);
+  if (singleAddition) {
+    const anchor = nodes[addedIndex] || (!classic && tl.querySelector('.tab.new'));
+    if (anchor) anchor.insertAdjacentHTML('beforebegin', htmls[addedIndex]);
+    else tl.insertAdjacentHTML('beforeend', htmls[addedIndex]);
+    tabs.forEach((t, i) => {
+      if (i === addedIndex) {
+        tHtml.set(t.id, htmls[i]);
+        return;
+      }
+      const node = nodes[i < addedIndex ? i : i - 1];
+      if (tHtml.get(t.id) !== htmls[i]) {
+        node.outerHTML = htmls[i];
+        tHtml.set(t.id, htmls[i]);
+      }
+    });
+  } else if (sameList) {
     tabs.forEach((t, i) => {
       if (tHtml.get(t.id) !== htmls[i]) {
         nodes[i].outerHTML = htmls[i];

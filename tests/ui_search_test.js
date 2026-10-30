@@ -5,6 +5,25 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'resources/ui/index.html'), 'utf8');
+const engineSource = (html.match(/const ENGINES = \{[\s\S]*?\n\};/) || [])[0];
+const resolveInputSource = (html.match(/function resolveInput\(raw\) \{[\s\S]*?\n\}/) || [])[0];
+const searchOfSource = (html.match(/function searchOf\(url\) \{[\s\S]*?\n\}/) || [])[0];
+assert(engineSource && resolveInputSource && searchOfSource, 'search routing helpers must be present');
+const engines = new Function(`${engineSource}; return ENGINES;`)();
+const resolveInput = new Function('S', 'ENGINES', 'isUrl', 'internalPage',
+  `${resolveInputSource}; return resolveInput;`)({ deep: false, engine: 'yandex' }, engines,
+  () => false, () => ({ page: 'start', q: '' }));
+const searchOf = new Function('ENGINES', `${searchOfSource}; return searchOf;`)(engines);
+const query = 'шторм + тест & "кавычки" / %';
+const yandexUrl = resolveInput(query);
+assert.equal(yandexUrl, 'https://yandex.ru/search/?text=' + encodeURIComponent(query),
+  'Yandex search uses the standard endpoint with a single URI-encoded query');
+const yandexParsed = new URL(yandexUrl);
+assert.equal(yandexParsed.pathname, '/search/');
+assert.deepEqual(Array.from(yandexParsed.searchParams.keys()), ['text']);
+assert.deepEqual(searchOf(yandexUrl), { engine: 'yandex', q: query },
+  'the encoded request round-trips through search-result detection without changing its query');
+
 const button = html.match(/<button type="button" class="sb-search"[\s\S]*?<\/button>/);
 assert(button, 'the browser-search button must exist');
 assert(button[0].includes('aria-label="Поиск по браузеру"'));

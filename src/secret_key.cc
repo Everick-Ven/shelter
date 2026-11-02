@@ -506,6 +506,65 @@ bool LoadExistingKey(std::string* key_hex, std::string* error) {
 #endif
 }
 
+// A valid password wrapper can recover the existing random key when its
+// OS-protected persistence file is missing. Restore that exact key exclusively;
+// never replace an unreadable/conflicting file or generate a replacement.
+bool PersistRecoveredKeyIfMissing(const std::string& key_hex) {
+  if (!IsHexKey(key_hex)) return false;
+  std::filesystem::path dir;
+  if (!EnsureUserDataDir(&dir, nullptr)) return false;
+  const std::filesystem::path path = dir / "secret.key";
+  const FileState state = InspectFile(path);
+  if (state == FileState::kError) return false;
+  if (state == FileState::kRegular) {
+    std::string existing, error;
+    const bool loaded = LoadExistingKey(&existing, &error);
+    const bool matches = loaded && existing == key_hex;
+    SecureClear(&existing);
+    return matches;
+  }
+
+#if defined(__APPLE__)
+  // Do not create a mirror that conflicts with a different Keychain key. If
+  // Keychain is missing, try to restore the same key there as well; if it is
+  // temporarily inaccessible, the owner-only file mirror remains a fallback.
+  std::string keychain_key;
+  const KeychainReadResult keychain =
+      ReadKeychain(kKcService, kKcAccount, &keychain_key);
+  if (keychain == KeychainReadResult::kFound) {
+    const bool matches = IsHexKey(keychain_key) && keychain_key == key_hex;
+    SecureClear(&keychain_key);
+    if (!matches) return false;
+  } else if (keychain == KeychainReadResult::kMissing) {
+    std::string observed;
+    if (StoreOrReadKeychain(key_hex, &observed) && observed != key_hex) {
+      SecureClear(&observed);
+      return false;
+    }
+    SecureClear(&observed);
+  } else {
+    SecureClear(&keychain_key);
+  }
+#endif
+
+  std::string write_error;
+  if (!StoreFileKeyExclusive(path, key_hex, &write_error)) {
+    // Another process may have restored the same key first. Accept that only
+    // after reading it back; never overwrite the winner.
+    std::string observed, read_error;
+    const bool loaded = LoadExistingKey(&observed, &read_error);
+    const bool matches = loaded && observed == key_hex;
+    SecureClear(&observed);
+    return matches;
+  }
+
+  std::string persisted_key, read_error;
+  const bool loaded = LoadExistingKey(&persisted_key, &read_error);
+  const bool matches = loaded && persisted_key == key_hex;
+  SecureClear(&persisted_key);
+  return matches;
+}
+
 constexpr char kPasswordWrapFile[] = "secret.key.password";
 constexpr std::uintmax_t kMaxPasswordWrapBytes = 1024;
 
@@ -677,8 +736,9 @@ bool SetSecretKeyPassword(const std::string& password, std::string* error) {
 }
 
 bool UnlockSecretKeyWithPassword(const std::string& password,
-                                 std::string* error) {
+                                 std::string* error, bool* persisted) {
   if (error) error->clear();
+  if (persisted) *persisted = false;
   const std::filesystem::path path = PasswordWrapPath();
   std::string wrapped;
   if (path.empty() || InspectFile(path) != FileState::kRegular ||
@@ -697,6 +757,7 @@ bool UnlockSecretKeyWithPassword(const std::string& password,
     if (error) *error = "master-key password was rejected or the wrapper is damaged";
     return false;
   }
+  const bool key_persisted = PersistRecoveredKeyIfMissing(recovered);
   {
     std::lock_guard<std::mutex> lock(g_key_mutex);
     SecureClear(&g_key_hex);
@@ -709,7 +770,10 @@ bool UnlockSecretKeyWithPassword(const std::string& password,
     g_key_last_attempt = std::chrono::steady_clock::now();
   }
   SecureClear(&recovered);
-  LogSecretKeyDiagnostic("master key unlocked with password wrapper");
+  if (persisted) *persisted = key_persisted;
+  LogSecretKeyDiagnostic(key_persisted
+      ? "master key unlocked and the existing key was verified in OS storage"
+      : "master key unlocked for this session; existing key storage was preserved");
   return true;
 }
 

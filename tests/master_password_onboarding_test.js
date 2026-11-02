@@ -55,6 +55,9 @@ assert(setup.includes('не менее 10 символов'),
   'the creation error message matches the ten-character minimum');
 assert(setup.includes('appPinOfferSetup()'),
   'completing mandatory master-password setup offers the optional local PIN shortcut');
+assert(passwordAndPinFlow.includes("result.value === 'persistent'") &&
+  passwordAndPinFlow.includes('открыт только на этот сеанс'),
+  'master-password recovery reports whether the recovered key will survive restart');
 
 assert(!ui.includes('master-password-remove'), 'the mandatory password wrapper cannot be removed in UI');
 assert(key.includes('LoadKeyLocked(true, error)'), 'fresh setup may create only the first master key');
@@ -64,6 +67,9 @@ assert(bridge.includes('if (xhr.status !== 200 || !response || response.ok !== t
 assert(!bridge.includes('secretPasswordRemove'), 'the UI bridge must not remove the mandatory wrapper');
 assert(scheme.includes('action == "status" || action == "set" || action == "unlock"'),
   'only status, setup, and recovery routes are exposed');
+assert(scheme.includes('UnlockSecretKeyWithPassword(input, &error, &key_persisted)') &&
+  scheme.includes('key_persisted ? "persistent" : "session-only"'),
+  'the UI bridge distinguishes persistent key recovery from a session-only unlock');
 assert(!scheme.includes('password-remove'), 'the native UI route must not remove the mandatory wrapper');
 
 console.log('master-password onboarding, separate recovery entry, and unchanged board persistence tests passed');

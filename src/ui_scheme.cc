@@ -134,7 +134,9 @@ CefRefPtr<CefResourceHandler> HandleSecretRequest(
     } else if (operation == "password-set") {
       ok = platform::SetSecretKeyPassword(input, &error);
     } else if (operation == "password-unlock") {
-      ok = platform::UnlockSecretKeyWithPassword(input, &error);
+      bool key_persisted = false;
+      ok = platform::UnlockSecretKeyWithPassword(input, &error, &key_persisted);
+      if (ok) output = key_persisted ? "persistent" : "session-only";
     }
   }
   if (parsed && !ok && operation != "password-set" &&

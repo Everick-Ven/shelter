@@ -555,6 +555,8 @@ jobs:
           ./secret-key-recovery-test first-run "$test_root/first-run"
           ./secret-key-recovery-test setup "$test_root/recovery"
           ./secret-key-recovery-test unlock "$test_root/recovery"
+          ./secret-key-recovery-test restart "$test_root/recovery"
+          ./secret-key-recovery-test preserve-corrupt "$test_root/corrupt"
       - name: Window mode persistence source regression test
         run: node tests/window_state_source_test.js
       - name: Compile and run path/archive safety tests

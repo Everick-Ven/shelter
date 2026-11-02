@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-JdCwFTC5owbjKVqeIziIEd2ehF3nODsiuxGt5s38IrY=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-3fuf/5KaiE8Zjey/HgaR0he7LOLpqQa/nI2aGf87Hhw=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -13456,11 +13456,15 @@ function openMasterPasswordUnlock() {
     phrase = '';
     if (password) password.value = '';
     if (result && result.ok) {
+      const keyPersisted = result.value === 'persistent';
       S.masterKeyPasswordAvailable = true;
       S.masterKeyPasswordStatusKnown = true;
       window.__shelterSecretFailure = false;
       closeModal(m);
-      toast('Мастер-ключ разблокирован. Перезагружаю данные…', { icon: 'check' });
+      toast(keyPersisted
+        ? 'Мастер-ключ доступен в защищённом хранилище. Перезагружаю данные…'
+        : 'Мастер-ключ открыт только на этот сеанс: существующее хранилище не удалось безопасно восстановить.',
+        { icon: keyPersisted ? 'check' : 'warn', ms: keyPersisted ? 5000 : 9000 });
       setTimeout(() => window.location.reload(), 80);
       return;
     }
@@ -13712,6 +13716,7 @@ async function appPinAttemptMasterPassword() {
     phrase = '';
     input.value = '';
     if (result && result.ok) {
+      const keyPersisted = result.value === 'persistent';
       S.masterKeyPasswordAvailable = true;
       S.masterKeyPasswordStatusKnown = true;
       window.__shelterSecretFailure = false;
@@ -13725,7 +13730,10 @@ async function appPinAttemptMasterPassword() {
         toast('Мастер-пароль подтверждён. Приложение открыто на этот сеанс, но PIN не удалось удалить из локального хранилища.', { icon: 'warn', ms: 9000 });
         return;
       }
-      toast('Мастер-пароль принят. Локальный PIN сброшен; данные и мастер-ключ не удалены.', { icon: 'check' });
+      toast(keyPersisted
+        ? 'Мастер-пароль принят. Ключ сохранён в защищённом хранилище; локальный PIN сброшен, данные не изменены.'
+        : 'Мастер-пароль принят только на этот сеанс; ключевое хранилище не удалось безопасно восстановить. Локальный PIN сброшен.',
+        { icon: keyPersisted ? 'check' : 'warn', ms: keyPersisted ? 5000 : 9000 });
       appPinRequestSetupOffer();
       setTimeout(() => window.location.reload(), 80);
       return;
@@ -13902,6 +13910,7 @@ function openAppPinDisable() {
       if (password) password.focus();
       return;
     }
+    const keyPersisted = result.value === 'persistent';
     S.masterKeyPasswordAvailable = true;
     S.masterKeyPasswordStatusKnown = true;
     window.__shelterSecretFailure = false;
@@ -13911,7 +13920,10 @@ function openAppPinDisable() {
       return;
     }
     closeModal(m);
-    toast('Локальная PIN-блокировка отключена. Мастер-ключ и данные не изменены.', { icon: 'check' });
+    toast(keyPersisted
+      ? 'Локальная PIN-блокировка отключена; ключ сохранён в защищённом хранилище, данные не изменены.'
+      : 'PIN отключён, но ключ открыт только на этот сеанс; системное хранилище не удалось безопасно восстановить.',
+      { icon: keyPersisted ? 'check' : 'warn', ms: keyPersisted ? 5000 : 9000 });
     setTimeout(() => window.location.reload(), 80);
   }
   root.addEventListener('click', event => {

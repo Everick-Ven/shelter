@@ -83,8 +83,12 @@ bool SecretKeyHexForDecrypt(std::string* out, std::string* error);
 // резервный способ разблокировки, не меняющий формат уже сохранённых ss1-блобов.
 bool HasSecretKeyPassword();
 bool SetSecretKeyPassword(const std::string& password, std::string* error);
+// On successful recovery, persist only the same unwrapped key when the OS key
+// file is missing. Never replace unreadable or conflicting existing key data.
+// persisted reports whether the recovered key is now available after restart.
 bool UnlockSecretKeyWithPassword(const std::string& password,
-                                 std::string* error);
+                                 std::string* error,
+                                 bool* persisted = nullptr);
 bool RemoveSecretKeyPassword(std::string* error);
 
 // Диагностическая метка без ключей, паролей и пользовательского содержимого.

@@ -110,22 +110,64 @@ void UnlockFromWrapperWithoutSystemKey() {
   assert(std::filesystem::remove(key_path, ec) && !ec);
 
   std::string key, error, ciphertext, plaintext, expected_key;
-  // Missing OS-protected key must not cause a new key file to be created.
+  bool persisted = false;
+  // Missing OS-protected key must not cause a new key file to be created until
+  // the existing key has been authenticated by the recovery wrapper.
   assert(!shelter::platform::SecretKeyHexForDecrypt(&key, &error));
+  assert(!std::filesystem::exists(key_path));
+  assert(!shelter::platform::UnlockSecretKeyWithPassword("wrong password", &error, &persisted));
+  assert(!persisted);
   assert(!std::filesystem::exists(key_path));
 
   assert(shelter::platform::UnlockSecretKeyWithPassword(
-      "aB3!xY7#qZ", &error));
+      "aB3!xY7#qZ", &error, &persisted));
+  assert(persisted);
+  assert(std::filesystem::exists(key_path));
   assert(shelter::platform::SecretKeyHexForDecrypt(&key, &error));
   assert(ReadFile(expected_path, &expected_key));
   assert(key == expected_key);
   assert(ReadFile(sample_path, &ciphertext));
   assert(shelter::secret_crypto::Decrypt(ciphertext, &plaintext));
   assert(plaintext == "preserve the existing ss1 board");
-
-  assert(!shelter::platform::RemoveSecretKeyPassword(&error));
   assert(shelter::platform::HasSecretKeyPassword());
-  assert(std::filesystem::exists(dir / "secret.key.password"));
+}
+
+void RestartLoadsRecoveredKeyWithoutPassword() {
+  const std::filesystem::path dir(g_user_data_dir);
+  const std::filesystem::path key_path = dir / "secret.key";
+  const std::filesystem::path sample_path = dir / "sample.ss1";
+  const std::filesystem::path expected_path = dir / "expected-key.txt";
+  assert(std::filesystem::exists(key_path));
+
+  std::string key, error, ciphertext, plaintext, expected_key;
+  assert(ReadFile(expected_path, &expected_key));
+  assert(shelter::platform::SecretKeyHexForDecrypt(&key, &error));
+  assert(key == expected_key);
+  assert(ReadFile(sample_path, &ciphertext));
+  assert(shelter::secret_crypto::Decrypt(ciphertext, &plaintext));
+  assert(plaintext == "preserve the existing ss1 board");
+}
+
+void ExistingUnreadableKeyIsNeverReplaced() {
+  const std::filesystem::path dir(g_user_data_dir);
+  const std::filesystem::path key_path = dir / "secret.key";
+  const std::string password = "aB3!xY7#qZ";
+  const std::string corrupt_key = "preserve-this-unreadable-key-file";
+  std::string key, error, persisted_key, after;
+  bool persisted = true;
+
+  assert(shelter::platform::SecretKeyHex(&key, &error));
+  assert(shelter::platform::SetSecretKeyPassword(password, &error));
+  WriteFile(key_path, corrupt_key);
+  assert(ReadFile(key_path, &after) && after == corrupt_key);
+
+  assert(shelter::platform::UnlockSecretKeyWithPassword(
+      password, &error, &persisted));
+  assert(!persisted);
+  assert(ReadFile(key_path, &after) && after == corrupt_key);
+  assert(shelter::platform::SecretKeyHexForDecrypt(&persisted_key, &error));
+  assert(persisted_key == key);
+  assert(ReadFile(key_path, &after) && after == corrupt_key);
 }
 }  // namespace
 
@@ -164,6 +206,12 @@ int main(int argc, char** argv) {
     FirstRunSetupCreatesAndWrapsOneKey();
   } else if (mode == "unlock") {
     UnlockFromWrapperWithoutSystemKey();
+  } else if (mode == "restart") {
+    RestartLoadsRecoveredKeyWithoutPassword();
+  } else if (mode == "preserve-corrupt") {
+    assert(!std::filesystem::exists(g_user_data_dir));
+    std::filesystem::create_directories(g_user_data_dir);
+    ExistingUnreadableKeyIsNeverReplaced();
   } else {
     assert(false && "unknown test mode");
   }

@@ -9,6 +9,15 @@
 #include "src/shell.h"
 #include "src/platform.h"
 
+#if defined(SHELTER_CI_HOOKS)
+#include <execinfo.h>
+#include <signal.h>
+#include <unistd.h>
+
+#include <cstdio>
+#include <cstdlib>
+#endif
+
 @interface ShelterAppDelegate : NSObject <NSApplicationDelegate>
 - (void)createApplication:(id)object;
 - (void)tryToTerminateApplication:(NSApplication*)app;
@@ -110,6 +119,57 @@ static NSMenuItem* AddItem(NSMenu* menu, NSString* title, SEL action, NSString* 
 }
 @end
 
+#if defined(SHELTER_CI_HOOKS)
+namespace {
+
+void CiNativeSignalHandler(int signal_number, siginfo_t* info, void* context) {
+  (void)context;
+  char header[160];
+  const int header_length = std::snprintf(
+      header, sizeof(header), "SHELTER_CI_NATIVE_CRASH signal=%d address=%p\n",
+      signal_number, info ? info->si_addr : nullptr);
+  if (header_length > 0) {
+    const size_t length =
+        static_cast<size_t>(header_length) < sizeof(header)
+            ? static_cast<size_t>(header_length)
+            : sizeof(header) - 1;
+    (void)::write(STDERR_FILENO, header, length);
+  }
+
+  void* frames[64];
+  const int frame_count = ::backtrace(frames, 64);
+  if (frame_count > 0) {
+    ::backtrace_symbols_fd(frames, frame_count, STDERR_FILENO);
+  }
+  static constexpr char footer[] = "SHELTER_CI_NATIVE_CRASH stack-end\n";
+  (void)::write(STDERR_FILENO, footer, sizeof(footer) - 1);
+
+  // SA_RESETHAND restores the default action on entry. Re-raise after logging
+  // so CI still observes the original signal and the OS can create its report.
+  (void)::kill(::getpid(), signal_number);
+}
+
+void InstallCiNativeCrashTrace() {
+  struct sigaction action {};
+  action.sa_sigaction = &CiNativeSignalHandler;
+  sigemptyset(&action.sa_mask);
+  action.sa_flags = SA_SIGINFO | SA_RESETHAND;
+  const int signals[] = {SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGSEGV, SIGTRAP};
+  for (const int signal_number : signals) {
+    if (sigaction(signal_number, &action, nullptr) != 0) {
+      static constexpr char warning[] =
+          "SHELTER_CI_NATIVE_CRASH_HANDLER_INSTALL_FAILED\n";
+      (void)::write(STDERR_FILENO, warning, sizeof(warning) - 1);
+    }
+  }
+  static constexpr char installed[] =
+      "SHELTER_CI_NATIVE_CRASH_HANDLER_INSTALLED\n";
+  (void)::write(STDERR_FILENO, installed, sizeof(installed) - 1);
+}
+
+}  // namespace
+#endif  // SHELTER_CI_HOOKS
+
 int main(int argc, char* argv[]) {
   CefScopedLibraryLoader library_loader;
   if (!library_loader.LoadInMain()) {
@@ -129,6 +189,12 @@ int main(int argc, char* argv[]) {
     if (!CefInitialize(main_args, settings, app.get(), nullptr)) {
       return CefGetExitCode();
     }
+
+#if defined(SHELTER_CI_HOOKS)
+    if (std::getenv("SHELTER_DIAG") != nullptr) {
+      InstallCiNativeCrashTrace();
+    }
+#endif
 
     ShelterAppDelegate* delegate = [[ShelterAppDelegate alloc] init];
     NSApp.delegate = delegate;

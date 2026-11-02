@@ -66,6 +66,12 @@ assert.match(popupBrowse, /!is_redirect\s*&&\s*user_gesture/);
 assert.doesNotMatch(popupBrowse, /TT_TYPED|TT_CLIENT_REDIRECT_FLAG/,
                     'automatic redirects must not launch external handlers');
 assert.match(popupBrowse, /DispatchCommunicationAppUrl\(url\)/);
+const popupOpen = from(clients, 'bool PopupClient::OnOpenURLFromTab(',
+                       'CefRefPtr<CefResourceRequestHandler> PopupClient::GetResourceRequestHandler(');
+assert.match(popupOpen, /IsCommunicationAppProtocolUrl\(url\.ToString\(\)\)/);
+assert.match(popupOpen, /if \(user_gesture\) DispatchCommunicationAppUrl\(url\.ToString\(\)\)/);
+assert.match(popupOpen, /return true/,
+             'popup protocol navigations never fall through to Chromium');
 const uiBrowse = from(clients, 'bool UiClient::OnBeforeBrowse(',
                       'void UiClient::OnRenderProcessTerminated(');
 assert.doesNotMatch(uiBrowse, /DispatchCommunicationAppUrl|LaunchCommunicationAppUrl/,

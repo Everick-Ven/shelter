@@ -81,14 +81,14 @@ assert.match(revealPathTest, /file symlink is rejected/);
 assert.match(revealPathTest, /junction in parent path is rejected/);
 
 // Windows использует Shell PIDL API, а не строку аргументов explorer.exe.
-const winShow = from(win, 'void ShowInFolder(', 'std::string ClipboardRead(');
+const winShow = from(win, 'void ShowInFolder(', 'bool LaunchCommunicationAppUrl(');
 assert.match(winShow, /SHParseDisplayName\(/);
 assert.match(winShow, /SHOpenFolderAndSelectItems\(/);
 assert.match(winShow, /ILRemoveLastID\(/);
 assert.doesNotMatch(winShow, /ShellExecuteW|explorer\.exe/);
 
 // macOS передаёт только file URL через NSWorkspace.
-const macShow = from(mac, 'void ShowInFolder(', 'std::string ClipboardRead(');
+const macShow = from(mac, 'void ShowInFolder(', 'bool LaunchCommunicationAppUrl(');
 assert.match(macShow, /fileURLWithPath/);
 assert.match(macShow, /isFileURL/);
 assert.match(macShow, /activateFileViewerSelectingURLs/);

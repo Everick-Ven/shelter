@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="graphite">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-mGWCquyfDf2jQwJTPmNRjglV53ur0PsdKSBFJtS3XIg=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-tmA3vrtguTUKLP8gu+XYayKCi6DyCz1GMqk369mJ1Ig=' 'sha256-1W2Hl3ygi72gYy9zcVe6WDbhKiLq7pOMGxj1XZEQVcQ=' 'sha256-JdCwFTC5owbjKVqeIziIEd2ehF3nODsiuxGt5s38IrY=' 'sha256-7sdykIwH1Ea3ypf0E6F9vHcBNFUKFHvfcRWkTOPnhFE=' 'sha256-4eoHN5KPN4ysST/v8w8lPInGnhmWnDugcD/hOGbfIsY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'; connect-src 'self'; worker-src 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SHELTER — Приватный браузер</title>
 <meta name="description" content="SHELTER — премиальный приватный браузер. Разработчик Golubev &amp; Kulkov.">
@@ -3921,6 +3921,9 @@ body:not([data-gfx="perf"]) :is(.bm,.ext,.q-tile:not(.add),.tabs-card,.day:not(.
 }
 body[data-gfx="perf"] :is(.pomo-global,.pomo-global *, .pomo-popover,.pomo-notice,.pomo-notice *, .pomo-ring,.pomo-ring *){animation:none!important;transition:none!important}
 
+
+
+
 </style>
 
 <style id="shelter-week-planner-style">
@@ -6058,7 +6061,8 @@ const S = {
   spaces: null, currentSpace: 'main', activeTabId: null,
   bookmarks: null, visits: [], board: null, boards: null, boardsMeta: {}, boardId: '', ext: [],
   taskMigrationOK: true, taskMigrationPending: false, taskMigrationError: '', taskMigrationPendingKeys: [], taskMigrationBackupKey: '',
-  masterKeyPasswordAvailable: false, masterKeyPasswordStatusKnown: false,
+  taskSecretKeyError: false, masterKeyPasswordAvailable: false,
+  masterKeyPasswordStatusKnown: false,
   extMode: 'engine',  // 'engine' — MV3 грузит движок Chromium, 'shell' — только оболочка
   chats: [], messages: {}, downloads: [], passwords: [], blocks: {},
   prefs: Object.assign({}, PREF_DEFAULTS), ui: Object.assign({}, UI_DEFAULTS),
@@ -6408,11 +6412,13 @@ function load() {
   const rawBoardsStore = store.get('shelter:boards');
   const parsedBoardsStore = wpStoreParse(rawBoardsStore);
   const breg = parsedBoardsStore.ok ? parsedBoardsStore.value : null;
+  S.taskSecretKeyError = (!parsedBoardStore.ok && parsedBoardStore.reason === 'key') ||
+    (!parsedBoardsStore.ok && parsedBoardsStore.reason === 'key');
   S.boards = (breg && Array.isArray(breg.boards)) ? breg.boards : null;
   S.boardId = (breg && breg.id) || '';
   let taskStoreParseError = '';
-  if (!parsedBoardStore.ok) taskStoreParseError = parsedBoardStore.reason === 'key' ? 'Не удалось расшифровать ключ shelter:board. Проверьте учётную запись ОС и повторите.' : 'Не удалось прочитать ключ shelter:board как JSON.'; else if (rawBoardStore != null && rawBoardStore !== '' && (!parsedBoardStore.value || typeof parsedBoardStore.value !== 'object' || Array.isArray(parsedBoardStore.value))) taskStoreParseError = 'Ключ shelter:board имеет неверную структуру.';
-  if (!parsedBoardsStore.ok) taskStoreParseError = taskStoreParseError || (parsedBoardsStore.reason === 'key' ? 'Не удалось расшифровать ключ shelter:boards. Проверьте учётную запись ОС и повторите.' : 'Не удалось прочитать ключ shelter:boards как JSON.'); else if (rawBoardsStore != null && rawBoardsStore !== '' && (!parsedBoardsStore.value || typeof parsedBoardsStore.value !== 'object' || !Array.isArray(parsedBoardsStore.value.boards))) taskStoreParseError = taskStoreParseError || 'Ключ shelter:boards имеет неверную структуру.';
+  if (!parsedBoardStore.ok) taskStoreParseError = parsedBoardStore.reason === 'key' ? 'Не удалось расшифровать shelter:board. Это не подтверждает потерю мастер-ключа: возможны недоступность ключа, несовпадение ключа или неподдерживаемый формат. Исходная запись не изменена.' : 'Не удалось прочитать ключ shelter:board как JSON.'; else if (rawBoardStore != null && rawBoardStore !== '' && (!parsedBoardStore.value || typeof parsedBoardStore.value !== 'object' || Array.isArray(parsedBoardStore.value))) taskStoreParseError = 'Ключ shelter:board имеет неверную структуру.';
+  if (!parsedBoardsStore.ok) taskStoreParseError = taskStoreParseError || (parsedBoardsStore.reason === 'key' ? 'Не удалось расшифровать shelter:boards. Это не подтверждает потерю мастер-ключа: возможны недоступность ключа, несовпадение ключа или неподдерживаемый формат. Исходная запись не изменена.' : 'Не удалось прочитать ключ shelter:boards как JSON.'); else if (rawBoardsStore != null && rawBoardsStore !== '' && (!parsedBoardsStore.value || typeof parsedBoardsStore.value !== 'object' || !Array.isArray(parsedBoardsStore.value.boards))) taskStoreParseError = taskStoreParseError || 'Ключ shelter:boards имеет неверную структуру.';
   wpMigrateTaskStores(breg);
   if (taskStoreParseError) {
     const copyKey = 'shelter:planner:unreadable-store-backup:' + Date.now();
@@ -14779,7 +14785,7 @@ function focusOmni() { if (!$('#hero').hidden) { const h = $('#heroInput'); h.fo
    ========================================================= */
 const ACT = {
   palette: () => openPalette(), page: el => openPage(el.dataset.page), newTab: () => (window.newTab ? window.newTab() : addTab()), closeTab: el => (window.closeTab || closeTab)(el.dataset.id), tab: el => (window.activateTab || activateTab)(el.dataset.tab),
-  spaceMenu: el => spaceMenu(el), theme: el => { if (el.closest('.settings')) setTheme(el.dataset.theme, el); }, settings: el => openSettings(el.dataset.sec), account: () => openPage('profile'), toggleSidebar: () => toggleSidebar(), toggleRail: () => toggleRail(), toggleBm: () => toggleBm(),
+  spaceMenu: el => spaceMenu(el), theme: el => { if (el.closest('.settings')) setTheme(el.dataset.theme, el); }, settings: el => openSettings(el.dataset.sec), masterKeyRetry: () => setTimeout(() => window.location.reload(), 650), account: () => openPage('profile'), toggleSidebar: () => toggleSidebar(), toggleRail: () => toggleRail(), toggleBm: () => toggleBm(),
   back: () => { if (!navArmed()) return; (window.navBack || goStackBack)(); },
   fwd: () => { if (!navArmed()) return; (window.navForward || goStackFwd)(); },
   reload: () => { progress(); const i = $('#btnRef .i'); if (i && !REDUCED()) i.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: 700, easing: 'cubic-bezier(.22,1,.36,1)' }); const tR = curTab(); const mR = urlMeta(tR ? tR.url : ''); if (tR && (mR.kind === 'site' || mR.kind === 'search') && window.shelterReload && window.shelterReload(tR.id)) return; renderView(false); },
@@ -16354,7 +16360,7 @@ function wpMigrateTaskStores(registry) {
   S.taskMigrationPending=false; S.taskMigrationPreviewShown=false; S.taskMigrationOriginalRaw=null;
   const sourceBoardRaw=store.get('shelter:board'), sourceRegistryRaw=store.get('shelter:boards');
   const parsedBoardStore=wpStoreParse(sourceBoardRaw), parsedRegistryStore=wpStoreParse(sourceRegistryRaw);
-  if(!parsedBoardStore.ok||!parsedRegistryStore.ok||(sourceBoardRaw!=null&&sourceBoardRaw!==''&&!wpIsObj(parsedBoardStore.value))||(sourceRegistryRaw!=null&&sourceRegistryRaw!==''&&(!wpIsObj(parsedRegistryStore.value)||!Array.isArray(parsedRegistryStore.value.boards)))) { S.taskMigrationOK=false; S.taskMigrationError=(!parsedBoardStore.ok&&parsedBoardStore.reason==='key')||(!parsedRegistryStore.ok&&parsedRegistryStore.reason==='key')?'Исходная доска или реестр не расшифрованы. Автоматическая миграция не запускалась; проверьте учётную запись ОС и повторите.':'Исходная доска или реестр не читаются как JSON. Автоматическая миграция не запускалась; сохраните копию и восстановите данные.'; return false; }
+  if(!parsedBoardStore.ok||!parsedRegistryStore.ok||(sourceBoardRaw!=null&&sourceBoardRaw!==''&&!wpIsObj(parsedBoardStore.value))||(sourceRegistryRaw!=null&&sourceRegistryRaw!==''&&(!wpIsObj(parsedRegistryStore.value)||!Array.isArray(parsedRegistryStore.value.boards)))) { S.taskMigrationOK=false; S.taskMigrationError=(!parsedBoardStore.ok&&parsedBoardStore.reason==='key')||(!parsedRegistryStore.ok&&parsedRegistryStore.reason==='key')?'Исходная доска или реестр не расшифрованы. Это не подтверждает потерю мастер-ключа: возможны недоступность ключа, несовпадение или неподдерживаемый формат. Автоматическая миграция не запускалась; исходные строки сохранены, задачи доступны только для чтения.':'Исходная доска или реестр не читаются как JSON. Автоматическая миграция не запускалась; сохраните копию и восстановите данные.'; return false; }
   const sourceBoards=[];
   if(wpIsObj(S.board)) sourceBoards.push(S.board);
   (Array.isArray(S.boards) ? S.boards : []).forEach(b=>{ if(wpIsObj(b)) sourceBoards.push(b); });
@@ -17810,7 +17816,7 @@ function wpRenderTaskPage() {
   wpEnsureState();
   if(!WP._viewRestored) { if(S.ui.plannerView && ['week','board','inbox','all','projects'].includes(S.ui.plannerView)) WP.view=S.ui.plannerView; WP._viewRestored=true; }
   ensureBoard();
-  const error=S.taskMigrationPending ? `<div class="wp-migration-error" role="status">${ico('info')}<span>${esc(S.taskMigrationError||'Проверьте сводку миграции перед продолжением.')}</span><button type="button" class="btn sm ghost" data-act="wpMigrationPreview">Сводка миграции</button></div>` : S.taskMigrationOK===false ? `<div class="wp-migration-error" role="alert">${ico('ban')}<span>${esc(S.taskMigrationError||'Миграция остановлена. Данные защищены и доступны только для чтения.')}</span></div>` : '';
+  const error=S.taskMigrationPending ? `<div class="wp-migration-error" role="status">${ico('info')}<span>${esc(S.taskMigrationError||'Проверьте сводку миграции перед продолжением.')}</span><button type="button" class="btn sm ghost" data-act="wpMigrationPreview">Сводка миграции</button></div>` : S.taskMigrationOK===false ? `<div class="wp-migration-error" role="alert">${ico('ban')}<span>${esc(S.taskMigrationError||'Миграция остановлена. Данные защищены и доступны только для чтения.')}</span>${S.taskSecretKeyError ? `<button type="button" class="btn sm ghost" data-act="masterKeyRetry">${IS_MAC ? 'Повторить проверку связки ключей' : 'Повторить проверку мастер-ключа'}</button>` : ''}</div>` : '';
   return `<div class="page planner-page"${wpPriorityVarsAttr(S.board)}><div class="wp-layout ${WP.sidebarCollapsed?'is-sidebar-collapsed':''} ${WP.railOpen?'is-rail-open':''}">
     <aside class="wp-rail ${WP.sidebarCollapsed?'is-collapsed':''}" aria-label="Навигация задач">
       <div class="wp-rail-brand"><div class="wp-rail-name"><span class="wp-rail-mark">${ico('tasks')}</span><span><b>Задачи</b><small>Локальный планировщик</small></span></div>${wpSidebarToggleHtml()}</div>

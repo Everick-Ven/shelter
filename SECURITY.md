@@ -8,7 +8,7 @@ Please do not publish exploitable details, browser profiles, cookies, passwords,
 
 ## Support status
 
-A formal security-support window has not yet been published. Do not assume that an older release receives security fixes. When reporting an issue, test against the newest release only after verifying its detached minisign signature and SHA-256 manifest. The project currently builds CEF 154.0.32; the CEF maintenance status and known limits are tracked in `docs/cef-maintenance.md`.
+A formal security-support window has not yet been published. Do not assume that an older release receives security fixes. When reporting an issue, test against the newest release only after verifying its detached minisign signature and SHA-256 manifest. The source tree now pins CEF 156.0.15; the Windows/macOS builds and runtime acceptance are still pending, so this is not yet an accepted upgrade. The CEF maintenance status and known limits are tracked in `docs/cef-maintenance.md`.
 
 ## Release-integrity limits
 

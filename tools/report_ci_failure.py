@@ -19,7 +19,8 @@ from crash_report_summary import is_native_report, summarize_native_report
 ERROR_RE = re.compile(
     r"\b(error|fatal|FAILED|undefined reference|cannot open|No such file"
     r"|CMake Error|is not recognized|Traceback|EXC_BAD_ACCESS|EXC_BREAKPOINT"
-    r"|SIGSEGV|SIGTRAP|Sampling process|Call graph|native sample stack)\b|"
+    r"|SIGSEGV|SIGTRAP|Sampling process|Call graph|native sample stack"
+    r"|SHELTER_CI_NATIVE_CRASH)\b|"
     r"stop reason|thread #\d+|frame #\d+|:\s*error\b",
     re.IGNORECASE,
 )
@@ -38,6 +39,11 @@ def escape_command_data(value: str) -> str:
 def summarize(lines: list[str]) -> str:
     """Keep actionable errors and a short tail within GitHub's annotation limit."""
     matches = [i for i, line in enumerate(lines) if ERROR_RE.search(line)]
+    # Preserve the in-process native trace even when noisy GPU errors appear first.
+    native_crash_matches = [i for i in matches if "SHELTER_CI_NATIVE_CRASH" in lines[i]]
+    if native_crash_matches:
+        native_crash_indices = set(native_crash_matches)
+        matches = native_crash_matches + [i for i in matches if i not in native_crash_indices]
     context: list[str] = []
     seen: set[int] = set()
     for idx in matches[:8]:

@@ -98,8 +98,8 @@ bool IsShelterSchemeUrl(const std::string& url) {
 
 bool DispatchCommunicationAppUrl(const std::string& url) {
   if (!IsCommunicationAppProtocolUrl(url)) return false;
-  // Even when the OS has no registered handler, do not send this URI back to
-  // Chromium, which would otherwise show ERR_UNKNOWN_URL_SCHEME.
+  // Даже если в ОС не зарегистрировано приложение, не отдаём URI Chromium:
+  // иначе пользователь снова увидит ERR_UNKNOWN_URL_SCHEME.
   (void)platform::LaunchCommunicationAppUrl(url);
   return true;
 }
@@ -538,7 +538,8 @@ bool TabClient::OnBeforeBrowse(CefRefPtr<CefBrowser>,
   if (IsCommunicationAppProtocolUrl(url)) {
     // External handlers can launch local applications: require a top-level
     // user gesture and reject redirects, including redirects from scripts.
-    const bool user_navigation = !is_redirect && user_gesture;
+    const bool user_navigation =
+        !is_redirect && user_gesture;
     if (frame && frame->IsMain() && user_navigation)
       DispatchCommunicationAppUrl(url);
     return true;
@@ -1041,18 +1042,24 @@ bool PopupClient::OnBeforeBrowse(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> fram
   const std::string url = request->GetURL().ToString();
   if (IsCommunicationAppProtocolUrl(url)) {
     // Match tab navigations: only explicit user actions can launch an OS app.
-    const bool user_navigation = !is_redirect && user_gesture;
+    const bool user_navigation =
+        !is_redirect && user_gesture;
     if (frame && frame->IsMain() && user_navigation)
       DispatchCommunicationAppUrl(url);
     return true;
   }
-  return IsShelterSchemeUrl(url);
+  return IsShelterSchemeUrl(request->GetURL().ToString());
 }
 
 bool PopupClient::OnOpenURLFromTab(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
-                                   const CefString&,
-                                   cef_window_open_disposition_t, bool) {
+                                   const CefString& url,
+                                   cef_window_open_disposition_t,
+                                   bool user_gesture) {
   CEF_REQUIRE_UI_THREAD();
+  if (IsCommunicationAppProtocolUrl(url.ToString())) {
+    if (user_gesture) DispatchCommunicationAppUrl(url.ToString());
+    return true;
+  }
   // Для popup нет целевой вкладки; не создаём внешние окна из него.
   return true;
 }

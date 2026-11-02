@@ -24,6 +24,9 @@ const renderer = read('src/renderer_app.cc');
 const netguardCc = read('src/netguard.cc');
 const netguardH = read('src/netguard.h');
 const scheme = read('src/ui_scheme.cc');
+const keyCc = read('src/secret_key.cc');
+const keyFile = read('src/secret_key_file.h');
+const secretCrypto = read('src/secret_crypto.cc');
 const commonCc = read('src/common.cc');
 const pslH = read('src/public_suffix.h');
 const netUtilsH = read('src/net_utils.h');
@@ -118,5 +121,33 @@ has(indexHtml, 'certAsk', 'L5 диалог решения');
 
 // L7: синхронный мост секретов ограничен восемью мегабайтами.
 has(scheme, 'kMaxSecretRequestBytes = 8u * 1024u * 1024u', 'L7 кап 8 МБ');
+
+// L8: парольная обёртка сохраняет старый ss1 master key и не создаёт
+// замену после неудачной попытки расшифровки.
+has(secretCrypto, 'SecretKeyHexForDecrypt(&key_hex, &error)', 'L8 decrypt-only key lookup');
+has(keyCc, 'LoadExistingKey', 'L8 read-only lookup path');
+has(keyCc, 'g_key_creation_blocked = true', 'L8 no replacement after decrypt failure');
+no(keyCc, 'std::call_once(g_key_once', 'L8 retryable key lookup is not permanently cached');
+has(keyCc, 'std::chrono::milliseconds(500)', 'L8 bounded retry interval');
+has(keyCc, 'secret.key.password', 'L8 separate recovery wrapper file');
+const passwordSetBody = keyCc.split('bool SetSecretKeyPassword(')[1].split('\nbool UnlockSecretKeyWithPassword(')[0];
+has(passwordSetBody, 'LoadKeyLocked(true, error)', 'L8 first-run setup creates only the original key');
+has(keyCc, 'ReplaceFileAtomically', 'L8 atomic wrapper replacement');
+has(keyFile, 'ReplaceFileAtomically', 'L8 atomic file helper');
+has(scheme, 'secret/password/', 'L8 UI-only password routes');
+has(scheme, 'password-unlock', 'L8 native password unlock route');
+has(hostBridge, 'secretPasswordUnlock', 'L8 host-bridge unlock method');
+has(hostBridge, 'if (xhr.status !== 200 || !response || response.ok !== true) return null;',
+    'L8 password status failure is not mistaken for an unconfigured wrapper');
+has(indexHtml, 'masterPasswordCanConfigure', 'L8 setup gated on readable current data');
+has(indexHtml, 'masterKeyPasswordStatusKnown', 'L8 startup distinguishes absent wrapper from status failure');
+has(indexHtml, 'mandatoryPasswordSetup = S.masterKeyPasswordStatusKnown', 'L8 first-run setup is mandatory when safe');
+has(indexHtml, 'dismiss: !required', 'L8 mandatory setup cannot be dismissed');
+has(indexHtml, 'Задать пароль и продолжить', 'L8 mandatory setup action');
+no(indexHtml, 'master-password-remove', 'L8 mandatory wrapper is not removable from settings');
+no(hostBridge, 'secretPasswordRemove', 'L8 renderer bridge cannot remove mandatory wrapper');
+no(scheme, 'password-remove', 'L8 native UI route cannot remove mandatory wrapper');
+has(indexHtml, 'masterKeyRetry', 'L8 retry after OS keychain unlock');
+has(indexHtml, 'Новый пароль не вернёт уже утраченный ключ', 'L8 recovery limitation explained');
 
 console.log('security_hardening_source_test: OK');

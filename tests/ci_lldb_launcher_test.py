@@ -187,6 +187,20 @@ class LLDBLauncherTest(unittest.TestCase):
             103,
         )
 
+    def test_macos_ci_crash_trace_catches_native_signals_in_process(self) -> None:
+        source = (ROOT / "src" / "main_mac.mm").read_text(encoding="utf-8")
+        initialize = source.index("if (!CefInitialize(")
+        install = source.index("InstallCiNativeCrashTrace();")
+        message_loop = source.index("CefRunMessageLoop();")
+        self.assertIn("#if defined(SHELTER_CI_HOOKS)", source)
+        self.assertIn("SHELTER_CI_NATIVE_CRASH", source)
+        self.assertIn("backtrace_symbols_fd", source)
+        self.assertIn("SIGSEGV", source)
+        self.assertIn("SIGBUS", source)
+        self.assertIn('std::getenv("SHELTER_DIAG")', source)
+        self.assertLess(initialize, install)
+        self.assertLess(install, message_loop)
+
     def test_removed_devtools_has_no_ci_acceptance_or_retry(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
         self.assertIn("- name: Geometry acceptance (CI hooks)", workflow)

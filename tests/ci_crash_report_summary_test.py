@@ -132,6 +132,28 @@ Thread 1:
             self.assertIn("CefBrowserHost%3A%3AShowDevTools", result.stdout)
             self.assertIn("CefBrowserHost::ShowDevTools", summary_file.read_text(encoding="utf-8"))
 
+    def test_in_process_native_signal_stack_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "geometry-app.log"
+            log.write_text(
+                "\n".join(f"[cef] ERROR: GPU diagnostic {index}" for index in range(12))
+                + "\nSHELTER_CI_NATIVE_CRASH signal=11 address=0x0\n"
+                "0 Shelter 0x0000000100012345 main + 37\n"
+                "1 libcef.dylib 0x000000010abcdeff CefBrowserHost::ShowDevTools + 95\n"
+                "SHELTER_CI_NATIVE_CRASH stack-end\n"
+                + "\n".join(f"routine cleanup line {index}" for index in range(20)),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "tools" / "report_ci_failure.py"), str(log)],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            self.assertIn("SHELTER_CI_NATIVE_CRASH", result.stdout)
+            self.assertIn("CefBrowserHost%3A%3AShowDevTools", result.stdout)
+
     def test_native_sample_call_graph_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             report = Path(temporary) / "geometry-native-sample.txt"

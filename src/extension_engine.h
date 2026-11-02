@@ -12,7 +12,7 @@
 //   * список путей фиксируется ДО старта CEF (аргумент командной строки),
 //     поэтому только что установленное расширение подхватывается при
 //     следующем запуске — интерфейс обязан говорить это честно;
-//   * Chromium 154 не грузит manifest v2, поэтому MV2-расширения остаются на
+//   * Chromium 156 не грузит manifest v2, поэтому MV2-расширения остаются на
 //     ручном внедрении content-scripts оболочкой (см. InjectExtScripts).
 //
 // Заголовок CEF-free: проверяется обычным c++ тестом без сборки CEF.
@@ -191,7 +191,7 @@ inline int ExtManifestVersionFromText(const std::string& manifest) {
   return 1;
 }
 
-// Каталог расширения с манифестом v3 и выше — то, что движок Chromium 154
+// Каталог расширения с манифестом v3 и выше — то, что движок Chromium 156
 // способен загрузить (MV2 в нём отключён).
 inline bool ExtDirIsEngineLoadable(const std::string& dir_path) {
   const std::string manifest =

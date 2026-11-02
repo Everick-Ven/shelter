@@ -27,11 +27,11 @@ configure_file(win/shelter.rc.in
                "${SHELTER_GENERATED_DIR}/shelter.rc" @ONLY)
 
 # ---- CEF ---------------------------------------------------------------------
-set(CEF_VERSION "154.0.32+g682c378+chromium-154.0.8037.58")
+set(CEF_VERSION "156.0.15+gcf671c0+chromium-156.0.8078.80")
 # SHA-256 values published for the exact official minimal CEF archives above.
 # Update both pins together with CEF_VERSION; DownloadCEF fails closed on mismatch.
-set(CEF_ARCHIVE_SHA256_WINDOWS64 "aa1f7ab28005307edcc13f95e3ce5cd9d221894b00458fb5e368c00603204a2a")
-set(CEF_ARCHIVE_SHA256_MACOSX64 "e7e17e6c899ffe6c4cb16065d6dcaf16f9735d9cd0861099558f578d40714552")
+set(CEF_ARCHIVE_SHA256_WINDOWS64 "371efdf09dce30569d9a0880727be79fea96ab5ba6f7be533c9332bb0790385a")
+set(CEF_ARCHIVE_SHA256_MACOSX64 "e2aedb3cb41cc293ff2db81245f3462c61c49e13ac137f628872889c8a36c702")
 set(CEF_CHANNEL "minimal")
 option(USE_SANDBOX "Enable CEF's per-process sandbox" ON)
 option(SHELTER_BETA_BUILD "Enable beta-only promotional code access" OFF)

@@ -705,7 +705,7 @@ void LoadExtFromDir(const fs::path& dir) {
       d->GetType("manifest_version") == VTYPE_INT) {
     e.mv = d->GetInt("manifest_version");
   }
-  // Движок Chromium 154 грузит только manifest v3 (MV2 в нём отключён), а
+  // Движок Chromium 156 грузит только manifest v3 (MV2 в нём отключён), а
   // аргумент --load-extension фиксируется при запуске процесса.
   e.engine = ExtEngineModeOn() && e.mv >= 3;
   {
@@ -2593,7 +2593,7 @@ void Shell::ExtInstall(const std::string& src) {
   if (IsChromeExtensionId(s)) {
     const std::string url =
         "https://clients2.google.com/service/update2/crx?response=redirect"
-        "&prodversion=154.0.8037.58&acceptformat=crx3&x=id%3D" + s +
+        "&prodversion=156.0.8078.80&acceptformat=crx3&x=id%3D" + s +
         "%26installsource%3Dondemand%26uc";
     CefRefPtr<CrxDownload> dl = new CrxDownload(s);
     dl->Start(url);
@@ -2629,7 +2629,7 @@ void Shell::ExtInstall(const std::string& src) {
       }
       const std::string url =
           "https://clients2.google.com/service/update2/crx?response=redirect"
-          "&prodversion=154.0.8037.58&acceptformat=crx3&x=id%3D" + id +
+          "&prodversion=156.0.8078.80&acceptformat=crx3&x=id%3D" + id +
           "%26installsource%3Dondemand%26uc";
       CefRefPtr<CrxDownload> dl = new CrxDownload(id);
       dl->Start(url);

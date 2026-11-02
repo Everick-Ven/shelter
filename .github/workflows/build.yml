@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 env:
-  CEF_VERSION_KEY: cef-154.0.32
+  CEF_VERSION_KEY: cef-156.0.15
 
 jobs:
   windows:

@@ -1,7 +1,7 @@
 # SHELTER — приватный браузер на Chromium Embedded Framework
 
 Десктопная оболочка для дизайна SHELTER (`resources/ui/index.html`). Единственный источник версии сборки — `SHELTER_VERSION` в `CMakeLists.txt`.
-Платформы: **Windows x64** и **macOS Intel (x86_64)**. Сборка использует CEF 154.0.32 (Chromium 154), а двоичные архивы закреплены по SHA-256. Статус отставания и процедура обновления: [`docs/cef-maintenance.md`](docs/cef-maintenance.md).
+Платформы: **Windows x64** и **macOS Intel (x86_64)**. Рабочая копия закрепляет кандидат CEF 156.0.15 (Chromium 156) и SHA-256 архивов; сборки и runtime acceptance Windows/macOS ещё не пройдены, поэтому обновление не принято. Статус и процедура: [`docs/cef-maintenance.md`](docs/cef-maintenance.md).
 
 ## Как это устроено
 

@@ -12,6 +12,7 @@
 #include "src/blocker.h"
 #include "src/common.h"
 #include "src/favicon_hosts.h"
+#include "src/communication_app_url.h"
 #include "src/netguard.h"
 #include "src/path_utils.h"
 #include "src/platform.h"
@@ -93,6 +94,14 @@ bool IsShelterSchemeUrl(const std::string& url) {
   const size_t colon = url.find(':');
   return colon != std::string::npos && colon <= 16 &&
          LowerAscii(url.substr(0, colon)) == kUiScheme;
+}
+
+bool DispatchCommunicationAppUrl(const std::string& url) {
+  if (!IsCommunicationAppProtocolUrl(url)) return false;
+  // Even when the OS has no registered handler, do not send this URI back to
+  // Chromium, which would otherwise show ERR_UNKNOWN_URL_SCHEME.
+  (void)platform::LaunchCommunicationAppUrl(url);
+  return true;
 }
 
 bool IsBidiControl(const std::string& text, size_t offset, size_t* length) {
@@ -519,12 +528,21 @@ void UiClient::OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
 // ============================================================================
 
 bool TabClient::OnBeforeBrowse(CefRefPtr<CefBrowser>,
-                                CefRefPtr<CefFrame>,
+                                CefRefPtr<CefFrame> frame,
                                 CefRefPtr<CefRequest> request,
-                                bool,
-                                bool) {
+                                bool user_gesture,
+                                bool is_redirect) {
   CEF_REQUIRE_UI_THREAD();
   if (!request) return true;
+  const std::string url = request->GetURL().ToString();
+  if (IsCommunicationAppProtocolUrl(url)) {
+    // External handlers can launch local applications: require a top-level
+    // user gesture and reject redirects, including redirects from scripts.
+    const bool user_navigation = !is_redirect && user_gesture;
+    if (frame && frame->IsMain() && user_navigation)
+      DispatchCommunicationAppUrl(url);
+    return true;
+  }
   CefURLParts parts;
   if (!CefParseURL(request->GetURL(), parts)) return false;
   std::string scheme = CefString(&parts.scheme).ToString();
@@ -646,6 +664,10 @@ bool TabClient::OnBeforePopup(CefRefPtr<CefBrowser> browser,
   CEF_REQUIRE_UI_THREAD();
   const std::string url = target_url.ToString();
   if (IsShelterSchemeUrl(url)) return true;
+  if (IsCommunicationAppProtocolUrl(url)) {
+    if (user_gesture) DispatchCommunicationAppUrl(url);
+    return true;
+  }
   // Рекламное окно не создаётся вообще — отсекается ещё на этапе открытия
   // страницы. Popunder ловит настоящий жест клика, поэтому проверка идёт
   // до разбора жеста: окно по списку правил не выходит ни при каком жесте.
@@ -678,10 +700,15 @@ bool TabClient::OnBeforePopup(CefRefPtr<CefBrowser> browser,
 
 bool TabClient::OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
                                  CefRefPtr<CefFrame>, const CefString& url,
-                                 cef_window_open_disposition_t, bool) {
+                                 cef_window_open_disposition_t,
+                                 bool user_gesture) {
   CEF_REQUIRE_UI_THREAD();
   const std::string target = url.ToString();
   if (IsShelterSchemeUrl(target)) return true;
+  if (IsCommunicationAppProtocolUrl(target)) {
+    if (user_gesture) DispatchCommunicationAppUrl(target);
+    return true;
+  }
   // Открытие из вкладки (клик, средняя кнопка, меню) — всегда по воле
   // пользователя, помечаем жестом, чтобы UI не принял его за попап.
   Shell::Get().OnTabNewWindow(browser, target, true);
@@ -1006,11 +1033,20 @@ void PopupClient::OnDownloadUpdated(
   if (item && item->IsInProgress() && callback) callback->Cancel();
 }
 
-bool PopupClient::OnBeforeBrowse(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
-                                 CefRefPtr<CefRequest> request, bool, bool) {
+bool PopupClient::OnBeforeBrowse(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
+                                 CefRefPtr<CefRequest> request,
+                                 bool user_gesture, bool is_redirect) {
   CEF_REQUIRE_UI_THREAD();
   if (!request) return true;
-  return IsShelterSchemeUrl(request->GetURL().ToString());
+  const std::string url = request->GetURL().ToString();
+  if (IsCommunicationAppProtocolUrl(url)) {
+    // Match tab navigations: only explicit user actions can launch an OS app.
+    const bool user_navigation = !is_redirect && user_gesture;
+    if (frame && frame->IsMain() && user_navigation)
+      DispatchCommunicationAppUrl(url);
+    return true;
+  }
+  return IsShelterSchemeUrl(url);
 }
 
 bool PopupClient::OnOpenURLFromTab(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,

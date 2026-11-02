@@ -4,10 +4,12 @@
 
 #include "src/path_utils.h"
 #include "src/platform.h"
+#include "src/communication_app_url.h"
 #include "src/security_paths.h"
 
 #include <windows.h>
 #include <bcrypt.h>
+#include <shellapi.h>
 #include <shlobj.h>
 
 #include <algorithm>
@@ -434,6 +436,15 @@ void ShowInFolder(const std::string& path) {
   SHOpenFolderAndSelectItems(folder, 1, selected, 0);
   CoTaskMemFree(folder);
   CoTaskMemFree(item);
+}
+
+bool LaunchCommunicationAppUrl(const std::string& url) {
+  if (!IsCommunicationAppProtocolUrl(url)) return false;
+  const std::wstring wide_url = Wide(url);
+  if (wide_url.empty()) return false;
+  const HINSTANCE result = ShellExecuteW(nullptr, L"open", wide_url.c_str(),
+                                         nullptr, nullptr, SW_SHOWNORMAL);
+  return reinterpret_cast<INT_PTR>(result) > 32;
 }
 
 std::string ClipboardRead() {

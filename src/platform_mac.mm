@@ -19,6 +19,7 @@
 
 #include "src/path_utils.h"
 #include "src/platform.h"
+#include "src/communication_app_url.h"
 #include "src/security_paths.h"
 
 namespace shelter {
@@ -333,6 +334,17 @@ void ShowInFolder(const std::string& path) {
   NSURL* file_url = [NSURL fileURLWithPath:path_string];
   if (!file_url || !file_url.isFileURL) return;
   [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[file_url]];
+}
+
+bool LaunchCommunicationAppUrl(const std::string& url) {
+  if (!IsCommunicationAppProtocolUrl(url)) return false;
+  @autoreleasepool {
+    NSString* string = [NSString stringWithUTF8String:url.c_str()];
+    if (!string) return false;
+    NSURL* target = [NSURL URLWithString:string];
+    if (!target || !target.scheme) return false;
+    return [[NSWorkspace sharedWorkspace] openURL:target];
+  }
 }
 
 std::string ClipboardRead() {

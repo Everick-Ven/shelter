@@ -74,6 +74,7 @@ set(SHELTER_COMMON_SRCS
   src/ui_scheme.cc src/ui_scheme.h
   src/key_map.cc src/key_map.h
   src/clients.cc src/clients.h src/favicon_hosts.h src/extension_match.h
+  src/communication_app_url.h
   src/extension_engine.h src/color_scheme.h
   src/blocker.cc src/blocker.h
   src/netguard.cc src/netguard.h

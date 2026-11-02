@@ -491,6 +491,8 @@ jobs:
         run: node tests/open_external_removal_test.js
       - name: NavUrl scheme security regression test
         run: node tests/nav_url_security_test.js
+      - name: Communication-app URI protocol regression test
+        run: node tests/communication_app_protocol_test.js
       - name: CI-only hook configuration regression test
         run: node tests/ci_hooks_test.js
       - name: Compile and run CRX3 format tests

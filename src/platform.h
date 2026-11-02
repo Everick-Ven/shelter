@@ -32,6 +32,9 @@ std::string DownloadsDir();
 // Показать файл в Проводнике / Finder.
 void ShowInFolder(const std::string& path);
 
+// Открыть только явно разрешённый протокол приложения/коммуникационного сервиса.
+bool LaunchCommunicationAppUrl(const std::string& url);
+
 // Буфер обмена (текст, UTF-8).
 std::string ClipboardRead();
 bool ClipboardWrite(const std::string& text);

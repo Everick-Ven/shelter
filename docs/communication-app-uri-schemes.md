@@ -1,6 +1,6 @@
 # Allowlisted communication URI schemes
 
-**Reviewed:** 2026-11-02. **Scope:** vendor/spec documentation review and source-level tests; no Windows/macOS app-handler runtime test was performed.
+**Reviewed:** 2026-11-02. **Scope:** vendor/spec review, source-level tests, and the reported Zoom invite URI shape; no Windows/macOS app-handler runtime test was performed.
 
 SHELTER passes an external URI to the operating system only when its scheme is in the explicit allowlist in `src/communication_app_url.h`. A top-level tab or popup must have a CEF-reported user gesture; merely typing a URI is not a separate authorization path. Redirects, script navigations without such a gesture, subframes, and the privileged `shelter://` UI do not launch an external application. The platform launch functions repeat the allowlist check.
 
@@ -15,6 +15,7 @@ Ordinary `https://` universal/app links stay as HTTPS navigations in Chromium; S
 | `slack` | Slack desktop/mobile deep links such as `slack://open?team=...` | [Slack — Deep linking into Slack](https://docs.slack.dev/interactivity/deep-linking/) |
 | `msteams` | Direct Microsoft Teams desktop deep links | [Microsoft Learn — Deep links overview](https://learn.microsoft.com/en-us/microsoftteams/platform/concepts/build-and-test/deep-links). Microsoft recommends HTTPS unless the desktop client is known to be installed. |
 | `zoommtg` | Zoom client deep links used by the documented external-browser authentication flow | [Zoom — Authentication](https://developers.zoom.us/docs/zoom-apps/authentication/) |
+| `zoomus` | Zoom meeting invitations observed as `zoomus://<web-host>.zoom.us/join?...`; only this explicit scheme is dispatched | Observed in the reported invite. Android/iOS SDK references do not prove a desktop handler is installed ([Android](https://developers.zoom.us/docs/meeting-sdk/android/resource/launch-zoom-client-from-your-app/), [iOS](https://developers.zoom.us/docs/meeting-sdk/ios/resource/launch-zoom-client-from-your-app/)); verify the OS handler at runtime. |
 | `webextel` | Cisco Webex click-to-call links | [Cisco Webex — Cross-launch URL for sign-in and calling](https://help.webex.com/en-us/article/n45mhmab/Webex-App-%7C-Cross-launch-URL-for-sign-in-and-calling) |
 | `matrix` | Matrix entity links, in opaque or authority form | [Matrix Specification — Matrix URI scheme](https://spec.matrix.org/latest/appendices/#matrix-uri-scheme) |
 | `facetime` | FaceTime video call links | [Apple — FaceTime Links](https://developer.apple.com/library/archive/featuredarticles/iPhoneURLScheme_Reference/FacetimeLinks/FacetimeLinks.html) |
@@ -28,7 +29,6 @@ The native parser additionally enforces ASCII scheme syntax, case-insensitive ma
 
 - `whatsapp://` is not included. Meta's public business-link examples use HTTPS links such as `https://wa.me/...`; those remain HTTPS and are not rewritten by SHELTER. See [Meta — QR codes and short links](https://developers.facebook.com/documentation/business-messaging/whatsapp/qr-codes).
 - `line://` is not included because LINE marks it deprecated and documents a takeover risk; its documented current links use HTTPS. See [LINE Developers — Use LINE features with the LINE URL scheme](https://developers.line.biz/en/docs/messaging-api/using-line-url-scheme/).
-- `zoomus://` is not included: Zoom's SDK examples document it for Android/iOS; the desktop handler used here is `zoommtg`. See [Zoom Meeting SDK — Android](https://developers.zoom.us/docs/meeting-sdk/android/resource/launch-zoom-client-from-your-app/) and [iOS](https://developers.zoom.us/docs/meeting-sdk/ios/resource/launch-zoom-client-from-your-app/).
 - `viber://` is not included because the vendor's deep-link examples target mobile flows and do not confirm Windows/macOS desktop handling. See [Viber — Deep links](https://developers.viber.com/docs/tools/deep-links/).
 - `facetime-audio://` is not included because Apple documents that variant for iOS only; the allowlist keeps the desktop-relevant `facetime://` form. See [Apple — FaceTime Links](https://developer.apple.com/library/archive/featuredarticles/iPhoneURLScheme_Reference/FacetimeLinks/FacetimeLinks.html).
 - `discord`, `weixin`, `webex`, `ms-teams`, `skype`, and other app-specific aliases are not included unless a supported scheme and form can be confirmed from the vendor's current documentation. For Webex, only the documented `webextel` call handler is included; authentication handlers are not.

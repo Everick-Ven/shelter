@@ -12,6 +12,9 @@ int main() {
   const std::vector<Case> cases = {
       // Explicitly documented meeting and collaboration protocol handlers.
       {"zoommtg://zoom.us/join?action=join&confno=123456789", true},
+      {"zoomus://us05web.zoom.us/join?action=join&confno=123456789"
+       "&pwd=redacted&confid=redacted&browser=chrome",
+       true},
       {"msteams://teams.microsoft.com/l/meetup-join/123", true},
       {"webextel://login?telephone=123456789", true},
       // Explicitly documented messenger protocols.

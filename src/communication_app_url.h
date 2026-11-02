@@ -53,6 +53,7 @@ inline bool FindSchemeRule(const std::string& url, std::size_t length,
       {"slack", UriSyntax::kAuthority},
       {"webextel", UriSyntax::kAuthority},
       {"zoommtg", UriSyntax::kAuthority},
+      {"zoomus", UriSyntax::kAuthority},
   };
   // System-level communication and the Matrix URI scheme.
   constexpr SchemeRule kOpaqueSchemes[] = {

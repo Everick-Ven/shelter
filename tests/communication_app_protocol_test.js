@@ -30,7 +30,7 @@ for (const scheme of [
 }
 for (const scheme of [
   'whatsapp', 'discord', 'line', 'weixin', 'webex', 'ms-teams', 'skype',
-  'zoomus', 'viber', 'facetime-audio', 'telemost', 'gotomeeting',
+  'viber', 'facetime-audio', 'telemost', 'gotomeeting',
   'jitsi-meet', 'threema', 'wire', 'mattermost',
   'rocketchat', 'kakaotalk', 'callto'
 ]) {

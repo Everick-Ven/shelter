@@ -23,14 +23,14 @@ const from = (text, start, end) => {
 };
 
 for (const scheme of [
-  'tg', 'sgnl', 'slack', 'msteams', 'zoommtg', 'webextel',
+  'tg', 'sgnl', 'slack', 'msteams', 'zoommtg', 'zoomus', 'telemost', 'webextel',
   'matrix', 'facetime', 'mailto', 'tel', 'sms'
 ]) {
   assert.ok(helper.includes(`"${scheme}"`), `missing allowlisted protocol: ${scheme}`);
 }
 for (const scheme of [
   'whatsapp', 'discord', 'line', 'weixin', 'webex', 'ms-teams', 'skype',
-  'viber', 'facetime-audio', 'telemost', 'gotomeeting',
+  'viber', 'facetime-audio', 'gotomeeting',
   'jitsi-meet', 'threema', 'wire', 'mattermost',
   'rocketchat', 'kakaotalk', 'callto'
 ]) {

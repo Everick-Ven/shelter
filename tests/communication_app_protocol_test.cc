@@ -10,11 +10,12 @@ int main() {
     bool expected;
   };
   const std::vector<Case> cases = {
-      // Explicitly documented meeting and collaboration protocol handlers.
+      // Documented handlers and URI forms observed in invite flows.
       {"zoommtg://zoom.us/join?action=join&confno=123456789", true},
       {"zoomus://us05web.zoom.us/join?action=join&confno=123456789"
        "&pwd=redacted&confid=redacted&browser=chrome",
        true},
+      {"telemost://https//telemost.yandex.ru/j/123456789", true},
       {"msteams://teams.microsoft.com/l/meetup-join/123", true},
       {"webextel://login?telephone=123456789", true},
       // Explicitly documented messenger protocols.
@@ -56,6 +57,9 @@ int main() {
       {"facetime:+15551234567", false},
       {"zoomus:///", false},
       {"zoomus:launch", false},
+      {"telemost://", false},
+      {"telemost:///", false},
+      {"telemost:join", false},
       {"zoommtg://zoom.us/join\n?confno=123456789", false},
       {"zoommtg://zoom.us/join\t?confno=123456789", false},
       {"zoommtg-eval://zoom.us/join", false},

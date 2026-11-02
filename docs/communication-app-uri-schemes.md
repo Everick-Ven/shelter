@@ -1,6 +1,6 @@
 # Allowlisted communication URI schemes
 
-**Reviewed:** 2026-11-02. **Scope:** vendor/spec review, source-level tests, and the reported Zoom invite URI shape; no Windows/macOS app-handler runtime test was performed.
+**Reviewed:** 2026-11-02. **Scope:** vendor/spec review, source-level tests, and the reported Zoom/Telemost invite handoffs; no Windows/macOS app-handler runtime test was performed.
 
 SHELTER passes an external URI to the operating system only when its scheme is in the explicit allowlist in `src/communication_app_url.h`. A top-level tab or popup must have a CEF-reported user gesture; merely typing a URI is not a separate authorization path. Redirects, script navigations without such a gesture, subframes, and the privileged `shelter://` UI do not launch an external application. The platform launch functions repeat the allowlist check.
 
@@ -16,6 +16,7 @@ Ordinary `https://` universal/app links stay as HTTPS navigations in Chromium; S
 | `msteams` | Direct Microsoft Teams desktop deep links | [Microsoft Learn — Deep links overview](https://learn.microsoft.com/en-us/microsoftteams/platform/concepts/build-and-test/deep-links). Microsoft recommends HTTPS unless the desktop client is known to be installed. |
 | `zoommtg` | Zoom client deep links used by the documented external-browser authentication flow | [Zoom — Authentication](https://developers.zoom.us/docs/zoom-apps/authentication/) |
 | `zoomus` | Zoom meeting invitations observed as `zoomus://<web-host>.zoom.us/join?...`; only this explicit scheme is dispatched | Observed in the reported invite. Android/iOS SDK references do not prove a desktop handler is installed ([Android](https://developers.zoom.us/docs/meeting-sdk/android/resource/launch-zoom-client-from-your-app/), [iOS](https://developers.zoom.us/docs/meeting-sdk/ios/resource/launch-zoom-client-from-your-app/)); verify the OS handler at runtime. |
+| `telemost` | Yandex Telemost desktop handoff observed as `telemost://https//telemost.yandex.ru/j/<id>`; only this exact scheme is dispatched | Observed in the reported invite failure. [Yandex's join instructions](https://yandex.com/support/yandex-360/customers/telemost/desktop/en/call/join) cover link-based calls but do not document this OS protocol; verify the installed handler at runtime. |
 | `webextel` | Cisco Webex click-to-call links | [Cisco Webex — Cross-launch URL for sign-in and calling](https://help.webex.com/en-us/article/n45mhmab/Webex-App-%7C-Cross-launch-URL-for-sign-in-and-calling) |
 | `matrix` | Matrix entity links, in opaque or authority form | [Matrix Specification — Matrix URI scheme](https://spec.matrix.org/latest/appendices/#matrix-uri-scheme) |
 | `facetime` | FaceTime video call links | [Apple — FaceTime Links](https://developer.apple.com/library/archive/featuredarticles/iPhoneURLScheme_Reference/FacetimeLinks/FacetimeLinks.html) |
